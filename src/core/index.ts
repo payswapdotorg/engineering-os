@@ -55,19 +55,84 @@ export interface ImpactResult {
  * so a change in B affects A. `supersedes`, `scheduled_as` and `approved_by`
  * are excluded. Cycles are tolerated; evidence keeps the first (shortest,
  * BFS) path found per affected node. Roots themselves are never "affected".
+ *
+ * Hardened edge-case contract (pinned by src/core/graph.test.ts):
+ *  - multiple roots are all seeded at BFS depth 0 (union of their impact sets)
+ *  - duplicate roots are collapsed; root order decides evidence-path ties
+ *  - a node affected via two paths appears once, keeping the first-found
+ *    (shortest, BFS) evidence path
+ *  - cycles are tolerated (each node is visited at most once) and self-loops
+ *    are ignored outright
+ *  - non-impact relations (`supersedes`, `scheduled_as`, `approved_by`) never
+ *    propagate — neither as an entry into the impact set nor THROUGH an
+ *    already-affected node
+ *  - malformed edges (empty-string endpoints) are skipped instead of crashing
  */
 export function computeImpact(roots: string[], edges: GraphEdge[]): ImpactResult {
+  const { affected, paths } = walkImpact(roots, edges)
+  return { affected, paths }
+}
+
+export interface ImpactDescription {
+  affected: string[]
+  /** evidence path per affected node: [changed root, …, affected] */
+  paths: Record<string, string[]>
+  /**
+   * Relation type of the final edge that pulled each affected node into the
+   * impact set — e.g. `{ ["rev_x"]: "derived_from" }` lets the UI badge read
+   * "stale: derived_from rev_x". Keys are exactly the affected node ids;
+   * values are `RelationType` (a string subtype, so this satisfies
+   * `Record<string, string>` consumers as well).
+   */
+  via: Record<string, RelationType>
+}
+
+/**
+ * Impact set + evidence for the UI staleness badge. Same traversal and
+ * hardening contract as `computeImpact`, plus the `via` relation map.
+ */
+export function describeImpact(roots: string[], edges: GraphEdge[]): ImpactDescription {
+  return walkImpact(roots, edges)
+}
+
+interface ImpactWalk {
+  affected: string[]
+  paths: Record<string, string[]>
+  via: Record<string, RelationType>
+}
+
+/**
+ * Shared BFS over incoming impact edges (internal). Edge A→B reads
+ * "A {relation} B": a change in B makes A stale, then A's own dependents are
+ * reached transitively — but only along `IMPACT_RELATIONS` edges.
+ */
+function walkImpact(roots: string[], edges: GraphEdge[]): ImpactWalk {
+  // Index incoming edges per target node. Self-loops (e.from === e.to) and
+  // malformed edges with empty endpoints are dropped here — they can never
+  // propagate impact and would otherwise pollute the traversal.
   const incoming = new Map<string, GraphEdge[]>()
   for (const e of edges) {
+    if (e.from === "" || e.to === "") continue
+    if (e.from === e.to) continue
     const list = incoming.get(e.to)
     if (list) list.push(e)
     else incoming.set(e.to, [e])
   }
 
-  const seen = new Set<string>(roots)
+  // Seed the queue with the changed roots, de-duplicated in first-seen order.
+  // `seen` starts with the roots, which is what guarantees roots never appear
+  // in `affected` — a changed node is a cause, not a consequence.
+  const seen = new Set<string>()
+  const queue: Array<{ node: string; path: string[] }> = []
+  for (const r of roots) {
+    if (r === "" || seen.has(r)) continue
+    seen.add(r)
+    queue.push({ node: r, path: [r] })
+  }
+
   const affected: string[] = []
   const paths: Record<string, string[]> = {}
-  const queue: Array<{ node: string; path: string[] }> = roots.map((r) => ({ node: r, path: [r] }))
+  const via: Record<string, RelationType> = {}
 
   while (queue.length > 0) {
     const cur = queue.shift()!
@@ -75,15 +140,16 @@ export function computeImpact(roots: string[], edges: GraphEdge[]): ImpactResult
     if (!toHere) continue
     for (const e of toHere) {
       if (!IMPACT_RELATIONS.has(e.relation)) continue
-      if (e.from === e.to || seen.has(e.from)) continue
+      if (seen.has(e.from)) continue
       seen.add(e.from)
       const path = [...cur.path, e.from]
       affected.push(e.from)
       paths[e.from] = path
+      via[e.from] = e.relation
       queue.push({ node: e.from, path })
     }
   }
-  return { affected, paths }
+  return { affected, paths, via }
 }
 
 // ---------------------------------------------------------------------------
@@ -150,3 +216,12 @@ export type WorkflowState = (typeof WORKFLOW_STATES)[number]
 export function isWorkflowState(v: string): v is WorkflowState {
   return (WORKFLOW_STATES as readonly string[]).includes(v)
 }
+
+// ---------------------------------------------------------------------------
+// Quantity ledger & estimating domain model
+// ---------------------------------------------------------------------------
+// Phase-3-ready domain types + zod validation + deterministic estimate math,
+// per docs/03-data/quantity-ledger-schema.md. Re-exported here so consumers
+// import the whole core domain from a single module; no name collisions with
+// the graph/approval vocabulary above.
+export * from "./ledger"
