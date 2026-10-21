@@ -22,17 +22,25 @@ import {
  * from a value DECLARED inside the fixture file authored by the committed
  * generator. The adapter is never compared against itself.
  *
- * IFC tests run ONLY if IfcOpenShell is actually importable in the engine venv;
- * otherwise they are skipped with an explicit printed reason (a skipped test
- * with a reason is honest; a fake result is a firing offense).
+ * STEP (cadquery) and IFC (IfcOpenShell) tests run ONLY if the engine is
+ * actually importable in the venv the bridge spawns; otherwise they are
+ * skipped with an explicit printed reason (a skipped test with a reason is
+ * honest; a fake result is a firing offense). Same guard as mesh.test.ts.
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const fixtures = path.resolve(here, "..", "..", "..", "tests", "fixtures")
 const PYTHON_BIN = process.env.EOS_PYTHON ?? "/home/z/.venv/bin/python3"
 
-// Real-availability probe (no mocks): the IFC tests only run if the engine is
-// genuinely importable in the venv the bridge spawns.
+// Real-availability probes (no mocks): the real-engine tests only run if the
+// engine is genuinely importable in the venv the bridge spawns.
+const stepAvailable =
+  spawnSync(PYTHON_BIN, ["-c", "import cadquery"], { timeout: 20_000 }).status === 0
+if (!stepAvailable) {
+  console.log(
+    `[quantities.test.ts] STEP adapter tests SKIPPED: cadquery is not importable in ${PYTHON_BIN} (recorded honestly — no results are simulated)`,
+  )
+}
 const ifcAvailable =
   spawnSync(PYTHON_BIN, ["-c", "import ifcopenshell"], { timeout: 20_000 }).status === 0
 if (!ifcAvailable) {
@@ -73,7 +81,7 @@ describe("supportsDerive (extension → adapter-kind mapping)", () => {
   })
 })
 
-describe("deriveFromFile — STEP via cadquery/OCCT (real engine run)", () => {
+describe.skipIf(!stepAvailable)("deriveFromFile — STEP via cadquery/OCCT (real engine run)", () => {
   test(
     "bracket-solid.step: engine values match hand-derived analytic closed forms (±2%)",
     async () => {
