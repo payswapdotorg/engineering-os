@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "note": "Seed registry (TL). Worker 2 replaces this file with the full source-verified inventory (~30 engines, upstream.verified=true with method+date). verified=false rows carry best-known data that still requires upstream confirmation before any 'installed/available' capability claim.",
+  "engines": [
+    {
+      "key": "freecad",
+      "name": "FreeCAD",
+      "domain": "cad",
+      "description": "Parametric 3D CAD modeler with technical drawing workbenches; headless scripting via FreeCADCmd.",
+      "upstream": {
+        "canonical": "https://github.com/FreeCAD/FreeCAD",
+        "repo": "FreeCAD/FreeCAD",
+        "licenseSpdx": "LGPL-2.1-or-later",
+        "latestStable": "1.0.1",
+        "verified": false,
+        "verifiedAt": null,
+        "verifiedMethod": null
+      },
+      "integration": {
+        "mechanisms": ["cli", "python-module", "native-process"],
+        "notes": "FreeCADCmd headless scripting; GUI opens for interactive editing (Phase 2)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["FreeCADCmd", "freecadcmd", "freecad"],
+          "versionArgs": ["--version"],
+          "versionRegex": "FreeCAD\\s+([0-9][0-9A-Za-z.+-]*)"
+        }
+      ],
+      "state": "planned",
+      "limitations": ["DWG read/write requires external converter (LibreDWG) — separate compatibility program"]
+    },
+    {
+      "key": "ifcopenshell",
+      "name": "IfcOpenShell",
+      "domain": "bim",
+      "description": "IFC toolkit and Bonsai (BlenderBIM) add-on; IFC parsing, authoring and quantity utilities.",
+      "upstream": {
+        "canonical": "https://github.com/IfcOpenShell/IfcOpenShell",
+        "repo": "IfcOpenShell/IfcOpenShell",
+        "licenseSpdx": "LGPL-3.0-or-later",
+        "latestStable": "0.8.0",
+        "verified": false,
+        "verifiedAt": null,
+        "verifiedMethod": null
+      },
+      "integration": {
+        "mechanisms": ["python-module", "cli"],
+        "notes": "python module for model-derived quantities and validation (Phase 3); Bonsai inside Blender for native editing (Phase 2)."
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "ifcopenshell",
+          "moduleVersionExpr": "import ifcopenshell; print(ifcopenshell.version)"
+        }
+      ],
+      "state": "planned",
+      "limitations": []
+    },
+    {
+      "key": "kicad",
+      "name": "KiCad",
+      "domain": "ee",
+      "description": "Schematic capture and PCB design (EDA).",
+      "upstream": {
+        "canonical": "https://github.com/KiCad/kicad",
+        "repo": "KiCad/kicad",
+        "licenseSpdx": "AGPL-3.0-only",
+        "latestStable": "9.0",
+        "verified": false,
+        "verifiedAt": null,
+        "verifiedMethod": null
+      },
+      "integration": {
+        "mechanisms": ["cli", "native-process"],
+        "notes": "kicad-cli for headless exports (gerber/step/netlist) — Phase 5 EE pack."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["kicad-cli"],
+          "versionArgs": ["--version"],
+          "versionRegex": "([0-9][0-9.]*)"
+        }
+      ],
+      "state": "planned",
+      "limitations": ["AGPL — arm's-length process integration only (ADR-0004)"]
+    }
+  ]
+}

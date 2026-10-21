@@ -1,0 +1,14 @@
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('Engineering OS storage round-trip fixture'),'2;1');
+FILE_NAME('bracket.step','2025-01-01T00:00:00',('Engineering OS'),('Engineering OS'),'Manual','');
+FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));
+ENDSEC;
+DATA;
+#1=CARTESIAN_POINT('',(0.,0.,0.));
+#2=CARTESIAN_POINT('',(1.,0.,0.));
+#3=DIRECTION('',(1.,0.,0.));
+#4=DIRECTION('',(0.,0.,1.));
+#5=VECTOR('',#3,1.);
+ENDSEC;
+END-ISO-10303-21;

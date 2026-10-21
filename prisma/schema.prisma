@@ -1,0 +1,127 @@
+// Engineering OS — Phase-1 data schema
+// Production target: PostgreSQL (ADR-0003). Dev backend: SQLite (same schema).
+// Rules: no SQLite-specific features; JSON payloads stored as String; enums as
+// plain String, validated at the boundary (zod + src/core state machines).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String        @id
+  slug        String        @unique
+  name        String
+  discipline  String // see src/lib/disciplines.ts
+  description String?
+  status      String        @default("active")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  artifacts   Artifact[]
+  members     TeamMember[]
+  events      AuditEvent[]
+  workflows   Workflow[]
+}
+
+model TeamMember {
+  id        String   @id
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  role      String   @default("editor") // owner | editor | viewer (src/core)
+  addedAt   DateTime @default(now())
+
+  @@unique([projectId, name])
+}
+
+model Artifact {
+  id               String            @id
+  projectId        String
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind             String // model|drawing|document|dataset|calculation|report|other
+  name             String
+  description      String?
+  latestRevisionId String?           @unique
+  latestRevision   ArtifactRevision? @relation("LatestRevision", fields: [latestRevisionId], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  revisions        ArtifactRevision[]
+  linksFrom        ArtifactLink[]     @relation("From")
+  linksTo          ArtifactLink[]     @relation("To")
+
+  @@index([projectId])
+}
+
+model ArtifactRevision {
+  id           String      @id
+  artifactId   String
+  artifact     Artifact     @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  revNumber    Int
+  contentHash  String // sha256 of exact bytes
+  sizeBytes    Int
+  storageKey   String // relative path inside content store
+  mimeType     String?
+  note         String?
+  approvalState String      @default("draft") // draft|in_review|approved|superseded (src/core)
+  staleness    String      @default("current") // current|stale|recomputing (src/core)
+  uploadedBy   String      @default("local-operator")
+  createdAt    DateTime    @default(now())
+  latestOf     Artifact[]  @relation("LatestRevision")
+
+  @@unique([artifactId, revNumber])
+  @@index([contentHash])
+}
+
+model ArtifactLink {
+  id             String   @id
+  fromArtifactId String
+  toArtifactId   String
+  relationType   String // one of src/core RELATION_TYPES
+  createdBy      String   @default("local-operator")
+  createdAt       DateTime @default(now())
+  fromArtifact   Artifact @relation("From", fields: [fromArtifactId], references: [id], onDelete: Cascade)
+  toArtifact     Artifact @relation("To", fields: [toArtifactId], references: [id], onDelete: Cascade)
+
+  @@unique([fromArtifactId, toArtifactId, relationType])
+}
+
+model EngineProbeResult {
+  id             String   @id
+  engineKey      String   @unique
+  state          String // installed | not_installed
+  version        String?
+  executablePath String?
+  probeOutput    String?
+  probedAt       DateTime @default(now())
+}
+
+model Workflow {
+  id         String    @id
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name       String
+  state      String    @default("draft") // src/core WORKFLOW_STATES; execution ships Phase 4
+  definition String? // JSON text (typed steps)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model AuditEvent {
+  id         String   @id
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actorType  String   @default("user") // user|agent|system
+  actorId    String   @default("local-operator")
+  action     String
+  entityType String
+  entityId   String
+  detail     String? // JSON text
+  createdAt  DateTime @default(now())
+
+  @@index([projectId, createdAt])
+}

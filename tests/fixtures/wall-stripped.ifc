@@ -1,0 +1,18 @@
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('Engineering OS storage round-trip fixture'),'2;1');
+FILE_NAME('wall-stripped.ifc','2025-01-01T00:00:00',('Engineering OS'),('Engineering OS'),'Manual','');
+FILE_SCHEMA(('IFC4'));
+ENDSEC;
+DATA;
+#1=IFCPROJECT('1rUnE8CnPHBwLdZzIqZkf0',$,'Fixture Project',$,$,$,$,(#2),#8);
+#2=IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.E-05,#3,$);
+#3=IFCAXIS2PLACEMENT3D(#4,$,$);
+#4=IFCCARTESIANPOINT((0.,0.,0.));
+#5=IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.);
+#6=IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.);
+#7=IFCSIUNIT(*,.VOLUMEUNIT.,$,.CUBIC_METRE.);
+#8=IFCUNITASSIGNMENT((#5,#6,#7));
+#20=IFCWALL('3pPFEhtH5DO9fEx2WvU_$X',$,'Fixture Wall',$,$,$,$,$,$);
+ENDSEC;
+END-ISO-10303-21;

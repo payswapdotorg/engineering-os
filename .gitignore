@@ -1,0 +1,37 @@
+# --- dependencies / build artifacts ---
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- runtime data (project data never enters git; artifacts live in data/) ---
+db/*.db
+db/*.db-journal
+data/
+
+# --- sandbox / session artifacts that are not part of the product ---
+dev.log
+server.log
+worklog.md
+tool-results/
+download/
+replay-stack/
+mini-services/
+examples/
+packets/
+screenshots/
+.zscripts/
+_attic/
+*.pid
+/*.png
+
+# legacy demo media from previous sandbox sessions (not part of this product)
+public/r606*/
+public/panoramas/
+
+# --- secrets & local configuration ---
+.env
+.env*.local
+.DS_Store
