@@ -1,12 +1,13 @@
 # Engine Inventory — source-verified audit
 
-Owner: Worker 2 (Engines & Integration) · Audit date: **2026-10-21** · Adapter update: **2026-10-21 (W2-b — first real adapters)** · Registry: [`src/engines/registry.json`](../../src/engines/registry.json) · Contract: [ADR-0005](../adr/0005-engine-integration-contract.md) · License policy: [ADR-0004](../adr/0004-license-and-copyleft-boundary.md)
+Owner: Worker 2 (Engines & Integration) · Audit date: **2026-10-21** · Adapter update: **2026-10-21 (W2-b — first real adapters)** · Validation update: **2026-10-21 (W2-c — benchmark harness)** · Registry: [`src/engines/registry.json`](../../src/engines/registry.json) · Contract: [ADR-0005](../adr/0005-engine-integration-contract.md) · License policy: [ADR-0004](../adr/0004-license-and-copyleft-boundary.md)
 
 ## Honest status — read first
 
 - **35 engines** are now tracked (34 audited upstream + **cadquery**, added 2026-10-21 when it became the first real adapter engine). All upstream records are source-verified; see [Audit method](#audit-method).
 - **3 engines are installed on the dev host (2026-10-21):** cadquery 2.6.1 and ifcopenshell 0.9.0.post1 in the uv venv `/home/z/.venv` (both installed/verified live during W2-b — ifcopenshell via `uv pip install`, network available), plus LibreOffice 25.2.3.2 on PATH (TL baseline re-verification, worklog.md). Registry `state` for cadquery and ifcopenshell is **`tested`** — see [First real engine adapters (W2-b)](#first-real-engine-adapters-w2-b-2026-10-21) for evidence. **Every other engine remains `planned`**: no capability is marked complete because a dependency exists (ADR-0005).
 - **The first REAL engine adapters shipped 2026-10-21 (W2-b):** model-derived quantities from STEP (cadquery/OCCT) and IFC (IfcOpenShell) — no simulated results, ever. Details and analytic cross-checks: [below](#first-real-engine-adapters-w2-b-2026-10-21).
+- **The adapters are benchmark-corpus VALIDATED since 2026-10-21 (W2-c):** a committed validation harness drives the real production bridge over 11 corpus cases with hand-derived closed-form ground truth — set equality, bitwise determinism and honest error probes; **11 pass / 0 fail** on the pinned engines, and the IFC mesh-fallback error on a curved column is quantified honestly (0.32% volume / 0.10% area). Evidence: [Validation harness section](#validation-harness-w2-c-2026-10-21) + [`validation-report.md`](validation-report.md).
 - **Bundling/redistribution of any engine is a Phase-6 release-gate activity**: exact upstream repo, tag/commit and license text must be re-verified at release time (ADR-0004 §3). `planned` never implies redistribution.
 - Engine integration is arm's-length (separate processes / MCP / REST), driven only by the broker (ADR-0005 rule 1). The W2-b adapters run as subprocesses of the venv python and speak a strict JSON protocol on stdout.
 
@@ -111,6 +112,45 @@ Honest gaps (see also registry `limitations` per engine):
 - Quantity kinds outside the `DerivedQuantity` contract (IFC weight/time) are skipped with the skip recorded in `raw.skippedUnsupportedQuantities` — never relabeled.
 - The registry's python-module probes report `installed` only when `EOS_PYTHON` points at the venv interpreter (plain `python3` on PATH does not see the venv).
 
+## Validation harness — benchmark-corpus validated (W2-c, 2026-10-21)
+
+The W2-b adapters graduated from "analytic-fixture tested" to **benchmark-corpus validated**: a committed harness drives the REAL production bridge (`deriveFromFile` → `step_quantities.py` / `ifc_quantities.py`, never a mock) over a corpus whose ground truth is hand-derived closed forms pinned BEFORE any adapter runs — never copied from adapter output. Latest run on the pinned engines (cadquery 2.6.1, ifcopenshell 0.9.0.post1): **11 cases — 11 pass / 0 fail / 0 skip, exit 0** (`bun run validate:engines`).
+
+| Artifact | Path |
+|---|---|
+| Harness (pure runner + CLI + bun tests) | `src/engines/validation/{harness.ts, run.ts, report.ts, harness.test.ts}` |
+| Corpus manifest (11 cases, 39 pinned quantities, per-entry `derivation` audit strings) | `tests/validation/corpus-manifest.json` |
+| Machine report (per-case expected/observed/tolerance/observedRelError/ok, determinism) | `tests/validation/report.json` |
+| Human evidence doc (regenerated every run) | [`validation-report.md`](validation-report.md) |
+| Deterministic fixture generators (new, byte-identical regeneration) | `src/engines/adapters/make_fixture_step_solids.py`, `make_fixture_two_elements.py`, `make_fixture_cylinder_ifc.py` |
+
+**What every case enforces.** Set equality per (elementRef, quantityType) — an extra or missing adapter quantity fails the case even when all pinned values match (this is what proves the fixtures' must-skip `IfcQuantityWeight` quantities are genuinely skipped, not relabelled). Bitwise determinism — every success case runs twice. Tolerance policy: `exact`/`analytic` → |obs − exp| ≤ 1e-9·max(1,|exp|); `mesh` → ≤ 1e-2·|exp| (pinned 1%) with the observed relative error RECORDED per comparison. Error cases must throw `EngineUnavailableError` containing the pinned substring.
+
+**Observed results (2026-10-21 run, honest numbers).**
+
+| Case (engine) | Closed form vs observed | Max rel error |
+|---|---|---|
+| `step-bracket-solid` (cadquery 2.6.1) | V = 36000 − 960π, S = 10200 + 416π, d = √9800 — all through exact OCCT BRepGProp | 1.46e-14 (volume) |
+| `step-cylinder-solid` (cadquery) | V = 40000π, S = 4800π, d = √13200 — CURVED surface through the exact OCCT path | 5.49e-14 (area) |
+| `step-two-solids` (cadquery) | multi-solid: V_A = 6000, V_B = 9000, S_total = 5050, d = √15225 | 0 (bitwise on all four) |
+| `step-bracket-empty` (cadquery) | error probe: "no solid geometry…" thrown as pinned | — |
+| `step-nonmodel-file` (cadquery) | error probe on site-notes.md: "cadquery STEP import failed: ValueError…" | — |
+| `ifc-wall-quantities` (ifcopenshell 0.9.0.post1) | 10 declared BaseQuantities read back — all bitwise-exact; declared NetWeight 2880 kg absent (skipped, proven by set equality) | 0 |
+| `ifc-two-elements` (ifcopenshell) | 15 declared quantities over 3 elements (2 walls + slab) — all bitwise-exact; Wall A's NetWeight 6720 kg skipped | 0 |
+| `ifc-wall-geometry-mesh` (ifcopenshell) | PLANAR box mesh: V = 1.2 m³, S = 14.0 m² — pinned at `analytic` tolerance BY DERIVATION: divergence-theorem volume / triangle-sum area are mathematically exact for planar solids (only IEEE rounding remains; observed 1.2000000000000002 / 14.000000000000002) | 1.85e-16 |
+| `ifc-cylinder-geometry-mesh` (ifcopenshell) | CURVED column mesh (Ø400×3000 mm, no declared quantities): V = 0.12π, S = 1.28π — pinned at the 1% `mesh` tolerance; default-settings triangulation gives 44 segments | **volume 3.246e-3 (0.3246%) · area 9.642e-4 (0.0964%)** |
+| `ifc-wall-stripped-empty` (ifcopenshell) | empty pinned set — adapter returned exactly `[]` (honest empty) | — |
+| `ifc-nonmodel-file` (ifcopenshell) | error probe on site-notes.md: "ifcopenshell could not open the file: Error: Unable to parse IFC SPF header" | — |
+
+**The mesh limitation, quantified.** The PyPI ifcopenshell wheel has no OCCT backend (`ifcopenshell.geom.has_occ == False`), so geometry-only IFC fallback quantities come from triangulation. The harness measures that honestly: on the planar case the mesh is mathematically exact (rel ≈ 1.9e-16); on the curved Ø400 column the default-settings 44-segment triangulation underestimates volume by **0.3246%** and area by **0.0964%** — within the pinned 1% engineering tolerance and RECORDED in every report. If a future wheel changes the default deflection beyond 1%, the case FAILS loudly rather than being silently loosened.
+
+**Fixture determinism.** All four new fixtures regenerate byte-identically (sha256-verified across runs; OCC header timestamps normalized, fixed IFC GlobalIds/timestamps) with closed-form self-checks at rel ≤ 1e-9 (observed 0…5.5e-14); the multi-solid generator additionally pins the solid-enumeration order so the corpus manifest's `step:solid:i` refs stay meaningful.
+
+Honest notes:
+- The registry state vocabulary has no `validated` state — cadquery and ifcopenshell stay `tested`, and the per-engine `validation` field (harness, case count, lastRun, result) records the benchmark evidence; upgrading the vocabulary is the TL's call.
+- Mesh-fallback accuracy is wheel-default-dependent (the adapter constructs default `ifcopenshell.geom.settings()`); the harness pins behavior per pinned engine version, not across arbitrary wheels.
+- `tests/validation/report.json` carries a run timestamp (`ranAt`) — it is evidence of the latest run, regenerated by `bun run validate:engines`.
+
 ## Detection probes
 
-Probe design and mechanics (executable / python-module, 4s timeout, presence-only rows, empty `probes: []` for web-module engines) are defined in `src/engines/index.ts` and tested in `src/engines/detect.test.ts` (5 passing tests; no network, no real engines — fixture registry + temp-dir executables only). The REAL quantity-derivation adapters above are tested in `src/engines/adapters/quantities.test.ts` (7 passing tests: supportsDerive mapping, STEP analytic cross-check + honest failures, IFC declared-quantity round-trip + mesh fallback + honest empty — IFC tests auto-skip with a printed reason if ifcopenshell is not importable).
+Probe design and mechanics (executable / python-module, 4s timeout, presence-only rows, empty `probes: []` for web-module engines) are defined in `src/engines/index.ts` and tested in `src/engines/detect.test.ts` (5 passing tests; no network, no real engines — fixture registry + temp-dir executables only). The REAL quantity-derivation adapters above are tested in `src/engines/adapters/quantities.test.ts` (7 passing tests: supportsDerive mapping, STEP analytic cross-check + honest failures, IFC declared-quantity round-trip + mesh fallback + honest empty — IFC tests auto-skip with a printed reason if ifcopenshell is not importable). The validation harness has its own bun suite in `src/engines/validation/harness.test.ts` (manifest integrity + pure report-writer tests always run; the real-engine execution block — the full 11-case harness, run in-process — auto-skips with a printed reason unless both engines are importable; on this host it runs and passes 10/10 tests).

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "test": "bun test src/",
+    "validate:engines": "bun src/engines/validation/run.ts",
     "typecheck": "tsc --noEmit",
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",

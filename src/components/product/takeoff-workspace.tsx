@@ -13,11 +13,12 @@
  *  - server 422 messages (transition guards, approve blockers, missing rates)
  *    surface verbatim in toasts.
  */
-import { Boxes, ChevronDown, ClipboardList, Info, Layers, Plus, Ruler, Sigma, Trash2 } from "lucide-react"
+import { Boxes, ChevronDown, ClipboardList, Download, Info, Layers, Plus, Ruler, Sigma, Trash2 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import {
+  exportEstimateBoqCsv,
   removeEstimateLine,
   transitionEstimate,
   transitionQuantity,
@@ -40,6 +41,7 @@ import {
   NewAssemblyDialog,
   NewEstimateDialog,
   RecordQuantityDialog,
+  SupersedeEstimateDialog,
   type ArtifactSourceState,
 } from "@/components/product/takeoff-dialogs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -130,6 +132,7 @@ const ESTIMATE_TRANSITION_TOAST: Record<EstimateTransitionAction, string> = {
   submit: "Estimate submitted for review",
   approve: "Estimate approved",
   reject: "Estimate returned to draft",
+  supersede: "Estimate superseded — kept in the ledger for audit",
 }
 
 // ---------------------------------------------------------------------------
@@ -151,12 +154,14 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
   const [rateOpen, setRateOpen] = useState(false)
   const [estimateOpen, setEstimateOpen] = useState(false)
   const [lineOpen, setLineOpen] = useState(false)
+  const [supersedeOpen, setSupersedeOpen] = useState(false)
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null)
 
   // One mutation in flight per action family — no optimistic updates anywhere.
   const [transitioningId, setTransitioningId] = useState<string | null>(null)
   const [estimateAction, setEstimateAction] = useState<EstimateTransitionAction | null>(null)
   const [removingLineId, setRemovingLineId] = useState<string | null>(null)
+  const [exportingBoq, setExportingBoq] = useState(false)
 
   const quantityRows = quantities.data?.quantities ?? []
   const assemblyRows = assemblies.data?.assemblies ?? []
@@ -238,6 +243,30 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
       toast.error(err instanceof Error ? err.message : "Could not remove the line")
     } finally {
       setRemovingLineId(null)
+    }
+  }
+
+  // BOQ export — read-only download; the server gates it to approved estimates
+  // and its 422 (e.g. superseded elsewhere after this view loaded) surfaces verbatim.
+  const exportBoq = async (estimate: EstimateRow) => {
+    if (exportingBoq) return
+    setExportingBoq(true)
+    try {
+      const blob = await exportEstimateBoqCsv(estimate.id)
+      // Standard browser download: object URL → <a download> click → revoke.
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `boq-${estimate.id}.csv`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      toast.success(`BOQ exported — boq-${estimate.id}.csv`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Export failed")
+    } finally {
+      setExportingBoq(false)
     }
   }
 
@@ -631,6 +660,14 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
                         >
                           {estimateAction === "submit" ? "Submitting…" : "Submit for review"}
                         </Button>
+                        <Button
+                          variant="ghost"
+                          className="h-9 text-muted-foreground"
+                          disabled={estimateAction !== null}
+                          onClick={() => setSupersedeOpen(true)}
+                        >
+                          Supersede
+                        </Button>
                       </>
                     ) : null}
                     {selectedEstimate.status === "in_review" ? (
@@ -649,6 +686,34 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
                           onClick={() => void applyEstimateTransition(selectedEstimate, "approve")}
                         >
                           {estimateAction === "approve" ? "Approving…" : "Approve"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="h-9 text-muted-foreground"
+                          disabled={estimateAction !== null}
+                          onClick={() => setSupersedeOpen(true)}
+                        >
+                          Supersede
+                        </Button>
+                      </>
+                    ) : null}
+                    {selectedEstimate.status === "approved" ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="h-9"
+                          disabled={exportingBoq}
+                          onClick={() => void exportBoq(selectedEstimate)}
+                        >
+                          <Download aria-hidden /> {exportingBoq ? "Exporting…" : "Export BOQ (CSV)"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="h-9 text-muted-foreground"
+                          disabled={estimateAction !== null}
+                          onClick={() => setSupersedeOpen(true)}
+                        >
+                          Supersede
                         </Button>
                       </>
                     ) : null}
@@ -880,6 +945,19 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
           open={lineOpen}
           onOpenChange={setLineOpen}
           onCreated={() => void estimates.refresh()}
+        />
+      ) : null}
+      {selectedEstimate ? (
+        <SupersedeEstimateDialog
+          estimate={selectedEstimate}
+          open={supersedeOpen}
+          onOpenChange={setSupersedeOpen}
+          onConfirm={() => {
+            // The workspace owns the transition call so its verbatim 422
+            // surfacing, in-flight guard and refetch stay in one place.
+            setSupersedeOpen(false)
+            void applyEstimateTransition(selectedEstimate, "supersede")
+          }}
         />
       ) : null}
     </div>

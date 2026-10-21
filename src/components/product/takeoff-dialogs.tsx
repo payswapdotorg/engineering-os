@@ -1356,3 +1356,45 @@ export function AddEstimateLineDialog({
     </Dialog>
   )
 }
+
+// ---------------------------------------------------------------------------
+// Supersede estimate (terminal audit-preserving action — confirmation only;
+// the workspace owns the transition call, its verbatim 422 surfacing and refetch)
+// ---------------------------------------------------------------------------
+
+export function SupersedeEstimateDialog({
+  estimate,
+  open,
+  onOpenChange,
+  onConfirm,
+}: {
+  estimate: EstimateRow
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onConfirm: () => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Supersede estimate</DialogTitle>
+          <DialogDescription>
+            Superseding "{estimate.name}" is terminal. The estimate stays in the ledger for audit,
+            and its lines are frozen and can no longer be edited.
+            {estimate.status === "approved"
+              ? " It also stops being exportable — only approved estimates can be exported as a BOQ."
+              : ""}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="button" variant="destructive" onClick={onConfirm}>
+            Supersede estimate
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

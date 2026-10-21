@@ -1,0 +1,398 @@
+[
+  {
+    "caseId": "step-bracket-solid",
+    "adapter": "step",
+    "fixture": "bracket-solid.step",
+    "expect": "success",
+    "groundTruth": [
+      {
+        "elementRef": "step:solid:0",
+        "quantityType": "volume",
+        "value": 32984.0710525538,
+        "unit": "mm³",
+        "tolerance": "analytic",
+        "derivation": "L-profile area (80·10 + 10·50 − 10·10) = 1200 mm² extruded 30 mm, minus two Ø8 through-holes: 36000 − 960π mm³"
+      },
+      {
+        "elementRef": "step:solids:all",
+        "quantityType": "area",
+        "value": 11506.902543893353,
+        "unit": "mm²",
+        "tolerance": "analytic",
+        "derivation": "2·(1200 − 2π·4²) + 2·(80+50)·30 + 2·(2π·4·30) = 10200 + 416π mm² (profile perimeter equals the 80×50 box: the L-notch removes and re-adds equal runs)"
+      },
+      {
+        "elementRef": "step:model:bbox",
+        "quantityType": "length",
+        "value": 98.99494936611666,
+        "unit": "mm",
+        "tolerance": "analytic",
+        "derivation": "bounding box 80 × 50 × 30 mm → diagonal √(80² + 50² + 30²) = √9800 mm"
+      }
+    ]
+  },
+  {
+    "caseId": "step-cylinder-solid",
+    "adapter": "step",
+    "fixture": "cylinder-solid.step",
+    "expect": "success",
+    "groundTruth": [
+      {
+        "elementRef": "step:solid:0",
+        "quantityType": "volume",
+        "value": 125663.70614359173,
+        "unit": "mm³",
+        "tolerance": "analytic",
+        "derivation": "π · 20² · 100 = 40000π mm³ (Ø40 × 100 mm cylinder, exact OCCT BRepGProp path — no meshing)"
+      },
+      {
+        "elementRef": "step:solids:all",
+        "quantityType": "area",
+        "value": 15079.644737231007,
+        "unit": "mm²",
+        "tolerance": "analytic",
+        "derivation": "lateral 2π·20·100 = 4000π plus two caps 2·π·20² = 800π → 4800π mm² (curved surface through the EXACT OCCT integration path)"
+      },
+      {
+        "elementRef": "step:model:bbox",
+        "quantityType": "length",
+        "value": 114.89125293076057,
+        "unit": "mm",
+        "tolerance": "analytic",
+        "derivation": "bounding box 40 × 40 × 100 mm → diagonal √(40² + 40² + 100²) = √13200 mm"
+      }
+    ]
+  },
+  {
+    "caseId": "step-two-solids",
+    "adapter": "step",
+    "fixture": "two-solids.step",
+    "expect": "success",
+    "groundTruth": [
+      {
+        "elementRef": "step:solid:0",
+        "quantityType": "volume",
+        "value": 6000,
+        "unit": "mm³",
+        "tolerance": "analytic",
+        "derivation": "box A 30 × 20 × 10 mm at the origin = 6000 mm³ (first solid written to the fixture file; OCCT enumerates it as solid 0 — enumeration order is pinned by the generator self-check and re-verified by the harness determinism double-run)"
+      },
+      {
+        "elementRef": "step:solid:1",
+        "quantityType": "volume",
+        "value": 9000,
+        "unit": "mm³",
+        "tolerance": "analytic",
+        "derivation": "box B 15 × 15 × 40 mm at (100, 0, 0) = 9000 mm³ (disjoint from box A, 70 mm gap)"
+      },
+      {
+        "elementRef": "step:solids:all",
+        "quantityType": "area",
+        "value": 5050,
+        "unit": "mm²",
+        "tolerance": "analytic",
+        "derivation": "S_A + S_B = 2·(30·20 + 30·10 + 20·10) + 2·(15·15 + 15·40 + 15·40) = 2200 + 2850 = 5050 mm²"
+      },
+      {
+        "elementRef": "step:model:bbox",
+        "quantityType": "length",
+        "value": 123.38962679253066,
+        "unit": "mm",
+        "tolerance": "analytic",
+        "derivation": "overall bounding box 115 × 20 × 40 mm (union of the two disjoint boxes) → diagonal √(115² + 20² + 40²) = √15225 mm"
+      }
+    ]
+  },
+  {
+    "caseId": "step-bracket-empty",
+    "adapter": "step",
+    "fixture": "bracket.step",
+    "expect": "error",
+    "errorContains": "no solid geometry"
+  },
+  {
+    "caseId": "step-nonmodel-file",
+    "adapter": "step",
+    "fixture": "site-notes.md",
+    "expect": "error",
+    "errorContains": "STEP import failed"
+  },
+  {
+    "caseId": "ifc-wall-quantities",
+    "adapter": "ifc",
+    "fixture": "wall-quantities.ifc",
+    "expect": "success",
+    "groundTruth": [
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 3.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "declared BaseQuantities 'Length' — authored wall 3.0 × 0.2 × 2.0 m (closed form in make_fixture_wall.py)"
+      },
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 0.2,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "declared BaseQuantities 'Width' = 0.2 m"
+      },
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 2.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "declared BaseQuantities 'Height' = 2.0 m"
+      },
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 12.8,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "declared 'GrossSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
+      },
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 12.8,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "declared 'NetSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
+      },
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 0.6,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "declared 'GrossFootprintArea' = 3.0 · 0.2 = 0.6 m²"
+      },
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 0.6,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "declared 'NetFootprintArea' = 3.0 · 0.2 = 0.6 m²"
+      },
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "volume",
+        "value": 1.2,
+        "unit": "m³",
+        "tolerance": "exact",
+        "derivation": "declared 'GrossVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
+      },
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "volume",
+        "value": 1.2,
+        "unit": "m³",
+        "tolerance": "exact",
+        "derivation": "declared 'NetVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
+      },
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "count",
+        "value": 2,
+        "unit": "count",
+        "tolerance": "exact",
+        "derivation": "declared 'WallTieCount' = 2 (dimensionless IfcQuantityCount)"
+      }
+    ]
+  },
+  {
+    "caseId": "ifc-two-elements",
+    "adapter": "ifc",
+    "fixture": "two-elements.ifc",
+    "expect": "success",
+    "groundTruth": [
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 4.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall A 'Length' — 4.0 × 0.25 × 2.8 m wall"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 0.25,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall A 'Width' = 0.25 m"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 2.8,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall A 'Height' = 2.8 m"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 23.8,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "Wall A 'GrossSideArea' = 2·(4.0 + 0.25)·2.8 = 23.8 m²"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "volume",
+        "value": 2.8,
+        "unit": "m³",
+        "tolerance": "exact",
+        "derivation": "Wall A 'NetVolume' = 4.0 · 0.25 · 2.8 = 2.8 m³"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "length",
+        "value": 2.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall B 'Length' — 2.0 × 0.15 × 2.8 m wall"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "length",
+        "value": 0.15,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall B 'Width' = 0.15 m"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "length",
+        "value": 2.8,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall B 'Height' = 2.8 m"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "area",
+        "value": 12.04,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "Wall B 'NetSideArea' = 2·(2.0 + 0.15)·2.8 = 12.04 m²"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "area",
+        "value": 0.3,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "Wall B 'NetFootprintArea' = 2.0 · 0.15 = 0.3 m²"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "volume",
+        "value": 0.84,
+        "unit": "m³",
+        "tolerance": "exact",
+        "derivation": "Wall B 'NetVolume' = 2.0 · 0.15 · 2.8 = 0.84 m³"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+        "quantityType": "length",
+        "value": 5.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Slab S 'Length' — 5.0 × 3.0 × 0.2 m slab"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+        "quantityType": "length",
+        "value": 3.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Slab S 'Width' = 3.0 m"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+        "quantityType": "area",
+        "value": 15.0,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "Slab S 'GrossArea' = 5.0 · 3.0 = 15.0 m²"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+        "quantityType": "volume",
+        "value": 3.0,
+        "unit": "m³",
+        "tolerance": "exact",
+        "derivation": "Slab S 'NetVolume' = 5.0 · 3.0 · 0.2 = 3.0 m³"
+      }
+    ]
+  },
+  {
+    "caseId": "ifc-wall-geometry-mesh",
+    "adapter": "ifc",
+    "fixture": "wall-geometry.ifc",
+    "expect": "success",
+    "groundTruth": [
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "volume",
+        "value": 1.2,
+        "unit": "m³",
+        "tolerance": "analytic",
+        "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³. Tolerance 'analytic' (not 'mesh') is justified: the mesh path is divergence-theorem volume over planar triangles, which is mathematically EXACT for planar solids — only IEEE rounding remains (observed 1.2000000000000002, rel ≈ 2e-16)"
+      },
+      {
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 14.0,
+        "unit": "m²",
+        "tolerance": "analytic",
+        "derivation": "total box surface 2·(3·0.2) + 2·(3·2) + 2·(0.2·2) = 1.2 + 12 + 0.8 = 14.0 m². Tolerance 'analytic' justified: triangle-sum area over planar faces is exact in exact arithmetic (observed 14.000000000000002, rel ≈ 1e-16)"
+      }
+    ]
+  },
+  {
+    "caseId": "ifc-cylinder-geometry-mesh",
+    "adapter": "ifc",
+    "fixture": "cylinder-geometry.ifc",
+    "expect": "success",
+    "groundTruth": [
+      {
+        "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "volume",
+        "value": 0.3769911184307752,
+        "unit": "m³",
+        "tolerance": "mesh",
+        "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance: the PyPI ifcopenshell wheel has no OCCT backend (has_occ=False), so this curved surface is triangulated — an APPROXIMATION; the harness records the observed relative error to quantify that limitation honestly"
+      },
+      {
+        "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 4.0212385965949355,
+        "unit": "m²",
+        "tolerance": "mesh",
+        "derivation": "lateral 2π·0.2·3.0 = 1.2π plus two caps 2·π·0.2² = 0.08π → 1.28π m². 'mesh' tolerance (1% pinned): triangulated curved surface — observed relative error recorded per run"
+      }
+    ]
+  },
+  {
+    "caseId": "ifc-wall-stripped-empty",
+    "adapter": "ifc",
+    "fixture": "wall-stripped.ifc",
+    "expect": "success",
+    "groundTruth": []
+  },
+  {
+    "caseId": "ifc-nonmodel-file",
+    "adapter": "ifc",
+    "fixture": "site-notes.md",
+    "expect": "error",
+    "errorContains": "could not open the file"
+  }
+]

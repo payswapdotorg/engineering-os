@@ -403,7 +403,11 @@ export interface EstimateTotals {
 
 export type EstimateStatus = "draft" | "in_review" | "approved" | "superseded"
 
-export type EstimateTransitionAction = "submit" | "approve" | "reject"
+/**
+ * POST /api/estimates/[id]/transition actions — supersede is terminal and
+ * allowed from draft|in_review|approved (lines stay frozen for audit).
+ */
+export type EstimateTransitionAction = "submit" | "approve" | "reject" | "supersede"
 
 export interface EstimateRow {
   id: string
@@ -497,4 +501,33 @@ export async function removeEstimateLine(estimateId: string, lineId: string) {
 
 export async function transitionEstimate(estimateId: string, action: EstimateTransitionAction) {
   return apiJson<{ estimate: EstimateRow }>(`/api/estimates/${estimateId}/transition`, "POST", { action })
+}
+
+/**
+ * BOQ export — plain fetch because the success response is a text/csv file, not
+ * the {data} envelope. Failures still arrive as {error:{code,message}} and are
+ * thrown with the server message verbatim (same idiom as unwrap); the caller
+ * turns the returned blob into a browser download (boq-<estimateId>.csv,
+ * matching the pinned Content-Disposition filename).
+ */
+export async function exportEstimateBoqCsv(estimateId: string): Promise<Blob> {
+  const res = await fetch(`/api/estimates/${estimateId}/export?format=csv`, { cache: "no-store" })
+  if (!res.ok) {
+    let body: unknown = null
+    try {
+      body = await res.json()
+    } catch {
+      // fall through to the throw below (non-JSON body, e.g. an HTML 404)
+    }
+    const err =
+      body && typeof body === "object" && "error" in body
+        ? (body as { error?: { code?: string; message?: string } }).error
+        : undefined
+    throw new ApiError(
+      err?.message ?? `Request failed (${res.status})`,
+      err?.code ?? "http_error",
+      res.status,
+    )
+  }
+  return res.blob()
 }

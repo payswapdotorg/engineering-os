@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters — model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod.",
+  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters — model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json — 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) — see the per-engine `validation` fields. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod.",
   "engines": [
     {
       "key": "freecad",
@@ -60,6 +60,12 @@
         }
       ],
       "state": "tested",
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 5,
+        "lastRun": "2026-10-21",
+        "result": "pass"
+      },
       "limitations": [
         "Engine is a venv python library, not a CLI on PATH — the registry probe reports 'installed' only when EOS_PYTHON points at the uv venv interpreter (/home/z/.venv/bin/python3)",
         "import cadquery emits fontconfig warnings to stderr on this host (cosmetic; the adapter redirects fd-level stdout so they can never contaminate the JSON protocol)",
@@ -189,6 +195,12 @@
         }
       ],
       "state": "tested",
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 6,
+        "lastRun": "2026-10-21",
+        "result": "pass"
+      },
       "limitations": [
         "GitHub 'latest' release is a Bonsai 0.9.1 alpha (date-coded tags); stable distribution channel is PyPI (0.9.0.post1) — pin exact channel at integration",
         "PyPI wheel ships WITHOUT the OCCT geometry backend (ifcopenshell.geom.has_occ == False on this host) — the adapter's geometric fallback uses mesh triangulation: exact for planar solids, approximate for curved surfaces (recorded in every quantity's raw.method)",

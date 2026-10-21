@@ -9,26 +9,32 @@ import { serializeEstimate } from "../../../_lib/ledger-rows"
 
 export const dynamic = "force-dynamic"
 
-type EstimateAction = "submit" | "approve" | "reject"
+type EstimateAction = "submit" | "approve" | "reject" | "supersede"
 
 /**
  * Pinned estimate transition map (worklog "TL-pinned contracts"):
- *   submit  draft → in_review · approve in_review → approved ·
- *   reject  in_review → draft. No supersede action on estimates.
+ *   submit    draft → in_review · approve in_review → approved (gated) ·
+ *   reject    in_review → draft ·
+ *   supersede draft|in_review|approved → superseded.
+ * From "superseded" nothing is allowed — superseding again 422s with the
+ * pinned message `cannot supersede an estimate in status "superseded"`
+ * (produced verbatim by the generic error path below). Supersede KEEPS the
+ * approval payload untouched (audit trail preserved); lines stay frozen via
+ * the existing add/delete guards (honesty: approved rows never overwritten).
  */
 const ESTIMATE_TRANSITIONS: Record<string, Partial<Record<EstimateAction, string>>> = {
-  draft: { submit: "in_review" },
-  in_review: { approve: "approved", reject: "draft" },
-  approved: {},
+  draft: { submit: "in_review", supersede: "superseded" },
+  in_review: { approve: "approved", reject: "draft", supersede: "superseded" },
+  approved: { supersede: "superseded" },
   superseded: {},
 }
 
 const transitionSchema = z.object({
-  action: z.enum(["submit", "approve", "reject"]),
+  action: z.enum(["submit", "approve", "reject", "supersede"]),
 })
 
 /**
- * POST /api/estimates/[id]/transition — submit|approve|reject.
+ * POST /api/estimates/[id]/transition — submit|approve|reject|supersede.
  *
  * APPROVE GATE: every line's quantity must be status "approved" AND every line
  * currency must equal the estimate currency, else 422 with an explicit blocker
