@@ -25,6 +25,10 @@ model Project {
   members     TeamMember[]
   events      AuditEvent[]
   workflows   Workflow[]
+  quantities  QuantityRecord[]
+  assemblies  TradeAssembly[]
+  rates       Rate[]
+  estimates   Estimate[]
 }
 
 model TeamMember {
@@ -124,4 +128,101 @@ model AuditEvent {
   createdAt  DateTime @default(now())
 
   @@index([projectId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Phase-3 quantity ledger & estimating (W3 lane, docs/03-data/quantity-ledger-schema.md)
+// Nested objects (verification, approval, provenance, components, breakdown,
+// rateIds) are stored as JSON text per the header convention; value enums as
+// plain String, validated at the boundary (zod + src/core/ledger.ts).
+// ---------------------------------------------------------------------------
+
+model QuantityRecord {
+  id                       String   @id
+  projectId                String
+  project                  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // ledger rows always point at a revision, never at a mutable artifact
+  sourceArtifactRevisionId String
+  sheetRef                 String? // required for drawing-measured (src/core)
+  elementRef               String? // required for model-derived (src/core)
+  quantityType             String // length|area|volume|count|mass|time|other (src/core)
+  value                    Float
+  unit                     String
+  method                   String // drawing-measured|model-derived — never silently merged
+  scale                    String? // calibrated-scale record for drawings
+  quantityMethod            String? // extraction method for models (e.g. "cadquery 2.6.1 via step_quantities.py")
+  rulesetId                 String
+  rulesetVersion           String
+  status                    String   @default("draft") // draft|in_review|approved|superseded (src/core)
+  tradeAssemblyId          String?
+  verification              String   @default("{\"status\":\"unverified\"}") // JSON: {status, checker?, evidence?}
+  reviewer                 String?
+  approval                 String? // JSON: {approvedBy, approvedAt} — required when status approved
+  provenance               String // JSON: {createdAt, createdBy, recomputeHistory, …}
+  createdAt                DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model TradeAssembly {
+  id        String   @id
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  trade     String
+  components String // JSON: [{ id, kind: material|labor, name, quantityPerUnit, unit, wastePct?, productivityFactor? }]
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model Rate {
+  id            String    @id
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  componentId   String // key into TradeAssembly.components[].id (engineer-approved, never agent-generated)
+  currency      String
+  unitPrice     Float
+  source        String // price-book|contract|quote (src/core RATE_SOURCES)
+  effectiveFrom DateTime? // rate becomes effective at this instant
+  createdBy     String    @default("local-operator")
+  createdAt     DateTime  @default(now())
+
+  @@index([projectId, componentId])
+}
+
+model Estimate {
+  id               String   @id
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name             String
+  currency         String
+  overheadPct      Float
+  profitPct        Float
+  taxPct           Float
+  roundingMode     String   @default("half-up") // src/core ROUNDING_MODES
+  roundingDecimals Int      @default(2)
+  status           String   @default("draft") // draft|in_review|approved|superseded
+  approval         String? // JSON: {approvedBy, approvedAt}
+  createdBy         String   @default("local-operator")
+  createdAt         DateTime @default(now())
+  lines             EstimateLine[]
+
+  // totals are NEVER stored — always recomputed from stored lineTotals on read
+  @@index([projectId])
+}
+
+model EstimateLine {
+  id         String   @id
+  estimateId String
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  quantityId String // QuantityRecord id (project-scoped, checked at line-add time)
+  assemblyId String // TradeAssembly id (project-scoped, checked at line-add time)
+  currency   String
+  lineTotal  Float // computed via src/core estimateLineTotal; authoritative stored line value
+  rateIds    String // JSON: string[] — resolved rate ids in assembly component order
+  breakdown  String // JSON: [{ componentId, kind, name, amount, unit, unitPrice, cost }]
+  createdAt  DateTime @default(now())
+
+  @@index([estimateId])
 }

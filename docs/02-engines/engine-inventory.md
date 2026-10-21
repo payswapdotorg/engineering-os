@@ -1,13 +1,14 @@
 # Engine Inventory — source-verified audit
 
-Owner: Worker 2 (Engines & Integration) · Audit date: **2026-10-21** · Registry: [`src/engines/registry.json`](../../src/engines/registry.json) · Contract: [ADR-0005](../adr/0005-engine-integration-contract.md) · License policy: [ADR-0004](../adr/0004-license-and-copyleft-boundary.md)
+Owner: Worker 2 (Engines & Integration) · Audit date: **2026-10-21** · Adapter update: **2026-10-21 (W2-b — first real adapters)** · Registry: [`src/engines/registry.json`](../../src/engines/registry.json) · Contract: [ADR-0005](../adr/0005-engine-integration-contract.md) · License policy: [ADR-0004](../adr/0004-license-and-copyleft-boundary.md)
 
 ## Honest status — read first
 
-- **None of the 34 engines below is installed on the dev host.** Every registry `state` is `planned`. No capability is marked complete because a dependency exists; capability states live in [capability-matrix.md](capability-matrix.md).
-- **All 34 upstream records were machine-verified during this audit run** (repo, license, latest stable, activity). GitHub's `license.spdx_id` is treated as a hint per ADR-0004; where it returned `NOASSERTION` or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and cited. 10 of 34 required LICENSE-text resolution (see [License notes](#license-notes)).
+- **35 engines** are now tracked (34 audited upstream + **cadquery**, added 2026-10-21 when it became the first real adapter engine). All upstream records are source-verified; see [Audit method](#audit-method).
+- **3 engines are installed on the dev host (2026-10-21):** cadquery 2.6.1 and ifcopenshell 0.9.0.post1 in the uv venv `/home/z/.venv` (both installed/verified live during W2-b — ifcopenshell via `uv pip install`, network available), plus LibreOffice 25.2.3.2 on PATH (TL baseline re-verification, worklog.md). Registry `state` for cadquery and ifcopenshell is **`tested`** — see [First real engine adapters (W2-b)](#first-real-engine-adapters-w2-b-2026-10-21) for evidence. **Every other engine remains `planned`**: no capability is marked complete because a dependency exists (ADR-0005).
+- **The first REAL engine adapters shipped 2026-10-21 (W2-b):** model-derived quantities from STEP (cadquery/OCCT) and IFC (IfcOpenShell) — no simulated results, ever. Details and analytic cross-checks: [below](#first-real-engine-adapters-w2-b-2026-10-21).
 - **Bundling/redistribution of any engine is a Phase-6 release-gate activity**: exact upstream repo, tag/commit and license text must be re-verified at release time (ADR-0004 §3). `planned` never implies redistribution.
-- Engine integration is arm's-length (separate processes / MCP / REST), driven only by the broker (ADR-0005 rule 1).
+- Engine integration is arm's-length (separate processes / MCP / REST), driven only by the broker (ADR-0005 rule 1). The W2-b adapters run as subprocesses of the venv python and speak a strict JSON protocol on stdout.
 
 ## Audit method
 
@@ -24,15 +25,16 @@ Date: **2026-10-21** (UTC). All checks performed live from the audit host; every
 
 Unreachable/honest-failure cases: `gitlab.onelab.info` (Gmsh canonical) returns a bot-challenge page to API calls — Gmsh was verified via gmsh.info instead (recorded per-engine); `projectlibre.com` returned HTTP 403 — ProjectLibre verified via SourceForge (its actual distribution channel, per the mirror's homepage field). Where `releases/latest` 404s, the latest stable was taken from `/tags` (or upstream site) and is noted per engine.
 
-## Master audit table (34 engines, all state: `planned`)
+## Master audit table (35 engines; 33 `planned`, cadquery + ifcopenshell `tested` on this host)
 
 | Key | Name | Domain | Canonical upstream | License (SPDX or honest text) | Latest stable (audit) | Verified (date + method) | Registry state | Planned integration |
 |---|---|---|---|---|---|---|---|---|
 | freecad | FreeCAD | cad | freecad.org (repo FreeCAD/FreeCAD) | LGPL-2.1 (GitHub field; repo LICENSE = LGPL v2.1 text) | 1.1.4 (tag `1.1.4`) | 2026-10-21 · github-api `/repos` + `releases/latest` | planned | cli, python-module, native-process |
+| cadquery | CadQuery | cad | github.com/CadQuery/cadquery | Apache-2.0 (raw repo LICENSE = Apache-2.0 text; PyPI classifier agrees) | 2.8.0 (tag `v2.8.0`; installed **2.6.1**, tag `v2.6.1` exists) | 2026-10-21 · github-api `/repos` + `/tags` + raw LICENSE + PyPI JSON (some API calls rate-limited from this host — recorded) | **tested** (W2-b) | python-module (uv venv subprocess) — first REAL adapter |
 | librecad | LibreCAD | cad | librecad.org (repo LibreCAD/LibreCAD) | GPL-2.0 (repo LICENSE text; GitHub field NOASSERTION) | 2.2.1.6 (tag `v2.2.1.6`) | 2026-10-21 · github-api + LICENSE text | planned | cli, native-process |
 | libredwg | LibreDWG | cad | savannah.gnu.org (repo LibreDWG/libredwg, official mirror) | GPL-3.0 | 0.14 (tag `0.14`) | 2026-10-21 · github-api + `releases/latest` | planned | cli (dwg2dxf/dwgread/dwgwrite) |
 | blender | Blender | cad | blender.org (repo blender/blender, official mirror) | GPL-2.0-or-later (repo COPYING + GPL-license.txt + blender.org) | 5.2.2 (tag `v5.2.2`; no GitHub releases) | 2026-10-21 · github-api + LICENSE text + upstream docs | planned | cli, python-module, native-process |
-| ifcopenshell | IfcOpenShell | bim | ifcopenshell.org (repo IfcOpenShell/IfcOpenShell) | LGPL-3.0 (GitHub field) | 0.9.0 (PyPI; GitHub "latest" = Bonsai 0.9.1-alpha) | 2026-10-21 · github-api + PyPI JSON | planned | python-module, cli |
+| ifcopenshell | IfcOpenShell | bim | ifcopenshell.org (repo IfcOpenShell/IfcOpenShell) | LGPL-3.0 (GitHub field) | 0.9.0 (PyPI; GitHub "latest" = Bonsai 0.9.1-alpha); installed **0.9.0.post1** via `uv pip install` (network OK) | 2026-10-21 · github-api + PyPI JSON; live install verified 2026-10-21 (W2-b) | **tested** (W2-b) | python-module, cli |
 | thatopen-engine | That Open Engine (components) | bim | thatopen.com (repo ThatOpen/engine_components) | MIT | 3.4.9 (tag `v3.4.9`) | 2026-10-21 · github-api (suggested `ThatOpen/engine` 404s — family repos listed via `/orgs/ThatOpen/repos`) | planned | web-module (viewer components) |
 | web-ifc | web-ifc | bim | thatopen.com (repo ThatOpen/engine_web-ifc) | MPL-2.0 | 0.78 (tag `0.78`) | 2026-10-21 · github-api | planned | web-module (WASM IFC parsing) |
 | qgis | QGIS | gis | qgis.org (repo qgis/QGIS) | GPL-2.0 (GitHub field; repo COPYING = GPLv2 text) | 3.44.15 (tag `final-3_44_15`) | 2026-10-21 · github-api + `releases/latest` | planned | cli (qgis_process), native-process |
@@ -92,6 +94,23 @@ Searched `GET /search/repositories?q=opentakeoff` on 2026-10-21. **Result: credi
 7. **Public-domain special case**: EPA SWMM has no SPDX id — repo README states the source "is released in the Public Domain" (US Government work); recorded honestly as `Public Domain (US Gov)`.
 8. **GitHub legacy license ids**: GitHub returns shorthand ids (`LGPL-2.1`, `GPL-3.0`, `GPL-2.0`) rather than modern SPDX `-only/-or-later` forms; where the "or later" scope matters, the tree text was read (GRASS, OpenFOAM, gmsh, Blender) or the scope is flagged for Phase-6 pinning (FreeCAD, QGIS, KiCad).
 
+## First real engine adapters (W2-b, 2026-10-21)
+
+The first capabilities moved past `planned` — model-derived quantities computed by REAL engines, spawned as arm's-length subprocesses of the uv venv python (`/home/z/.venv/bin/python3`, overridable via `EOS_PYTHON`). Every failure — missing venv, missing engine, unreadable model, geometry-free file, crash, timeout — surfaces as an honest `EngineUnavailableError`; no result is ever simulated (ADR-0005/ADR-0006).
+
+| Engine (live version) | Adapter script | Reads | Emits | Test evidence (all green 2026-10-21) | Analytic cross-check |
+|---|---|---|---|---|---|
+| cadquery 2.6.1 (OCCT 7.8 kernel) | `src/engines/adapters/step_quantities.py` | STEP (declared units parsed from the file; refuses to guess) | per-solid volume (`step:solid:i`), total surface area (`step:solids:all`), bbox diagonal (`step:model:bbox`); units e.g. `mm³`/`mm²`/`mm` | `src/engines/adapters/quantities.test.ts` — "bracket-solid.step: engine values match hand-derived analytic closed forms (±2%)" + honest-failure test on `tests/fixtures/bracket.step` (valid STEP, 0 solids → `EngineUnavailableError`) | Fixture `tests/fixtures/bracket-solid.step` (L-bracket, deterministic generator `make_fixture_bracket.py`): hand-derived **V = 36000 − 960π ≈ 32984.071 mm³**, **S = 10200 + 416π ≈ 11506.903 mm²**, **d = √9800 ≈ 98.995 mm** vs engine 32984.07105 / 11506.90254 / 98.99495 — match at ~1e-14 relative (tolerance 2%) |
+| IfcOpenShell 0.9.0.post1 | `src/engines/adapters/ifc_quantities.py` | IFC — IfcElementQuantity sets (BaseQuantities first), elementRef `#<GlobalId>`; per-quantity IfcNamedUnit honoured, else project IfcUnitAssignment | declared length/area/volume/count quantities; geometric fallback via `ifcopenshell.geom` mesh triangulation (volume by divergence theorem, area by triangle sum — exact for planar solids, approximate for curved; recorded in `raw.method`) | same test file — "wall-quantities.ifc: BaseQuantities are read back exactly as authored" (incl. proof that `IfcQuantityWeight` NetWeight is skipped honestly), "wall-geometry.ifc: geometric fallback matches analytic box forms (±2%)", "wall-stripped.ifc → honest empty result" | Declared values authored by deterministic generator `make_fixture_wall.py` (Length 3.0 m, Width 0.2 m, Height 2.0 m, side area 12.8 m², footprint 0.6 m², volume 1.2 m³, count 2); fallback mesh on the 3×0.2×2 m box: V = 1.2 m³, S = 2(3·0.2)+2(3·2)+2(0.2·2) = 14.0 m² vs engine 1.200000000/14.000000000 |
+
+Adapter protocol (both scripts): JSON on stdout only — success `{engineKey, engineVersion, adapterScript, adapterHash, quantities[]}`, failure `{"error": …}` exit 1; `adapterHash` is the sha256 of the script's own bytes (the test independently re-verifies it with `node:crypto`). Bridge: `src/engines/adapters/quantities.ts` (`deriveFromFile` spawns the script and maps to `DerivedQuantity[]`; `supportsDerive` maps `.step/.stp → step`, `.ifc → ifc`). Fixtures are byte-deterministic (verified identical sha256 on regeneration).
+
+Honest gaps (see also registry `limitations` per engine):
+- cadquery emits per-solid volume, total surface area and bbox diagonal only — no per-face/feature quantities yet; solid ordering follows OCCT's compound enumeration.
+- The ifcopenshell PyPI wheel has no OCCT backend (`ifcopenshell.geom.has_occ == False`) — the geometric fallback is mesh-based and approximate for curved surfaces (exact for the planar fixture).
+- Quantity kinds outside the `DerivedQuantity` contract (IFC weight/time) are skipped with the skip recorded in `raw.skippedUnsupportedQuantities` — never relabeled.
+- The registry's python-module probes report `installed` only when `EOS_PYTHON` points at the venv interpreter (plain `python3` on PATH does not see the venv).
+
 ## Detection probes
 
-Probe design and mechanics (executable / python-module, 4s timeout, presence-only rows, empty `probes: []` for web-module engines) are defined in `src/engines/index.ts` and tested in `src/engines/detect.test.ts` (5 passing tests; no network, no real engines — fixture registry + temp-dir executables only).
+Probe design and mechanics (executable / python-module, 4s timeout, presence-only rows, empty `probes: []` for web-module engines) are defined in `src/engines/index.ts` and tested in `src/engines/detect.test.ts` (5 passing tests; no network, no real engines — fixture registry + temp-dir executables only). The REAL quantity-derivation adapters above are tested in `src/engines/adapters/quantities.test.ts` (7 passing tests: supportsDerive mapping, STEP analytic cross-check + honest failures, IFC declared-quantity round-trip + mesh fallback + honest empty — IFC tests auto-skip with a printed reason if ifcopenshell is not importable).

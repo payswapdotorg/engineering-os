@@ -5,16 +5,18 @@ Version: 0.1 · Owner: TL · Rule: **the repository is the single source of trut
 | Lane | Owner | Files (exclusive) | Deliverables |
 |---|---|---|---|
 | **W1 — Product & installation** | Worker 1 | `src/app/**`, `src/components/product/**` (shadcn `src/components/ui/**` is upstream — extend, don't fork) | Product shell, 9 workspaces (implemented vs. honestly-labeled), API routes, Ubuntu install UX |
-| **W2 — Engines & integration** | Worker 2 | `src/engines/**`, `docs/02-engines/**`, engine section of `docs/08-licenses/license-inventory.md` | Source-verified engine inventory, capability matrix, detection/probes + tests |
-| **W3 — Graph, collaboration, workflows** | Worker 3 | `src/core/**` | Artifact graph logic, impact propagation, staleness, approvals, quantity-ledger domain model + tests |
-| **TL — Architecture & integration** | TL | `docs/**` (except W2 lanes), `prisma/**`, `src/lib/**`, `tests/fixtures/**`, `.github/**`, `install.sh`, package/build config | Contracts, schema, shared infra, merges, end-to-end verification, release decisions |
+| **W2 — Engines & integration** | Worker 2 | `src/engines/**` (incl. `src/engines/adapters/**`), `docs/02-engines/**`, engine section of `docs/08-licenses/license-inventory.md` | Source-verified engine inventory, capability matrix, detection/probes + REAL quantity adapters + tests |
+| **W3 — Graph, collaboration, workflows** | Worker 3 | `src/core/**`, `src/app/api/_lib/ledger-rows.ts`, `src/app/api/{quantities,estimates}/**`, `src/app/api/projects/[id]/{quantities,assemblies,rates,estimates}/**`, `src/app/api/projects/[id]/artifacts/[artifactId]/derive-quantities/**` | Artifact graph logic, impact propagation, staleness, approvals, quantity-ledger + estimating domain & data plane + tests |
+| **TL — Architecture & integration** | TL | `docs/**` (except W2 lanes), `prisma/**`, `src/lib/**`, `src/engines/adapters/derive-kind.ts`, `tests/fixtures/**`, `.github/**`, `install.sh`, package/build config | Contracts, schema, shared infra, merges, end-to-end verification, release decisions |
 
 ## Shared contracts (TL-owned, change-controlled)
 
-- Prisma schema: `prisma/schema.prisma` (W1 consumes via `@/lib/db`; W3 keeps domain logic DB-free)
+- Prisma schema: `prisma/schema.prisma` (W1 consumes via `@/lib/db`; W3 keeps domain logic DB-free; W3 may propose additive model changes through the TL)
 - IDs/hashing/audit/artifact-store/API utilities: `src/lib/*`
 - Graph & approval model exports: `src/core/index.ts` (W1 consumes; W3 keeps export signatures stable)
 - Engine registry shape + detection API: `src/engines/index.ts`, `src/engines/registry.json` (W1 consumes; W2 keeps exports stable)
+- Derivation detection (single implementation, client+server): `src/engines/adapters/derive-kind.ts` (consumed by W1 dialog + W3 derive route; W2 bridge `supportsDerive` delegates to it)
+- Adapter bridge contract: `src/engines/adapters/quantities.ts` exports `DerivedQuantity`, `DeriveResult`, `supportsDerive`, `deriveFromFile`, `EngineUnavailableError` (pinned in worklog/ADR-0005)
 
 Change rule: a worker needing a contract change raises it in their handoff; the TL decides and updates the contract first, then workers adapt. Never edit another lane's files.
 

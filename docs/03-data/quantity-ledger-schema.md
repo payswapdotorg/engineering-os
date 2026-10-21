@@ -1,6 +1,6 @@
 # Quantity Ledger & Estimating Schema
 
-Version: 0.1 (defined in Phase 0; implemented Phase 3) · Owner: TL (schema) + W3 (domain logic in `src/core/ledger.ts`)
+Version: 0.1 (defined in Phase 0) · **Data plane + Takeoff UI shipped 2026-10-21 (Phase-3 slice; AC-P3-01…08)** — quantity ledger rows (drawing-measured **and** model-derived via real cadquery/IfcOpenShell adapters), versioned engineer-only rates, deterministic estimates with approval gates are live. Still pending in this schema's roadmap: calibrated PDF measurement tooling, the reference-dataset validation harness (§3.3), BOQ export formats, and recompute-as-new-revision flows (Phase 4 runtime). · Owner: TL (schema) + W3 (domain logic in `src/core/ledger.ts`)
 
 The shared quantity ledger supports **both** PDF/drawing-derived measurements **and** BIM/model-derived quantities — kept distinct, never silently merged.
 

@@ -10,6 +10,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   estimateLineTotal,
+  estimateTotals,
   LedgerError,
   makeQuantityRecord,
   quantityRecordSchema,
@@ -245,34 +246,35 @@ describe("roundTo", () => {
 // estimateLineTotal — deterministic estimate arithmetic
 // ---------------------------------------------------------------------------
 
-describe("estimateLineTotal", () => {
-  // Fixture (test constants — not engineering claims):
-  //   quantity: 12.5 m³ of a concrete wall take-off
-  //   assembly "wall-cast":
-  //     - material "concrete": quantityPerUnit 1 (m³ per m³), wastePct 5
-  //     - labor "crew":       quantityPerUnit 0.8 (hours per m³), productivityFactor 1.25
-  //   rates (keyed by component id): concrete 120 /m³, crew 25 /h
-  //   rounding: half-up, 2 decimals
-  //
-  // Hand arithmetic:
-  //   material amount = 12.5 × 1 × (1 + 5/100)      = 13.125
-  //   material cost   = 13.125 × 120                = 1575.00
-  //   labor amount    = 12.5 × 0.8 / 1.25           = 8      (productivity DIVIDES)
-  //   labor cost      = 8 × 25                      = 200.00
-  //   line total      = roundTo(1575.00 + 200.00)   = 1775.00
-  const wallAssembly: Assembly = {
-    id: "asm-wall-cast",
-    name: "Cast-in-place concrete wall",
-    components: [
-      { id: "concrete", kind: "material", quantityPerUnit: 1, unit: "m3", wastePct: 5 },
-      { id: "crew", kind: "labor", quantityPerUnit: 0.8, unit: "h", productivityFactor: 1.25 },
-    ],
-  }
-  const wallRates: Record<string, Rate> = {
-    concrete: { id: "rate-concrete", currency: "EUR", unitPrice: 120, source: "price-book" },
-    crew: { id: "rate-crew", currency: "EUR", unitPrice: 25, source: "contract" },
-  }
+// Fixture (test constants — not engineering claims):
+//   quantity: 12.5 m³ of a concrete wall take-off
+//   assembly "wall-cast":
+//     - material "concrete": quantityPerUnit 1 (m³ per m³), wastePct 5
+//     - labor "crew":       quantityPerUnit 0.8 (hours per m³), productivityFactor 1.25
+//   rates (keyed by component id): concrete 120 /m³, crew 25 /h
+//   rounding: half-up, 2 decimals
+//
+// Hand arithmetic:
+//   material amount = 12.5 × 1 × (1 + 5/100)      = 13.125
+//   material cost   = 13.125 × 120                = 1575.00
+//   labor amount    = 12.5 × 0.8 / 1.25           = 8      (productivity DIVIDES)
+//   labor cost      = 8 × 25                      = 200.00
+//   line total      = roundTo(1575.00 + 200.00)   = 1775.00
+// (module scope: shared with the estimateTotals composition block below)
+const wallAssembly: Assembly = {
+  id: "asm-wall-cast",
+  name: "Cast-in-place concrete wall",
+  components: [
+    { id: "concrete", kind: "material", quantityPerUnit: 1, unit: "m3", wastePct: 5 },
+    { id: "crew", kind: "labor", quantityPerUnit: 0.8, unit: "h", productivityFactor: 1.25 },
+  ],
+}
+const wallRates: Record<string, Rate> = {
+  concrete: { id: "rate-concrete", currency: "EUR", unitPrice: 120, source: "price-book" },
+  crew: { id: "rate-crew", currency: "EUR", unitPrice: 25, source: "contract" },
+}
 
+describe("estimateLineTotal", () => {
   test("hand-computed concrete wall fixture totals 1775.00", () => {
     expect(estimateLineTotal({ value: 12.5 }, wallAssembly, wallRates, halfUp2)).toBe(1775)
   })
@@ -393,5 +395,143 @@ describe("estimateLineTotal", () => {
     expect(() =>
       estimateLineTotal({ value: 12.5 }, { id: "asm-empty", name: "Empty", components: [] }, {}, halfUp2),
     ).toThrow(LedgerError)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// estimateTotals — pinned estimate-total formula
+// ---------------------------------------------------------------------------
+
+describe("estimateTotals", () => {
+  test("hand-computed case: [100, 50], 10% overhead, 5% profit, 0% tax, half-up 2 → 173.25", () => {
+    // Hand arithmetic (task fixture, documented inline):
+    //   linesSubtotal = 100 + 50                     = 150.00
+    //   overhead      = roundTo(150 × 10/100)        = 15.00
+    //   profit        = roundTo((150 + 15) × 5/100)  = roundTo(8.25) = 8.25
+    //   tax           = roundTo(165 × 0/100)        = 0.00
+    //   grandTotal    = roundTo(150 + 15 + 8.25 + 0) = 173.25
+    const totals = estimateTotals([100, 50], { overheadPct: 10, profitPct: 5, taxPct: 0 }, halfUp2)
+    expect(totals).toEqual({
+      linesSubtotal: 150,
+      overhead: 15,
+      profit: 8.25,
+      tax: 0,
+      grandTotal: 173.25,
+    })
+  })
+
+  test("compounding: tax is computed on subtotal + overhead + profit", () => {
+    // [100], 10% / 5% / 8%:
+    //   overhead = 10.00; profit = roundTo(110 × 5/100) = 5.50
+    //   tax      = roundTo(115.5 × 8/100) = roundTo(9.24) = 9.24
+    //   grand    = roundTo(100 + 10 + 5.5 + 9.24) = 124.74
+    const totals = estimateTotals([100], { overheadPct: 10, profitPct: 5, taxPct: 8 }, halfUp2)
+    expect(totals).toEqual({
+      linesSubtotal: 100,
+      overhead: 10,
+      profit: 5.5,
+      tax: 9.24,
+      grandTotal: 124.74,
+    })
+  })
+
+  test("each step is rounded to the estimate precision before the next compounds", () => {
+    // Two lines of 0.005: subtotal = roundTo(0.01) = 0.01 (per-line rounding is
+    // the line layer's job; here the SUM is rounded once). With 100% overhead,
+    // overhead = roundTo(0.01 × 100/100) = 0.01 and grand = 0.02 — pinning that
+    // the pinned formula rounds each step instead of carrying raw intermediates.
+    const totals = estimateTotals([0.005, 0.005], { overheadPct: 100, profitPct: 0, taxPct: 0 }, halfUp2)
+    expect(totals).toEqual({ linesSubtotal: 0.01, overhead: 0.01, profit: 0, tax: 0, grandTotal: 0.02 })
+  })
+
+  test("empty ledger: an estimate with no lines totals to zero (not an error)", () => {
+    const totals = estimateTotals([], { overheadPct: 10, profitPct: 5, taxPct: 14.5 }, halfUp2)
+    expect(totals).toEqual({ linesSubtotal: 0, overhead: 0, profit: 0, tax: 0, grandTotal: 0 })
+  })
+
+  test("same inputs → same outputs (deterministic, re-runnable)", () => {
+    const params = { overheadPct: 10, profitPct: 5, taxPct: 0 }
+    const first = estimateTotals([100, 50], params, halfUp2)
+    const second = estimateTotals([100, 50], params, halfUp2)
+    expect(first).toEqual(second)
+    expect(first.grandTotal).toBe(173.25)
+  })
+
+  test("negative overheadPct / profitPct / taxPct throw LedgerError", () => {
+    expect(() => estimateTotals([100], { overheadPct: -1, profitPct: 5, taxPct: 0 }, halfUp2)).toThrow(
+      LedgerError,
+    )
+    expect(() => estimateTotals([100], { overheadPct: 10, profitPct: -0.5, taxPct: 0 }, halfUp2)).toThrow(
+      /profitPct/,
+    )
+    expect(() => estimateTotals([100], { overheadPct: 10, profitPct: 5, taxPct: -2 }, halfUp2)).toThrow(
+      /taxPct/,
+    )
+  })
+
+  test("NaN / Infinity percentages throw LedgerError (never NaN out the door)", () => {
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(() => estimateTotals([100], { overheadPct: bad, profitPct: 5, taxPct: 0 }, halfUp2)).toThrow(
+        LedgerError,
+      )
+      expect(() => estimateTotals([100], { overheadPct: 10, profitPct: bad, taxPct: 0 }, halfUp2)).toThrow(
+        LedgerError,
+      )
+      expect(() => estimateTotals([100], { overheadPct: 10, profitPct: 5, taxPct: bad }, halfUp2)).toThrow(
+        LedgerError,
+      )
+    }
+  })
+
+  test("non-finite line totals throw LedgerError naming the position", () => {
+    expect(() => estimateTotals([10, Number.NaN], { overheadPct: 0, profitPct: 0, taxPct: 0 }, halfUp2)).toThrow(
+      LedgerError,
+    )
+    expect(() => estimateTotals([10, Number.NaN], { overheadPct: 0, profitPct: 0, taxPct: 0 }, halfUp2)).toThrow(
+      /lineTotals\[1\]/,
+    )
+    expect(() =>
+      estimateTotals([Number.POSITIVE_INFINITY], { overheadPct: 0, profitPct: 0, taxPct: 0 }, halfUp2),
+    ).toThrow(LedgerError)
+  })
+
+  test("non-array lineTotals throw LedgerError", () => {
+    expect(() =>
+      estimateTotals("100" as unknown as number[], { overheadPct: 10, profitPct: 5, taxPct: 0 }, halfUp2),
+    ).toThrow(LedgerError)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// estimateLineTotal × estimateTotals — the two layers compose deterministically
+// ---------------------------------------------------------------------------
+
+describe("estimateLineTotal + estimateTotals composition", () => {
+  test("stored line totals feed the pinned totals formula without drift", () => {
+    // Fixture (test constants): 12.5 m³ wall take-off at 1775.00 (see above),
+    // plus a second line — 20 m³ with concrete at 95.2386 /m³:
+    //   material amount = 20 × 1 × 1.05 = 21 → cost = 21 × 95.2386 = 2000.0106 → 2000.01
+    //   labor amount     = 20 × 0.8 / 1.25 = 12.8 → cost = 12.8 × 25 = 320.00
+    //   lineTotal        = roundTo(2000.01 + 320) = 2320.01
+    // Totals (10% overhead, 5% profit, 0% tax, half-up 2):
+    //   linesSubtotal = roundTo(1775 + 2320.01)       = 4095.01
+    //   overhead      = roundTo(4095.01 × 10/100)      = roundTo(409.501) = 409.5
+    //   profit        = roundTo(4504.51 × 5/100)      = roundTo(225.2255) = 225.23
+    //   tax           = 0; grand = roundTo(4504.51 + 225.23) = 4729.74
+    const lineA = estimateLineTotal({ value: 12.5 }, wallAssembly, wallRates, halfUp2)
+    const lineB = estimateLineTotal({ value: 20 }, wallAssembly, {
+      ...wallRates,
+      concrete: { id: "rate-concrete", currency: "EUR", unitPrice: 95.2386, source: "price-book" },
+    }, halfUp2)
+    expect(lineA).toBe(1775)
+    expect(lineB).toBe(2320.01)
+    const totals = estimateTotals([lineA, lineB], { overheadPct: 10, profitPct: 5, taxPct: 0 }, halfUp2)
+    expect(totals).toEqual({
+      linesSubtotal: 4095.01,
+      overhead: 409.5,
+      profit: 225.23,
+      tax: 0,
+      grandTotal: 4729.74,
+    })
   })
 })

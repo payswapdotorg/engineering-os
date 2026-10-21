@@ -70,9 +70,9 @@ Requirements and troubleshooting: [docs/07-release/installation-ubuntu.md](docs/
 | Phase | Focus | Status |
 |---|---|---|
 | 0 | Source-verified audit, architecture, ADRs, capability matrix | ✅ complete |
-| 1 | Working product foundation: projects, artifacts, revisions, engine discovery, Ubuntu dev install | 🚧 in progress |
+| 1 | Working product foundation: projects, artifacts, revisions, engine discovery, Ubuntu dev install | ✅ complete (verified — AC-P1-01…09) |
 | 2 | CAD/BIM workflows (FreeCAD, LibreCAD, Bonsai/IfcOpenShell, model viewer) | planned |
-| 3 | Takeoff, estimating, construction controls (shared quantity ledger, BOQ, schedules) | planned |
+| 3 | Takeoff, estimating, construction controls (shared quantity ledger, BOQ, schedules) | 🚧 in progress — quantity ledger + estimating + REAL STEP/IFC quantity adapters shipped & verified (AC-P3-01…08); PDF measurement tools, benchmark harness, BOQ exports & schedules pending |
 | 4 | Collaboration & agent workflows (durable runtime, approvals, impact invalidation) | planned |
 | 5 | Broader engineering packs (GIS, E/E, structural, CFD, systems, robotics) | planned |
 | 6 | Hardening, packaging, release readiness | planned |

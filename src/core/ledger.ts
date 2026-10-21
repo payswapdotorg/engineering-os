@@ -611,3 +611,76 @@ export function estimateLineTotal(
 
   return roundTo(total, rounding)
 }
+
+// ---------------------------------------------------------------------------
+// Estimating — deterministic estimate totals (pinned formula)
+// ---------------------------------------------------------------------------
+
+export interface EstimateTotalsParams {
+  overheadPct: number
+  profitPct: number
+  taxPct: number
+}
+
+export interface EstimateTotals {
+  linesSubtotal: number
+  overhead: number
+  profit: number
+  tax: number
+  grandTotal: number
+}
+
+/**
+ * Estimate totals — PINNED FORMULA (worklog "TL-pinned contracts", AC-P3-05),
+ * computed the same way on every read/mutation (totals are never stored stale):
+ *
+ *     linesSubtotal = roundTo(Σ lineTotal, rounding)
+ *     overhead      = roundTo(linesSubtotal × overheadPct / 100, rounding)
+ *     profit        = roundTo((linesSubtotal + overhead) × profitPct / 100, rounding)
+ *     tax           = roundTo((linesSubtotal + overhead + profit) × taxPct / 100, rounding)
+ *     grandTotal    = roundTo(linesSubtotal + overhead + profit + tax, rounding)
+ *
+ * Each step is rounded to the estimate precision BEFORE the next step compounds
+ * on it — the documented order, so stored per-step figures always add up to the
+ * grand total at the line precision. DETERMINISTIC AND RE-RUNNABLE (ADR-0006):
+ * the same line totals, percentages and rounding rule always yield the same
+ * numbers; nothing is ever NaN (non-finite input throws `LedgerError`).
+ *
+ * Domain validation (failures throw `LedgerError` with a clear message):
+ *  - `lineTotals` must be an array of finite numbers
+ *  - `overheadPct`, `profitPct` and `taxPct` must be finite and ≥ 0
+ *    (a negative percentage is a modeling error, not a discount)
+ */
+export function estimateTotals(
+  lineTotals: number[],
+  params: EstimateTotalsParams,
+  rounding: RoundingRule,
+): EstimateTotals {
+  const where = "estimateTotals"
+  if (!Array.isArray(lineTotals)) {
+    throw new LedgerError(`${where}: lineTotals must be an array of numbers`)
+  }
+  for (const [key, pct] of Object.entries({
+    overheadPct: params.overheadPct,
+    profitPct: params.profitPct,
+    taxPct: params.taxPct,
+  })) {
+    requireFinite(key, pct, where)
+    if (pct < 0) {
+      throw new LedgerError(`${where}: ${key} must be ≥ 0, got ${String(pct)}`)
+    }
+  }
+  lineTotals.forEach((lineTotal, index) => {
+    requireFinite(`lineTotals[${index}]`, lineTotal, where)
+  })
+
+  const linesSubtotal = roundTo(
+    lineTotals.reduce((sum, lineTotal) => sum + lineTotal, 0),
+    rounding,
+  )
+  const overhead = roundTo((linesSubtotal * params.overheadPct) / 100, rounding)
+  const profit = roundTo(((linesSubtotal + overhead) * params.profitPct) / 100, rounding)
+  const tax = roundTo(((linesSubtotal + overhead + profit) * params.taxPct) / 100, rounding)
+  const grandTotal = roundTo(linesSubtotal + overhead + profit + tax, rounding)
+  return { linesSubtotal, overhead, profit, tax, grandTotal }
+}

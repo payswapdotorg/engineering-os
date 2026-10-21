@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines are 'planned' in Engineering OS: none is installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod.",
+  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters — model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod.",
   "engines": [
     {
       "key": "freecad",
@@ -32,6 +32,39 @@
       "limitations": [
         "DWG read/write requires external converter (LibreDWG) — separate compatibility program",
         "GitHub license field is the legacy shorthand LGPL-2.1; upstream declares LGPL-2.1-or-later — exact 'only/or-later' scope to be pinned at Phase-6 release review"
+      ]
+    },
+    {
+      "key": "cadquery",
+      "name": "CadQuery",
+      "domain": "cad",
+      "description": "Python library for parametric 3D CAD on the OpenCascade (OCCT) kernel; STEP import/export and exact BRepGProp geometric properties (volume, area).",
+      "upstream": {
+        "canonical": "https://github.com/CadQuery/cadquery",
+        "repo": "CadQuery/cadquery",
+        "licenseSpdx": "Apache-2.0",
+        "latestStable": "2.8.0",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/CadQuery/cadquery (repo live, id 155099400; some follow-up API calls rate-limited from this host — recorded) + /tags (v2.8.0 latest, installed v2.6.1 tag exists) + raw LICENSE file (Apache-2.0 text) + PyPI JSON (cadquery 2.8.0, Apache-2.0 classifier, home_page = the repo)"
+      },
+      "integration": {
+        "mechanisms": ["python-module"],
+        "notes": "FIRST REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/step_quantities.py computes model-derived quantities (per-solid volume, total surface area, bbox diagonal) from STEP files via OCCT BRepGProp, spawned as an arm's-length subprocess of the uv venv python. Bridge: src/engines/adapters/quantities.ts (deriveFromFile); tests: quantities.test.ts (analytic cross-check on tests/fixtures/bracket-solid.step, 2% tolerance)."
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "cadquery",
+          "moduleVersionExpr": "import cadquery; print(cadquery.__version__)"
+        }
+      ],
+      "state": "tested",
+      "limitations": [
+        "Engine is a venv python library, not a CLI on PATH — the registry probe reports 'installed' only when EOS_PYTHON points at the uv venv interpreter (/home/z/.venv/bin/python3)",
+        "import cadquery emits fontconfig warnings to stderr on this host (cosmetic; the adapter redirects fd-level stdout so they can never contaminate the JSON protocol)",
+        "STEP adapter emits per-solid volume, total surface area and overall bounding-box diagonal only — no per-face/feature-level quantities yet",
+        "Solid enumeration order follows OCCT's compound order — elementRef step:solid:i indices are engine-determined, not semantically meaningful"
       ]
     },
     {
@@ -146,7 +179,7 @@
       },
       "integration": {
         "mechanisms": ["python-module", "cli"],
-        "notes": "python module for model-derived quantities and validation (Phase 3); Bonsai inside Blender for native editing (Phase 2)."
+        "notes": "REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/ifc_quantities.py extracts per-element declared quantities (IfcElementQuantity, BaseQuantities first; elementRef '#<GlobalId>') with an ifcopenshell.geom mesh-triangulation fallback for geometry-only models. Installed in the uv venv via uv pip install (PyPI ifcopenshell==0.9.0.post1, network available). Bridge: src/engines/adapters/quantities.ts; tests: quantities.test.ts (declared-value round-trip on tests/fixtures/wall-quantities.ifc + analytic mesh cross-check on tests/fixtures/wall-geometry.ifc)."
       },
       "probes": [
         {
@@ -155,9 +188,12 @@
           "moduleVersionExpr": "import ifcopenshell; print(ifcopenshell.version)"
         }
       ],
-      "state": "planned",
+      "state": "tested",
       "limitations": [
-        "GitHub 'latest' release is a Bonsai 0.9.1 alpha (date-coded tags); stable distribution channel is PyPI (0.9.0.post1) — pin exact channel at integration"
+        "GitHub 'latest' release is a Bonsai 0.9.1 alpha (date-coded tags); stable distribution channel is PyPI (0.9.0.post1) — pin exact channel at integration",
+        "PyPI wheel ships WITHOUT the OCCT geometry backend (ifcopenshell.geom.has_occ == False on this host) — the adapter's geometric fallback uses mesh triangulation: exact for planar solids, approximate for curved surfaces (recorded in every quantity's raw.method)",
+        "IfcQuantityWeight/Time and complex quantities are skipped honestly (no 'weight' slot in the DerivedQuantity contract) — skipped names are recorded in raw.skippedUnsupportedQuantities",
+        "Bonsai (Blender add-on) authoring/editing remains Phase 2 — this adapter is read-only quantity extraction"
       ]
     },
     {

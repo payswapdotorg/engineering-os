@@ -1,11 +1,12 @@
 "use client"
 
 /**
- * Project workspace — Overview / Artifacts (Models & Drawings) / Team / Activity.
- * The tab is the URL query (?tab=…), so workspace links (sidebar, Cmd+K)
- * deep-link straight into a tab.
+ * Project workspace — Overview / Artifacts (Models & Drawings) / Takeoff /
+ * Team / Activity. The tab is the URL query (?tab=…), so workspace links
+ * (sidebar, Cmd+K) deep-link straight into a tab — the page guard in
+ * src/app/projects/[id]/page.tsx routes every tab id below, takeoff included.
  */
-import { Boxes, FileUp, GitBranch, Info, Plus, UserPlus, Users } from "lucide-react"
+import { Boxes, FileUp, GitBranch, Info, Plus, Ruler, UserPlus, Users } from "lucide-react"
 import Link from "next/link"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
@@ -17,6 +18,7 @@ import { EventFeed } from "@/components/product/event-feed"
 import { formatDate, humanBytes, relTime } from "@/components/product/format"
 import { AddMemberDialog, EditProjectDialog } from "@/components/product/project-dialogs"
 import { EmptyState, ErrorState, StatCard } from "@/components/product/parts"
+import { TakeoffWorkspace } from "@/components/product/takeoff-workspace"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -37,10 +39,12 @@ import { ARTIFACT_KINDS } from "@/lib/artifact-meta"
 import { disciplineLabel } from "@/lib/disciplines"
 import { initialsOf } from "@/components/product/format"
 
-const TABS = ["overview", "artifacts", "team", "activity"] as const
+const TABS = ["overview", "artifacts", "takeoff", "team", "activity"] as const
 type TabId = (typeof TABS)[number]
 
 export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: string; tab: TabId; onTabChange: (tab: TabId) => void }) {
+  const activeTab = tab
+
   const workspace = useApi<ProjectDetail>(`/api/projects/${projectId}`)
   const activity = useApi<{ events: AuditEventRow[] }>(`/api/events?projectId=${projectId}&limit=200`)
 
@@ -68,6 +72,10 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
   const openMemberFromOverview = () => {
     onTabChange("team")
     setMemberOpen(true)
+  }
+
+  const openTakeoffFromOverview = () => {
+    onTabChange("takeoff")
   }
 
   const filteredArtifacts = useMemo(() => {
@@ -135,10 +143,11 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
         </div>
       </header>
 
-      <Tabs value={tab} onValueChange={(v) => onTabChange(v as TabId)}>
+      <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as TabId)}>
         <TabsList aria-label="Project workspace sections">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
+          <TabsTrigger value="takeoff">Takeoff</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
@@ -160,6 +169,9 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
           <section aria-label="Quick actions" className="flex flex-wrap gap-3">
             <Button className="h-10" onClick={openRegisterFromOverview}>
               <FileUp aria-hidden /> Register artifact
+            </Button>
+            <Button variant="outline" className="h-10" onClick={openTakeoffFromOverview}>
+              <Ruler aria-hidden /> Takeoff & estimating
             </Button>
             <Button variant="outline" className="h-10" onClick={openMemberFromOverview}>
               <UserPlus aria-hidden /> Add member
@@ -271,6 +283,11 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
               </Table>
             </div>
           )}
+        </TabsContent>
+
+        {/* ---------------- Takeoff ---------------- */}
+        <TabsContent value="takeoff" className="mt-4 flex flex-col gap-4">
+          <TakeoffWorkspace projectId={project.id} />
         </TabsContent>
 
         {/* ---------------- Team ---------------- */}

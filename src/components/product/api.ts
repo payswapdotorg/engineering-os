@@ -8,6 +8,17 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 
+// Domain vocabulary re-used on the wire so UI and core can never drift
+// (type-only — nothing from core is executed here).
+import type {
+  EstimateComponentKind,
+  QuantityMethod,
+  QuantityRecord,
+  QuantityType,
+  RateSource,
+  RoundingMode,
+} from "@/core/ledger"
+
 export class ApiError extends Error {
   code: string
   status: number
@@ -266,4 +277,224 @@ export interface ProbeRunResult {
 export interface RevisionUploadResult {
   revision: Revision
   staleMarked: Array<{ artifactId: string; name: string; relation: string; path: string[] }>
+}
+
+// ---------------------------------------------------------------------------
+// Takeoff & Estimating (Phase 3) — wire types + typed call sites
+// ---------------------------------------------------------------------------
+// Mirrors the pinned contracts exactly (worklog "TL-pinned contracts"); W3 owns
+// the routes, this file owns the client-side shape of the wire. Estimate math
+// NEVER happens client-side: line totals and totals arrive computed.
+// ---------------------------------------------------------------------------
+
+/** Serialized QuantityRecord + the joined source artifact identity. */
+export interface QuantityRow extends QuantityRecord {
+  sourceArtifact: { id: string; name: string; kind: string; revNumber: number } | null
+}
+
+export type QuantityTransitionAction = "submit" | "approve" | "reject" | "supersede"
+
+/** POST /api/projects/[id]/quantities body (id/projectId are server-assigned). */
+export interface QuantityCreateInput {
+  sourceArtifactRevisionId: string
+  sheetRef?: string
+  elementRef?: string
+  quantityType: QuantityType
+  value: number
+  unit: string
+  method: QuantityMethod
+  scale?: string
+  quantityMethod?: string
+  rulesetId: string
+  rulesetVersion: string
+  tradeAssemblyId?: string
+  createdBy: string
+}
+
+export interface AssemblyComponentRow {
+  id: string
+  kind: EstimateComponentKind
+  name: string
+  /** amount of this component per unit of the measured quantity (> 0) */
+  quantityPerUnit: number
+  unit: string
+  wastePct?: number
+  productivityFactor?: number
+}
+
+export interface AssemblyRow {
+  id: string
+  projectId: string
+  name: string
+  trade: string
+  components: AssemblyComponentRow[]
+  createdAt: string
+}
+
+/** POST /api/projects/[id]/assemblies body (component ids are client-generated `cmp_<uuid>`). */
+export interface AssemblyComponentInput {
+  id: string
+  kind: EstimateComponentKind
+  name: string
+  quantityPerUnit: number
+  unit: string
+  wastePct?: number
+  productivityFactor?: number
+}
+
+export interface AssemblyCreateInput {
+  name: string
+  trade: string
+  components: AssemblyComponentInput[]
+}
+
+export interface RateRow {
+  id: string
+  projectId: string
+  componentId: string
+  currency: string
+  unitPrice: number
+  source: RateSource
+  effectiveFrom?: string
+  createdBy: string
+  createdAt: string
+}
+
+/** POST /api/projects/[id]/rates body (rates are engineer-entered only). */
+export interface RateCreateInput {
+  componentId: string
+  currency: string
+  unitPrice: number
+  source: RateSource
+  effectiveFrom?: string
+}
+
+export interface EstimateLineBreakdownRow {
+  componentId: string
+  kind: EstimateComponentKind
+  name: string
+  amount: number
+  unit: string
+  unitPrice: number
+  cost: number
+}
+
+export interface EstimateLineRow {
+  id: string
+  estimateId: string
+  quantityId: string
+  assemblyId: string
+  currency: string
+  /** server-computed via src/core/ledger.ts estimateLineTotal — never client math */
+  lineTotal: number
+  rateIds: string[]
+  breakdown: EstimateLineBreakdownRow[]
+  createdAt: string
+}
+
+export interface EstimateTotals {
+  linesSubtotal: number
+  overhead: number
+  profit: number
+  tax: number
+  grandTotal: number
+  currency: string
+}
+
+export type EstimateStatus = "draft" | "in_review" | "approved" | "superseded"
+
+export type EstimateTransitionAction = "submit" | "approve" | "reject"
+
+export interface EstimateRow {
+  id: string
+  projectId: string
+  name: string
+  currency: string
+  overheadPct: number
+  profitPct: number
+  taxPct: number
+  rounding: { mode: RoundingMode; decimals: number }
+  status: EstimateStatus
+  approval?: { approvedBy: string; approvedAt: string }
+  createdBy: string
+  createdAt: string
+  lines: EstimateLineRow[]
+  /** recomputed by the server on every read — never stored stale */
+  totals: EstimateTotals
+}
+
+/** POST /api/projects/[id]/estimates body. */
+export interface EstimateCreateInput {
+  name: string
+  currency: string
+  overheadPct: number
+  profitPct: number
+  taxPct: number
+  roundingMode: RoundingMode
+  roundingDecimals: number
+}
+
+export async function listProjectArtifacts(projectId: string) {
+  return apiGet<{ artifacts: ArtifactListItem[] }>(`/api/projects/${projectId}/artifacts`)
+}
+
+export async function listQuantities(projectId: string) {
+  return apiGet<{ quantities: QuantityRow[] }>(`/api/projects/${projectId}/quantities`)
+}
+
+export async function createQuantity(projectId: string, input: QuantityCreateInput) {
+  return apiJson<{ quantity: QuantityRow }>(`/api/projects/${projectId}/quantities`, "POST", input)
+}
+
+export async function transitionQuantity(quantityId: string, action: QuantityTransitionAction) {
+  return apiJson<{ quantity: QuantityRow }>(`/api/quantities/${quantityId}/transition`, "POST", { action })
+}
+
+export async function deriveQuantities(projectId: string, artifactId: string) {
+  return apiJson<{ quantities: QuantityRow[] }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/derive-quantities`,
+    "POST",
+    {},
+  )
+}
+
+export async function listAssemblies(projectId: string) {
+  return apiGet<{ assemblies: AssemblyRow[] }>(`/api/projects/${projectId}/assemblies`)
+}
+
+export async function createAssembly(projectId: string, input: AssemblyCreateInput) {
+  return apiJson<{ assembly: AssemblyRow }>(`/api/projects/${projectId}/assemblies`, "POST", input)
+}
+
+export async function listRates(projectId: string) {
+  return apiGet<{ rates: RateRow[] }>(`/api/projects/${projectId}/rates`)
+}
+
+export async function createRate(projectId: string, input: RateCreateInput) {
+  return apiJson<{ rate: RateRow }>(`/api/projects/${projectId}/rates`, "POST", input)
+}
+
+export async function listEstimates(projectId: string) {
+  return apiGet<{ estimates: EstimateRow[] }>(`/api/projects/${projectId}/estimates`)
+}
+
+export async function createEstimate(projectId: string, input: EstimateCreateInput) {
+  return apiJson<{ estimate: EstimateRow }>(`/api/projects/${projectId}/estimates`, "POST", input)
+}
+
+export async function getEstimate(estimateId: string) {
+  return apiGet<{ estimate: EstimateRow }>(`/api/estimates/${estimateId}`)
+}
+
+/** The server resolves rates and computes the line total — the client sends no math. */
+export async function addEstimateLine(estimateId: string, input: { quantityId: string; assemblyId: string }) {
+  return apiJson<{ estimate: EstimateRow }>(`/api/estimates/${estimateId}/lines`, "POST", input)
+}
+
+export async function removeEstimateLine(estimateId: string, lineId: string) {
+  return apiJson<{ estimate: EstimateRow }>(`/api/estimates/${estimateId}/lines/${lineId}`, "DELETE")
+}
+
+export async function transitionEstimate(estimateId: string, action: EstimateTransitionAction) {
+  return apiJson<{ estimate: EstimateRow }>(`/api/estimates/${estimateId}/transition`, "POST", { action })
 }

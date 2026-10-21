@@ -2,8 +2,9 @@
 
 /**
  * /projects/[id] — client page. The active tab lives in ?tab= so workspace
- * navigation (sidebar, Cmd+K) deep-links directly into Models & Drawings or
- * Team. useSearchParams requires a Suspense boundary in Next 16.
+ * navigation (sidebar, Cmd+K) deep-links directly into Models & Drawings,
+ * Takeoff & Estimating or Team. useSearchParams requires a Suspense boundary
+ * in Next 16.
  */
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback } from "react";
@@ -11,7 +12,7 @@ import { Suspense, useCallback } from "react";
 import { ProjectWorkspace } from "@/components/product/project-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const TABS = ["overview", "artifacts", "team", "activity"] as const;
+const TABS = ["overview", "artifacts", "takeoff", "team", "activity"] as const;
 type TabId = (typeof TABS)[number];
 
 function isTabId(v: string | null): v is TabId {

@@ -1,16 +1,18 @@
 # Capability Matrix
 
-Owner: Worker 2 (Engines & Integration) · Date: **2026-10-21** · Companion to [engine-inventory.md](engine-inventory.md) · Contract: [ADR-0005](../adr/0005-engine-integration-contract.md) · Status vocabulary: `planned → installed → available → implemented → tested → verified → production-ready` (evidence-linked — never upgraded without a test, command output or acceptance item).
+Owner: Worker 2 (Engines & Integration) · Date: **2026-10-21** · Adapter update: **2026-10-21 (W2-b)** · Companion to [engine-inventory.md](engine-inventory.md) · Contract: [ADR-0005](../adr/0005-engine-integration-contract.md) · Status vocabulary: `planned → installed → available → implemented → tested → verified → production-ready` (evidence-linked — never upgraded without a test, command output or acceptance item).
 
 ## Reading this matrix
 
-- Every **engine-driven capability** below is `planned`: the engines are audited upstream (34 verified records) but no adapter exists yet (adapters land in Phase 2+ per ADR-0005), and none of the engines is installed on the dev host. Detection probes for them are specified and tested; adapter capabilities get their own states as evidence accrues.
-- **Platform capabilities (implemented now)** are listed at the end — these are the TL-provided foundation the engines will plug into, with their real states.
+- **Two capabilities reached `tested` on 2026-10-21 (W2-b): model-derived quantities from STEP (cadquery) and from IFC (IfcOpenShell)** — the first REAL engine adapters (registry states `tested` for both engines). Evidence: fixtures + analytic cross-checks + test names in [engine-inventory.md § First real engine adapters](engine-inventory.md#first-real-engine-adapters-w2-b-2026-10-21).
+- **Everything else below is `planned`:** those engines are audited upstream (35 verified records) but no adapter exists yet (adapters land in Phase 2+ per ADR-0005), and only cadquery 2.6.1 / ifcopenshell 0.9.0.post1 (uv venv) and LibreOffice 25.2.3.2 (PATH) are installed on the dev host. Detection probes for the rest are specified and tested; adapter capabilities get their own states as evidence accrues.
+- **Platform capabilities (implemented now)** are listed at the end — these are the TL-provided foundation the engines plug into, with their real states.
 
 ## CAD (Phase 2 focus)
 
 | Capability | Engine(s) | State | Target phase | Evidence / notes |
 |---|---|---|---|---|
+| **Model-derived quantities from STEP (per-solid volume, total surface area, bbox diagonal)** | **cadquery 2.6.1 (OCCT 7.8)** | **tested** | 3 (shipped 2026-10-21, W2-b) | REAL adapter `src/engines/adapters/step_quantities.py` (venv subprocess, JSON protocol, units parsed from the STEP header); bridge `src/engines/adapters/quantities.ts`; fixture `tests/fixtures/bracket-solid.step` (deterministic generator `make_fixture_bracket.py`); test "bracket-solid.step: engine values match hand-derived analytic closed forms (±2%)" — engine 32984.07105 mm³ vs analytic 36000−960π ≈ 32984.07105 (rel ~1e-14). Honest-failure test: `bracket.step` (0 solids) → `EngineUnavailableError`. See [engine-inventory.md § W2-b](engine-inventory.md#first-real-engine-adapters-w2-b-2026-10-21) |
 | Parametric 3D modeling (headless scripting) | FreeCAD | planned | 2 | Registry `freecad` (LGPL-2.1, 1.1.4); `FreeCADCmd --version` probe; adapter = Phase 2 deliverable |
 | 2D drafting (DXF/DWG read, DXF write) | LibreCAD | planned | 2 | Registry `librecad` (GPL-2.0, 2.2.1.6); arm's-length process |
 | DWG conversion (DWG ↔ DXF compatibility boundary) | LibreDWG | planned | 2 | Registry `libredwg` (GPL-3.0, 0.14); CLI-only integration (dwg2dxf/dwgread/dwgwrite); FreeCAD limitation note |
@@ -23,7 +25,7 @@ Owner: Worker 2 (Engines & Integration) · Date: **2026-10-21** · Companion to 
 |---|---|---|---|---|
 | IFC authoring / native editing | IfcOpenShell + Bonsai (in Blender) | planned | 2 | Registry `ifcopenshell` (LGPL-3.0, 0.9.0 via PyPI); python-module probe tested |
 | IFC model validation (schema + rules) | IfcOpenShell (python) | planned | 2/3 | Validation runs in broker-supervised process; results enter artifact graph with provenance (ADR-0005 rule 2) |
-| Model-derived quantity extraction | IfcOpenShell (python) | planned | 3 | Feeds the shared quantity ledger; kept strictly distinct from drawing-derived quantities (ADR-0005; ledger schema in `docs/03-data/quantity-ledger-schema.md`) |
+| **Model-derived quantity extraction (IFC)** | **IfcOpenShell 0.9.0.post1** | **tested** | 3 (shipped 2026-10-21, W2-b) | REAL adapter `src/engines/adapters/ifc_quantities.py`: IfcElementQuantity/BaseQuantities first (elementRef `#<GlobalId>`), geometric fallback via `ifcopenshell.geom` mesh (exact for planar solids, approximate for curved — recorded in `raw.method`); weight/time quantities skipped honestly. Tests: declared-value round-trip on `tests/fixtures/wall-quantities.ifc` (NetWeight=2880 kg present in fixture, proven skipped), mesh fallback vs analytic box (V=1.2 m³, S=14.0 m²) on `tests/fixtures/wall-geometry.ifc`, honest empty on `tests/fixtures/wall-stripped.ifc`; IFC tests auto-skip with a printed reason when the engine is absent |
 | In-app 3D / IFC web viewer | web-ifc + That Open Engine (components) | planned | 2 | Registry `web-ifc` (MPL-2.0, 0.78), `thatopen-engine` (MIT, 3.4.9); web-module mechanism — detection via package-lock inspection at adapter time (no PATH probe) |
 
 ## Takeoff (Phase 3)
@@ -32,7 +34,7 @@ Owner: Worker 2 (Engines & Integration) · Date: **2026-10-21** · Companion to 
 |---|---|---|---|---|
 | PDF drawing measurement (scale-calibrated takeoff) | OpenTakeoff | planned | 3 | Registry `opentakeoff` (AGPL-3.0, 0.9.98) — active upstream found by mandated audit 2026-10-21; MCP + canvas surfaces; strict arm's-length (AGPL) |
 | Agent-drivable takeoff (tool invocation) | OpenTakeoff (MCP server) | planned | 3 | `opentakeoff-mcp` bin verified via npm registry; broker-only execution path (ADR-0005 rule 1); agent measurements carry review status upstream |
-| Model-derived quantities (distinct ledger column) | IfcOpenShell | planned | 3 | See BIM row; drawing-derived vs model-derived kept separate by design |
+| Model-derived quantities (distinct ledger column) | cadquery (STEP) + IfcOpenShell (IFC) | tested | 3 (shipped 2026-10-21, W2-b) | Both adapters live (`src/engines/adapters/`); W3's derive-quantities route creates ledger rows with method `model-derived` + engine/script-hash provenance. Drawing-derived vs model-derived kept separate by design (ledger schema in `docs/03-data/quantity-ledger-schema.md`) |
 | BOQ assembly (bill of quantities) | platform ledger + OpenTakeoff / IfcOpenShell inputs | planned | 3 | Ledger domain logic: `src/core/ledger.ts` (W3 lane, in progress); no engine is claimed complete for this |
 
 ## GIS / civil (Phase 5)
@@ -84,9 +86,10 @@ These are the TL-provided platform foundation (not engine claims); states reflec
 
 | Capability | State | Evidence (src modules) |
 |---|---|---|
+| **Engine adapter bridge — model-derived quantities (STEP + IFC)** | **tested** | `src/engines/adapters/quantities.ts` (`deriveFromFile`, `supportsDerive`, `EngineUnavailableError`) spawning the venv python + `step_quantities.py` / `ifc_quantities.py` (JSON protocol, self-reported adapter sha256 independently re-verified by the test via `node:crypto`); `src/engines/adapters/quantities.test.ts` — 7 tests / 74 assertions green 2026-10-21, incl. honest-failure and honest-empty cases; no simulated results, ever |
 | Project & artifact registry (REST API + Prisma model) | implemented | `src/app/api/projects/**`, `src/app/api/artifacts/**` (incl. revisions, links, approvals), `prisma/schema.prisma`, `src/lib/db.ts` |
 | Content hashing + revision storage (sha256-addressed artifact store) | implemented | `src/lib/hash.ts` (`sha256Hex`), `src/lib/artifact-store.ts`, `src/lib/artifact-meta.ts` (artifact kinds/mime detection) |
 | Audit event trail | implemented | `src/lib/audit.ts` (`recordEvent`), `src/app/api/events/route.ts` |
-| Engine detection framework (registry + honest probes) | tested | `src/engines/index.ts` (`engineRegistry`, `detectEngines` — signatures stable for W1), `src/engines/registry.json` (34 source-verified engine records), `src/engines/detect.test.ts` (5 passing bun:test cases: versioned executable, missing-binary, absent python-module, presence-only, PATH hygiene — no network, no real engines) |
+| Engine detection framework (registry + honest probes) | tested | `src/engines/index.ts` (`engineRegistry`, `detectEngines` — signatures stable for W1), `src/engines/registry.json` (35 source-verified engine records — 34 from the 2026-10-21 audit + cadquery added 2026-10-21 at first-adapter time), `src/engines/detect.test.ts` (5 passing bun:test cases: versioned executable, missing-binary, absent python-module, presence-only, PATH hygiene — no network, no real engines) |
 
 Graph domain logic (impact propagation, staleness, approvals, ledger) is Worker 3's lane (`src/core/`) and is in progress — no states claimed here on its behalf.

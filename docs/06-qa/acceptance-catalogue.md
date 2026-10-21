@@ -8,8 +8,8 @@ Owner: TL · An item passes only with recorded evidence (command + observed resu
 |---|---|---|---|
 | A | Create & manage project (create → graph → workspace) | ✅ **passed (Phase 1)** | AC-P1-01/02/07; UI creation verified end-to-end (agent-browser) |
 | B | Edit & publish CAD artifact | planned Phase 2 | requires installed editor engines (dev host has none — honest) |
-| C | BIM model → verified BOQ | planned Phase 3 | |
-| D | Drawing → takeoff → estimate | planned Phase 3 | |
+| C | BIM model → verified BOQ | 🚧 partial (Phase 3) | Real IfcOpenShell BaseQuantity extraction verified against authored fixture values (AC-P3-02); full BOQ journey + benchmark corpus pending |
+| D | Drawing → takeoff → estimate | 🚧 partial (Phase 3) | Manual drawing-measured ledger rows + deterministic estimate verified (AC-P3-01/03/04/05/06); calibrated PDF measurement tooling pending |
 | E | Requirements → simulation → report | planned Phase 4/5 | |
 | F | Agent proposes & executes change | planned Phase 4 | |
 | G | Change impact across delivery | ✅ **seed passed (Phase 1)** | AC-P1-06 — full journey grows with Phases 3–4 |
@@ -34,3 +34,22 @@ Owner: TL · An item passes only with recorded evidence (command + observed resu
 - Browser automation of the **file-picker input** was blocked by a tool-level CDP issue in agent-browser (reproducible at the same interaction point); the upload path was therefore verified through the **real HTTP API** (multipart) with byte-level checks, and the register/revision dialogs were verified open/validate/enable-submit in the browser. No product defect was found in the upload path.
 - During Phase-1 development, two failed registrations (W1 mid-build import error) left orphaned bytes in the content store; the route logs this loudly, the orphans were cleaned at integration, and storage↔DB consistency was re-verified (`5 DB artifacts == 5 storage dirs`). The file-before-transaction window is documented as a known limitation.
 - Known non-issues: none of the 34 registry engines except LibreOffice is installed on this dev host — that absence is true state, not failure.
+
+## Phase-3 acceptance items — verified 2026-10-21 (TL, dev host; slice = quantity ledger + estimating + first real engine adapters)
+
+| ID | Item | Status | Evidence |
+|---|---|---|---|
+| AC-P3-01 | Drawing-measured ledger row recorded via real API + UI, sheetRef enforced | ✅ passed | `46.2 m² @ A-101 / zone B` (scale record `1:100 @ A1 (scale bar B)`) created via `POST /api/projects/[id]/quantities`; missing-sheetRef variant → 422 with the exact core zod message; UI ledger renders it with amber drawing badge, source artifact + rev |
+| AC-P3-02 | Model-derived quantities from REAL engine adapters, values provenance-tracked | ✅ passed | cadquery 2.6.1/OCC on `tests/fixtures/bracket-solid.step`: volume 32984.071 mm³ == analytic 36000−960π, area 11506.9025 mm² == 10200+416π (rel ~1e-14, test `src/engines/adapters/quantities.test.ts`); IfcOpenShell 0.9.0.post1 on `wall-quantities.ifc`: 10 authored BaseQuantities read back exactly (Volume 1.2 m³, SideArea 12.8 m², Footprint 0.6 m², WallTieCount 2); every derived row carries `provenance {createdBy: adapter:<engine>, adapterHash (sha256), engineVersion}`; audit `quantity.derived` by actor `adapter:<engine>` |
+| AC-P3-03 | Honest failures: no geometry → 422, never simulation | ✅ passed | `bracket.step` (0 solids) → 422 `engine_unavailable` "no solid geometry found … simulated values are not an option"; non-model (svg) → 422 `unsupported` |
+| AC-P3-04 | Quantity approval machine: draft→in_review→approved, supersede; no shortcuts | ✅ passed | direct draft→approve 422; submit/approve/supersede transitions verified via API; draft STEP row superseded on demand |
+| AC-P3-05 | Deterministic server-side estimate math | ✅ passed | line1 46.2 m² × C25 assembly (waste 5%, prod ×1.25) = GHS 10,066.98 (hand-checked: 8,440.74 + 1,626.24); line2 0.6 m² = GHS 130.74 (109.62 + 21.12); totals recomputed on read |
+| AC-P3-06 | Estimate totals per pinned formula | ✅ passed | subtotal 10,197.72 · overhead 10% = 1,019.77 · profit 5% of (sub+OH) = 560.87 · tax 0 · grand **GHS 11,778.36** — all match hand computation |
+| AC-P3-07 | Approval gate: estimate approve requires every line quantity approved | ✅ passed | approve with quantities in_review → 422 "estimate approve blocked (2 blockers): … is \"in_review\"" (ids + sheet/element refs listed); after approving the quantities → approve 200; approved estimates freeze lines (add/delete → 422) |
+| AC-P3-08 | Methods kept distinct + rates never agent-created | ✅ passed | drawing-measured vs model-derived render as distinct badges; adapter creates quantities only — rates are engineer-entered (`createdBy: local-operator` server-set, never accepted from body) |
+
+### Phase-3 verification record (honest notes)
+
+- Golden-path script: `scripts/e2e-takeoff.sh` (gitignored dev tooling) — **26 PASS / 0 FAIL** against the live dev server (its first run surfaced 3 script-side expectation bugs — including a TL hand-arithmetic error where the correct profit is 560.87, not 550.87 — and zero product defects; the corrected run is the recorded result). Demo dataset lives in the dev DB only: project "Harbour View Extension", 4 artifacts (incl. an honest-failure STEP stub and a scale-barred SVG sheet), 14 ledger rows, 1 approved GHS estimate. Worker smoke projects were removed from the dev DB (housekeeping script `scripts/dev-db-cleanup.ts`).
+- Browser (agent-browser): takeoff tab deep-link renders 14-row ledger (10 IFC rows with `#GlobalId` refs, 3 cadquery rows with `step:` refs, 1 drawing row); estimate detail shows GHS 10,066.98 / 130.74 / 11,778.36; **real UI mutation verified**: Add-rate dialog → POST → refetch → new "C25 concrete GHS 1,475.00" row; zero console/page errors; dark mode applied; mobile 390×844 responsive; footer sticks to viewport bottom on short pages (bottom==844) and is pushed down naturally on long ones (bottom==scrollH) — no overlay, no gap.
+- First-run file-picker automation remained blocked at tool level (unchanged from Phase 1) — the derive/estimate paths were exercised through the real API and then rendered in the browser.

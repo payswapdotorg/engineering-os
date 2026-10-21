@@ -27,7 +27,7 @@ export interface WorkspaceItem {
   /** Implemented route (workspace is real in Phase 1) */
   href?: string
   /** Implemented, but scoped to the open project (tab name) */
-  inProjectTab?: "artifacts" | "team"
+  inProjectTab?: "artifacts" | "team" | "takeoff"
   /** Planned-workspace badge, e.g. "Planned · Phase 2" */
   phaseNote?: string
   /** Honest explanation shown when the planned item is clicked */
@@ -44,13 +44,7 @@ export const WORKSPACES: WorkspaceItem[] = [
     plannedToast: "Design Studio ships with Phase 2 CAD/BIM integration — see Status & Roadmap",
   },
   { key: "models", label: "Models & Drawings", icon: Boxes, inProjectTab: "artifacts" },
-  {
-    key: "takeoff",
-    label: "Takeoff & Estimating",
-    icon: Ruler,
-    phaseNote: "Planned · Phase 3",
-    plannedToast: "Takeoff & Estimating ships with the Phase 3 quantity ledger — see Status & Roadmap",
-  },
+  { key: "takeoff", label: "Takeoff & Estimating", icon: Ruler, inProjectTab: "takeoff" },
   {
     key: "simulation",
     label: "Simulation & Verification",
