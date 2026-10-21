@@ -18,7 +18,14 @@
 import { mkdirSync, writeFileSync } from "node:fs"
 import path from "node:path"
 
-import { REPO_ROOT, type CaseResult, type ComparisonResult, type HarnessReport } from "./harness"
+import {
+  REPO_ROOT,
+  type CaseResult,
+  type ComparisonResult,
+  type HarnessReport,
+  type MeshCaseResult,
+  type ToleranceKind,
+} from "./harness"
 
 export const REPORT_JSON_PATH = path.join(REPO_ROOT, "tests", "validation", "report.json")
 export const REPORT_MD_PATH = path.join(REPO_ROOT, "docs", "02-engines", "validation-report.md")
@@ -36,15 +43,21 @@ function num(x: number): string {
   return String(x)
 }
 
-function relText(cmp: ComparisonResult): string {
-  if (cmp.observedRelError === null) return "—"
-  if (cmp.observedRelError === 0) return "0 (bitwise)"
+/** Render an observed relative error for the evidence docs (shared by the
+ * quantity and mesh comparison rows). */
+function relTextFor(relError: number | null, tolerance: ToleranceKind | null): string {
+  if (relError === null) return "—"
+  if (relError === 0) return "0 (bitwise)"
   // mesh-scale errors are readable as percentages; analytic-scale errors keep
   // their exponential form (a 0.0000% figure next to 1e-14 would understate it)
-  if (cmp.observedRelError >= 1e-4) {
-    return `${cmp.observedRelError.toExponential(3)} (${pct(cmp.observedRelError)})`
+  if (relError >= 1e-4 || tolerance === "mesh") {
+    return `${relError.toExponential(3)} (${pct(relError)})`
   }
-  return cmp.observedRelError.toExponential(3)
+  return relError.toExponential(3)
+}
+
+function relText(cmp: ComparisonResult): string {
+  return relTextFor(cmp.observedRelError, cmp.tolerance)
 }
 
 function caseStatus(c: CaseResult): string {
@@ -58,6 +71,9 @@ function caseNotes(c: CaseResult): string {
   if (c.status === "skip") {
     notes.push(c.skipReason ?? "skipped")
     return notes.join(" · ")
+  }
+  if (c.mesh) {
+    notes.push(meshNote(c.mesh))
   }
   if (c.expect === "error") {
     if (c.status === "pass") {
@@ -85,6 +101,21 @@ function caseNotes(c: CaseResult): string {
   return notes.join(" · ")
 }
 
+/** One-line tessellation sub-result for the results table (W2-d). */
+function meshNote(m: MeshCaseResult): string {
+  if (m.expect === "error") {
+    if (m.status === "pass") {
+      return `mesh: threw honest error: \`${(m.errorObserved ?? "").slice(0, 100)}\``
+    }
+    return `mesh: FAIL — ${m.problems.join(" · ")}`
+  }
+  const head = `mesh: ${m.elementCount ?? "—"} element(s) / ${m.vertexCount ?? "—"} verts / ${m.triangleCount ?? "—"} tris`
+  const det = m.determinism === null ? "" : ` · byte-determinism ${m.determinism ? "✅" : "**FALSE**"}`
+  const vols = m.comparisons.filter((x) => x.kind === "volume" && x.ok && x.observedRelError !== null && x.observedRelError > 0)
+  const worst = vols.length > 0 ? ` · max mesh-volume rel error ${Math.max(...vols.map((v) => v.observedRelError as number)).toExponential(3)}` : ""
+  return `${head}${det}${worst}${m.status === "pass" ? "" : ` — mesh FAIL: ${m.problems.join(" · ")}`}`
+}
+
 /** Human evidence document (regenerated wholesale by every harness run). */
 export function buildMarkdownReport(report: HarnessReport): string {
   const s = report.summary
@@ -94,7 +125,7 @@ export function buildMarkdownReport(report: HarnessReport): string {
     a.available ? "available" : `UNAVAILABLE (${a.reason ?? "unknown"})`
 
   const lines: string[] = []
-  lines.push("# Engine validation report — model-derived quantity adapters")
+  lines.push("# Engine validation report — model-derived quantity adapters + mesh tessellation")
   lines.push("")
   lines.push("> **Regenerated file — do not edit by hand.** Regenerate with `bun run validate:engines`.")
   lines.push("> Machine-readable companion: [`tests/validation/report.json`](../../tests/validation/report.json) ·")
@@ -111,6 +142,12 @@ export function buildMarkdownReport(report: HarnessReport): string {
   lines.push("- **Determinism**: every success case runs TWICE; quantity values must be bitwise identical.")
   lines.push("- Error cases must throw `EngineUnavailableError` whose message contains the pinned substring — honest failure,")
   lines.push("  never a fallback value.")
+  lines.push("- **Mesh (W2-d)**: cases with pinned `mesh` expectations additionally drive the REAL tessellation bridge")
+  lines.push("  (`src/engines/adapters/mesh.ts` → `step_mesh.py` / `ifc_mesh.py`) TWICE — element refs must be SET-EQUAL to both")
+  lines.push("  the pinned refs and the quantity ledger's element-level refs (the cross-reference contract), per-element")
+  lines.push("  vertex/triangle counts are pinned exactly, the two runs must be byte-identical (no timestamps anywhere —")
+  lines.push("  Contract A), and divergence-theorem mesh volumes are checked against hand-derived closed forms (planar exact;")
+  lines.push("  curved within the pinned 1% `mesh` tolerance with the observed relative error recorded).")
   lines.push("")
   lines.push("## Environment")
   lines.push("")
@@ -156,6 +193,68 @@ export function buildMarkdownReport(report: HarnessReport): string {
       `| \`${c.caseId}\` | ${c.adapter} | \`${c.fixture}\` | ${c.expect} | ${caseStatus(c)} | ${determinism} | ${quants} | ${maxRel} | ${notes} |`,
     )
   }
+  lines.push("")
+  lines.push("## Mesh tessellation validation (W2-d — the eos-mesh/1 bridge)")
+  lines.push("")
+  lines.push("Cases carrying a `mesh` block in the corpus manifest drive the REAL tessellation bridge (`tessellateFromFile` →")
+  lines.push("`step_mesh.py` (cadquery/OCCT) / `ifc_mesh.py` (ifcopenshell.geom, default settings) — never a mock. The adapters emit")
+  lines.push("`eos-mesh/1` WITHOUT `generatedBy`; the BRIDGE adds it when returning. The harness enforces: element refs set-equal the pinned")
+  lines.push("refs AND the quantity ledger's element-level refs (cross-reference contract), pinned per-element vertex/triangle counts,")
+  lines.push("byte-identical JSON across two real runs, and divergence-theorem mesh volumes vs hand-derived closed forms")
+  lines.push("(planar exact; curved ≤ 1% pinned, observed errors recorded below).")
+  lines.push("")
+  lines.push("Adapter tolerance pins (payload `tolerance`, metres — documented per adapter): STEP linear deflection pinned at")
+  lines.push("`0.0001` m (native 0.1 in mm-authored files + cadquery's default 0.1 rad angular tolerance); IFC = the engine's default")
+  lines.push("`mesher-linear-deflection` read at runtime (`0.001` m on the pinned wheel — geometry is processed in SI metres).")
+  lines.push("")
+  const meshCases = report.cases.filter((c) => c.mesh)
+  lines.push("| Case | Adapter | Elements | Verts | Tris | upAxis | tolerance (m) | Byte-determinism | Status |")
+  lines.push("|---|---|---|---|---|---|---|---|---|")
+  for (const c of meshCases) {
+    const m = c.mesh as MeshCaseResult
+    if (m.expect === "error") {
+      lines.push(
+        `| \`${c.caseId}\` | ${c.adapter} | — | — | — | — | — | — | ${m.status === "pass" ? "pass (honest error)" : "**FAIL**"} |`,
+      )
+      continue
+    }
+    const tol = m.comparisons.find((x) => x.kind === "tolerance")
+    const up = m.comparisons.find((x) => x.kind === "upAxis")
+    const det = m.determinism === null ? "—" : m.determinism ? "✅ true" : "**FALSE**"
+    lines.push(
+      `| \`${c.caseId}\` | ${c.adapter} | ${m.elementCount ?? "—"} (${(m.engine?.adapterScript ?? "").replace(".py", "")}) | ${m.vertexCount ?? "—"} | ${m.triangleCount ?? "—"} | ${up?.observed ?? "—"} | ${tol?.observed ?? "—"} | ${det} | ${m.status === "pass" ? "pass" : "**FAIL**"} |`,
+    )
+  }
+  lines.push("")
+  lines.push("### Observed mesh-volume errors — divergence theorem vs closed forms")
+  lines.push("")
+  const meshVolRows: string[] = []
+  for (const c of report.cases) {
+    if (!c.mesh || c.mesh.expect !== "success") continue
+    for (const v of c.mesh.comparisons.filter((x) => x.kind === "volume")) {
+      meshVolRows.push(
+        `- \`${c.caseId}\` (${c.fixture}) ${v.elementRef}: observed **${num(v.observed as number)}** vs closed form ${num(v.expected as number)} m³ → relative error ${relTextFor(v.observedRelError, v.tolerance)} — ${v.ok ? (v.tolerance === "mesh" ? "within the pinned 1% mesh tolerance" : "planar-solid exactness (IEEE rounding only)") : `PROBLEM: ${v.problem}`} · ${v.derivation}`,
+      )
+    }
+  }
+  if (meshVolRows.length === 0) {
+    meshVolRows.push("- no mesh-volume comparisons ran (case skipped or none expected)")
+  }
+  lines.push(...meshVolRows)
+  lines.push("")
+  lines.push("### Honest notes on the tessellation adapters")
+  lines.push("")
+  lines.push("- STEP vertices are converted from the file's declared length unit to metres via a pinned scale table; a STEP file with an")
+  lines.push("  unsupported or missing unit declaration is refused, never guessed. Solid enumeration is byte-identical to")
+  lines.push("  `step_quantities.py` (`importers.importStep` → `solids().vals()`), so `step:solid:<i>` means the same solid in both ledgers.")
+  lines.push("- IFC: ifcopenshell's geometry module returns vertex coordinates in SI METERS regardless of the project length unit")
+  lines.push("  (verified empirically on the pinned wheel with an mm-authored probe file: a 1000×500×300 mm box tessellates to")
+  lines.push("  x ∈ [−0.5, 0.5] m) — the adapter applies NO extra scale; the harness volume cross-checks against metre-authored")
+  lines.push("  fixtures would catch any units regression loudly.")
+  lines.push("- The IFC mesh adapter reuses the quantity adapter's proven `create_shape(settings, element)` iteration (one shape per")
+  lines.push("  element, openings excluded) with DEFAULT settings — sidestepping the geom-iterator quirk (only one `get()` per `initialize()`).")
+  lines.push("- A geometry-free IFC (no element yields a triangulation) and a solid-free STEP are HONEST ERRORS, not empty meshes:")
+  lines.push("  the mesh adapters refuse to emit an empty `elements` array, and the harness pins those error envelopes.")
   lines.push("")
   lines.push("### Observed mesh errors — the `has_occ=False` limitation, quantified")
   lines.push("")

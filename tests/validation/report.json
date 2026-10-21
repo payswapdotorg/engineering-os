@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-10-21T17:45:34.724Z",
+  "ranAt": "2026-10-21T19:34:02.291Z",
   "pythonBin": "/home/z/.venv/bin/python3",
   "manifestPath": "tests/validation/corpus-manifest.json",
   "caseCount": 11,
@@ -19,7 +19,9 @@
   },
   "adapterHashes": {
     "step_quantities.py": "950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d",
-    "ifc_quantities.py": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78"
+    "ifc_quantities.py": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78",
+    "step_mesh.py": "e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c",
+    "ifc_mesh.py": "6854d6c0a170daf29de36991af88996af10f2169084d5850083fad03b9747465"
   },
   "cases": [
     {
@@ -144,6 +146,119 @@
         "engineVersion": "2.6.1",
         "adapterScript": "step_quantities.py",
         "adapterHash": "950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d"
+      },
+      "mesh": {
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "elementCount": 1,
+        "vertexCount": 506,
+        "triangleCount": 500,
+        "comparisons": [
+          {
+            "kind": "upAxis",
+            "elementRef": null,
+            "expected": "z",
+            "observed": "z",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned payload upAxis (the adapter never rewrites the source up-axis)",
+            "problem": "matched"
+          },
+          {
+            "kind": "tolerance",
+            "elementRef": null,
+            "expected": 0.0001,
+            "observed": 0.0001,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned payload tolerance in meters (the adapter documents its native deflection)",
+            "problem": "matched"
+          },
+          {
+            "kind": "refs",
+            "elementRef": null,
+            "expected": "step:solid:0",
+            "observed": "step:solid:0",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned manifest mesh.elementRefs (set equality — extras and missing both fail)",
+            "problem": "matched"
+          },
+          {
+            "kind": "refs",
+            "elementRef": null,
+            "expected": "step:solid:0",
+            "observed": "step:solid:0",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "cross-reference contract with the quantity ledger: mesh elementRefs set-equal the quantity adapter's element-level refs",
+            "problem": "matched"
+          },
+          {
+            "kind": "name",
+            "elementRef": "step:solid:0",
+            "expected": "Solid 1",
+            "observed": "Solid 1",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
+            "problem": "matched"
+          },
+          {
+            "kind": "vertexCount",
+            "elementRef": "step:solid:0",
+            "expected": 506,
+            "observed": 506,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "triangleCount",
+            "elementRef": "step:solid:0",
+            "expected": 500,
+            "observed": 500,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "volume",
+            "elementRef": "step:solid:0",
+            "expected": 0.0001256637061435917,
+            "observed": 0.00012561163186495692,
+            "tolerance": "mesh",
+            "absDiff": 5.207427863478933e-8,
+            "observedRelError": 0.00041439394263356993,
+            "ok": true,
+            "derivation": "π · 20² · 100 mm³ = 40000π mm³ = 4π×10⁻⁵ m³ (Ø40×100 mm cylinder). 'mesh' tolerance (pinned 1%): the divergence-theorem volume over the OCCT triangulation is an approximation on the CURVED lateral surface (the inscribed tessellation slightly underestimates) — the harness records the observed relative error per run",
+            "problem": "matched"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "cadquery",
+          "engineVersion": "2.6.1",
+          "adapterScript": "step_mesh.py",
+          "adapterHash": "e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c"
+        }
       }
     },
     {
@@ -220,6 +335,167 @@
         "engineVersion": "2.6.1",
         "adapterScript": "step_quantities.py",
         "adapterHash": "950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d"
+      },
+      "mesh": {
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "elementCount": 2,
+        "vertexCount": 48,
+        "triangleCount": 24,
+        "comparisons": [
+          {
+            "kind": "upAxis",
+            "elementRef": null,
+            "expected": "z",
+            "observed": "z",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned payload upAxis (the adapter never rewrites the source up-axis)",
+            "problem": "matched"
+          },
+          {
+            "kind": "tolerance",
+            "elementRef": null,
+            "expected": 0.0001,
+            "observed": 0.0001,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned payload tolerance in meters (the adapter documents its native deflection)",
+            "problem": "matched"
+          },
+          {
+            "kind": "refs",
+            "elementRef": null,
+            "expected": "step:solid:0, step:solid:1",
+            "observed": "step:solid:0, step:solid:1",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned manifest mesh.elementRefs (set equality — extras and missing both fail)",
+            "problem": "matched"
+          },
+          {
+            "kind": "refs",
+            "elementRef": null,
+            "expected": "step:solid:0, step:solid:1",
+            "observed": "step:solid:0, step:solid:1",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "cross-reference contract with the quantity ledger: mesh elementRefs set-equal the quantity adapter's element-level refs",
+            "problem": "matched"
+          },
+          {
+            "kind": "name",
+            "elementRef": "step:solid:0",
+            "expected": "Solid 1",
+            "observed": "Solid 1",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
+            "problem": "matched"
+          },
+          {
+            "kind": "vertexCount",
+            "elementRef": "step:solid:0",
+            "expected": 24,
+            "observed": 24,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "triangleCount",
+            "elementRef": "step:solid:0",
+            "expected": 12,
+            "observed": 12,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "name",
+            "elementRef": "step:solid:1",
+            "expected": "Solid 2",
+            "observed": "Solid 2",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
+            "problem": "matched"
+          },
+          {
+            "kind": "vertexCount",
+            "elementRef": "step:solid:1",
+            "expected": 24,
+            "observed": 24,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "triangleCount",
+            "elementRef": "step:solid:1",
+            "expected": 12,
+            "observed": 12,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "volume",
+            "elementRef": "step:solid:0",
+            "expected": 0.000006,
+            "observed": 0.000005999999999999999,
+            "tolerance": "analytic",
+            "absDiff": 8.470329472543003e-22,
+            "observedRelError": 1.4117215787571671e-16,
+            "ok": true,
+            "derivation": "box A 30 × 20 × 10 mm = 6000 mm³ = 6×10⁻⁶ m³ (PLANAR solid → divergence-theorem mesh volume is mathematically exact; only IEEE rounding remains, and the mesh elementRef set-equals the quantity ledger's per-solid refs)",
+            "problem": "matched"
+          },
+          {
+            "kind": "volume",
+            "elementRef": "step:solid:1",
+            "expected": 0.000009,
+            "observed": 0.000008999999999999997,
+            "tolerance": "analytic",
+            "absDiff": 3.3881317890172014e-21,
+            "observedRelError": 3.764590876685779e-16,
+            "ok": true,
+            "derivation": "box B 15 × 15 × 40 mm = 9000 mm³ = 9×10⁻⁶ m³ (PLANAR solid → mesh volume exact)",
+            "problem": "matched"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "cadquery",
+          "engineVersion": "2.6.1",
+          "adapterScript": "step_mesh.py",
+          "adapterHash": "e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c"
+        }
       }
     },
     {
@@ -235,7 +511,19 @@
       "comparisons": null,
       "problems": [],
       "errorContains": "no solid geometry",
-      "errorObserved": "no solid geometry found in STEP file (import produced 0 solids) - cannot derive quantities, and simulated values are not an option"
+      "errorObserved": "no solid geometry found in STEP file (import produced 0 solids) - cannot derive quantities, and simulated values are not an option",
+      "mesh": {
+        "expect": "error",
+        "status": "pass",
+        "determinism": null,
+        "elementCount": null,
+        "vertexCount": null,
+        "triangleCount": null,
+        "comparisons": [],
+        "problems": [],
+        "errorContains": "no solid geometry",
+        "errorObserved": "no solid geometry found in STEP file (import produced 0 solids) - cannot tessellate, and simulated meshes are not an option"
+      }
     },
     {
       "caseId": "step-nonmodel-file",
@@ -250,7 +538,19 @@
       "comparisons": null,
       "problems": [],
       "errorContains": "STEP import failed",
-      "errorObserved": "cadquery STEP import failed: ValueError: STEP File could not be loaded"
+      "errorObserved": "cadquery STEP import failed: ValueError: STEP File could not be loaded",
+      "mesh": {
+        "expect": "error",
+        "status": "pass",
+        "determinism": null,
+        "elementCount": null,
+        "vertexCount": null,
+        "triangleCount": null,
+        "comparisons": [],
+        "problems": [],
+        "errorContains": "STEP import failed",
+        "errorObserved": "cadquery STEP import failed: ValueError: STEP File could not be loaded"
+      }
     },
     {
       "caseId": "ifc-wall-quantities",
@@ -640,6 +940,215 @@
         "engineVersion": "0.9.0.post1",
         "adapterScript": "ifc_quantities.py",
         "adapterHash": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78"
+      },
+      "mesh": {
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "elementCount": 3,
+        "vertexCount": 24,
+        "triangleCount": 36,
+        "comparisons": [
+          {
+            "kind": "upAxis",
+            "elementRef": null,
+            "expected": "z",
+            "observed": "z",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned payload upAxis (the adapter never rewrites the source up-axis)",
+            "problem": "matched"
+          },
+          {
+            "kind": "tolerance",
+            "elementRef": null,
+            "expected": 0.001,
+            "observed": 0.001,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned payload tolerance in meters (the adapter documents its native deflection)",
+            "problem": "matched"
+          },
+          {
+            "kind": "refs",
+            "elementRef": null,
+            "expected": "#3rUnE8CnPHBwLdZzIqZkf1, #3rUnE8CnPHBwLdZzIqZkf2, #3rUnE8CnPHBwLdZzIqZkf3",
+            "observed": "#3rUnE8CnPHBwLdZzIqZkf1, #3rUnE8CnPHBwLdZzIqZkf2, #3rUnE8CnPHBwLdZzIqZkf3",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned manifest mesh.elementRefs (set equality — extras and missing both fail)",
+            "problem": "matched"
+          },
+          {
+            "kind": "refs",
+            "elementRef": null,
+            "expected": "#3rUnE8CnPHBwLdZzIqZkf1, #3rUnE8CnPHBwLdZzIqZkf2, #3rUnE8CnPHBwLdZzIqZkf3",
+            "observed": "#3rUnE8CnPHBwLdZzIqZkf1, #3rUnE8CnPHBwLdZzIqZkf2, #3rUnE8CnPHBwLdZzIqZkf3",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "cross-reference contract with the quantity ledger: mesh elementRefs set-equal the quantity adapter's element-level refs",
+            "problem": "matched"
+          },
+          {
+            "kind": "name",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+            "expected": "Wall A",
+            "observed": "Wall A",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
+            "problem": "matched"
+          },
+          {
+            "kind": "vertexCount",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+            "expected": 8,
+            "observed": 8,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "triangleCount",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+            "expected": 12,
+            "observed": 12,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "name",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+            "expected": "Wall B",
+            "observed": "Wall B",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
+            "problem": "matched"
+          },
+          {
+            "kind": "vertexCount",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+            "expected": 8,
+            "observed": 8,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "triangleCount",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+            "expected": 12,
+            "observed": 12,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "name",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+            "expected": "Slab S",
+            "observed": "Slab S",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
+            "problem": "matched"
+          },
+          {
+            "kind": "vertexCount",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+            "expected": 8,
+            "observed": 8,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "triangleCount",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+            "expected": 12,
+            "observed": 12,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "volume",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+            "expected": 2.8,
+            "observed": 2.8000000000000003,
+            "tolerance": "analytic",
+            "absDiff": 4.440892098500626e-16,
+            "observedRelError": 1.5860328923216522e-16,
+            "ok": true,
+            "derivation": "Wall A 4.0 × 0.25 × 2.8 m = 2.8 m³ (PLANAR → divergence-theorem mesh volume exact; metres authored and verified)",
+            "problem": "matched"
+          },
+          {
+            "kind": "volume",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+            "expected": 0.84,
+            "observed": 0.84,
+            "tolerance": "analytic",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "derivation": "Wall B 2.0 × 0.15 × 2.8 m = 0.84 m³ (PLANAR → exact)",
+            "problem": "matched"
+          },
+          {
+            "kind": "volume",
+            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+            "expected": 3,
+            "observed": 3,
+            "tolerance": "analytic",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "derivation": "Slab S 5.0 × 3.0 × 0.2 m = 3.0 m³ (PLANAR → exact)",
+            "problem": "matched"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "ifcopenshell",
+          "engineVersion": "0.9.0.post1",
+          "adapterScript": "ifc_mesh.py",
+          "adapterHash": "6854d6c0a170daf29de36991af88996af10f2169084d5850083fad03b9747465"
+        }
       }
     },
     {
@@ -688,6 +1197,119 @@
         "engineVersion": "0.9.0.post1",
         "adapterScript": "ifc_quantities.py",
         "adapterHash": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78"
+      },
+      "mesh": {
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "elementCount": 1,
+        "vertexCount": 8,
+        "triangleCount": 12,
+        "comparisons": [
+          {
+            "kind": "upAxis",
+            "elementRef": null,
+            "expected": "z",
+            "observed": "z",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned payload upAxis (the adapter never rewrites the source up-axis)",
+            "problem": "matched"
+          },
+          {
+            "kind": "tolerance",
+            "elementRef": null,
+            "expected": 0.001,
+            "observed": 0.001,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned payload tolerance in meters (the adapter documents its native deflection)",
+            "problem": "matched"
+          },
+          {
+            "kind": "refs",
+            "elementRef": null,
+            "expected": "#2rUnE8CnPHBwLdZzIqZkf1",
+            "observed": "#2rUnE8CnPHBwLdZzIqZkf1",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned manifest mesh.elementRefs (set equality — extras and missing both fail)",
+            "problem": "matched"
+          },
+          {
+            "kind": "refs",
+            "elementRef": null,
+            "expected": "#2rUnE8CnPHBwLdZzIqZkf1",
+            "observed": "#2rUnE8CnPHBwLdZzIqZkf1",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "cross-reference contract with the quantity ledger: mesh elementRefs set-equal the quantity adapter's element-level refs",
+            "problem": "matched"
+          },
+          {
+            "kind": "name",
+            "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+            "expected": "Quantity Wall",
+            "observed": "Quantity Wall",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
+            "problem": "matched"
+          },
+          {
+            "kind": "vertexCount",
+            "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+            "expected": 8,
+            "observed": 8,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "triangleCount",
+            "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+            "expected": 12,
+            "observed": 12,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "volume",
+            "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+            "expected": 1.2,
+            "observed": 1.2000000000000002,
+            "tolerance": "analytic",
+            "absDiff": 2.220446049250313e-16,
+            "observedRelError": 1.8503717077085943e-16,
+            "ok": true,
+            "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³ (PLANAR → divergence-theorem mesh volume is mathematically exact; the mesh elementRef set-equals the quantity ledger ref)",
+            "problem": "matched"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "ifcopenshell",
+          "engineVersion": "0.9.0.post1",
+          "adapterScript": "ifc_mesh.py",
+          "adapterHash": "6854d6c0a170daf29de36991af88996af10f2169084d5850083fad03b9747465"
+        }
       }
     },
     {
@@ -736,6 +1358,119 @@
         "engineVersion": "0.9.0.post1",
         "adapterScript": "ifc_quantities.py",
         "adapterHash": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78"
+      },
+      "mesh": {
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "elementCount": 1,
+        "vertexCount": 90,
+        "triangleCount": 176,
+        "comparisons": [
+          {
+            "kind": "upAxis",
+            "elementRef": null,
+            "expected": "z",
+            "observed": "z",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned payload upAxis (the adapter never rewrites the source up-axis)",
+            "problem": "matched"
+          },
+          {
+            "kind": "tolerance",
+            "elementRef": null,
+            "expected": 0.001,
+            "observed": 0.001,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned payload tolerance in meters (the adapter documents its native deflection)",
+            "problem": "matched"
+          },
+          {
+            "kind": "refs",
+            "elementRef": null,
+            "expected": "#4rUnE8CnPHBwLdZzIqZkf1",
+            "observed": "#4rUnE8CnPHBwLdZzIqZkf1",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned manifest mesh.elementRefs (set equality — extras and missing both fail)",
+            "problem": "matched"
+          },
+          {
+            "kind": "refs",
+            "elementRef": null,
+            "expected": "#4rUnE8CnPHBwLdZzIqZkf1",
+            "observed": "#4rUnE8CnPHBwLdZzIqZkf1",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "cross-reference contract with the quantity ledger: mesh elementRefs set-equal the quantity adapter's element-level refs",
+            "problem": "matched"
+          },
+          {
+            "kind": "name",
+            "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+            "expected": "Mesh Column",
+            "observed": "Mesh Column",
+            "tolerance": null,
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
+            "problem": "matched"
+          },
+          {
+            "kind": "vertexCount",
+            "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+            "expected": 90,
+            "observed": 90,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "triangleCount",
+            "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+            "expected": 176,
+            "observed": 176,
+            "tolerance": null,
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
+            "problem": "matched"
+          },
+          {
+            "kind": "volume",
+            "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+            "expected": 0.3769911184307752,
+            "observed": 0.3757673725921769,
+            "tolerance": "mesh",
+            "absDiff": 0.0012237458385983002,
+            "observedRelError": 0.003246086655017603,
+            "ok": true,
+            "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance (pinned 1%): the default-settings triangulation (44 segments) is an APPROXIMATION on the curved surface — the harness records the observed relative error per run (same triangulation the quantity adapter's fallback reports on)",
+            "problem": "matched"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "ifcopenshell",
+          "engineVersion": "0.9.0.post1",
+          "adapterScript": "ifc_mesh.py",
+          "adapterHash": "6854d6c0a170daf29de36991af88996af10f2169084d5850083fad03b9747465"
+        }
       }
     },
     {
@@ -755,6 +1490,18 @@
         "engineVersion": "0.9.0.post1",
         "adapterScript": "ifc_quantities.py",
         "adapterHash": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78"
+      },
+      "mesh": {
+        "expect": "error",
+        "status": "pass",
+        "determinism": null,
+        "elementCount": null,
+        "vertexCount": null,
+        "triangleCount": null,
+        "comparisons": [],
+        "problems": [],
+        "errorContains": "no meshable geometry",
+        "errorObserved": "no meshable geometry found in IFC file (1 element(s) examined, 0 produced a triangulation) — cannot tessellate, and simulated meshes are not an option"
       }
     },
     {
@@ -770,7 +1517,19 @@
       "comparisons": null,
       "problems": [],
       "errorContains": "could not open the file",
-      "errorObserved": "ifcopenshell could not open the file: Error: Unable to parse IFC SPF header"
+      "errorObserved": "ifcopenshell could not open the file: Error: Unable to parse IFC SPF header",
+      "mesh": {
+        "expect": "error",
+        "status": "pass",
+        "determinism": null,
+        "elementCount": null,
+        "vertexCount": null,
+        "triangleCount": null,
+        "comparisons": [],
+        "problems": [],
+        "errorContains": "could not open the file",
+        "errorObserved": "ifcopenshell could not open the file: Error: Unable to parse IFC SPF header"
+      }
     }
   ],
   "summary": {

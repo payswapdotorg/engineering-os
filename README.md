@@ -6,12 +6,13 @@ Engineering OS does not rewrite CAD, BIM or solver engines. It integrates existi
 
 - a common **project & artifact graph** (versioned artifacts, typed relationships, change impact),
 - a **shared quantity ledger and estimating model** (drawing-derived and model-derived quantities, kept distinct),
+- a **Design Studio with a real 3D model viewer** (STEP/IFC tessellated by registered geometry engines into derived mesh artifacts that go stale with their source),
 - a **durable workflow and agent runtime** (broker-supervised tool execution, approval gates, audit events),
 - one coherent **product UI** with nine engineering workspaces.
 
 ## Status — read this first
 
-This project is in **Phase 1 (working product foundation)** of a six-phase build plan. The single source of truth for what actually works, what is verified, and what is not, is:
+This project is in **Phase 2 (CAD/BIM workflows) with Phase 3 (takeoff & estimating) hardened** of a six-phase build plan. The single source of truth for what actually works, what is verified, and what is not, is:
 
 - [docs/07-release/implementation-status.md](docs/07-release/implementation-status.md) — capability-by-capability status with evidence
 - [docs/06-qa/acceptance-catalogue.md](docs/06-qa/acceptance-catalogue.md) — acceptance items and their current state
@@ -71,7 +72,7 @@ Requirements and troubleshooting: [docs/07-release/installation-ubuntu.md](docs/
 |---|---|---|
 | 0 | Source-verified audit, architecture, ADRs, capability matrix | ✅ complete |
 | 1 | Working product foundation: projects, artifacts, revisions, engine discovery, Ubuntu dev install | ✅ complete (verified — AC-P1-01…09) |
-| 2 | CAD/BIM workflows (FreeCAD, LibreCAD, Bonsai/IfcOpenShell, model viewer) | planned |
+| 2 | CAD/BIM workflows (FreeCAD, LibreCAD, Bonsai/IfcOpenShell, model viewer) | 🚧 in progress — 3D model viewer shipped & verified on REAL tessellation adapters (Design Studio, mesh artifacts, staleness, AC-P2-01…07); native editor adapters (FreeCAD/Bonsai) honestly planned (see engine-inventory investigation) |
 | 3 | Takeoff, estimating, construction controls (shared quantity ledger, BOQ, schedules) | 🚧 in progress — quantity ledger + estimating + REAL STEP/IFC quantity adapters shipped & verified (AC-P3-01…08), hardened with the benchmark validation harness, estimate supersede & BOQ CSV/JSON export (AC-P3-09…11); PDF measurement tools & schedules pending |
 | 4 | Collaboration & agent workflows (durable runtime, approvals, impact invalidation) | planned |
 | 5 | Broader engineering packs (GIS, E/E, structural, CFD, systems, robotics) | planned |

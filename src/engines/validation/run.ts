@@ -57,6 +57,24 @@ async function main(): Promise<void> {
     } else if (c.status === "pass") {
       parts.push(`threw: ${c.errorObserved ?? ""}`)
     }
+    if (c.mesh) {
+      const m = c.mesh
+      if (m.expect === "error") {
+        parts.push(
+          `mesh error ${m.status === "pass" ? "ok" : "FAIL"}${m.status === "pass" ? "" : `: ${m.problems.join(" · ")}`}`,
+        )
+      } else {
+        parts.push(
+          `mesh ${m.elementCount ?? "—"} el / ${m.vertexCount ?? "—"} v / ${m.triangleCount ?? "—"} t · meshDeterminism=${m.determinism === null ? "—" : m.determinism ? "true" : "FALSE"}`,
+        )
+        const meshRels = m.comparisons
+          .filter((x) => x.kind === "volume" && x.observedRelError !== null)
+          .map((x) => x.observedRelError as number)
+        if (meshRels.length > 0) {
+          parts.push(`mesh-volume max rel error ${Math.max(...meshRels).toExponential(3)}`)
+        }
+      }
+    }
     console.log(`${head} — ${parts.join(" · ")}`)
     for (const p of c.problems) {
       console.log(`       problem: ${p}`)

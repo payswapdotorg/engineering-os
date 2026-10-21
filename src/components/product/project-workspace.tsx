@@ -1,12 +1,13 @@
 "use client"
 
 /**
- * Project workspace — Overview / Artifacts (Models & Drawings) / Takeoff /
- * Team / Activity. The tab is the URL query (?tab=…), so workspace links
- * (sidebar, Cmd+K) deep-link straight into a tab — the page guard in
- * src/app/projects/[id]/page.tsx routes every tab id below, takeoff included.
+ * Project workspace — Overview / Artifacts (Models & Drawings) / Design
+ * Studio / Takeoff / Team / Activity. The tab is the URL query (?tab=…), so
+ * workspace links (sidebar, Cmd+K) deep-link straight into a tab — the page
+ * guard in src/app/projects/[id]/page.tsx routes every tab id below, takeoff
+ * and studio included.
  */
-import { Boxes, FileUp, GitBranch, Info, Plus, Ruler, UserPlus, Users } from "lucide-react"
+import { Boxes, DraftingCompass, FileUp, GitBranch, Info, Plus, Ruler, UserPlus, Users } from "lucide-react"
 import Link from "next/link"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
@@ -18,6 +19,7 @@ import { EventFeed } from "@/components/product/event-feed"
 import { formatDate, humanBytes, relTime } from "@/components/product/format"
 import { AddMemberDialog, EditProjectDialog } from "@/components/product/project-dialogs"
 import { EmptyState, ErrorState, StatCard } from "@/components/product/parts"
+import { StudioWorkspace } from "@/components/product/studio-workspace"
 import { TakeoffWorkspace } from "@/components/product/takeoff-workspace"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -39,7 +41,7 @@ import { ARTIFACT_KINDS } from "@/lib/artifact-meta"
 import { disciplineLabel } from "@/lib/disciplines"
 import { initialsOf } from "@/components/product/format"
 
-const TABS = ["overview", "artifacts", "takeoff", "team", "activity"] as const
+const TABS = ["overview", "artifacts", "studio", "takeoff", "team", "activity"] as const
 type TabId = (typeof TABS)[number]
 
 export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: string; tab: TabId; onTabChange: (tab: TabId) => void }) {
@@ -76,6 +78,10 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
 
   const openTakeoffFromOverview = () => {
     onTabChange("takeoff")
+  }
+
+  const openStudioFromOverview = () => {
+    onTabChange("studio")
   }
 
   const filteredArtifacts = useMemo(() => {
@@ -144,9 +150,13 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
       </header>
 
       <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as TabId)}>
-        <TabsList aria-label="Project workspace sections">
+        {/* Six workspace sections overflow 390 px viewports, so the tab strip
+            scrolls horizontally when needed (same eos-scroll convention as the
+            tables) instead of pushing the page wide. */}
+        <TabsList aria-label="Project workspace sections" className="eos-scroll max-w-full overflow-x-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
+          <TabsTrigger value="studio">Design Studio</TabsTrigger>
           <TabsTrigger value="takeoff">Takeoff</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -172,6 +182,9 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
             </Button>
             <Button variant="outline" className="h-10" onClick={openTakeoffFromOverview}>
               <Ruler aria-hidden /> Takeoff & estimating
+            </Button>
+            <Button variant="outline" className="h-10" onClick={openStudioFromOverview}>
+              <DraftingCompass aria-hidden /> Design studio
             </Button>
             <Button variant="outline" className="h-10" onClick={openMemberFromOverview}>
               <UserPlus aria-hidden /> Add member
@@ -283,6 +296,11 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
               </Table>
             </div>
           )}
+        </TabsContent>
+
+        {/* ---------------- Design Studio ---------------- */}
+        <TabsContent value="studio" className="mt-4 flex flex-col gap-4">
+          <StudioWorkspace projectId={project.id} />
         </TabsContent>
 
         {/* ---------------- Takeoff ---------------- */}

@@ -63,6 +63,17 @@ export function RelationBadge({ relation, impactHint }: { relation: string; impa
 }
 
 export function KindBadge({ kind }: { kind: string }) {
+  // "mesh" is an engine-GENERATED kind (never detected from uploads) — a subtle
+  // teal tint keeps derived 3D views distinguishable from hand-registered
+  // artifacts in the registry table. Teal stays in the green family; the
+  // repo-wide no-blue/indigo rule is respected.
+  if (kind === "mesh") {
+    return (
+      <Badge className="border-transparent bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+        mesh
+      </Badge>
+    )
+  }
   return (
     <Badge variant="outline" className="text-muted-foreground">
       {kind}

@@ -27,7 +27,7 @@ export interface WorkspaceItem {
   /** Implemented route (workspace is real in Phase 1) */
   href?: string
   /** Implemented, but scoped to the open project (tab name) */
-  inProjectTab?: "artifacts" | "team" | "takeoff"
+  inProjectTab?: "artifacts" | "studio" | "team" | "takeoff"
   /** Planned-workspace badge, e.g. "Planned · Phase 2" */
   phaseNote?: string
   /** Honest explanation shown when the planned item is clicked */
@@ -36,13 +36,7 @@ export interface WorkspaceItem {
 
 export const WORKSPACES: WorkspaceItem[] = [
   { key: "project-home", label: "Project Home", icon: Home, href: "/" },
-  {
-    key: "design-studio",
-    label: "Design Studio",
-    icon: DraftingCompass,
-    phaseNote: "Planned · Phase 2",
-    plannedToast: "Design Studio ships with Phase 2 CAD/BIM integration — see Status & Roadmap",
-  },
+  { key: "design-studio", label: "Design Studio", icon: DraftingCompass, inProjectTab: "studio" },
   { key: "models", label: "Models & Drawings", icon: Boxes, inProjectTab: "artifacts" },
   { key: "takeoff", label: "Takeoff & Estimating", icon: Ruler, inProjectTab: "takeoff" },
   {

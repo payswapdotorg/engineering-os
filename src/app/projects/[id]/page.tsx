@@ -12,7 +12,7 @@ import { Suspense, useCallback } from "react";
 import { ProjectWorkspace } from "@/components/product/project-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const TABS = ["overview", "artifacts", "takeoff", "team", "activity"] as const;
+const TABS = ["overview", "artifacts", "studio", "takeoff", "team", "activity"] as const;
 type TabId = (typeof TABS)[number];
 
 function isTabId(v: string | null): v is TabId {

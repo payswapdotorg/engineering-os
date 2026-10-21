@@ -93,6 +93,49 @@ describe("validation corpus manifest (integrity — engine independent)", () => 
     expect(manifest.filter((c) => c.expect === "error" && c.adapter === "ifc").length).toBeGreaterThanOrEqual(1)
   })
 
+  test("W2-d: mesh expectations cover the pinned minimum corpus — the 4 mandated fixtures + a curved IFC case + honest mesh error probes, with well-formed pins", () => {
+    const meshCases = manifest.filter((c) => c.mesh)
+    const meshSuccess = meshCases.filter((c) => c.mesh?.expect === "success")
+    const meshError = meshCases.filter((c) => c.mesh?.expect === "error")
+    // the 4 mandated fixtures + the curved IFC column (which mirrors the quantity mesh-fallback case)
+    expect(meshSuccess.length).toBeGreaterThanOrEqual(5)
+    expect(meshError.length).toBeGreaterThanOrEqual(4)
+    const meshFixtures = new Set(meshSuccess.map((c) => c.fixture))
+    for (const required of ["two-solids.step", "cylinder-solid.step", "two-elements.ifc", "wall-geometry.ifc"]) {
+      expect(meshFixtures.has(required)).toBe(true)
+    }
+    expect(meshFixtures.has("cylinder-geometry.ifc")).toBe(true)
+    for (const c of meshSuccess) {
+      const m = c.mesh!
+      expect(m.upAxis).toBeDefined()
+      expect(typeof m.tolerance).toBe("number")
+      expect((m.tolerance ?? 0)).toBeGreaterThan(0)
+      // elements must cover the pinned ref set exactly (parse-level invariant)
+      expect(new Set(m.elements?.map((e) => e.elementRef))).toEqual(new Set(m.elementRefs ?? []))
+      for (const e of m.elements ?? []) {
+        expect(e.vertexCount).toBeGreaterThanOrEqual(3)
+        expect(e.triangleCount).toBeGreaterThanOrEqual(1)
+        expect(e.name.length).toBeGreaterThan(0)
+      }
+      // every pinned volume carries a closed-form derivation + tolerance class
+      for (const v of m.volume ?? []) {
+        expect(m.elementRefs).toContain(v.elementRef)
+        expect(["exact", "analytic", "mesh"]).toContain(v.tolerance)
+        expect(v.derivation.length).toBeGreaterThan(0)
+        expect(v.value).toBeGreaterThan(0)
+      }
+      // the curved cases are pinned at the 1% mesh tolerance; planar at analytic
+      const curved = manifest.find((x) => x.caseId === "step-cylinder-solid")?.mesh?.volume ?? []
+      expect(curved.every((v) => v.tolerance === "mesh")).toBe(true)
+      const planar = manifest.find((x) => x.caseId === "ifc-two-elements")?.mesh?.volume ?? []
+      expect(planar.every((v) => v.tolerance === "analytic")).toBe(true)
+    }
+    for (const c of meshError) {
+      expect(typeof c.mesh?.errorContains).toBe("string")
+      expect((c.mesh?.errorContains ?? "").length).toBeGreaterThan(0)
+    }
+  })
+
   test("every ground-truth entry carries a valid tolerance class and a hand-derived audit string", () => {
     for (const c of manifest) {
       if (c.expect === "error") {
@@ -147,6 +190,49 @@ function syntheticReport(): HarnessReport {
       },
     ],
     problems: [],
+    // W2-d: synthetic tessellation sub-result — exercises the mesh rendering
+    // in the writers with no engine involvement (numbers are structural).
+    mesh: {
+      expect: "success" as const,
+      status: "pass" as const,
+      engine: {
+        engineKey: "cadquery",
+        engineVersion: "synthetic",
+        adapterScript: "step_mesh.py",
+        adapterHash: "0".repeat(64),
+      },
+      determinism: true,
+      elementCount: 1,
+      vertexCount: 8,
+      triangleCount: 12,
+      comparisons: [
+        {
+          kind: "upAxis" as const,
+          elementRef: null,
+          expected: "z",
+          observed: "z",
+          tolerance: null,
+          absDiff: null,
+          observedRelError: null,
+          ok: true,
+          problem: "matched" as const,
+          derivation: "synthetic",
+        },
+        {
+          kind: "volume" as const,
+          elementRef: "step:solid:0",
+          expected: 1e-6,
+          observed: 1.0000000000000002e-6,
+          tolerance: "analytic" as const,
+          absDiff: 2e-22,
+          observedRelError: 2e-16,
+          ok: true,
+          problem: "matched" as const,
+          derivation: "synthetic planar box",
+        },
+      ],
+      problems: [],
+    },
   }
   return {
     ranAt: "2026-01-01T00:00:00.000Z",
@@ -199,6 +285,13 @@ describe("harness report writers (pure — engine independent)", () => {
     expect(md).toContain("synthetic-step")
     expect(md).toContain("1 pass / 0 fail / 1 skip")
     expect(md).toContain("tests/validation/corpus-manifest.json")
+    // W2-d: the tessellation section renders with the mesh sub-result + volumes
+    expect(md).toContain("Mesh tessellation validation")
+    expect(md).toContain("step_mesh.py")
+    expect(md).toContain("byte-identical")
+    expect(md).toContain("Observed mesh-volume errors")
+    expect(md).toContain("synthetic planar box")
+    expect(md).toContain("mesh: 1 element(s) / 8 verts / 12 tris")
   })
 
   test("writeReports writes a parseable report.json + markdown to disk (temp dir — real evidence untouched)", () => {
@@ -226,7 +319,9 @@ describe("harness report writers (pure — engine independent)", () => {
 })
 
 describe.skipIf(!enginesAvailable)("engine validation harness (real engine runs)", () => {
-  const HARNESS_TIMEOUT_MS = 300_000
+  // The harness now also double-runs the tessellation bridge per mesh case
+  // (STEP imports dominate the runtime; observed ~2 min for the full corpus).
+  const HARNESS_TIMEOUT_MS = 480_000
 
   // Memoized across the tests below (bun runs them sequentially): the harness
   // is a real-engine run (~1 min); one run, many assertions.
@@ -277,6 +372,41 @@ describe.skipIf(!enginesAvailable)("engine validation harness (real engine runs)
         expect(c.errorObserved).toBeDefined()
         expect(c.errorObserved).toContain(c.errorContains ?? "")
       }
+    },
+    HARNESS_TIMEOUT_MS,
+  )
+
+  test(
+    "W2-d: every mesh case is byte-deterministic, refs-set-equal, count-pinned and volume-checked",
+    async () => {
+      report = report ?? (await runHarness())
+      const meshCases = report.cases.filter((c) => c.mesh)
+      expect(meshCases.length).toBe(manifest.filter((c: CorpusCase) => c.mesh).length)
+      for (const c of meshCases) {
+        expect(c.status).toBe("pass")
+        const m = c.mesh!
+        expect(m.status).toBe("pass")
+        if (m.expect === "error") {
+          expect(m.errorObserved).toBeDefined()
+          expect(m.errorObserved).toContain(m.errorContains ?? "")
+          continue
+        }
+        expect(m.determinism).toBe(true)
+        expect(m.elementCount).toBe((manifest.find((x) => x.caseId === c.caseId)?.mesh?.elementRefs?.length ?? -1))
+        for (const cmp of m.comparisons) {
+          expect(cmp.ok).toBe(true)
+          expect(cmp.problem).toBe("matched")
+        }
+        // divergence-theorem volumes: planar within the 1e-9 analytic bound,
+        // curved within the pinned 1% — and the observed rel error is recorded
+        for (const v of m.comparisons.filter((x) => x.kind === "volume")) {
+          expect(v.observedRelError).not.toBeNull()
+          expect(v.observedRelError!).toBeLessThanOrEqual(v.tolerance === "mesh" ? 1e-2 : 1e-9)
+        }
+      }
+      // the mesh adapters surfaced their real hashes + engine versions
+      expect(report.adapterHashes["step_mesh.py"]).toMatch(/^[0-9a-f]{64}$/)
+      expect(report.adapterHashes["ifc_mesh.py"]).toMatch(/^[0-9a-f]{64}$/)
     },
     HARNESS_TIMEOUT_MS,
   )

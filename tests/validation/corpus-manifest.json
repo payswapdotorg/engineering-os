@@ -36,6 +36,24 @@
     "adapter": "step",
     "fixture": "cylinder-solid.step",
     "expect": "success",
+    "mesh": {
+      "expect": "success",
+      "upAxis": "z",
+      "tolerance": 0.0001,
+      "elementRefs": ["step:solid:0"],
+      "elements": [
+        { "elementRef": "step:solid:0", "name": "Solid 1", "vertexCount": 506, "triangleCount": 500 }
+      ],
+      "volume": [
+        {
+          "elementRef": "step:solid:0",
+          "value": 0.00012566370614359172,
+          "unit": "m³",
+          "tolerance": "mesh",
+          "derivation": "π · 20² · 100 mm³ = 40000π mm³ = 4π×10⁻⁵ m³ (Ø40×100 mm cylinder). 'mesh' tolerance (pinned 1%): the divergence-theorem volume over the OCCT triangulation is an approximation on the CURVED lateral surface (the inscribed tessellation slightly underestimates) — the harness records the observed relative error per run"
+        }
+      ]
+    },
     "groundTruth": [
       {
         "elementRef": "step:solid:0",
@@ -68,6 +86,32 @@
     "adapter": "step",
     "fixture": "two-solids.step",
     "expect": "success",
+    "mesh": {
+      "expect": "success",
+      "upAxis": "z",
+      "tolerance": 0.0001,
+      "elementRefs": ["step:solid:0", "step:solid:1"],
+      "elements": [
+        { "elementRef": "step:solid:0", "name": "Solid 1", "vertexCount": 24, "triangleCount": 12 },
+        { "elementRef": "step:solid:1", "name": "Solid 2", "vertexCount": 24, "triangleCount": 12 }
+      ],
+      "volume": [
+        {
+          "elementRef": "step:solid:0",
+          "value": 6e-6,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "box A 30 × 20 × 10 mm = 6000 mm³ = 6×10⁻⁶ m³ (PLANAR solid → divergence-theorem mesh volume is mathematically exact; only IEEE rounding remains, and the mesh elementRef set-equals the quantity ledger's per-solid refs)"
+        },
+        {
+          "elementRef": "step:solid:1",
+          "value": 9e-6,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "box B 15 × 15 × 40 mm = 9000 mm³ = 9×10⁻⁶ m³ (PLANAR solid → mesh volume exact)"
+        }
+      ]
+    },
     "groundTruth": [
       {
         "elementRef": "step:solid:0",
@@ -108,14 +152,22 @@
     "adapter": "step",
     "fixture": "bracket.step",
     "expect": "error",
-    "errorContains": "no solid geometry"
+    "errorContains": "no solid geometry",
+    "mesh": {
+      "expect": "error",
+      "errorContains": "no solid geometry"
+    }
   },
   {
     "caseId": "step-nonmodel-file",
     "adapter": "step",
     "fixture": "site-notes.md",
     "expect": "error",
-    "errorContains": "STEP import failed"
+    "errorContains": "STEP import failed",
+    "mesh": {
+      "expect": "error",
+      "errorContains": "STEP import failed"
+    }
   },
   {
     "caseId": "ifc-wall-quantities",
@@ -210,6 +262,40 @@
     "adapter": "ifc",
     "fixture": "two-elements.ifc",
     "expect": "success",
+    "mesh": {
+      "expect": "success",
+      "upAxis": "z",
+      "tolerance": 0.001,
+      "elementRefs": ["#3rUnE8CnPHBwLdZzIqZkf1", "#3rUnE8CnPHBwLdZzIqZkf2", "#3rUnE8CnPHBwLdZzIqZkf3"],
+      "elements": [
+        { "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1", "name": "Wall A", "vertexCount": 8, "triangleCount": 12 },
+        { "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2", "name": "Wall B", "vertexCount": 8, "triangleCount": 12 },
+        { "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3", "name": "Slab S", "vertexCount": 8, "triangleCount": 12 }
+      ],
+      "volume": [
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+          "value": 2.8,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "Wall A 4.0 × 0.25 × 2.8 m = 2.8 m³ (PLANAR → divergence-theorem mesh volume exact; metres authored and verified)"
+        },
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+          "value": 0.84,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "Wall B 2.0 × 0.15 × 2.8 m = 0.84 m³ (PLANAR → exact)"
+        },
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+          "value": 3.0,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "Slab S 5.0 × 3.0 × 0.2 m = 3.0 m³ (PLANAR → exact)"
+        }
+      ]
+    },
     "groundTruth": [
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
@@ -338,6 +424,24 @@
     "adapter": "ifc",
     "fixture": "wall-geometry.ifc",
     "expect": "success",
+    "mesh": {
+      "expect": "success",
+      "upAxis": "z",
+      "tolerance": 0.001,
+      "elementRefs": ["#2rUnE8CnPHBwLdZzIqZkf1"],
+      "elements": [
+        { "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1", "name": "Quantity Wall", "vertexCount": 8, "triangleCount": 12 }
+      ],
+      "volume": [
+        {
+          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+          "value": 1.2,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³ (PLANAR → divergence-theorem mesh volume is mathematically exact; the mesh elementRef set-equals the quantity ledger ref)"
+        }
+      ]
+    },
     "groundTruth": [
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
@@ -362,6 +466,24 @@
     "adapter": "ifc",
     "fixture": "cylinder-geometry.ifc",
     "expect": "success",
+    "mesh": {
+      "expect": "success",
+      "upAxis": "z",
+      "tolerance": 0.001,
+      "elementRefs": ["#4rUnE8CnPHBwLdZzIqZkf1"],
+      "elements": [
+        { "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1", "name": "Mesh Column", "vertexCount": 90, "triangleCount": 176 }
+      ],
+      "volume": [
+        {
+          "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+          "value": 0.3769911184307752,
+          "unit": "m³",
+          "tolerance": "mesh",
+          "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance (pinned 1%): the default-settings triangulation (44 segments) is an APPROXIMATION on the curved surface — the harness records the observed relative error per run (same triangulation the quantity adapter's fallback reports on)"
+        }
+      ]
+    },
     "groundTruth": [
       {
         "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
@@ -386,13 +508,21 @@
     "adapter": "ifc",
     "fixture": "wall-stripped.ifc",
     "expect": "success",
-    "groundTruth": []
+    "groundTruth": [],
+    "mesh": {
+      "expect": "error",
+      "errorContains": "no meshable geometry"
+    }
   },
   {
     "caseId": "ifc-nonmodel-file",
     "adapter": "ifc",
     "fixture": "site-notes.md",
     "expect": "error",
-    "errorContains": "could not open the file"
+    "errorContains": "could not open the file",
+    "mesh": {
+      "expect": "error",
+      "errorContains": "could not open the file"
+    }
   }
 ]

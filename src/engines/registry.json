@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters — model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json — 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) — see the per-engine `validation` fields. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod.",
+  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters — model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json — 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) — see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py → eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) — 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index — both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod.",
   "engines": [
     {
       "key": "freecad",
@@ -31,7 +31,8 @@
       "state": "planned",
       "limitations": [
         "DWG read/write requires external converter (LibreDWG) — separate compatibility program",
-        "GitHub license field is the legacy shorthand LGPL-2.1; upstream declares LGPL-2.1-or-later — exact 'only/or-later' scope to be pinned at Phase-6 release review"
+        "GitHub license field is the legacy shorthand LGPL-2.1; upstream declares LGPL-2.1-or-later — exact 'only/or-later' scope to be pinned at Phase-6 release review",
+        "Sandbox investigation (2026-10-21, W2-d): FreeCAD is not importable in the engine venv, no freecad/FreeCADCmd binary is on PATH, and pip finds no FreeCAD distribution ('No matching distribution found') — it stays 'planned' for editor/authoring; the Phase-2 geometry pipeline is served by cadquery/IfcOpenShell"
       ]
     },
     {
@@ -50,7 +51,7 @@
       },
       "integration": {
         "mechanisms": ["python-module"],
-        "notes": "FIRST REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/step_quantities.py computes model-derived quantities (per-solid volume, total surface area, bbox diagonal) from STEP files via OCCT BRepGProp, spawned as an arm's-length subprocess of the uv venv python. Bridge: src/engines/adapters/quantities.ts (deriveFromFile); tests: quantities.test.ts (analytic cross-check on tests/fixtures/bracket-solid.step, 2% tolerance)."
+        "notes": "FIRST REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/step_quantities.py computes model-derived quantities (per-solid volume, total surface area, bbox diagonal) from STEP files via OCCT BRepGProp, spawned as an arm's-length subprocess of the uv venv python. Bridge: src/engines/adapters/quantities.ts (deriveFromFile); tests: quantities.test.ts (analytic cross-check on tests/fixtures/bracket-solid.step, 2% tolerance). TESSELLATION ADAPTER (W2-d, 2026-10-21): src/engines/adapters/step_mesh.py emits eos-mesh/1 (vertices in metres, converted from the file's declared unit; solids enumerated identically to the quantity adapter; linear deflection pinned at 0.0001 m = native 0.1 in mm files). Bridge: src/engines/adapters/mesh.ts (tessellateFromFile); tests: mesh.test.ts (pinned counts, mm→m conversion, divergence-volume cross-check, byte-determinism)."
       },
       "probes": [
         {
@@ -64,13 +65,21 @@
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 5,
         "lastRun": "2026-10-21",
-        "result": "pass"
+        "result": "pass",
+        "mesh": {
+          "harness": "tests/validation/corpus-manifest.json (mesh blocks)",
+          "cases": 4,
+          "lastRun": "2026-10-21",
+          "result": "pass",
+          "note": "2 tessellation success cases (two-solids.step 2×24v/12t planar-exact volumes; cylinder-solid.step 506v/500t at 0.0414% on the curved surface) + 2 honest-error probes (0-solid STEP, non-model file)"
+        }
       },
       "limitations": [
         "Engine is a venv python library, not a CLI on PATH — the registry probe reports 'installed' only when EOS_PYTHON points at the uv venv interpreter (/home/z/.venv/bin/python3)",
         "import cadquery emits fontconfig warnings to stderr on this host (cosmetic; the adapter redirects fd-level stdout so they can never contaminate the JSON protocol)",
         "STEP adapter emits per-solid volume, total surface area and overall bounding-box diagonal only — no per-face/feature-level quantities yet",
-        "Solid enumeration order follows OCCT's compound order — elementRef step:solid:i indices are engine-determined, not semantically meaningful"
+        "Solid enumeration order follows OCCT's compound order — elementRef step:solid:i indices are engine-determined, not semantically meaningful",
+        "STEP tessellation (step_mesh.py, W2-d) emits per-face nodes — vertices are duplicated across shared face edges (OCCT BRepMesh behaviour: a box tessellates to 24 verts/12 tris); the linear deflection is pinned at 0.0001 m (native 0.1 in mm-authored files) and must be re-pinned together with the engine pin if counts change"
       ]
     },
     {
@@ -166,7 +175,8 @@
       "state": "planned",
       "limitations": [
         "GPLv2+ — arm's-length process integration only (ADR-0004)",
-        "GitHub mirror carries no releases; stable versions identified by tags (v5.2.2) and blender.org"
+        "GitHub mirror carries no releases; stable versions identified by tags (v5.2.2) and blender.org",
+        "Sandbox investigation (2026-10-21, W2-d): no blender binary on PATH and pip finds no installable Blender-as-python-module (bpy: 'Could not find a version that satisfies the requirement'); the PyPI package named 'blender' (1.4) is an unrelated third-party package, NOT the Blender 3D suite — Bonsai (BlenderBIM) stays 'planned' for IFC authoring"
       ]
     },
     {
@@ -185,7 +195,7 @@
       },
       "integration": {
         "mechanisms": ["python-module", "cli"],
-        "notes": "REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/ifc_quantities.py extracts per-element declared quantities (IfcElementQuantity, BaseQuantities first; elementRef '#<GlobalId>') with an ifcopenshell.geom mesh-triangulation fallback for geometry-only models. Installed in the uv venv via uv pip install (PyPI ifcopenshell==0.9.0.post1, network available). Bridge: src/engines/adapters/quantities.ts; tests: quantities.test.ts (declared-value round-trip on tests/fixtures/wall-quantities.ifc + analytic mesh cross-check on tests/fixtures/wall-geometry.ifc)."
+        "notes": "REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/ifc_quantities.py extracts per-element declared quantities (IfcElementQuantity, BaseQuantities first; elementRef '#<GlobalId>') with an ifcopenshell.geom mesh-triangulation fallback for geometry-only models. Installed in the uv venv via uv pip install (PyPI ifcopenshell==0.9.0.post1, network available). Bridge: src/engines/adapters/quantities.ts; tests: quantities.test.ts (declared-value round-trip on tests/fixtures/wall-quantities.ifc + analytic mesh cross-check on tests/fixtures/wall-geometry.ifc). TESSELLATION ADAPTER (W2-d, 2026-10-21): src/engines/adapters/ifc_mesh.py emits eos-mesh/1 via ifcopenshell.geom with DEFAULT settings (the proven create_shape iteration from the quantities fallback; coordinates arrive in SI metres regardless of project units — verified with an mm-authored probe; tolerance = the runtime default mesher-linear-deflection, 0.001 m). Bridge: src/engines/adapters/mesh.ts (tessellateFromFile); tests: mesh.test.ts (pinned counts, refs set-equal the quantity ledger, divergence-volume cross-checks, byte-determinism)."
       },
       "probes": [
         {
@@ -199,13 +209,21 @@
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 6,
         "lastRun": "2026-10-21",
-        "result": "pass"
+        "result": "pass",
+        "mesh": {
+          "harness": "tests/validation/corpus-manifest.json (mesh blocks)",
+          "cases": 5,
+          "lastRun": "2026-10-21",
+          "result": "pass",
+          "note": "3 tessellation success cases (two-elements.ifc 3×8v/12t planar-exact volumes; wall-geometry.ifc 8v/12t exact; cylinder-geometry.ifc 90v/176t at 0.3246% on the curved column) + 2 honest-error probes (geometry-free IFC, non-model file)"
+        }
       },
       "limitations": [
         "GitHub 'latest' release is a Bonsai 0.9.1 alpha (date-coded tags); stable distribution channel is PyPI (0.9.0.post1) — pin exact channel at integration",
         "PyPI wheel ships WITHOUT the OCCT geometry backend (ifcopenshell.geom.has_occ == False on this host) — the adapter's geometric fallback uses mesh triangulation: exact for planar solids, approximate for curved surfaces (recorded in every quantity's raw.method)",
         "IfcQuantityWeight/Time and complex quantities are skipped honestly (no 'weight' slot in the DerivedQuantity contract) — skipped names are recorded in raw.skippedUnsupportedQuantities",
-        "Bonsai (Blender add-on) authoring/editing remains Phase 2 — this adapter is read-only quantity extraction"
+        "Bonsai (Blender add-on) authoring/editing remains Phase 2 — this adapter is read-only quantity extraction",
+        "The tessellation adapter (ifc_mesh.py, W2-d) rides the same no-OCCT triangulation — curved surfaces are approximated (observed 0.32% divergence-volume error on the Ø400×3000 mm column fixture at the default 0.001 m deflection; planar solids exact); coordinates arrive in SI metres regardless of project units (verified with an mm-authored probe)"
       ]
     },
     {

@@ -47,7 +47,7 @@ model Artifact {
   id               String            @id
   projectId        String
   project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  kind             String // model|drawing|document|dataset|calculation|report|other
+  kind             String // model|mesh|drawing|document|dataset|calculation|report|other — "mesh" = engine-generated tessellation, never upload-detected
   name             String
   description      String?
   latestRevisionId String?           @unique

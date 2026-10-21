@@ -531,3 +531,120 @@ export async function exportEstimateBoqCsv(estimateId: string): Promise<Blob> {
   }
   return res.blob()
 }
+
+// ---------------------------------------------------------------------------
+// Design Studio (Phase 2) — mesh derive/read wire types + typed call sites
+// ---------------------------------------------------------------------------
+// Mirrors the Phase-2 pinned contracts exactly (worklog "TL-pinned contracts —
+// Phase 2" §D). W3-d owns the routes; this file owns the client-side shape of
+// the wire. The mesh JSON itself (eos-mesh/1) is produced by the W2-d bridge
+// and stored verbatim — the client NEVER rewrites vertices, up-axis or units.
+// ---------------------------------------------------------------------------
+
+/** Provenance block embedded in every stored eos-mesh/1 file. */
+export interface MeshGeneratedBy {
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  /** sha256 of the adapter script content (64-hex) */
+  adapterHash: string
+}
+
+/** One tessellated element — `elementRef` matches the quantity-ledger refs. */
+export interface MeshElementRow {
+  /** `step:solid:<i>` or `ifc:#<GlobalId>` — cross-reference with quantity rows */
+  elementRef: string
+  name: string
+  /** vertices in meters, source up-axis preserved */
+  vertices: number[][]
+  /** 0-based triangle indices into `vertices` */
+  triangles: number[][]
+}
+
+/** Stored eos-mesh/1 payload (GET …/mesh returns it including `generatedBy`). */
+export interface MeshPayloadRow {
+  format: string
+  units: string
+  /** source up-axis declared by the adapter — the VIEWER rotates, never the adapter */
+  upAxis: "z" | "y"
+  /** linear deflection used, in meters */
+  tolerance: number
+  generatedBy?: MeshGeneratedBy
+  elements: MeshElementRow[]
+}
+
+/** GET /api/artifacts/[id]/mesh — 200 `{data:{mesh, meta}}` per pinned contract. */
+export interface MeshGetResult {
+  mesh: MeshPayloadRow
+  meta: {
+    artifactId: string
+    name: string
+    revisionNumber: number
+    contentHash: string
+    sizeBytes: number
+    /** live staleness of the mesh vs its source model's latest revision */
+    staleSource: boolean
+    staleness: "current" | "stale" | "recomputing"
+    derivedFromArtifactId: string | null
+    derivedFromRevisionId: string | null
+    sourceLatestRevisionId: string | null
+    sourceArtifactName: string | null
+    /** read from the stored payload's generatedBy — null if a hand-stored file lacks it */
+    engineKey: string | null
+    engineVersion: string | null
+    adapterScript: string | null
+    adapterHash: string | null
+    /** the mesh revision's createdAt — the only timestamp, lives in the DB not the file */
+    generatedAt: string
+  }
+}
+
+/** POST …/derive-mesh 201 `{data:{mesh}}` per pinned contract. */
+export interface DerivedMeshRow {
+  artifactId: string
+  name: string
+  kind: "mesh"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  elementCount: number
+  vertexCount: number
+  triangleCount: number
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: boolean
+}
+
+/**
+ * POST /api/projects/[id]/artifacts/[artifactId]/derive-mesh — tessellates the
+ * latest revision via the real engine bridge and appends/creates the derived
+ * mesh artifact. 422s (unsupported extension, engine_unavailable) carry the
+ * server message verbatim via the shared unwrap idiom.
+ */
+export async function deriveModelMesh(projectId: string, artifactId: string) {
+  return apiJson<{ mesh: DerivedMeshRow }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/derive-mesh`,
+    "POST",
+    {},
+  )
+}
+
+/** GET /api/artifacts/[id]/mesh — parsed eos-mesh/1 payload + live staleness meta. */
+export async function fetchModelMesh(meshArtifactId: string) {
+  return apiGet<MeshGetResult>(`/api/artifacts/${meshArtifactId}/mesh`)
+}
+
+/**
+ * GET /api/artifacts/[id] — artifact detail incl. linksFrom/linksTo. The
+ * artifacts LIST payload carries no links, so the Design Studio maps
+ * source → mesh through each mesh artifact's `derived_from` link (honest gap:
+ * O(#meshes) extra fetches; noted for TL in the worklog).
+ */
+export async function getArtifactDetail(artifactId: string) {
+  return apiGet<ArtifactDetail>(`/api/artifacts/${artifactId}`)
+}

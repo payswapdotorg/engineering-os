@@ -77,8 +77,11 @@ const ADAPTER_SCRIPTS: Record<"ifc" | "step", string> = {
  * Primary: next to this module (works under `bun test` and `next dev`).
  * Fallback: repo-relative from cwd (guards against bundlers rewriting
  * import.meta.url). Missing adapter → honest EngineUnavailableError.
+ *
+ * (W2-d: exported additively so the mesh bridge — src/engines/adapters/
+ * mesh.ts — resolves its scripts through the IDENTICAL mechanism.)
  */
-function adapterScriptPath(script: string): string {
+export function adapterScriptPath(script: string): string {
   const candidates: string[] = []
   try {
     candidates.push(path.join(path.dirname(fileURLToPath(import.meta.url)), script))
@@ -113,12 +116,26 @@ function isQuantityType(value: unknown): value is DerivedQuantity["quantityType"
   return typeof value === "string" && (QUANTITY_TYPES as readonly string[]).includes(value)
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-/** Parse + validate the adapter's JSON protocol; error envelopes throw honestly. */
-function parseAdapterStdout(stdout: string, script: string): AdapterPayload {
+/** The engine-provenance fields every adapter envelope carries (W2-d: shared
+ * with the mesh bridge so both bridges enforce the exact same protocol). */
+export interface AdapterEnvelope {
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+}
+
+/**
+ * Parse the adapter's stdout as the shared JSON protocol (W2-d: extracted
+ * verbatim from the former parseAdapterStdout prologue so both bridges speak
+ * byte-identical errors). Throws honestly on invalid JSON, non-object payloads
+ * and the adapter's own {"error": …} envelope.
+ */
+export function parseAdapterStdoutObject(stdout: string, script: string): Record<string, unknown> {
   let parsed: unknown
   try {
     parsed = JSON.parse(stdout)
@@ -133,7 +150,15 @@ function parseAdapterStdout(stdout: string, script: string): AdapterPayload {
   if (typeof parsed.error === "string") {
     throw new EngineUnavailableError(parsed.error)
   }
-  const { engineKey, engineVersion, adapterScript, adapterHash, quantities } = parsed
+  return parsed
+}
+
+/** Validate the engine-provenance envelope fields (same messages as W2-b). */
+export function validateAdapterEnvelope(
+  parsed: Record<string, unknown>,
+  script: string,
+): AdapterEnvelope {
+  const { engineKey, engineVersion, adapterScript, adapterHash } = parsed
   if (typeof engineKey !== "string" || engineKey.length === 0) {
     throw new EngineUnavailableError(`adapter ${script} payload is missing engineKey`)
   }
@@ -146,6 +171,14 @@ function parseAdapterStdout(stdout: string, script: string): AdapterPayload {
   if (!/^[0-9a-f]{64}$/.test(adapterHash)) {
     throw new EngineUnavailableError(`adapter ${script} reported a malformed adapterHash`)
   }
+  return { engineKey, engineVersion, adapterScript, adapterHash }
+}
+
+/** Parse + validate the adapter's JSON protocol; error envelopes throw honestly. */
+function parseAdapterStdout(stdout: string, script: string): AdapterPayload {
+  const parsed = parseAdapterStdoutObject(stdout, script)
+  const { engineKey, engineVersion, adapterScript, adapterHash } = validateAdapterEnvelope(parsed, script)
+  const { quantities } = parsed
   if (!Array.isArray(quantities)) {
     throw new EngineUnavailableError(`adapter ${script} payload is missing the quantities array`)
   }
@@ -212,6 +245,25 @@ function errorFromExecFailure(kind: "ifc" | "step", script: string, err: ExecFai
 }
 
 /**
+ * Run an engine-adapter script as an arm's-length subprocess and return its
+ * stdout (W2-d: extracted verbatim from the former deriveFromFile body so the
+ * mesh bridge execs adapters through the IDENTICAL mechanism, timeout and
+ * honest error mapping). Throws `EngineUnavailableError` on every failure.
+ */
+export async function execAdapterScript(kind: "ifc" | "step", script: string, absPath: string): Promise<string> {
+  const scriptPath = adapterScriptPath(script)
+  try {
+    const result = await execFileAsync(PYTHON_BIN, [scriptPath, path.resolve(absPath)], {
+      timeout: ADAPTER_TIMEOUT_MS,
+      maxBuffer: 8 * 1024 * 1024,
+    })
+    return result.stdout
+  } catch (err) {
+    throw errorFromExecFailure(kind, script, err as ExecFailure)
+  }
+}
+
+/**
  * Derive real quantities from a stored model file using the registered engine
  * for `kind`. Throws `EngineUnavailableError` with an honest message when the
  * engine or adapter is not available on this host.
@@ -221,17 +273,7 @@ export async function deriveFromFile(
   kind: "ifc" | "step",
 ): Promise<DeriveResult> {
   const script = ADAPTER_SCRIPTS[kind]
-  const scriptPath = adapterScriptPath(script)
-  let stdout: string
-  try {
-    const result = await execFileAsync(PYTHON_BIN, [scriptPath, path.resolve(absPath)], {
-      timeout: ADAPTER_TIMEOUT_MS,
-      maxBuffer: 8 * 1024 * 1024,
-    })
-    stdout = result.stdout
-  } catch (err) {
-    throw errorFromExecFailure(kind, script, err as ExecFailure)
-  }
+  const stdout = await execAdapterScript(kind, script, absPath)
   const payload = parseAdapterStdout(stdout, script)
   return {
     engineKey: payload.engineKey,

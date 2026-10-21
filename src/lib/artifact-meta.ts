@@ -1,5 +1,6 @@
 export const ARTIFACT_KINDS = [
   "model",
+  "mesh", // engine-generated tessellation (derive-mesh); never detected from uploads
   "drawing",
   "document",
   "dataset",
