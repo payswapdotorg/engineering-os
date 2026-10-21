@@ -27,7 +27,7 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Unit tests (bun test)
-        run: bun test
+      - name: Unit tests (bun test src/)
+        run: bun run test
         env:
           DATABASE_URL: "file:./db/ci.db"

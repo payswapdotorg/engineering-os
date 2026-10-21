@@ -12,7 +12,7 @@ Every engine is represented by a **registry record** (`src/engines/registry.json
 
 - identity: `key`, name, domain (cad/bim/gis/takeoff/ee/simulation/docs/controls)
 - upstream: canonical URL, repo, license SPDX (verified — see ADR-0004), latest stable ref, verification date
-- integration: mechanism(s) planned (`cli`, `python-module`, `server`, `mcp`, `native-process`), notes
+- integration: mechanism(s) planned (`cli`, `python-module`, `server`, `mcp`, `native-process`, `web-module`), notes
 - probes: how presence/version is detected (executables, version commands, or python module import)
 - state: one of `planned | installed | available | implemented | tested | verified | production-ready`
 - capabilities: coarse capability rows with their own states
