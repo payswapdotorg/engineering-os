@@ -26,6 +26,14 @@ screenshots/
 _attic/
 *.pid
 /*.png
+agent-ctx/
+skills/
+scripts/
+tests/*.sh
+pnpm-lock.yaml
+Caddyfile
+.mcp.json
+.credentials.env
 
 # legacy demo media from previous sandbox sessions (not part of this product)
 public/r606*/
