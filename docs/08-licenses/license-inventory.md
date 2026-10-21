@@ -25,7 +25,44 @@ All of the above are permissive (MIT/Apache-2.0/ISC) — no copyleft in the plat
 
 ## 3. Engine candidates (upstream)
 
-> Source-verified by Worker 2 via the upstream canonical repos (GitHub/GitLab APIs + repo LICENSE files) — see [engine-inventory.md](../02-engines/engine-inventory.md) for the authoritative, dated table, and [capability-matrix.md](../02-engines/capability-matrix.md) for capability states.
+> **34 engine candidates, source-verified 2026-10-21** (Worker 2 audit; GitHub/GitLab/SourceForge APIs, PyPI/npm registries, and pinned-tree LICENSE/COPYING texts — full method and per-engine evidence in [engine-inventory.md](../02-engines/engine-inventory.md), capability states in [capability-matrix.md](../02-engines/capability-matrix.md)). All rows below are `planned` — no engine is installed or redistributed; bundling requires the Phase-6 re-verification (ADR-0004 §3).
+>
+> | Engine | License (SPDX / honest text) | Copyleft class | Integration policy (ADR-0004) |
+> |---|---|---|---|
+> | FreeCAD | LGPL-2.1 | weak copyleft | arm's-length process (§2); LGPL in-process review if ever linked |
+> | LibreCAD | GPL-2.0 (tree text; API field NOASSERTION) | strong | arm's-length process only (§2) |
+> | LibreDWG | GPL-3.0 | strong | CLI conversion service only (§2) |
+> | Blender | GPL-2.0-or-later | strong | arm's-length process only (§2) |
+> | IfcOpenShell | LGPL-3.0 | weak | python-module possible after written review (§2 exception) |
+> | That Open Engine (components) | MIT | permissive | web-module in-process permitted (§2 exception, MIT) |
+> | web-ifc | MPL-2.0 | file-level | web-module in-process permitted (§2 exception, MPL-2.0) |
+> | QGIS | GPL-2.0 | strong | arm's-length process only (§2) |
+> | GRASS GIS | GPL-2.0-or-later | strong | arm's-length process only (§2) |
+> | EPA SWMM | Public Domain (US Gov, per repo README) | none | solver CLI; record public-domain status at pinning (§3) |
+> | pyswmm | BSD-2-Clause | permissive | python-module after review (§2 exception) |
+> | OpenTakeoff | AGPL-3.0 (npm declares AGPL-3.0-only) | strong + network terms | strict arm's-length MCP/process boundary (§2) |
+> | KiCad | GPL-3.0-or-later (tree text; seed AGPL claim corrected) | strong | arm's-length process only (§2) |
+> | QElectroTech | GPL-2.0 | strong | arm's-length process only (§2) |
+> | ngspice | BSD-3-Clause ("Modified BSD") | permissive | CLI batch + shared-lib review before in-process use |
+> | pandapower | BSD-3-Clause | permissive | python-module after review (§2 exception) |
+> | GHDL | GPL-2.0 | strong | arm's-length process only (§2) |
+> | Yosys | ISC | permissive | arm's-length CLI; in-process not planned |
+> | Verilator | LGPL-3.0 OR Artistic-2.0 | weak OR permissive | arm's-length CLI (§2); dual-license choice recorded at pinning |
+> | OpenROAD | BSD-3-Clause | permissive | arm's-length CLI |
+> | Gmsh | GPL-2.0-or-later (with linking exception) | strong (exception noted) | arm's-length CLI/python; read exception before bundling (§3) |
+> | Code_Aster | GPL-3.0 | strong | arm's-length process only (§2) |
+> | Elmer FEM | GPL-2.0 | strong | arm's-length process only (§2) |
+> | OpenSees | NOASSERTION — custom UC Regents non-commercial license | **not OSI open source — license risk** | no state beyond `planned` without written license review (§1/§2) |
+> | OpenFOAM (Foundation) | GPL-3.0-or-later | strong | arm's-length CLI; Foundation/OpenCFD fork choice recorded (§2/§3) |
+> | ParaView | BSD-3-Clause | permissive | arm's-length CLI |
+> | OpenModelica | AGPL-3.0 OR OSMC-PL-1.8 | strong + network (AGPL path) | arm's-length CLI (omc); license path choice recorded before bundling |
+> | DWSIM | GPL-3.0 | strong | arm's-length process only (§2); upstream repo moved (dwsim10) |
+> | SimPy | MIT | permissive | python-module after review (§2 exception) |
+> | ROS 2 | multi-license (core e.g. rclcpp Apache-2.0) | permissive (per-component) | per-component verification at integration (§4) |
+> | Gazebo (gz-sim) | Apache-2.0 | permissive | arm's-length CLI/server |
+> | LibreOffice | **conflict**: mirror COPYING = GPL-3.0 text vs libreoffice.org MPL-2.0 OR LGPL-3.0-or-later | strong (unresolved) | resolve against pinned release tree before any bundling (§3) |
+> | OpenProject | GPL-3.0 | strong | arm's-length REST/server integration (§2) |
+> | ProjectLibre | CPAL-1.0 | attribution + network-use conditions | arm's-length desktop + attribution notices reviewed at adapter time |
 
 Integration policy (ADR-0004): engines run as separate processes; bundling/redistribution requires per-engine re-verification at release time. `installed` state never implies redistribution.
 

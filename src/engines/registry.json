@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Seed registry (TL). Worker 2 replaces this file with the full source-verified inventory (~30 engines, upstream.verified=true with method+date). verified=false rows carry best-known data that still requires upstream confirmation before any 'installed/available' capability claim.",
+  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines are 'planned' in Engineering OS: none is installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod.",
   "engines": [
     {
       "key": "freecad",
@@ -8,13 +8,13 @@
       "domain": "cad",
       "description": "Parametric 3D CAD modeler with technical drawing workbenches; headless scripting via FreeCADCmd.",
       "upstream": {
-        "canonical": "https://github.com/FreeCAD/FreeCAD",
+        "canonical": "https://www.freecad.org",
         "repo": "FreeCAD/FreeCAD",
-        "licenseSpdx": "LGPL-2.1-or-later",
-        "latestStable": "1.0.1",
-        "verified": false,
-        "verifiedAt": null,
-        "verifiedMethod": null
+        "licenseSpdx": "LGPL-2.1",
+        "latestStable": "1.1.4",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/FreeCAD/FreeCAD (license field LGPL-2.1; repo LICENSE = LGPL v2.1 text) + releases/latest tag 1.1.4"
       },
       "integration": {
         "mechanisms": ["cli", "python-module", "native-process"],
@@ -29,7 +29,106 @@
         }
       ],
       "state": "planned",
-      "limitations": ["DWG read/write requires external converter (LibreDWG) — separate compatibility program"]
+      "limitations": [
+        "DWG read/write requires external converter (LibreDWG) — separate compatibility program",
+        "GitHub license field is the legacy shorthand LGPL-2.1; upstream declares LGPL-2.1-or-later — exact 'only/or-later' scope to be pinned at Phase-6 release review"
+      ]
+    },
+    {
+      "key": "librecad",
+      "name": "LibreCAD",
+      "domain": "cad",
+      "description": "Cross-platform 2D CAD application (DXF/DWG read, DXF/DWG/PDF/SVG write).",
+      "upstream": {
+        "canonical": "https://librecad.org",
+        "repo": "LibreCAD/LibreCAD",
+        "licenseSpdx": "GPL-2.0",
+        "latestStable": "2.2.1.6",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/LibreCAD/LibreCAD (license field NOASSERTION) + repo LICENSE text (GPLv2) + releases/latest tag v2.2.1.6"
+      },
+      "integration": {
+        "mechanisms": ["cli", "native-process"],
+        "notes": "Batch drawing export via CLI where supported; GUI app for interactive 2D drafting (Phase 2)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["librecad"],
+          "versionArgs": ["--version"],
+          "versionRegex": "LibreCAD\\s+([0-9][0-9A-Za-z.+-]*)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPLv2 — arm's-length process integration only (ADR-0004)",
+        "GitHub license detection returned NOASSERTION; GPLv2 read from repo LICENSE text"
+      ]
+    },
+    {
+      "key": "libredwg",
+      "name": "LibreDWG",
+      "domain": "cad",
+      "description": "GNU library and CLI tools (dwg2dxf, dwgread, dwgwrite) for DWG reading/writing — the DWG compatibility layer.",
+      "upstream": {
+        "canonical": "https://savannah.gnu.org/projects/libredwg/",
+        "repo": "LibreDWG/libredwg",
+        "licenseSpdx": "GPL-3.0",
+        "latestStable": "0.14",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/LibreDWG/libredwg (official mirror of the GNU Savannah project) + releases/latest tag 0.14"
+      },
+      "integration": {
+        "mechanisms": ["cli"],
+        "notes": "CLI conversion service for DWG↔DXF in CAD/BIM workflows (Phase 2 compatibility program)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["dwg2dxf", "dwgread", "dwgwrite"],
+          "versionArgs": ["--version"],
+          "versionRegex": "([0-9][0-9.]*)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPLv3 — arm's-length CLI process boundary only (ADR-0004); never linked in-process",
+        "DWG support is reverse-engineered; upstream keeps a compatibility test suite — pin versions per release"
+      ]
+    },
+    {
+      "key": "blender",
+      "name": "Blender",
+      "domain": "cad",
+      "description": "3D creation suite; host application for the Bonsai (BlenderBIM) IFC authoring workflow.",
+      "upstream": {
+        "canonical": "https://www.blender.org",
+        "repo": "blender/blender",
+        "licenseSpdx": "GPL-2.0-or-later",
+        "latestStable": "5.2.2",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/blender/blender (official mirror; license field NOASSERTION) + repo COPYING and doc/license/GPL-license.txt (GPLv2 text) + upstream docs page blender.org/about/license ('GNU General Public License, Version 2 or later'); latest stable from /tags v5.2.2 (mirror publishes no GitHub releases)"
+      },
+      "integration": {
+        "mechanisms": ["cli", "python-module", "native-process"],
+        "notes": "blender --background headless batch (Bonsai/IfcOpenShell pipeline); GUI for native BIM editing (Phase 2)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["blender"],
+          "versionArgs": ["--version"],
+          "versionRegex": "Blender\\s+([0-9][0-9A-Za-z.]+)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPLv2+ — arm's-length process integration only (ADR-0004)",
+        "GitHub mirror carries no releases; stable versions identified by tags (v5.2.2) and blender.org"
+      ]
     },
     {
       "key": "ifcopenshell",
@@ -37,13 +136,13 @@
       "domain": "bim",
       "description": "IFC toolkit and Bonsai (BlenderBIM) add-on; IFC parsing, authoring and quantity utilities.",
       "upstream": {
-        "canonical": "https://github.com/IfcOpenShell/IfcOpenShell",
+        "canonical": "https://ifcopenshell.org",
         "repo": "IfcOpenShell/IfcOpenShell",
-        "licenseSpdx": "LGPL-3.0-or-later",
-        "latestStable": "0.8.0",
-        "verified": false,
-        "verifiedAt": null,
-        "verifiedMethod": null
+        "licenseSpdx": "LGPL-3.0",
+        "latestStable": "0.9.0",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/IfcOpenShell/IfcOpenShell (license field LGPL-3.0) + releases (latest GitHub release is a Bonsai 0.9.1-alpha date-coded tag) + PyPI JSON (ifcopenshell 0.9.0.post1)"
       },
       "integration": {
         "mechanisms": ["python-module", "cli"],
@@ -57,21 +156,231 @@
         }
       ],
       "state": "planned",
-      "limitations": []
+      "limitations": [
+        "GitHub 'latest' release is a Bonsai 0.9.1 alpha (date-coded tags); stable distribution channel is PyPI (0.9.0.post1) — pin exact channel at integration"
+      ]
+    },
+    {
+      "key": "thatopen-engine",
+      "name": "That Open Engine (components)",
+      "domain": "bim",
+      "description": "Open-source web BIM engine by That Open (engine_components): openbim components for 3D/IFC viewing and model interaction in the browser.",
+      "upstream": {
+        "canonical": "https://thatopen.com",
+        "repo": "ThatOpen/engine_components",
+        "licenseSpdx": "MIT",
+        "latestStable": "3.4.9",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /orgs/ThatOpen/repos + /repos/ThatOpen/engine_components + releases/latest tag v3.4.9"
+      },
+      "integration": {
+        "mechanisms": ["web-module"],
+        "notes": "npm/ESM web components consumed by the Engineering OS web viewer (Phase 2 model viewer). 'web-module' is a proposed addition to the ADR-0005 mechanism vocabulary — flagged for TL approval."
+      },
+      "probes": [],
+      "state": "planned",
+      "limitations": [
+        "Suggested slug ThatOpen/engine 404s — That Open Engine is a component family (engine_components MIT, engine_web-ifc MPL-2.0, engine_fragment MIT); engine_components recorded as primary upstream",
+        "JS library detected via package-lock inspection at integration time — no PATH/python probe applies (probe defined at adapter time)"
+      ]
+    },
+    {
+      "key": "web-ifc",
+      "name": "web-ifc",
+      "domain": "bim",
+      "description": "WASM/JS library for reading and writing IFC files at native speeds — the fast IFC parsing core of That Open Engine.",
+      "upstream": {
+        "canonical": "https://thatopen.github.io/engine_web-ifc/demo",
+        "repo": "ThatOpen/engine_web-ifc",
+        "licenseSpdx": "MPL-2.0",
+        "latestStable": "0.78",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/ThatOpen/engine_web-ifc + releases/latest tag 0.78"
+      },
+      "integration": {
+        "mechanisms": ["web-module"],
+        "notes": "In-browser IFC parsing for the Phase 2 viewer; server-side use possible via Node (separate license review if in-process)."
+      },
+      "probes": [],
+      "state": "planned",
+      "limitations": [
+        "MPL-2.0 — file-level copyleft; in-process use reviewed under ADR-0004 exception path",
+        "WASM/JS module detected via package-lock inspection at integration time — no PATH/python probe applies"
+      ]
+    },
+    {
+      "key": "qgis",
+      "name": "QGIS",
+      "domain": "gis",
+      "description": "Free, open-source, cross-platform geographic information system; qgis_process CLI for headless geoprocessing.",
+      "upstream": {
+        "canonical": "https://qgis.org",
+        "repo": "qgis/QGIS",
+        "licenseSpdx": "GPL-2.0",
+        "latestStable": "3.44.15",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/qgis/QGIS (license field GPL-2.0; repo COPYING = GPLv2 text) + releases/latest tag final-3_44_15 (= 3.44.15)"
+      },
+      "integration": {
+        "mechanisms": ["cli", "native-process"],
+        "notes": "qgis_process for headless geospatial operations (CRS-aware takeoff context, site/civil data) — Phase 5 GIS pack."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["qgis_process"],
+          "versionArgs": ["--version"],
+          "versionRegex": "QGIS\\s+([0-9][0-9A-Za-z.]+)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPLv2 (upstream site describes GPLv2+) — arm's-length process integration only (ADR-0004)"
+      ]
+    },
+    {
+      "key": "grass",
+      "name": "GRASS GIS",
+      "domain": "gis",
+      "description": "Open geospatial processing engine (OSGeo) for raster, vector and geostatistics.",
+      "upstream": {
+        "canonical": "https://grass.osgeo.org",
+        "repo": "OSGeo/grass",
+        "licenseSpdx": "GPL-2.0-or-later",
+        "latestStable": "8.5.0",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/OSGeo/grass (license field NOASSERTION) + repo COPYING text ('either version 2 of the License, or (at your option) any later version') + releases/latest tag 8.5.0"
+      },
+      "integration": {
+        "mechanisms": ["cli", "python-module"],
+        "notes": "grass CLI + grass.script python API for geospatial pipelines (Phase 5)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["grass"],
+          "versionArgs": ["--version"],
+          "versionRegex": "GRASS\\s+([0-9][0-9A-Za-z.]+)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPLv2+ with third-party exceptions — arm's-length integration only (ADR-0004)"
+      ]
+    },
+    {
+      "key": "swmm",
+      "name": "EPA SWMM",
+      "domain": "gis",
+      "description": "US EPA Stormwater Management Model — dynamic hydrology-hydraulic water quality simulation for stormwater/wastewater collection systems (civil/drainage).",
+      "upstream": {
+        "canonical": "https://www.epa.gov/water-research/storm-water-management-model-swmm",
+        "repo": "USEPA/Stormwater-Management-Model",
+        "licenseSpdx": "Public Domain (US Gov)",
+        "latestStable": "5.2.4",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/USEPA/Stormwater-Management-Model (no LICENSE file in tree; repo README states source 'is released in the Public Domain') + releases/latest tag v5.2.4. Note: suggested slug USEPA/SWMM 404s — canonical repo is USEPA/Stormwater-Management-Model"
+      },
+      "integration": {
+        "mechanisms": ["cli"],
+        "notes": "Solver-only CLI (runswmm/swmm5) driven for drainage analysis; python-level via pyswmm (separate row)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["runswmm", "swmm5"],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "No SPDX id: public-domain US Government work per repo README (no LICENSE file) — record kept honest as such",
+        "Solver repo has no version flag — presence-only probe; versions pinned by release tag",
+        "Repo activity is release-driven (last push 2025-05-01 at audit)"
+      ]
+    },
+    {
+      "key": "pyswmm",
+      "name": "pyswmm",
+      "domain": "gis",
+      "description": "Python wrappers for the SWMM engine — node/link system analysis and stepwise simulation control.",
+      "upstream": {
+        "canonical": "https://www.pyswmm.org",
+        "repo": "pyswmm/pyswmm",
+        "licenseSpdx": "BSD-2-Clause",
+        "latestStable": "2.2.0",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/pyswmm/pyswmm (license field NOASSERTION) + repo LICENSE.txt text (BSD-2-Clause) + releases/latest tag v2.2.0"
+      },
+      "integration": {
+        "mechanisms": ["python-module"],
+        "notes": "Python-level drainage analysis in-process (BSD-2; ADR-0004 exception path — python-module mechanism, no modification)."
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "pyswmm",
+          "moduleVersionExpr": "import pyswmm; print(pyswmm.__version__)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "Bundles its own compiled SWMM engine — version may differ from a system-installed EPA SWMM binary"
+      ]
+    },
+    {
+      "key": "opentakeoff",
+      "name": "OpenTakeoff",
+      "domain": "takeoff",
+      "description": "Open-source (AGPL-3.0) PDF takeoff engine for construction & flooring — browser canvas for estimators plus an MCP tool surface for agents (npm: opentakeoff-mcp).",
+      "upstream": {
+        "canonical": "https://github.com/Kentucky-ai/opentakeoff",
+        "repo": "Kentucky-ai/opentakeoff",
+        "licenseSpdx": "AGPL-3.0",
+        "latestStable": "0.9.98",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /search/repositories?q=opentakeoff (mandated candidate audit — credible active project located) + /repos/Kentucky-ai/opentakeoff (license field AGPL-3.0; releases/latest tag mcp-v0.9.98) + npm registry opentakeoff-mcp (dist-tag 0.9.98, bin {opentakeoff-mcp: dist/server.js}, license AGPL-3.0-only)"
+      },
+      "integration": {
+        "mechanisms": ["mcp", "server"],
+        "notes": "MCP server (opentakeoff-mcp) as the first agent-drivable takeoff engine; web canvas for human review — Phase 3 takeoff pack."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["opentakeoff-mcp"],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "AGPL-3.0 (npm metadata declares AGPL-3.0-only) — strict arm's-length process/network boundary (ADR-0004)",
+        "Pre-1.0 (0.9.98) with fast-moving development — pin exact tag at integration",
+        "Presence-only probe for the npm-installed MCP server binary; version read from npm metadata at adapter time"
+      ]
     },
     {
       "key": "kicad",
       "name": "KiCad",
       "domain": "ee",
-      "description": "Schematic capture and PCB design (EDA).",
+      "description": "Schematic capture and PCB design (EDA) with headless kicad-cli exports.",
       "upstream": {
-        "canonical": "https://github.com/KiCad/kicad",
-        "repo": "KiCad/kicad",
-        "licenseSpdx": "AGPL-3.0-only",
-        "latestStable": "9.0",
-        "verified": false,
-        "verifiedAt": null,
-        "verifiedMethod": null
+        "canonical": "https://gitlab.com/kicad/code/kicad",
+        "repo": "KiCad/kicad-source-mirror",
+        "licenseSpdx": "GPL-3.0-or-later",
+        "latestStable": "10.0.7",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/KiCad/kicad-source-mirror (suggested slug KiCad/kicad redirects here; canonical development repo is GitLab) — license field GPL-3.0, repo LICENSE = GPLv3 text, LICENSE.README states 'developed and distributed under the terms of the GPLv3 or later' + releases/latest tag 10.0.7"
       },
       "integration": {
         "mechanisms": ["cli", "native-process"],
@@ -86,7 +395,673 @@
         }
       ],
       "state": "planned",
-      "limitations": ["AGPL — arm's-length process integration only (ADR-0004)"]
+      "limitations": [
+        "SEED CORRECTED: the earlier AGPL-3.0 claim is not supported by the pinned source tree — LICENSE/LICENSE.README say GPLv3-or-later (GitHub license field GPL-3.0). AGPL re-verification removed; GPLv3 still requires arm's-length process integration (ADR-0004)"
+      ]
+    },
+    {
+      "key": "qelectrotech",
+      "name": "QElectroTech",
+      "domain": "ee",
+      "description": "Qt-based electrical schematic editor (wiring diagrams, terminal tables, title blocks).",
+      "upstream": {
+        "canonical": "https://qelectrotech.org",
+        "repo": "qelectrotech/qelectrotech-source-mirror",
+        "licenseSpdx": "GPL-2.0",
+        "latestStable": "0.100",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /search/repositories?q=qelectrotech + /repos/qelectrotech/qelectrotech-source-mirror (license field GPL-2.0; repo LICENSE = GPLv2 text) + releases/latest tag 0.100 (repo README: current stable 0.100, released 2026-01-25)"
+      },
+      "integration": {
+        "mechanisms": ["cli", "native-process"],
+        "notes": "Schematic authoring; headless capabilities limited — file-driven interchange (.qet, DXF/SVG/PDF export) reviewed at adapter time."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["qelectrotech"],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPLv2 — arm's-length process integration only (ADR-0004)",
+        "No documented --version flag — presence-only probe",
+        "Elements collection maintained in a separate upstream repo (qelectrotech-elements)"
+      ]
+    },
+    {
+      "key": "ngspice",
+      "name": "ngspice",
+      "domain": "ee",
+      "description": "Open-source SPICE circuit simulator (SP3f5/XSPICE/CIDER lineage) for analogue and mixed-signal simulation.",
+      "upstream": {
+        "canonical": "https://sourceforge.net/projects/ngspice",
+        "repo": "imr/ngspice",
+        "licenseSpdx": "BSD-3-Clause",
+        "latestStable": "47",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "sourceforge REST /rest/p/ngspice (license category 'BSD License') + best_release.json (ngspice-47.tar.gz, 2026-08-11) + github-api /repos/imr/ngspice (active mirror of git://git.code.sf.net/p/ngspice/ngspice, pushed 2026-10-17; mirror COPYING text: 'Modified BSD' license)"
+      },
+      "integration": {
+        "mechanisms": ["cli", "server"],
+        "notes": "Batch SPICE netlist simulation (ngspice -b) driven by the broker for circuit analysis — Phase 5 EE pack; shared-library (shared-ngspice) mode possible after license review."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["ngspice"],
+          "versionArgs": ["--version"],
+          "versionRegex": "ngspice-?([0-9][0-9A-Za-z.]*)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "A few vendored components carry different licenses (tclspice LGPLv2, OSDI MPLv2.0) per upstream COPYING — reviewed at bundling time",
+        "Canonical is on SourceForge (no GitHub releases); version verified via SourceForge best_release.json"
+      ]
+    },
+    {
+      "key": "pandapower",
+      "name": "pandapower",
+      "domain": "ee",
+      "description": "Convenient power system modelling and analysis based on PYPOWER and pandas (power grids).",
+      "upstream": {
+        "canonical": "https://www.pandapower.org",
+        "repo": "e2nIEE/pandapower",
+        "licenseSpdx": "BSD-3-Clause",
+        "latestStable": "3.5.6",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/e2nIEE/pandapower (license field NOASSERTION) + repo LICENSE text (BSD 3-Clause, University of Kassel/Fraunhofer IEE) + releases/latest tag v3.5.6"
+      },
+      "integration": {
+        "mechanisms": ["python-module"],
+        "notes": "In-process python module for power-system analysis (permissive BSD-3 — ADR-0004 exception path permitted after license review)."
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "pandapower",
+          "moduleVersionExpr": "import pandapower; print(pandapower.__version__)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GitHub license field returned NOASSERTION — BSD-3-Clause read from repo LICENSE text"
+      ]
+    },
+    {
+      "key": "ghdl",
+      "name": "GHDL",
+      "domain": "ee",
+      "description": "Open-source VHDL 2008/93/87 simulator.",
+      "upstream": {
+        "canonical": "https://github.com/ghdl/GHDL",
+        "repo": "ghdl/GHDL",
+        "licenseSpdx": "GPL-2.0",
+        "latestStable": "6.0.0",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/ghdl/GHDL (license field GPL-2.0) + releases/latest tag v6.0.0"
+      },
+      "integration": {
+        "mechanisms": ["cli"],
+        "notes": "VHDL analysis/simulation in the open chip-design flow alongside yosys/verilator (Phase 5)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["ghdl"],
+          "versionArgs": ["--version"],
+          "versionRegex": "GHDL\\s+([0-9][0-9A-Za-z.]+)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPLv2 — arm's-length CLI process integration only (ADR-0004)"
+      ]
+    },
+    {
+      "key": "yosys",
+      "name": "Yosys",
+      "domain": "ee",
+      "description": "Open SYnthesis Suite — framework for RTL synthesis of Verilog and other HDLs.",
+      "upstream": {
+        "canonical": "https://yosyshq.net/yosys/",
+        "repo": "YosysHQ/yosys",
+        "licenseSpdx": "ISC",
+        "latestStable": "0.70",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/YosysHQ/yosys (license field ISC) + releases/latest tag v0.70"
+      },
+      "integration": {
+        "mechanisms": ["cli"],
+        "notes": "Synthesis step of the open chip-design flow (yosys → openroad) — Phase 5."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["yosys"],
+          "versionArgs": ["-V"],
+          "versionRegex": "Yosys\\s+([0-9][0-9A-Za-z.]+)"
+        }
+      ],
+      "state": "planned",
+      "limitations": []
+    },
+    {
+      "key": "verilator",
+      "name": "Verilator",
+      "domain": "ee",
+      "description": "Open-source SystemVerilog simulator and lint system (compiles RTL to C++/threads).",
+      "upstream": {
+        "canonical": "https://verilator.org",
+        "repo": "verilator/verilator",
+        "licenseSpdx": "LGPL-3.0 OR Artistic-2.0",
+        "latestStable": "5.052",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/verilator/verilator (license field NOASSERTION; repo LICENSE = LGPLv3 text) + upstream docs page verilator.org/guide/latest ('LGPL-3.0 or Artistic-2.0') + /tags v5.052 (no GitHub releases)"
+      },
+      "integration": {
+        "mechanisms": ["cli"],
+        "notes": "RTL simulation/lint in the chip-design flow (Phase 5)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["verilator"],
+          "versionArgs": ["--version"],
+          "versionRegex": "Verilator\\s+([0-9][0-9.]+)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "No GitHub releases — stable identified by tags (v5.052)",
+        "GitHub license detection returned NOASSERTION; dual license read from upstream docs + repo LICENSE text"
+      ]
+    },
+    {
+      "key": "openroad",
+      "name": "OpenROAD",
+      "domain": "ee",
+      "description": "Unified RTL-to-GDSII application for digital circuit place-and-route (the open chip-design flow).",
+      "upstream": {
+        "canonical": "https://theopenroadproject.org",
+        "repo": "The-OpenROAD-Project/OpenROAD",
+        "licenseSpdx": "BSD-3-Clause",
+        "latestStable": "2.0",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/The-OpenROAD-Project/OpenROAD (license field BSD-3-Clause) + /tags v2.0 (no GitHub releases)"
+      },
+      "integration": {
+        "mechanisms": ["cli"],
+        "notes": "Place-and-route stage of the chip-design flow (Phase 5)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["openroad"],
+          "versionArgs": ["-version"],
+          "versionRegex": "([0-9][0-9.]*)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "No GitHub releases — stable identified by tags (v2.0)",
+        "Toolchain partners (yosys, klayout, openvaf…) each carry their own licenses — verify at bundling"
+      ]
+    },
+    {
+      "key": "gmsh",
+      "name": "Gmsh",
+      "domain": "simulation",
+      "description": "Open-source 3D finite-element mesh generator with built-in CAD and post-processing.",
+      "upstream": {
+        "canonical": "https://gmsh.info",
+        "repo": null,
+        "licenseSpdx": "GPL-2.0-or-later",
+        "latestStable": "4.15.2",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "upstream docs page gmsh.info ('Current stable release (version 4.15.2, 24 March 2026)') + gmsh.info/LICENSE.txt text (GPL 'Version 2 or later' with linking exception). Canonical code host gitlab.onelab.info/gmsh/gmsh was NOT machine-verifiable this run — its API returns a bot-challenge page; no credible official GitHub mirror found (search returned only automated clones)"
+      },
+      "integration": {
+        "mechanisms": ["cli", "python-module"],
+        "notes": "Meshing service for FEA workflows (gmsh CLI + gmsh python API) — Phase 5 simulation pack."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["gmsh"],
+          "versionArgs": ["--version"],
+          "versionRegex": "([0-9][0-9.]*)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPLv2+ with a linking exception for Netgen/METIS/OpenCASCADE/ParaView — read upstream LICENSE.txt before any bundling",
+        "Canonical GitLab (onelab) API unreachable from audit host (bot challenge) — upstream docs used instead; re-verify against pinned tree at Phase 6"
+      ]
+    },
+    {
+      "key": "code-aster",
+      "name": "Code_Aster",
+      "domain": "simulation",
+      "description": "Structure and thermomechanics finite-element analysis (EDF R&D) — the solver behind Salome-Meca.",
+      "upstream": {
+        "canonical": "https://www.code-aster.org",
+        "repo": "codeaster/src (gitlab.com)",
+        "licenseSpdx": "GPL-3.0",
+        "latestStable": "17.5.8",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "gitlab-api /projects/codeaster/src (last activity 2026-10-21) + repository/tree + repository/files/LICENSE (GPLv3 text) + repository/tags (17.5.8 most recently updated; 18.1.x development series also present)"
+      },
+      "integration": {
+        "mechanisms": ["cli", "python-module"],
+        "notes": "Study runner (as_run) and python API for FEA jobs — Phase 5 structural pack."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["as_run", "aster"],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPLv3 — arm's-length process integration only (ADR-0004)",
+        "Version pinning needs care: stable (17.5.x) and development (18.1.x) tag series coexist",
+        "No documented --version flag — presence-only probe"
+      ]
+    },
+    {
+      "key": "elmerfem",
+      "name": "Elmer FEM",
+      "domain": "simulation",
+      "description": "Open-source multiphysics FEM package (ElmerSolver, ElmerGrid, ElmerGUI).",
+      "upstream": {
+        "canonical": "https://www.elmerfem.org",
+        "repo": "ElmerCSC/elmerfem",
+        "licenseSpdx": "GPL-2.0",
+        "latestStable": "26.2",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/ElmerCSC/elmerfem (license field NOASSERTION) + repo LICENSE.md text ('GPL 2.0 license' + GPLv2 text) + releases/latest tag release-26.2"
+      },
+      "integration": {
+        "mechanisms": ["cli", "native-process"],
+        "notes": "ElmerSolver/ElmerGrid batch runs for FEA/multiphysics — Phase 5."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["ElmerSolver", "ElmerGrid"],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPLv2 — arm's-length process integration only (ADR-0004)",
+        "No documented --version flag — presence-only probe (solver banners vary by build)"
+      ]
+    },
+    {
+      "key": "opensees",
+      "name": "OpenSees",
+      "domain": "simulation",
+      "description": "Open System for Earthquake Engineering Simulation — framework for structural/geotechnical nonlinear analysis (Tcl + OpenSeesPy).",
+      "upstream": {
+        "canonical": "https://opensees.berkeley.edu",
+        "repo": "OpenSees/OpenSees",
+        "licenseSpdx": "NOASSERTION (custom UC Regents license)",
+        "latestStable": "3.8.0",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/OpenSees/OpenSees (license field NOASSERTION) + repo COPYRIGHT text (custom Regents of the University of California license: educational/research/non-profit noncommercial use; other entities internal use only; commercial incorporation requires a UC license) + releases/latest tag v3.8.0"
+      },
+      "integration": {
+        "mechanisms": ["cli", "python-module"],
+        "notes": "Structural analysis engine (OpenSees CLI / OpenSeesPy) — Phase 5 structural pack, pending license review."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["OpenSees", "opensees"],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "LICENSE RISK: custom non-commercial UC Regents license — NOT OSI open source; commercial use of results/incorporation needs a written license review before any 'available' state",
+        "Binary is an interactive Tcl shell — presence-only probe; never executed without input"
+      ]
+    },
+    {
+      "key": "openfoam",
+      "name": "OpenFOAM (Foundation)",
+      "domain": "simulation",
+      "description": "Open-source CFD toolbox (finite-volume) from the OpenFOAM Foundation.",
+      "upstream": {
+        "canonical": "https://openfoam.org",
+        "repo": "OpenFOAM/OpenFOAM-14",
+        "licenseSpdx": "GPL-3.0-or-later",
+        "latestStable": "14",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /users/OpenFOAM/repos (Foundation publishes per-version repositories; suggested org lookup /orgs/OpenFOAM is a user, not an org) + /repos/OpenFOAM/OpenFOAM-14 + repo COPYING text ('GNU General Public License version 3 … or (at your option) any later version') + /tags version-14"
+      },
+      "integration": {
+        "mechanisms": ["cli"],
+        "notes": "Solvers/utilities (blockMesh, simpleFoam, …) driven by the broker for CFD cases — Phase 5."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["blockMesh", "simpleFoam"],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "Fork duality: OpenFOAM Foundation (openfoam.org, GPL) vs OpenCFD/OpenFOAM.com (also GPL, separate releases e.g. v2506) — choose and record which fork is integrated",
+        "Environment-activated toolchain (bashrc sourcing) — presence-only probe; solver versions surfaced via case control dicts at adapter time"
+      ]
+    },
+    {
+      "key": "paraview",
+      "name": "ParaView",
+      "domain": "simulation",
+      "description": "VTK-based scientific data analysis and visualization application.",
+      "upstream": {
+        "canonical": "https://www.paraview.org",
+        "repo": "Kitware/paraview",
+        "licenseSpdx": "BSD-3-Clause",
+        "latestStable": "6.2.0",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/Kitware/paraview (license field BSD-3-Clause) + /tags v6.2.0 (no GitHub releases)"
+      },
+      "integration": {
+        "mechanisms": ["cli", "native-process"],
+        "notes": "Post-processing/visualization of solver outputs (pvpython/pvbatch headless rendering) — Phase 5."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["paraview", "pvpython"],
+          "versionArgs": ["--version"],
+          "versionRegex": "([0-9][0-9.]*)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "No GitHub releases — stable identified by tags (v6.2.0)"
+      ]
+    },
+    {
+      "key": "openmodelica",
+      "name": "OpenModelica",
+      "domain": "simulation",
+      "description": "Open-source Modelica-based modeling and simulation environment (OMCompiler, OMEdit).",
+      "upstream": {
+        "canonical": "https://openmodelica.org",
+        "repo": "OpenModelica/OpenModelica",
+        "licenseSpdx": "AGPL-3.0 OR OSMC-PL-1.8",
+        "latestStable": "1.27.1",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/OpenModelica/OpenModelica (license field NOASSERTION) + repo OSMC-License.txt text ('provided under the terms of AGPL version 3 license or this OSMC Public License (OSMC-PL) version 1.8') + releases/latest tag v1.27.1"
+      },
+      "integration": {
+        "mechanisms": ["cli", "native-process"],
+        "notes": "omc (Modelica compiler/simulator) for system-level dynamics and FMU workflows — Phase 5."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["omc"],
+          "versionArgs": ["--version"],
+          "versionRegex": "OpenModelica\\s+([0-9][0-9A-Za-z.]+)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "Dual AGPL-3.0 / OSMC-PL-1.8 — arm's-length CLI integration (omc) keeps both options open; never bundle without choosing and recording the license path"
+      ]
+    },
+    {
+      "key": "dwsim",
+      "name": "DWSIM",
+      "domain": "simulation",
+      "description": "Open-source chemical process simulator (steady-state and dynamic, .NET).",
+      "upstream": {
+        "canonical": "https://dwsim.org",
+        "repo": "DanWBR/dwsim10",
+        "licenseSpdx": "GPL-3.0",
+        "latestStable": "10.2.12",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /search/repositories?q=DWSIM + /repos/DanWBR/dwsim10 (active, license field GPL-3.0, releases/latest tag v10.2.12). IMPORTANT: suggested slug DWSIM/DWSIM 404s and DanWBR/dwsim (the historical main repo) is ARCHIVED (verified via /repos/DanWBR/dwsim: archived=true)"
+      },
+      "integration": {
+        "mechanisms": ["native-process", "cli"],
+        "notes": "Process simulation flowsheets via DWSIM CLI/automation surface — Phase 5."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["dwsim"],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "Upstream moved: historical repo DanWBR/dwsim is ARCHIVED; active development is in DanWBR/dwsim10 (.NET 10) — track the new repo",
+        "Binary/CLI surface name varies by installer — presence-only probe; adapter defines exact entry point"
+      ]
+    },
+    {
+      "key": "simpy",
+      "name": "SimPy",
+      "domain": "simulation",
+      "description": "Process-based discrete-event simulation framework in Python.",
+      "upstream": {
+        "canonical": "https://simpy.readthedocs.io",
+        "repo": "team-simpy/simpy (gitlab.com)",
+        "licenseSpdx": "MIT",
+        "latestStable": "4.1.2",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "PyPI JSON api pypi.org/pypi/simpy/json (version 4.1.2; project source URL = gitlab.com/team-simpy/simpy — suggested slug simpy/simpy 404s, the project has moved) + gitlab-api repository/tags (4.1.2) + license via PyPI sdist LICENSE text (MIT)"
+      },
+      "integration": {
+        "mechanisms": ["python-module"],
+        "notes": "In-process discrete-event simulation for construction-process/queueing models (MIT — ADR-0004 exception path)."
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "simpy",
+          "moduleVersionExpr": "import simpy; print(simpy.__version__)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "Source host is GitLab (team-simpy/simpy), not GitHub — npm-style package presence is pip-only"
+      ]
+    },
+    {
+      "key": "ros2",
+      "name": "ROS 2",
+      "domain": "simulation",
+      "description": "Robot Operating System 2 — libraries and tools for robotics applications (DDS middleware, ros2 CLI).",
+      "upstream": {
+        "canonical": "https://github.com/ros2",
+        "repo": "ros2/ros2",
+        "licenseSpdx": null,
+        "latestStable": "release-lyrical-20260807",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/ros2/ros2 (superproject release repository; releases/latest tag release-lyrical-20260807 = the 'Lyrical' distribution release). License: the superproject carries no LICENSE file of its own — core components are permissive (e.g. /repos/ros2/rclcpp → Apache-2.0); per-component verification required at integration"
+      },
+      "integration": {
+        "mechanisms": ["cli", "server"],
+        "notes": "ros2 CLI tooling for robotics/automation workflows (Phase 5 robotics pack)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["ros2"],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "Multi-license ecosystem (Apache-2.0/BSD-3-Clause core, per-component variety) — verify each integrated component's license",
+        "ros2 CLI has no --version — presence-only probe; distribution version surfaced via ROS_DISTRO env at adapter time"
+      ]
+    },
+    {
+      "key": "gazebo",
+      "name": "Gazebo (gz-sim)",
+      "domain": "simulation",
+      "description": "Open-source robotics simulator (successor to classic Gazebo; gz sim).",
+      "upstream": {
+        "canonical": "https://gazebosim.org",
+        "repo": "gazebosim/gz-sim",
+        "licenseSpdx": "Apache-2.0",
+        "latestStable": "10.0.0",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/gazebosim/gz-sim (license field Apache-2.0) + releases/latest tag gz-sim10_10.0.0"
+      },
+      "integration": {
+        "mechanisms": ["cli", "server"],
+        "notes": "gz sim (headless server mode) for robotics simulation — pairs with ROS 2 (Phase 5)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["gz"],
+          "versionArgs": ["sim", "--versions"],
+          "versionRegex": "([0-9][0-9.]*)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "Gazebo distribution ('Ionic'/'Jetty'-style names) bundles multiple gz-* libraries with their own versions — record the set at integration"
+      ]
+    },
+    {
+      "key": "libreoffice",
+      "name": "LibreOffice",
+      "domain": "docs",
+      "description": "Document/spreadsheet/presentation suite; headless document conversion (soffice --headless --convert-to).",
+      "upstream": {
+        "canonical": "https://www.libreoffice.org",
+        "repo": "LibreOffice/core",
+        "licenseSpdx": "GPL-3.0",
+        "latestStable": "26.8",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/LibreOffice/core (read-only official mirror; license field GPL-3.0; repo COPYING at master = pure GPLv3 text) + upstream site libreoffice.org/download (LibreOffice 26.8; 26.2 also listed). CONFLICT recorded: libreoffice.org/about-us/licenses describes dual 'MPL-2.0 OR LGPL-3.0-or-later' — mirror COPYING text and site statements disagree; resolves at Phase-6 pinning"
+      },
+      "integration": {
+        "mechanisms": ["cli", "native-process"],
+        "notes": "Headless document conversion/rendering for the docs workspace (Phase 5 docs pack)."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["libreoffice", "soffice"],
+          "versionArgs": ["--version"],
+          "versionRegex": "LibreOffice\\s+([0-9][0-9.]+)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "LICENSE CONFLICT: GitHub mirror COPYING shows GPLv3 text (GitHub license field GPL-3.0) while libreoffice.org states MPL-2.0 OR LGPL-3.0-or-later — must be resolved against the pinned release tree before bundling/redistribution (ADR-0004)",
+        "Mirror carries no GitHub releases/tags; versions published on libreoffice.org"
+      ]
+    },
+    {
+      "key": "openproject",
+      "name": "OpenProject",
+      "domain": "controls",
+      "description": "Leading open-source project management software (work packages, Gantt schedules, boards).",
+      "upstream": {
+        "canonical": "https://www.openproject.org",
+        "repo": "opf/openproject",
+        "licenseSpdx": "GPL-3.0",
+        "latestStable": "17.9.2",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/opf/openproject (license field GPL-3.0) + releases/latest tag v17.9.2"
+      },
+      "integration": {
+        "mechanisms": ["server", "cli"],
+        "notes": "Rails server — REST API integration for schedule/controls workflows (Phase 3/5); packaged installs provide an 'openproject' CLI."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["openproject"],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPLv3 server — integrate at arm's length via documented REST API; no --version flag documented on the packaged CLI — presence-only probe",
+        "Server deployment (docker/DEB) is the realistic integration target, not a per-workstation binary"
+      ]
+    },
+    {
+      "key": "projectlibre",
+      "name": "ProjectLibre",
+      "domain": "controls",
+      "description": "Open-source desktop replacement for Microsoft Project (Gantt/CPM scheduling; OpenProj lineage).",
+      "upstream": {
+        "canonical": "https://sourceforge.net/projects/projectlibre",
+        "repo": "smartqubit/projectlibre",
+        "licenseSpdx": "CPAL-1.0",
+        "latestStable": "1.9.8",
+        "verified": true,
+        "verifiedAt": "2026-10-21",
+        "verifiedMethod": "github-api /repos/smartqubit/projectlibre (official GitHub mirror of the SourceForge project; no LICENSE file at root — license dir openproj_build/license confirms 'Common Public Attribution License Version 1.0 (CPAL)'; mirror last push 2022-10-04, no GitHub releases) + sourceforge REST /rest/p/projectlibre (license category 'CPAL 1.0') + best_release.json (ProjectLibre 1.9.8, 2025-04-28). Canonical marketing site projectlibre.com returned HTTP 403 from the audit host — releases verified via SourceForge"
+      },
+      "integration": {
+        "mechanisms": ["native-process", "cli"],
+        "notes": "Schedule authoring for construction controls (Phase 3/5); file-driven interchange (MPP/XML) via the desktop app."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": ["projectlibre"],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "CPAL-1.0 (OSI-approved, attribution + network-use conditions) — arm's-length desktop integration; review notice requirements at adapter time",
+        "GitHub mirror inactive since 2022; current releases distributed through SourceForge (1.9.8) — pin exact installer at integration",
+        "No --version flag documented — presence-only probe"
+      ]
     }
   ]
 }

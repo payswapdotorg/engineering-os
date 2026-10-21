@@ -1,4 +1,4 @@
-import { access, constants } from "node:fs/promises"
+import { access, constants, stat } from "node:fs/promises"
 import { execFile } from "node:child_process"
 import path from "node:path"
 import { promisify } from "node:util"
@@ -17,7 +17,7 @@ export interface EngineProbeSpec {
   kind: "executable" | "python-module"
   executables?: string[]
   versionArgs?: string[]
-  versionRegex?: string
+  versionRegex?: string | null
   module?: string
   moduleVersionExpr?: string
 }
@@ -38,9 +38,9 @@ export interface EngineRecord {
   description: string
   upstream: {
     canonical: string
-    repo?: string
-    licenseSpdx?: string
-    latestStable?: string
+    repo?: string | null
+    licenseSpdx?: string | null
+    latestStable?: string | null
     verified: boolean
     verifiedAt?: string | null
     verifiedMethod?: string | null
@@ -63,11 +63,17 @@ export interface DetectionResult {
 export const engineRegistry: EngineRecord[] = (registryData as { engines: EngineRecord[] }).engines
 
 async function resolveOnPath(exe: string, envPath: string): Promise<string | null> {
+  const seen = new Set<string>()
   const dirs = envPath.split(path.delimiter).filter(Boolean)
   for (const dir of dirs) {
+    if (seen.has(dir)) continue
+    seen.add(dir)
     const p = path.join(dir, exe)
     try {
       await access(p, constants.X_OK)
+      // Guard against PATH entries that are directories named like the executable.
+      const s = await stat(p)
+      if (!s.isFile()) continue
       return p
     } catch {
       // keep looking
@@ -83,6 +89,23 @@ interface ProbeHit {
   probeOutput: string | null
 }
 
+const probeTimeoutMs = 4000
+
+function extractVersion(output: string, versionRegex?: string | null): string | null {
+  if (!versionRegex) return null
+  let re: RegExp
+  try {
+    re = new RegExp(versionRegex)
+  } catch {
+    return null
+  }
+  const m = output.match(re)
+  if (!m) return null
+  // Prefer the first capture group; fall back to the whole match for group-less regexes.
+  const v = m[1] ?? m[0]
+  return v ? v.trim() : null
+}
+
 async function probeExecutable(spec: EngineProbeSpec): Promise<ProbeHit> {
   for (const exe of spec.executables ?? []) {
     const exePath = await resolveOnPath(exe, process.env.PATH ?? "")
@@ -92,16 +115,16 @@ async function probeExecutable(spec: EngineProbeSpec): Promise<ProbeHit> {
     if (spec.versionArgs?.length) {
       try {
         const res = await execFileAsync(exePath, spec.versionArgs, {
-          timeout: 4000,
+          timeout: probeTimeoutMs,
           maxBuffer: 64 * 1024,
         })
         output = `${res.stdout ?? ""}${res.stderr ?? ""}`.trim()
-        if (spec.versionRegex && output) {
-          const m = output.match(new RegExp(spec.versionRegex))
-          version = m ? m[1] : null
-        }
       } catch {
+        // Executable exists but the version command failed — presence is still the truth.
         output = null
+      }
+      if (output) {
+        version = extractVersion(output, spec.versionRegex)
       }
     }
     return { hit: true, version, executablePath: exePath, probeOutput: output }
@@ -120,12 +143,13 @@ async function probePythonModule(spec: EngineProbeSpec): Promise<ProbeHit> {
   }
   try {
     const res = await execFileAsync(pythonPath, ["-c", spec.moduleVersionExpr], {
-      timeout: 4000,
+      timeout: probeTimeoutMs,
       maxBuffer: 64 * 1024,
     })
     const output = `${res.stdout ?? ""}`.trim()
     return { hit: true, version: output || null, executablePath: pythonPath, probeOutput: output }
   } catch {
+    // Import failed (module missing) or interpreter misbehaved — honest miss.
     return { hit: false, version: null, executablePath: null, probeOutput: null }
   }
 }

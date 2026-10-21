@@ -1,0 +1,92 @@
+# Capability Matrix
+
+Owner: Worker 2 (Engines & Integration) · Date: **2026-10-21** · Companion to [engine-inventory.md](engine-inventory.md) · Contract: [ADR-0005](../adr/0005-engine-integration-contract.md) · Status vocabulary: `planned → installed → available → implemented → tested → verified → production-ready` (evidence-linked — never upgraded without a test, command output or acceptance item).
+
+## Reading this matrix
+
+- Every **engine-driven capability** below is `planned`: the engines are audited upstream (34 verified records) but no adapter exists yet (adapters land in Phase 2+ per ADR-0005), and none of the engines is installed on the dev host. Detection probes for them are specified and tested; adapter capabilities get their own states as evidence accrues.
+- **Platform capabilities (implemented now)** are listed at the end — these are the TL-provided foundation the engines will plug into, with their real states.
+
+## CAD (Phase 2 focus)
+
+| Capability | Engine(s) | State | Target phase | Evidence / notes |
+|---|---|---|---|---|
+| Parametric 3D modeling (headless scripting) | FreeCAD | planned | 2 | Registry `freecad` (LGPL-2.1, 1.1.4); `FreeCADCmd --version` probe; adapter = Phase 2 deliverable |
+| 2D drafting (DXF/DWG read, DXF write) | LibreCAD | planned | 2 | Registry `librecad` (GPL-2.0, 2.2.1.6); arm's-length process |
+| DWG conversion (DWG ↔ DXF compatibility boundary) | LibreDWG | planned | 2 | Registry `libredwg` (GPL-3.0, 0.14); CLI-only integration (dwg2dxf/dwgread/dwgwrite); FreeCAD limitation note |
+| Technical drawing export (PDF/SVG) | FreeCAD (TechDraw), LibreCAD | planned | 2 | Same adapters; export via CLI where upstream supports it |
+| 3D BIM host application | Blender | planned | 2 | Registry `blender` (GPL-2.0-or-later, 5.2.2); hosts Bonsai IFC authoring; `blender --version` probe |
+
+## BIM (Phase 2/3)
+
+| Capability | Engine(s) | State | Target phase | Evidence / notes |
+|---|---|---|---|---|
+| IFC authoring / native editing | IfcOpenShell + Bonsai (in Blender) | planned | 2 | Registry `ifcopenshell` (LGPL-3.0, 0.9.0 via PyPI); python-module probe tested |
+| IFC model validation (schema + rules) | IfcOpenShell (python) | planned | 2/3 | Validation runs in broker-supervised process; results enter artifact graph with provenance (ADR-0005 rule 2) |
+| Model-derived quantity extraction | IfcOpenShell (python) | planned | 3 | Feeds the shared quantity ledger; kept strictly distinct from drawing-derived quantities (ADR-0005; ledger schema in `docs/03-data/quantity-ledger-schema.md`) |
+| In-app 3D / IFC web viewer | web-ifc + That Open Engine (components) | planned | 2 | Registry `web-ifc` (MPL-2.0, 0.78), `thatopen-engine` (MIT, 3.4.9); web-module mechanism — detection via package-lock inspection at adapter time (no PATH probe) |
+
+## Takeoff (Phase 3)
+
+| Capability | Engine(s) | State | Target phase | Evidence / notes |
+|---|---|---|---|---|
+| PDF drawing measurement (scale-calibrated takeoff) | OpenTakeoff | planned | 3 | Registry `opentakeoff` (AGPL-3.0, 0.9.98) — active upstream found by mandated audit 2026-10-21; MCP + canvas surfaces; strict arm's-length (AGPL) |
+| Agent-drivable takeoff (tool invocation) | OpenTakeoff (MCP server) | planned | 3 | `opentakeoff-mcp` bin verified via npm registry; broker-only execution path (ADR-0005 rule 1); agent measurements carry review status upstream |
+| Model-derived quantities (distinct ledger column) | IfcOpenShell | planned | 3 | See BIM row; drawing-derived vs model-derived kept separate by design |
+| BOQ assembly (bill of quantities) | platform ledger + OpenTakeoff / IfcOpenShell inputs | planned | 3 | Ledger domain logic: `src/core/ledger.ts` (W3 lane, in progress); no engine is claimed complete for this |
+
+## GIS / civil (Phase 5)
+
+| Capability | Engine(s) | State | Target phase | Evidence / notes |
+|---|---|---|---|---|
+| Geospatial processing (headless) | QGIS (`qgis_process`) | planned | 5 | Registry `qgis` (GPL-2.0, 3.44.15); probe `qgis_process --version` |
+| Raster/vector geostatistics | GRASS GIS | planned | 5 | Registry `grass` (GPL-2.0-or-later, 8.5.0) |
+| CRS handling (coordinate reference systems) | QGIS, GRASS | planned | 5 | Used to ground site/civil drawings and takeoff scale context |
+| Drainage / stormwater analysis (civil) | EPA SWMM, pyswmm | planned | 5 | Registry `swmm` (public domain, 5.2.4), `pyswmm` (BSD-2-Clause, 2.2.0); pyswmm may run in-process after license review |
+
+## Electrical / electronics (Phase 5)
+
+| Capability | Engine(s) | State | Target phase | Evidence / notes |
+|---|---|---|---|---|
+| Electronics schematic capture | KiCad | planned | 5 | Registry `kicad` (GPL-3.0-or-later, 10.0.7 — seed AGPL claim corrected by tree text) |
+| PCB layout + fabrication exports | KiCad (`kicad-cli`) | planned | 5 | Headless gerber/step/netlist exports |
+| Electrical installation diagrams (buildings) | QElectroTech | planned | 5 | Registry `qelectrotech` (GPL-2.0, 0.100); presence-only probe |
+| SPICE circuit simulation | ngspice | planned | 5 | Registry `ngspice` (BSD-3-Clause, 47); batch netlist runs via broker |
+| Power system analysis | pandapower | planned | 5 | Registry `pandapower` (BSD-3-Clause, 3.5.6); python-module probe |
+| Chip design flow (RTL → GDSII) | GHDL, Yosys, Verilator, OpenROAD | planned | 5 | Registry rows all verified (GPL-2.0 / ISC / LGPL-3.0-or-Artistic / BSD-3-Clause); flow orchestrated by broker, per-tool provenance recorded |
+
+## Simulation & analysis (Phase 5)
+
+| Capability | Engine(s) | State | Target phase | Evidence / notes |
+|---|---|---|---|---|
+| Meshing (2D/3D FE meshes) | Gmsh | planned | 5 | Registry `gmsh` (GPL-2.0-or-later + exception, 4.15.2); `gmsh --version` probe |
+| FEA — structural & thermomechanics | Code_Aster, Elmer FEM | planned | 5 | Registry `code-aster` (GPL-3.0, 17.5.8), `elmerfem` (GPL-2.0, 26.2) |
+| FEA — earthquake/geotechnical (license-risk) | OpenSees | planned | 5 | Registry `opensees`: custom UC Regents noncommercial license — **no capability beyond `planned` until written license review** |
+| CFD | OpenFOAM (Foundation, v14) | planned | 5 | Registry `openfoam` (GPL-3.0-or-later); Foundation/OpenCFD fork duality recorded |
+| Systems dynamics (Modelica, FMU) | OpenModelica | planned | 5 | Registry `openmodelica` (AGPL-3.0 OR OSMC-PL-1.8, 1.27.1); `omc --version` probe |
+| Chemical process simulation | DWSIM | planned | 5 | Registry `dwsim` (GPL-3.0, 10.2.12) — upstream repo moved (dwsim10); tracking updated |
+| Discrete-event simulation | SimPy | planned | 5 | Registry `simpy` (MIT, 4.1.2 — now hosted on GitLab); python-module probe |
+| Robotics simulation | ROS 2 + Gazebo (gz-sim) | planned | 5 | Registry `ros2` (multi-license superproject), `gazebo` (Apache-2.0, 10.0.0) |
+| Result post-processing / visualization | ParaView | planned | 5 | Registry `paraview` (BSD-3-Clause, 6.2.0); headless pvpython/pvbatch rendering |
+
+## Docs / controls (Phase 3/5)
+
+| Capability | Engine(s) | State | Target phase | Evidence / notes |
+|---|---|---|---|---|
+| Document conversion / rendering (headless) | LibreOffice | planned | 5 | Registry `libreoffice` (license conflict GPL-3.0 vs MPL-2.0/LGPL-3.0+ flagged for Phase-6); `libreoffice --version` probe |
+| Spreadsheet / BOQ document generation | LibreOffice headless + platform ledger | planned | 3/5 | BOQ data assembled by ledger (W3), rendered via LO in Phase 3 pilot |
+| Project scheduling (Gantt/CPM desktop) | ProjectLibre | planned | 3 | Registry `projectlibre` (CPAL-1.0, 1.9.8 via SourceForge); presence-only probe |
+| Work-package / schedule server (REST) | OpenProject | planned | 3/5 | Registry `openproject` (GPL-3.0, 17.9.2); arm's-length REST API integration |
+
+## Platform capabilities (implemented now)
+
+These are the TL-provided platform foundation (not engine claims); states reflect what is in the tree today:
+
+| Capability | State | Evidence (src modules) |
+|---|---|---|
+| Project & artifact registry (REST API + Prisma model) | implemented | `src/app/api/projects/**`, `src/app/api/artifacts/**` (incl. revisions, links, approvals), `prisma/schema.prisma`, `src/lib/db.ts` |
+| Content hashing + revision storage (sha256-addressed artifact store) | implemented | `src/lib/hash.ts` (`sha256Hex`), `src/lib/artifact-store.ts`, `src/lib/artifact-meta.ts` (artifact kinds/mime detection) |
+| Audit event trail | implemented | `src/lib/audit.ts` (`recordEvent`), `src/app/api/events/route.ts` |
+| Engine detection framework (registry + honest probes) | tested | `src/engines/index.ts` (`engineRegistry`, `detectEngines` — signatures stable for W1), `src/engines/registry.json` (34 source-verified engine records), `src/engines/detect.test.ts` (5 passing bun:test cases: versioned executable, missing-binary, absent python-module, presence-only, PATH hygiene — no network, no real engines) |
+
+Graph domain logic (impact propagation, staleness, approvals, ledger) is Worker 3's lane (`src/core/`) and is in progress — no states claimed here on its behalf.
