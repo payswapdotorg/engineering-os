@@ -2,10 +2,10 @@
 
 /**
  * Project workspace — Overview / Artifacts (Models & Drawings) / Design
- * Studio / Takeoff / Team / Activity. The tab is the URL query (?tab=…), so
- * workspace links (sidebar, Cmd+K) deep-link straight into a tab — the page
- * guard in src/app/projects/[id]/page.tsx routes every tab id below, takeoff
- * and studio included.
+ * Studio / Takeoff / Agents & Automations / Team / Activity. The tab is the
+ * URL query (?tab=…), so workspace links (sidebar, Cmd+K) deep-link straight
+ * into a tab — the page guard in src/app/projects/[id]/page.tsx routes every
+ * tab id below, takeoff and studio included.
  */
 import { Boxes, DraftingCompass, FileUp, GitBranch, Info, Plus, Ruler, UserPlus, Users } from "lucide-react"
 import Link from "next/link"
@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import { useApi, type ArtifactListItem, type AuditEventRow, type ProjectDetail } from "@/components/product/api"
 import { ApprovalBadge, DisciplineBadge, KindBadge, StalenessBadge } from "@/components/product/badges"
 import { ArtifactDetailDialog, RegisterArtifactDialog } from "@/components/product/artifact-dialogs"
+import { AgentsWorkspace } from "@/components/product/agents-workspace"
 import { EventFeed } from "@/components/product/event-feed"
 import { formatDate, humanBytes, relTime } from "@/components/product/format"
 import { AddMemberDialog, EditProjectDialog } from "@/components/product/project-dialogs"
@@ -41,7 +42,7 @@ import { ARTIFACT_KINDS } from "@/lib/artifact-meta"
 import { disciplineLabel } from "@/lib/disciplines"
 import { initialsOf } from "@/components/product/format"
 
-const TABS = ["overview", "artifacts", "studio", "takeoff", "team", "activity"] as const
+const TABS = ["overview", "artifacts", "studio", "takeoff", "agents", "team", "activity"] as const
 type TabId = (typeof TABS)[number]
 
 export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: string; tab: TabId; onTabChange: (tab: TabId) => void }) {
@@ -158,6 +159,7 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
           <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
           <TabsTrigger value="studio">Design Studio</TabsTrigger>
           <TabsTrigger value="takeoff">Takeoff</TabsTrigger>
+          <TabsTrigger value="agents">Agents</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
@@ -306,6 +308,16 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
         {/* ---------------- Takeoff ---------------- */}
         <TabsContent value="takeoff" className="mt-4 flex flex-col gap-4">
           <TakeoffWorkspace projectId={project.id} />
+        </TabsContent>
+
+        {/* ---------------- Agents & Automations ---------------- */}
+        {/* key: a project switch remounts the workspace so its selection/poll
+            state can never leak across projects. onMutated: workflow runs
+            produce/publish artifacts the project-level caches must hear about
+            (useApi is manual-refresh — without the nudge the Artifacts tab
+            stays stale until the next explicit action). */}
+        <TabsContent value="agents" className="mt-4 flex flex-col gap-4">
+          <AgentsWorkspace key={project.id} projectId={project.id} onMutated={refreshAll} />
         </TabsContent>
 
         {/* ---------------- Team ---------------- */}

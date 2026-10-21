@@ -105,14 +105,22 @@ model EngineProbeResult {
 }
 
 model Workflow {
-  id         String    @id
-  projectId  String
-  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name       String
-  state      String    @default("draft") // src/core WORKFLOW_STATES; execution ships Phase 4
-  definition String? // JSON text (typed steps)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id                String    @id
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name              String
+  state             String    @default("draft") // src/core WORKFLOW_STATES + applyWorkflowAction (Phase 4)
+  definition        String? // JSON text (typed steps, src/core WorkflowDefinitionSchema)
+  createdBy         String    @default("local-operator") // "local-operator" | "agent:<name>" (CREATOR_ACTOR_RE)
+  currentStateSince DateTime? // set on EVERY state change (recovery scan input)
+  failure           String? // JSON: {stepId, attempt, error, at} — set on failed (kept for audit on retry)
+  finishedAt        DateTime? // succeeded | failed | cancelled
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  stepRuns          WorkflowStepRun[]
+  events            WorkflowEvent[]
+
+  @@index([projectId, state])
 }
 
 model AuditEvent {
@@ -225,4 +233,55 @@ model EstimateLine {
   createdAt  DateTime @default(now())
 
   @@index([estimateId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase-4 durable workflow runtime (W3 lane, docs/00-architecture/workflow-runtime-contract.md)
+// WorkflowStepRun is the per-step execution record (ADR-0005: every field comes
+// from the real broker run); WorkflowEvent is the append-only per-workflow
+// execution log. JSON payloads (inputRevisionIds, inputHashes, outputSummary,
+// payload) are stored as String per the header convention; state enums as
+// plain String, validated at the boundary (zod + src/core/workflow.ts).
+// ---------------------------------------------------------------------------
+
+model WorkflowStepRun {
+  id                       String   @id
+  workflowId               String
+  workflow                 Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  stepId                   String // definition step key (step.id)
+  seq                      Int // execution order (definition array order, 1-based)
+  state                    String   @default("pending") // pending|running|succeeded|failed|skipped|awaiting_approval
+  attempt                  Int      @default(0) // current attempt number (1-based once a run started)
+  maxAttempts              Int      @default(1) // snapshot from definition at queue time
+  operation                String // BROKER_OPERATIONS key
+  engineKey                String? // resolved at execution ("cadquery" | "ifcopenshell")
+  inputRevisionIds         String // JSON: string[] — artifact revision ids locked at queue time
+  inputHashes              String // JSON: string[] — sha256 of those revisions' content
+  outputArtifactRevisionId String? // produced artifact revision (report/mesh) — null for ledger-only ops
+  outputSummary            String? // JSON — per-op structured summary, NO free-form numbers
+  stdoutTail               String? // last 2000 chars, verbatim
+  stderrTail               String? // last 2000 chars, verbatim
+  exitCode                 Int? // adapter subprocess exit code (null when no subprocess ran)
+  engineVersion            String?
+  adapterScript            String?
+  adapterHash              String?
+  startedAt               DateTime?
+  endedAt                 DateTime?
+  durationMs               Int?
+
+  @@index([workflowId])
+}
+
+model WorkflowEvent {
+  id         String   @id
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  seq        Int // per-workflow monotonic (1, 2, …) — event order is content
+  kind       String // contract §7 vocabulary (src/core/runtime/executor.ts WORKFLOW_EVENT_KINDS)
+  actorType  String // user | agent | system
+  actorId    String // "local-operator" | "agent:<name>" | "system:executor" | "system:recovery"
+  payload    String? // JSON — kind-specific; failures carry the verbatim error text
+  createdAt  DateTime @default(now())
+
+  @@unique([workflowId, seq])
 }

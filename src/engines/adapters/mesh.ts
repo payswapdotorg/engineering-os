@@ -27,8 +27,9 @@
  */
 
 import {
+  ADAPTER_TAIL_CHARS,
   EngineUnavailableError,
-  execAdapterScript,
+  execAdapterScriptWithStreams,
   isPlainObject,
   parseAdapterStdoutObject,
   validateAdapterEnvelope,
@@ -79,6 +80,10 @@ export interface MeshResult {
   /** sha256 of the adapter script content (recorded in provenance) */
   adapterHash: string
   mesh: MeshPayload
+  /** last 2000 chars of the adapter subprocess stdout, verbatim (broker execution record — additive, Phase 4) */
+  stdoutTail?: string
+  /** last 2000 chars of the adapter subprocess stderr, verbatim (broker execution record — additive, Phase 4) */
+  stderrTail?: string
 }
 
 const MESH_ADAPTER_SCRIPTS: Record<"ifc" | "step", string> = {
@@ -209,15 +214,18 @@ export function parseMeshAdapterStdout(stdout: string, script: string): MeshResu
  * Tessellate a stored model file into the pinned eos-mesh/1 payload using the
  * registered engine for `kind`. Throws `EngineUnavailableError` with an
  * honest message when the engine or adapter is not available on this host.
+ * W2-e additive: the result carries the subprocess stdout/stderr tails
+ * (verbatim, last 2000 chars) for the broker execution record — the protocol
+ * fields are untouched.
  */
 export async function tessellateFromFile(
   absPath: string,
   kind: "ifc" | "step",
 ): Promise<MeshResult> {
   const script = MESH_ADAPTER_SCRIPTS[kind]
-  const stdout = await execAdapterScript(kind, script, absPath)
+  const run = await execAdapterScriptWithStreams(kind, script, absPath)
   const { engineKey, engineVersion, adapterScript, adapterHash, mesh } =
-    parseMeshAdapterStdout(stdout, script)
+    parseMeshAdapterStdout(run.stdout, script)
   // The BRIDGE adds generatedBy into the mesh payload when returning (the
   // python adapter does not include it) — this object is exactly what W3-d
   // stores as the byte-deterministic eos-mesh/1 file.
@@ -225,5 +233,13 @@ export async function tessellateFromFile(
     ...mesh,
     generatedBy: { engineKey, engineVersion, adapterScript, adapterHash },
   }
-  return { engineKey, engineVersion, adapterScript, adapterHash, mesh: meshWithProvenance }
+  return {
+    engineKey,
+    engineVersion,
+    adapterScript,
+    adapterHash,
+    mesh: meshWithProvenance,
+    stdoutTail: run.stdout.slice(-ADAPTER_TAIL_CHARS),
+    stderrTail: run.stderr.slice(-ADAPTER_TAIL_CHARS),
+  }
 }

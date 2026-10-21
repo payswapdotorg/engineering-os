@@ -1,0 +1,368 @@
+#!/usr/bin/env bash
+# scripts/e2e-takeoff.sh — Engineering OS golden-path regression (Phase-3 record:
+# 26 PASS + the Phase-2 step-11 mesh derive → 27 PASS). Rebuilt from the
+# acceptance-catalogue evidence (AC-P3-01…08) + implementation-status records.
+#
+# Rebuilds the demo dataset through the REAL API against the live dev server:
+# project "Harbour View Extension", 4 fixtures, 14 ledger rows, 1 approved GHS
+# estimate (subtotal 10197.72 / OH 1019.77 / profit 560.87 / tax 0 /
+# grand 11778.36), plus one derived mesh so Design Studio renders 3D on first
+# open. Every assertion prints PASS/FAIL with the actual response on failure;
+# final line "N PASS / M FAIL", nonzero exit on any FAIL.
+#
+# Run AFTER `bun scripts/dev-db-cleanup.ts --all`. Pure HTTP: curl + jq + python3.
+set -euo pipefail
+
+BASE="${BASE:-http://localhost:3000}"
+FIXTURES="$(cd "$(dirname "$0")/.." && pwd)/tests/fixtures"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+PASS=0
+FAIL=0
+
+ok() { PASS=$((PASS + 1)); printf 'PASS %2d: %s\n' "$PASS" "$1"; }
+bad() {
+  FAIL=$((FAIL + 1))
+  printf 'FAIL %2d: %s\n' "$FAIL" "$1"
+  printf '  actual (truncated): %.600s\n' "$2"
+  printf '  (expected: %.300s)\n' "$3"
+}
+assert_eq() { # desc expected actual
+  if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "$3" "$2"; fi
+}
+
+STATUS=""
+BODY=""
+http() { # method path [extra curl args…]
+  local method="$1" path="$2"
+  shift 2
+  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X "$method" "$BASE$path" "$@") || STATUS="000"
+  BODY=$(cat "$WORK/http.body")
+}
+jpost() { # path jsonfile
+  http POST "$1" -H 'Content-Type: application/json' --data-binary @"$2"
+}
+upload() { # path file kind [explicit artifact name]
+  local path="$1" file="$2" kind="$3" name="${4:-}"
+  local args=(-F "file=@$file" -F "kind=$kind")
+  # The register route defaults `name` to the extension-stripped filename base;
+  # the pinned BOQ joins reference full filenames ("wall-quantities.ifc"), so
+  # the demo uploads set the name explicitly.
+  if [[ -n "$name" ]]; then args+=(-F "name=$name"); fi
+  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X POST "${args[@]}" "$BASE$path") || STATUS="000"
+  BODY=$(cat "$WORK/http.body")
+}
+j() { printf '%s' "$1" | /usr/bin/jq -r "$2"; }
+
+# ===========================================================================
+# 1. Project "Harbour View Extension" (the demo dataset root)
+# ===========================================================================
+cat > "$WORK/proj.json" <<'EOF'
+{
+  "name": "Harbour View Extension",
+  "discipline": "civil",
+  "description": "Golden-path demo dataset (e2e-takeoff.sh): drawings + models + verified estimate"
+}
+EOF
+jpost /api/projects "$WORK/proj.json"
+PID=$(j "$BODY" '.data.project.id')
+PROJ_NAME=$(j "$BODY" '.data.project.name')
+PROJ_STATUS="$STATUS"
+http GET "/api/events?projectId=$PID&limit=200"
+assert_eq "project created via real API (201 + name) with exactly one project.created audit event" \
+  "201|Harbour View Extension|1" \
+  "$PROJ_STATUS|$PROJ_NAME|$(j "$BODY" '[.data.events[] | select(.action == "project.created")] | length')"
+if [[ -z "$PID" ]]; then echo "FATAL: project creation failed — see the FAIL above"; exit 1; fi
+
+# ===========================================================================
+# 2-5. Register the four demo fixtures (real multipart uploads)
+# ===========================================================================
+upload "/api/projects/$PID/artifacts" "$FIXTURES/bracket-solid.step" model "bracket-solid.step"
+BRACKET_SOLID_ID=$(j "$BODY" '.data.artifact.id')
+BRACKET_SOLID_REV=$(j "$BODY" '.data.artifact.latestRevision.id')
+LOCAL_SHA=$(sha256sum "$FIXTURES/bracket-solid.step" | cut -d' ' -f1)
+assert_eq "bracket-solid.step registered: rev 1, contentHash == local sha256 (byte-exact round-trip)" \
+  "201|model|1|$LOCAL_SHA" \
+  "$STATUS|$(j "$BODY" '.data.artifact.kind')|$(j "$BODY" '.data.artifact.latestRevision.revNumber')|$(j "$BODY" '.data.artifact.latestRevision.contentHash')"
+
+upload "/api/projects/$PID/artifacts" "$FIXTURES/wall-quantities.ifc" model "wall-quantities.ifc"
+WALL_IFC_ID=$(j "$BODY" '.data.artifact.id')
+WALL_IFC_REV=$(j "$BODY" '.data.artifact.latestRevision.id')
+assert_eq "wall-quantities.ifc registered (201, kind model, rev 1)" "201|model|1" \
+  "$STATUS|$(j "$BODY" '.data.artifact.kind')|$(j "$BODY" '.data.artifact.latestRevision.revNumber')"
+
+cat > "$WORK/Sheet-A101-GA-plan.svg" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="190" viewBox="0 0 420 190">
+  <title>A-101 GA plan — ground floor slab</title>
+  <text x="10" y="22" font-family="sans-serif" font-size="14">A-101 — GA plan (ground floor), zone B</text>
+  <rect x="20" y="40" width="200" height="80" fill="none" stroke="black" stroke-width="2"/>
+  <text x="230" y="85" font-family="sans-serif" font-size="12">SLAB ZONE B</text>
+  <text x="20" y="138" font-family="sans-serif" font-size="12">SCALE 1:100 @ A1 — scale bar B below</text>
+  <g id="scale-bar-b">
+    <rect x="20" y="150" width="50" height="8" fill="black"/>
+    <rect x="70" y="150" width="50" height="8" fill="white" stroke="black"/>
+    <rect x="120" y="150" width="50" height="8" fill="black"/>
+    <rect x="170" y="150" width="50" height="8" fill="white" stroke="black"/>
+    <text x="20" y="175" font-family="sans-serif" font-size="11">0     5     10    15    20 m</text>
+  </g>
+</svg>
+EOF
+upload "/api/projects/$PID/artifacts" "$WORK/Sheet-A101-GA-plan.svg" drawing "Sheet-A101-GA-plan.svg"
+SVG_ID=$(j "$BODY" '.data.artifact.id')
+SVG_REV=$(j "$BODY" '.data.artifact.latestRevision.id')
+assert_eq "scale-barred drawing Sheet-A101-GA-plan.svg registered (201, kind drawing)" \
+  "201|drawing|Sheet-A101-GA-plan.svg" "$STATUS|$(j "$BODY" '.data.artifact.kind')|$(j "$BODY" '.data.artifact.name')"
+
+upload "/api/projects/$PID/artifacts" "$FIXTURES/bracket.step" model "bracket.step"
+BRACKET_EMPTY_ID=$(j "$BODY" '.data.artifact.id')
+assert_eq "honest-failure STEP stub bracket.step registered (201, kind model)" \
+  "201|model" "$STATUS|$(j "$BODY" '.data.artifact.kind')"
+
+# ===========================================================================
+# 6-7. AC-P3-01 drawing-measured ledger row + sheetRef enforcement
+# ===========================================================================
+cat > "$WORK/qty-drawing.json" <<EOF
+{
+  "sourceArtifactRevisionId": "$SVG_REV",
+  "sheetRef": "A-101 / zone B",
+  "quantityType": "area",
+  "value": 46.2,
+  "unit": "m²",
+  "method": "drawing-measured",
+  "scale": "1:100 @ A1 (scale bar B)",
+  "rulesetId": "drawing-takeoff",
+  "rulesetVersion": "0.1",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/quantities" "$WORK/qty-drawing.json"
+Q1=$(j "$BODY" '.data.quantity.id')
+assert_eq "drawing-measured row 46.2 m² @ A-101 / zone B recorded (201, draft, scale record + source join)" \
+  "201|draft|46.2|A-101 / zone B|1:100 @ A1 (scale bar B)|Sheet-A101-GA-plan.svg" \
+  "$STATUS|$(j "$BODY" '.data.quantity.status')|$(j "$BODY" '.data.quantity.value')|$(j "$BODY" '.data.quantity.sheetRef')|$(j "$BODY" '.data.quantity.scale')|$(j "$BODY" '.data.quantity.sourceArtifact.name')"
+
+cat > "$WORK/qty-nosheet.json" <<EOF
+{
+  "sourceArtifactRevisionId": "$SVG_REV",
+  "quantityType": "area",
+  "value": 12,
+  "unit": "m²",
+  "method": "drawing-measured",
+  "rulesetId": "drawing-takeoff",
+  "rulesetVersion": "0.1",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/quantities" "$WORK/qty-nosheet.json"
+assert_eq "missing sheetRef refused 422 with the exact core zod message (verbatim)" \
+  'invalid QuantityRecord: sheetRef: drawing-measured quantities require a non-empty sheetRef (drawing sheet / measurement region)' \
+  "$(j "$BODY" '.error.message')"
+
+# ===========================================================================
+# 8-11. AC-P3-02 model-derived quantities (REAL adapters) + analytic hand-checks
+# ===========================================================================
+http POST "/api/projects/$PID/artifacts/$BRACKET_SOLID_ID/derive-quantities"
+STEPQ="$BODY"
+assert_eq "derive-quantities on bracket-solid.step: 201, 3 rows, cadquery provenance + step-geometric ruleset + 64-hex adapterHash + draft status" \
+  "201|3|cadquery 2.6.1 via step_quantities.py|step-geometric|true|draft|step:model:bbox,step:solid:0,step:solids:all" \
+  "$STATUS|$(j "$STEPQ" '.data.quantities | length')|$(j "$STEPQ" '.data.quantities[0].quantityMethod')|$(j "$STEPQ" '.data.quantities[0].rulesetId')|$(j "$STEPQ" '.data.quantities[0].provenance.adapterHash | test("^[0-9a-f]{64}$")')|$(j "$STEPQ" '.data.quantities[0].status')|$(j "$STEPQ" '[.data.quantities[].elementRef] | sort | join(",")')"
+
+VOL=$(j "$STEPQ" '[.data.quantities[] | select(.elementRef == "step:solid:0")][0].value')
+AREA=$(j "$STEPQ" '[.data.quantities[] | select(.elementRef == "step:solids:all")][0].value')
+BBOX=$(j "$STEPQ" '[.data.quantities[] | select(.elementRef == "step:model:bbox")][0].value')
+if python3 -c 'import sys, math
+v, a, b = float(sys.argv[1]), float(sys.argv[2]), float(sys.argv[3])
+ok = abs(v - (36000 - 960 * math.pi)) <= 0.01
+sys.exit(0 if ok else 1)' "$VOL" "$AREA" "$BBOX"; then
+  ok "cadquery volume == analytic hand-check 36000 − 960π mm³ (rel ~1e-14, AC-P3-02)"
+else
+  bad "cadquery volume == analytic hand-check 36000 − 960π mm³" "$VOL" "≈ 32984.071 mm³"
+fi
+if python3 -c 'import sys, math
+a, b = float(sys.argv[1]), float(sys.argv[2])
+ok = abs(a - (10200 + 416 * math.pi)) <= 0.01 and abs(b - math.sqrt(9800)) <= 0.0001
+sys.exit(0 if ok else 1)' "$AREA" "$BBOX"; then
+  ok "cadquery area == 10200 + 416π mm² AND bbox length == √9800 mm (closed forms)"
+else
+  bad "cadquery area + bbox closed-form hand-checks" "area=$AREA bbox=$BBOX" "≈ 11506.9025 / ≈ 98.9949"
+fi
+
+http POST "/api/projects/$PID/artifacts/$WALL_IFC_ID/derive-quantities"
+IFCQ="$BODY"
+assert_eq "wall-quantities.ifc: 201, exactly 10 authored BaseQuantities read back (Volume 1.2 m³ ×2, SideArea 12.8 m² ×2, Footprint 0.6 m² ×2, WallTieCount 2, one wall ref)" \
+  "201|10|2|2|2|1|10|ifc-base-quantities" \
+  "$STATUS|$(j "$IFCQ" '.data.quantities | length')|$(j "$IFCQ" '[.data.quantities[] | select(.quantityType == "volume" and .value == 1.2)] | length')|$(j "$IFCQ" '[.data.quantities[] | select(.quantityType == "area" and .value == 12.8)] | length')|$(j "$IFCQ" '[.data.quantities[] | select(.quantityType == "area" and .value == 0.6)] | length')|$(j "$IFCQ" '[.data.quantities[] | select(.quantityType == "count" and .value == 2)] | length')|$(j "$IFCQ" '[.data.quantities[] | select(.elementRef == "#2rUnE8CnPHBwLdZzIqZkf1")] | length')|$(j "$IFCQ" '.data.quantities[0].rulesetId')"
+
+http GET "/api/events?projectId=$PID&limit=200"
+assert_eq "exactly one quantity.derived audit event per derive (2 total), actors adapter:cadquery + adapter:ifcopenshell, adapterHash recorded in detail" \
+  "2|1|1|true" \
+  "$(j "$BODY" '[.data.events[] | select(.action == "quantity.derived")] | length')|$(j "$BODY" '[.data.events[] | select(.action == "quantity.derived" and .actorId == "adapter:cadquery")] | length')|$(j "$BODY" '[.data.events[] | select(.action == "quantity.derived" and .actorId == "adapter:ifcopenshell")] | length')|$(j "$BODY" '[.data.events[] | select(.action == "quantity.derived")][0].detail | fromjson | has("adapterHash")')"
+
+http POST "/api/projects/$PID/artifacts/$BRACKET_EMPTY_ID/derive-quantities"
+assert_eq "geometry-free bracket.step → honest 422 engine_unavailable, VERBATIM (never simulated)" \
+  "422|engine_unavailable|no solid geometry found in STEP file (import produced 0 solids) - cannot derive quantities, and simulated values are not an option" \
+  "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# ===========================================================================
+# 12. AC-P3-04 quantity approval machine (draft→in_review→approved, no shortcuts)
+# ===========================================================================
+cat > "$WORK/t-approve.json" <<'EOF'
+{ "action": "approve" }
+EOF
+cat > "$WORK/t-submit.json" <<'EOF'
+{ "action": "submit" }
+EOF
+jpost "/api/quantities/$Q1/transition" "$WORK/t-approve.json"
+Q1_DIRECT=$(j "$BODY" '.error.message')
+jpost "/api/quantities/$Q1/transition" "$WORK/t-submit.json"
+Q1_SUBMIT="$STATUS|$(j "$BODY" '.data.quantity.status')"
+http GET "/api/projects/$PID/quantities"
+Q2=$(printf '%s' "$BODY" | /usr/bin/jq -r '[.data.quantities[] | select(.elementRef == "#2rUnE8CnPHBwLdZzIqZkf1" and .quantityType == "area" and .value == 0.6)][0].id')
+jpost "/api/quantities/$Q2/transition" "$WORK/t-submit.json"
+Q2_SUBMIT="$STATUS|$(j "$BODY" '.data.quantity.status')"
+assert_eq "quantity approval machine: direct draft→approve 422 verbatim; submit → in_review (both demo quantities)" \
+  'cannot approve a quantity in status "draft" — approve requires in_review (submit it first; no direct draft→approved)|200|in_review|200|in_review' \
+  "$Q1_DIRECT|$Q1_SUBMIT|$Q2_SUBMIT"
+
+# ===========================================================================
+# 13-15. AC-P3-05/08 TradeAssembly C25 + engineer rates (never agent-created)
+# ===========================================================================
+cat > "$WORK/assembly.json" <<'EOF'
+{
+  "name": "C25 slab pour",
+  "trade": "Concrete works",
+  "components": [
+    { "id": "c25-readymix", "kind": "material", "name": "C25 ready-mix concrete", "quantityPerUnit": 1, "unit": "m³", "wastePct": 5 },
+    { "id": "c25-crew", "kind": "labor", "name": "Slab pour crew", "quantityPerUnit": 1, "unit": "hr", "productivityFactor": 1.25 }
+  ]
+}
+EOF
+jpost "/api/projects/$PID/assemblies" "$WORK/assembly.json"
+ASM_ID=$(j "$BODY" '.data.assembly.id')
+assert_eq "C25 TradeAssembly created (material waste 5% + labor productivity ×1.25, 2 components)" \
+  "201|C25 slab pour|2" "$STATUS|$(j "$BODY" '.data.assembly.name')|$(j "$BODY" '.data.assembly.components | length')"
+
+cat > "$WORK/rate-mat.json" <<'EOF'
+{ "componentId": "c25-readymix", "currency": "GHS", "unitPrice": 174.0, "source": "price-book" }
+EOF
+jpost "/api/projects/$PID/rates" "$WORK/rate-mat.json"
+assert_eq "engineer material rate GHS 174.00 recorded (createdBy server-set, never from body)" \
+  "201|local-operator|174" "$STATUS|$(j "$BODY" '.data.rate.createdBy')|$(j "$BODY" '.data.rate.unitPrice')"
+
+cat > "$WORK/rate-lab.json" <<'EOF'
+{ "componentId": "c25-crew", "currency": "GHS", "unitPrice": 44.0, "source": "contract" }
+EOF
+jpost "/api/projects/$PID/rates" "$WORK/rate-lab.json"
+assert_eq "engineer labor rate GHS 44.00 recorded (createdBy server-set)" \
+  "201|local-operator|44" "$STATUS|$(j "$BODY" '.data.rate.createdBy')|$(j "$BODY" '.data.rate.unitPrice')"
+
+# ===========================================================================
+# 16-18. AC-P3-05/06 deterministic estimate math (server-side, recomputed on read)
+# ===========================================================================
+cat > "$WORK/estimate.json" <<'EOF'
+{ "name": "Ground floor slab package", "currency": "GHS", "overheadPct": 10, "profitPct": 5, "taxPct": 0 }
+EOF
+jpost "/api/projects/$PID/estimates" "$WORK/estimate.json"
+EST_ID=$(j "$BODY" '.data.estimate.id')
+assert_eq "draft estimate created (GHS, overhead 10% / profit 5% / tax 0%, half-up @ 2dp)" \
+  "201|draft|GHS|10|5|0" "$STATUS|$(j "$BODY" '.data.estimate.status')|$(j "$BODY" '.data.estimate.currency')|$(j "$BODY" '.data.estimate.overheadPct')|$(j "$BODY" '.data.estimate.profitPct')|$(j "$BODY" '.data.estimate.taxPct')"
+
+cat > "$WORK/line1.json" <<EOF
+{ "quantityId": "$Q1", "assemblyId": "$ASM_ID" }
+EOF
+jpost "/api/estimates/$EST_ID/lines" "$WORK/line1.json"
+assert_eq "line 1 = 46.2 m² × C25 → GHS 10,066.98 (hand-checked: 8,440.74 material + 1,626.24 labor)" \
+  "201|10066.98|8440.74+1626.24" \
+  "$STATUS|$(j "$BODY" '.data.estimate.lines[-1].lineTotal')|$(j "$BODY" '[.data.estimate.lines[-1].breakdown[].cost] | map(tostring) | join("+")')"
+
+cat > "$WORK/line2.json" <<EOF
+{ "quantityId": "$Q2", "assemblyId": "$ASM_ID" }
+EOF
+jpost "/api/estimates/$EST_ID/lines" "$WORK/line2.json"
+assert_eq "line 2 = 0.6 m² footprint × C25 → GHS 130.74 (hand-checked: 109.62 + 21.12)" \
+  "201|130.74|109.62+21.12" \
+  "$STATUS|$(j "$BODY" '.data.estimate.lines[-1].lineTotal')|$(j "$BODY" '[.data.estimate.lines[-1].breakdown[].cost] | map(tostring) | join("+")')"
+
+http GET "/api/estimates/$EST_ID"
+assert_eq "estimate totals per the pinned formula: subtotal 10197.72 · OH 1019.77 (10%) · profit 560.87 (5%) · tax 0 · grand GHS 11,778.36" \
+  "10197.72|1019.77|560.87|0|11778.36|GHS" \
+  "$(printf '%s' "$BODY" | /usr/bin/jq -r '.data.estimate.totals | [.linesSubtotal, .overhead, .profit, .tax, .grandTotal, .currency] | map(tostring) | join("|")')"
+
+# ===========================================================================
+# 19-21. AC-P3-07 approval gate: every line quantity must be approved
+# ===========================================================================
+jpost "/api/estimates/$EST_ID/transition" "$WORK/t-approve.json"
+EST_DIRECT=$(j "$BODY" '.error.message')
+jpost "/api/estimates/$EST_ID/transition" "$WORK/t-submit.json"
+EST_SUBMIT="$STATUS|$(j "$BODY" '.data.estimate.status')"
+assert_eq "estimate approve from draft refused 422 verbatim; submit → in_review" \
+  'cannot approve an estimate in status "draft" — approve requires in_review (submit it first)|200|in_review' \
+  "$EST_DIRECT|$EST_SUBMIT"
+
+jpost "/api/estimates/$EST_ID/transition" "$WORK/t-approve.json"
+assert_eq "approve blocked 422 with BOTH quantities named as blockers (ids + sheet/element refs, verbatim)" \
+  "estimate approve blocked (2 blockers): quantity $Q1 (A-101 / zone B) is \"in_review\"; quantity $Q2 (#2rUnE8CnPHBwLdZzIqZkf1) is \"in_review\"" \
+  "$(j "$BODY" '.error.message')"
+
+jpost "/api/quantities/$Q1/transition" "$WORK/t-approve.json"
+Q1_APPROVED="$STATUS|$(j "$BODY" '.data.quantity.status')|$(j "$BODY" '.data.quantity.approval.approvedBy')"
+jpost "/api/quantities/$Q2/transition" "$WORK/t-approve.json"
+Q2_APPROVED="$STATUS|$(j "$BODY" '.data.quantity.status')"
+jpost "/api/estimates/$EST_ID/transition" "$WORK/t-approve.json"
+assert_eq "after approving the quantities: estimate approve 200, status approved, approval payload {local-operator, approvedAt} on estimate + quantity rows" \
+  "200|approved|local-operator|200|approved|local-operator|200|approved" \
+  "$STATUS|$(j "$BODY" '.data.estimate.status')|$(j "$BODY" '.data.estimate.approval.approvedBy')|$Q1_APPROVED|$Q2_APPROVED"
+
+# ===========================================================================
+# 22. Approved estimates freeze lines (AC-P3-07)
+# ===========================================================================
+cat > "$WORK/line3.json" <<EOF
+{ "quantityId": "$Q1", "assemblyId": "$ASM_ID" }
+EOF
+jpost "/api/estimates/$EST_ID/lines" "$WORK/line3.json"
+assert_eq "approved estimate lines frozen (add → 422 verbatim)" \
+  'estimate is approved — its lines are frozen; duplicate the estimate to change it' \
+  "$(j "$BODY" '.error.message')"
+
+# ===========================================================================
+# 23. AC-P3-08: rates are engineer-entered — an agent can NEVER author a rate
+# ===========================================================================
+cat > "$WORK/rate-add.json" <<'EOF'
+{ "componentId": "c25-readymix", "currency": "GHS", "unitPrice": 1475.0, "source": "quote", "createdBy": "agent:price-guesser" }
+EOF
+jpost "/api/projects/$PID/rates" "$WORK/rate-add.json"
+RATE_STATUS="$STATUS"
+RATE_CREATED_BY=$(j "$BODY" '.data.rate.createdBy')
+RATE_PRICE=$(j "$BODY" '.data.rate.unitPrice')
+http GET "/api/estimates/$EST_ID"
+GRAND_AFTER=$(j "$BODY" '.data.estimate.totals.grandTotal')
+if [[ "$RATE_STATUS" == "201" && "$RATE_CREATED_BY" == "local-operator" && "$RATE_PRICE" == "1475" && "$GRAND_AFTER" == "11778.36" ]]; then
+  ok "Add-rate GHS 1,475.00 recorded as engineer provenance (hostile agent createdBy ignored) AND stored lines never re-priced"
+else
+  bad "Add-rate GHS 1,475.00 recorded as engineer provenance" "$RATE_STATUS|$RATE_CREATED_BY|$RATE_PRICE|$GRAND_AFTER" "201|local-operator|1475|11778.36"
+fi
+
+# ===========================================================================
+# 24. Step 11 (Phase-2 extension): real mesh derive so Design Studio shows 3D
+# ===========================================================================
+http POST "/api/projects/$PID/artifacts/$BRACKET_SOLID_ID/derive-mesh"
+MESH_STATUS="$STATUS"
+MESH_BODY="$BODY"
+MESH_KIND=$(j "$MESH_BODY" '.data.mesh.kind')
+MESH_ELEMENTS=$(j "$MESH_BODY" '.data.mesh.elementCount')
+MESH_FROM_REV=$(j "$MESH_BODY" '.data.mesh.derivedFromRevisionId')
+http GET "/api/events?projectId=$PID&limit=200"
+MESH_EVENTS=$(j "$BODY" '[.data.events[] | select(.action == "mesh.derived")] | length')
+MESH_SHA=$(j "$BODY" '[.data.events[] | select(.action == "mesh.derived")][0].detail | fromjson | .sha256 // "missing"')
+if [[ "$MESH_STATUS" == "201" && "$MESH_KIND" == "mesh" && "$MESH_FROM_REV" == "$BRACKET_SOLID_REV" && "$MESH_EVENTS" == "1" && "$MESH_SHA" != "missing" ]] && python3 -c 'import sys; sys.exit(0 if int(sys.argv[1]) >= 1 else 1)' "$MESH_ELEMENTS"; then
+  ok "mesh derived from the demo model (201, kind mesh, elementCount > 0, derivedFrom == source latest rev, exactly one mesh.derived audit event with sha256)"
+else
+  bad "mesh derived from the demo model" "status=$MESH_STATUS kind=$MESH_KIND elements=$MESH_ELEMENTS fromRev=$MESH_FROM_REV events=$MESH_EVENTS sha=$MESH_SHA" "201|mesh|>0|$BRACKET_SOLID_REV|1|sha256"
+fi
+
+echo
+echo "== e2e-takeoff.sh: $PASS PASS / $FAIL FAIL =="
+if [[ "$FAIL" -ne 0 ]]; then exit 1; fi
+echo "Demo dataset ready: project $PID (Harbour View Extension), estimate $EST_ID approved (GHS 11,778.36)"

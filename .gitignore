@@ -28,7 +28,6 @@ _attic/
 /*.png
 agent-ctx/
 skills/
-scripts/
 tests/*.sh
 pnpm-lock.yaml
 Caddyfile

@@ -648,3 +648,178 @@ export async function fetchModelMesh(meshArtifactId: string) {
 export async function getArtifactDetail(artifactId: string) {
   return apiGet<ArtifactDetail>(`/api/artifacts/${artifactId}`)
 }
+
+// ---------------------------------------------------------------------------
+// Agents & Automations — workflow runtime (Phase 4) — wire types + typed call sites
+// ---------------------------------------------------------------------------
+// Mirrors the pinned contract (docs/00-architecture/workflow-runtime-contract.md
+// §1/§6) exactly; W3 owns the routes + src/core/workflow.ts, this file owns the
+// client-side shape of the wire. The UI never computes the state machine:
+// every state change POSTs to the transition route and 409/422 messages
+// surface verbatim in toasts (the takeoff-workspace idiom). JSON-typed columns
+// (definition/failure/inputRevisionIds/…) arrive as raw strings per the row
+// contract and are parsed display-side, never re-written.
+// ---------------------------------------------------------------------------
+
+/** Workflow-level state machine (contract §3) — 8 states; 3 terminal. */
+export type WorkflowState =
+  | "draft"
+  | "ready"
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled"
+  | "awaiting_approval"
+
+/** Per-step run state (contract §1 WorkflowStepRun.state). */
+export type WorkflowStepRunState =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "skipped"
+  | "awaiting_approval"
+
+/** One definition step (contract §2 — the JSON stored on Workflow.definition). */
+export interface WorkflowStepDefinition {
+  /** ^[a-z0-9-]{1,32}$, unique in the definition */
+  id: string
+  /** BROKER_OPERATIONS key: derive_quantities | derive_mesh | build_report */
+  operation: string
+  /** derive ops: exactly one model artifact (artifactId); report: artifactIds */
+  inputs: { artifactId?: string; artifactIds?: string[] }
+  /** op-specific, default {} */
+  parameters: Record<string, unknown>
+  /** default {1, 0} = no retry */
+  retry: { maxAttempts: number; backoffMs: number }
+  /** true → pause BEFORE publishing (ADR-0006 gate; honored by publishing ops) */
+  requiresApproval: boolean
+  /** true → step failure marks the step skipped, flow continues */
+  skipOnError: boolean
+}
+
+/** Parsed Workflow.definition (contract §2) — 1..8 steps, seq = array order. */
+export interface WorkflowDefinition {
+  steps: WorkflowStepDefinition[]
+}
+
+/** Parsed Workflow.failure (contract §1) — JSON {stepId, attempt, error, at}. */
+export interface WorkflowFailure {
+  stepId: string
+  attempt: number
+  error: string
+  at: string
+}
+
+/** GET /api/projects/[id]/workflows row — raw row, JSON fields stay strings. */
+export interface WorkflowRow {
+  id: string
+  projectId: string
+  name: string
+  state: WorkflowState
+  /** JSON text of a WorkflowDefinition */
+  definition: string
+  /** "local-operator" | "agent:<name>" (contract §1) */
+  createdBy: string
+  /** JSON text of a WorkflowFailure — set on failed, cleared on retry */
+  failure: string | null
+  createdAt: string
+  updatedAt: string
+  currentStateSince: string | null
+  finishedAt: string | null
+}
+
+/** GET /api/workflows/[id] step row (contract §1 WorkflowStepRun). */
+export interface WorkflowStepRow {
+  id: string
+  workflowId: string
+  stepId: string
+  seq: number
+  state: WorkflowStepRunState
+  attempt: number
+  maxAttempts: number
+  operation: string
+  engineKey: string | null
+  /** JSON text: string[] — artifact revision ids locked at queue time */
+  inputRevisionIds: string
+  /** JSON text: string[] — sha256 of those revisions' content */
+  inputHashes: string
+  outputArtifactRevisionId: string | null
+  /** JSON text — per-op structured summary; NO free-form numbers */
+  outputSummary: string | null
+  /** last 2000 chars, verbatim */
+  stdoutTail: string | null
+  /** last 2000 chars, verbatim */
+  stderrTail: string | null
+  exitCode: number | null
+  engineVersion: string | null
+  adapterScript: string | null
+  adapterHash: string | null
+  startedAt: string | null
+  endedAt: string | null
+  durationMs: number | null
+}
+
+/** GET /api/workflows/[id] event row (contract §1 WorkflowEvent). */
+export interface WorkflowEventRow {
+  id: string
+  workflowId: string
+  /** per-workflow monotonic (1, 2, …) — event order is content */
+  seq: number
+  /** §7 closed vocabulary (workflow.* / step.* / storage.*) */
+  kind: string
+  actorType: "user" | "agent" | "system"
+  /** "local-operator" | "agent:<name>" | "system:executor" | "system:recovery" */
+  actorId: string
+  /** JSON text — kind-specific; failures carry the verbatim adapter error */
+  payload: string | null
+  createdAt: string
+}
+
+/** GET /api/workflows/[id] → workflow + step rows + newest events. */
+export interface WorkflowDetail {
+  workflow: WorkflowRow
+  steps: WorkflowStepRow[]
+  events: WorkflowEventRow[]
+  /** server verdict on whether the current (human) session may approve */
+  canApprove: boolean
+}
+
+/**
+ * POST /api/workflows/[id]/transition actions (contract §3/§6). approve/reject
+ * are human-only server-side (actorType "user") — the body carries no actor.
+ */
+export type WorkflowTransitionAction = "mark-ready" | "queue" | "cancel" | "retry" | "approve" | "reject"
+
+/** POST /api/projects/[id]/workflows body (createdBy validated: "local-operator" | ^agent:[a-z0-9-]{1,32}$). */
+export interface WorkflowCreateInput {
+  name: string
+  /** structured on the wire (the assemblies/components precedent); the server persists it as JSON text */
+  definition: WorkflowDefinition
+  createdBy?: string
+}
+
+export async function listProjectWorkflows(projectId: string) {
+  return apiGet<{ workflows: WorkflowRow[] }>(`/api/projects/${projectId}/workflows`)
+}
+
+export async function createProjectWorkflow(projectId: string, input: WorkflowCreateInput) {
+  return apiJson<{ workflow: WorkflowRow }>(`/api/projects/${projectId}/workflows`, "POST", input)
+}
+
+/** GET /api/workflows/[id] — detail incl. step rows + newest 200 events. */
+export async function getWorkflowDetail(workflowId: string) {
+  return apiGet<WorkflowDetail>(`/api/workflows/${workflowId}`)
+}
+
+/**
+ * POST /api/workflows/[id]/transition — the ONLY state-change path (contract §3:
+ * applyWorkflowAction is the single authority). `note` travels only when the
+ * reviewer typed one (reject dialog); JSON.stringify drops it otherwise, so the
+ * server sees {action} alone for note-less transitions. 409/422 surface verbatim
+ * via the shared unwrap idiom.
+ */
+export async function transitionWorkflow(workflowId: string, action: WorkflowTransitionAction, note?: string) {
+  return apiJson<{ workflow: WorkflowRow }>(`/api/workflows/${workflowId}/transition`, "POST", { action, note })
+}

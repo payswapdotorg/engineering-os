@@ -27,7 +27,7 @@ export interface WorkspaceItem {
   /** Implemented route (workspace is real in Phase 1) */
   href?: string
   /** Implemented, but scoped to the open project (tab name) */
-  inProjectTab?: "artifacts" | "studio" | "team" | "takeoff"
+  inProjectTab?: "artifacts" | "studio" | "team" | "takeoff" | "agents"
   /** Planned-workspace badge, e.g. "Planned · Phase 2" */
   phaseNote?: string
   /** Honest explanation shown when the planned item is clicked */
@@ -60,13 +60,7 @@ export const WORKSPACES: WorkspaceItem[] = [
     phaseNote: "Planned · Phase 3+",
     plannedToast: "Documents & Deliverables ship with Phase 3+ review and issue states — see Status & Roadmap",
   },
-  {
-    key: "agents",
-    label: "Agents & Automations",
-    icon: Bot,
-    phaseNote: "Planned · Phase 4",
-    plannedToast: "Agents & Automations ship with the Phase 4 durable workflow runtime — see Status & Roadmap",
-  },
+  { key: "agents", label: "Agents & Automations", icon: Bot, inProjectTab: "agents" },
   { key: "team", label: "Team & Administration", icon: Users, inProjectTab: "team" },
 ]
 

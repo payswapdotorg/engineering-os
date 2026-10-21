@@ -24,7 +24,7 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-21T19:34:02.291Z`
+- Ran at (UTC): `2026-10-21T21:04:12.688Z`
 - Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python3`
 - Engine availability probe — cadquery (STEP): available · ifcopenshell (IFC): available
 - Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1

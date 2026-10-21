@@ -42,6 +42,10 @@ export interface DeriveResult {
   /** sha256 of the adapter script content (recorded in quantity provenance) */
   adapterHash: string
   quantities: DerivedQuantity[]
+  /** last 2000 chars of the adapter subprocess stdout, verbatim (broker execution record — additive, Phase 4) */
+  stdoutTail?: string
+  /** last 2000 chars of the adapter subprocess stderr, verbatim (broker execution record — additive, Phase 4) */
+  stderrTail?: string
 }
 
 export class EngineUnavailableError extends Error {
@@ -66,6 +70,9 @@ const PYTHON_BIN = process.env.EOS_PYTHON ?? "/home/z/.venv/bin/python3"
 
 /** Hard stop for a hung adapter process — never wait forever for an engine. */
 const ADAPTER_TIMEOUT_MS = 120_000
+
+/** Pinned broker execution-record tail length (ADR-0005 §2: logs recorded verbatim). */
+export const ADAPTER_TAIL_CHARS = 2000
 
 const ADAPTER_SCRIPTS: Record<"ifc" | "step", string> = {
   ifc: "ifc_quantities.py",
@@ -244,6 +251,36 @@ function errorFromExecFailure(kind: "ifc" | "step", script: string, err: ExecFai
   )
 }
 
+/** Both captured subprocess streams (the broker execution record's verbatim tails). */
+export interface AdapterRun {
+  stdout: string
+  stderr: string
+}
+
+/**
+ * Run an engine-adapter script as an arm's-length subprocess and return BOTH
+ * captured streams (W2-e additive: stdout is the JSON protocol channel exactly
+ * as before; stderr is now kept verbatim for the broker execution record.
+ * Timeout, maxBuffer and the honest error mapping are EXACTLY those of
+ * `execAdapterScript`). Throws `EngineUnavailableError` on every failure.
+ */
+export async function execAdapterScriptWithStreams(
+  kind: "ifc" | "step",
+  script: string,
+  absPath: string,
+): Promise<AdapterRun> {
+  const scriptPath = adapterScriptPath(script)
+  try {
+    const result = await execFileAsync(PYTHON_BIN, [scriptPath, path.resolve(absPath)], {
+      timeout: ADAPTER_TIMEOUT_MS,
+      maxBuffer: 8 * 1024 * 1024,
+    })
+    return { stdout: result.stdout, stderr: result.stderr ?? "" }
+  } catch (err) {
+    throw errorFromExecFailure(kind, script, err as ExecFailure)
+  }
+}
+
 /**
  * Run an engine-adapter script as an arm's-length subprocess and return its
  * stdout (W2-d: extracted verbatim from the former deriveFromFile body so the
@@ -251,35 +288,30 @@ function errorFromExecFailure(kind: "ifc" | "step", script: string, err: ExecFai
  * honest error mapping). Throws `EngineUnavailableError` on every failure.
  */
 export async function execAdapterScript(kind: "ifc" | "step", script: string, absPath: string): Promise<string> {
-  const scriptPath = adapterScriptPath(script)
-  try {
-    const result = await execFileAsync(PYTHON_BIN, [scriptPath, path.resolve(absPath)], {
-      timeout: ADAPTER_TIMEOUT_MS,
-      maxBuffer: 8 * 1024 * 1024,
-    })
-    return result.stdout
-  } catch (err) {
-    throw errorFromExecFailure(kind, script, err as ExecFailure)
-  }
+  return (await execAdapterScriptWithStreams(kind, script, absPath)).stdout
 }
 
 /**
  * Derive real quantities from a stored model file using the registered engine
  * for `kind`. Throws `EngineUnavailableError` with an honest message when the
- * engine or adapter is not available on this host.
+ * engine or adapter is not available on this host. W2-e additive: the result
+ * carries the subprocess stdout/stderr tails (verbatim, last 2000 chars) for
+ * the broker execution record — the protocol fields are untouched.
  */
 export async function deriveFromFile(
   absPath: string,
   kind: "ifc" | "step",
 ): Promise<DeriveResult> {
   const script = ADAPTER_SCRIPTS[kind]
-  const stdout = await execAdapterScript(kind, script, absPath)
-  const payload = parseAdapterStdout(stdout, script)
+  const run = await execAdapterScriptWithStreams(kind, script, absPath)
+  const payload = parseAdapterStdout(run.stdout, script)
   return {
     engineKey: payload.engineKey,
     engineVersion: payload.engineVersion,
     adapterScript: payload.adapterScript,
     adapterHash: payload.adapterHash,
     quantities: payload.quantities,
+    stdoutTail: run.stdout.slice(-ADAPTER_TAIL_CHARS),
+    stderrTail: run.stderr.slice(-ADAPTER_TAIL_CHARS),
   }
 }
