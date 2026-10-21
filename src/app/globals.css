@@ -121,48 +121,113 @@
   }
 }
 
-/* SiteWalk — custom scrollbar + plan pin ring */
-.sw-scroll::-webkit-scrollbar {
+/* Engineering OS — subtle custom scrollbar for long lists/feeds */
+.eos-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.eos-scroll::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-.sw-scroll::-webkit-scrollbar-thumb {
-  background: oklch(0.38 0.02 75);
+.eos-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
   border-radius: 8px;
 }
-.sw-scroll::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.48 0.03 75);
+.eos-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }
-.sw-scroll::-webkit-scrollbar-track {
+.eos-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-@keyframes sw-pulse-ring {
-  0% {
-    transform: scale(0.55);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
+/* Engineering OS — live-rendered markdown (docs/07-release/implementation-status.md) */
+.eos-md {
+  font-size: 0.875rem;
+  line-height: 1.65;
 }
-.sw-pin-ring {
-  animation: sw-pulse-ring 1.8s ease-out infinite;
-  transform-origin: center;
-  transform-box: fill-box;
+.eos-md h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.75rem;
 }
-
-@keyframes sw-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.eos-md h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
 }
-.sw-fade-up {
-  animation: sw-fade-up 0.35s ease-out both;
+.eos-md p {
+  margin: 0.5rem 0;
+}
+.eos-md ul,
+.eos-md ol {
+  margin: 0.5rem 0 0.5rem 1.25rem;
+  list-style: disc;
+}
+.eos-md ol {
+  list-style: decimal;
+}
+.eos-md li {
+  margin: 0.2rem 0;
+}
+.eos-md a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.eos-md a:hover {
+  color: var(--foreground);
+}
+.eos-md code {
+  font-family: var(--font-geist-mono);
+  font-size: 0.8125em;
+  background: var(--muted);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.eos-md pre {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+.eos-md pre code {
+  background: transparent;
+  padding: 0;
+}
+.eos-md blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+  color: var(--muted-foreground);
+  margin: 0.5rem 0;
+}
+.eos-md hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.25rem 0;
+}
+.eos-md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.8125rem;
+  display: block;
+  overflow-x: auto;
+}
+.eos-md th,
+.eos-md td {
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+.eos-md th {
+  background: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.eos-md td code {
+  white-space: nowrap;
 }
