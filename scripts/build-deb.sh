@@ -119,7 +119,10 @@ build_full() {
   note "mode: full build → dist/${DEB_NAME}"
   note "version: $VERSION"
 
-  local WORK
+  # NOTE: WORK is deliberately NOT `local` — the EXIT trap below expands it
+  # after the function returns (global scope at exit); a local would make the
+  # trap hit `set -u`'s unbound-variable error. First full-run lesson from CI
+  # (2026-10-22): never reference a local from a trap.
   WORK="$(mktemp -d)"
   trap 'rm -rf "$WORK"' EXIT
   local SEED_DB="$WORK/engineering-os-seed.db"

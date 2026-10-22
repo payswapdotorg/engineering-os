@@ -195,6 +195,10 @@ jobs:
   db-portability:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # Job-level: `prisma validate` must also resolve env("DATABASE_URL")
+      # (CI has no .env file — a local run would mask this failure).
+      DATABASE_URL: postgresql://eos:eos@localhost:5432/eos_ci
     services:
       postgres:
         image: postgres:16
@@ -238,13 +242,9 @@ jobs:
         run: bunx prisma db execute --file /tmp/init.sql --schema prisma/schema.postgres.prisma --url postgresql://eos:eos@localhost:5432/eos_ci
 
       - name: db push against the live service (must report — already in sync)
-        env:
-          DATABASE_URL: postgresql://eos:eos@localhost:5432/eos_ci
         run: bunx prisma db push --skip-generate --schema prisma/schema.postgres.prisma
 
       - name: Upgrade-diff loop closed — live-vs-model diff must contain no DDL
-        env:
-          DATABASE_URL: postgresql://eos:eos@localhost:5432/eos_ci
         run: |
           bunx prisma migrate diff --from-schema-datasource prisma/schema.postgres.prisma --to-schema-datamodel prisma/schema.postgres.prisma --script > /tmp/upgrade.sql
           if grep -E 'CREATE TABLE|ALTER TABLE|DROP TABLE|CREATE *(UNIQUE )*INDEX|DROP *(UNIQUE )*INDEX' /tmp/upgrade.sql; then
