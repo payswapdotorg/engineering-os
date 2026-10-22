@@ -1,0 +1,23 @@
+[Unit]
+Description=Engineering OS — unified engineering collaboration platform
+Documentation=https://github.com/payswapdotorg/engineering-os
+After=network.target
+
+[Service]
+Type=simple
+User=eos
+Group=eos
+EnvironmentFile=/etc/eos/eos.env
+WorkingDirectory=/opt/engineering-os
+# Preflight sanity gate (runs as User=eos): node present + version >= 18,
+# data dir writable by eos, env file readable. Fails with a clear stderr
+# message (visible via `journalctl -u eos`) BEFORE the server starts.
+# NO DB mutation happens at service start — the seed DB is copied to
+# /var/lib/engineering-os by the package postinst on FIRST install only.
+ExecStartPre=/opt/engineering-os/bin/preflight.sh
+ExecStart=/usr/bin/node /opt/engineering-os/server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

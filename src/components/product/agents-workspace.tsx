@@ -45,6 +45,7 @@ import {
 import { ActorBadge } from "@/components/product/badges"
 import { formatDate, relTime, shortHash } from "@/components/product/format"
 import { EmptyState, ErrorState, InfoNote } from "@/components/product/parts"
+import { GuardedButton } from "@/components/product/guarded-button"
 import type { ArtifactSourceState } from "@/components/product/takeoff-dialogs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -699,9 +700,9 @@ export function AgentsWorkspace({
             <Loader2 className="size-3.5 animate-spin" aria-hidden /> live — refreshing every few seconds
           </span>
         ) : null}
-        <Button className="ml-auto h-10" onClick={() => setCreateOpen(true)}>
+        <GuardedButton className="ml-auto h-10" onClick={() => setCreateOpen(true)}>
           <Plus aria-hidden /> New workflow
-        </Button>
+        </GuardedButton>
       </div>
 
       {workflows.error ? (
@@ -958,7 +959,7 @@ function WorkflowActions({
 }) {
   const busy = transitioning !== null
   const button = (action: WorkflowTransitionAction, label: string, variant: "default" | "outline" | "ghost" = "default") => (
-    <Button
+    <GuardedButton
       className={cn(
         "h-9",
         variant === "ghost" && "text-muted-foreground",
@@ -970,7 +971,7 @@ function WorkflowActions({
     >
       {transitioning === action ? <Loader2 className="animate-spin" aria-hidden /> : null}
       {transitioning === action ? ACTION_BUSY_LABEL[action] : label}
-    </Button>
+    </GuardedButton>
   )
 
   let actions: React.ReactNode = null
@@ -1003,9 +1004,9 @@ function WorkflowActions({
       actions = canApprove ? (
         <>
           {button("approve", "Approve (human review)")}
-          <Button variant="outline" className="h-9" disabled={busy} onClick={onReject}>
+          <GuardedButton variant="outline" className="h-9" disabled={busy} onClick={onReject}>
             {transitioning === "reject" ? ACTION_BUSY_LABEL.reject : "Reject…"}
-          </Button>
+          </GuardedButton>
         </>
       ) : (
         <p className="text-xs text-muted-foreground">

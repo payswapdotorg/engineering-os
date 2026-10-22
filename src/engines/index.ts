@@ -91,6 +91,16 @@ interface ProbeHit {
 
 const probeTimeoutMs = 4000
 
+/**
+ * Python-module probes get a longer budget: scientific stacks import slowly.
+ * Measured live 2026-10-22: cold `import pandapower` takes ~6.4s (pandas +
+ * numpy + scipy chain) — at the 4s executable budget the probe downgraded a
+ * GENUINELY installed engine to not_installed (found via the Engines page
+ * footer after the Phase-6 env fix). 15s covers heavy imports while still
+ * failing fast on broken interpreters.
+ */
+const pythonModuleProbeTimeoutMs = 15000
+
 function extractVersion(output: string, versionRegex?: string | null): string | null {
   if (!versionRegex) return null
   let re: RegExp
@@ -132,18 +142,37 @@ async function probeExecutable(spec: EngineProbeSpec): Promise<ProbeHit> {
   return { hit: false, version: null, executablePath: null, probeOutput: null }
 }
 
+/** `true` when `p` is an existing executable FILE (used for absolute-path pythons). */
+async function isExecutableFile(p: string): Promise<boolean> {
+  try {
+    await access(p, constants.X_OK)
+    // Directories can carry the X bit too — an interpreter path must be a file.
+    const s = await stat(p)
+    return s.isFile()
+  } catch {
+    return false
+  }
+}
+
 async function probePythonModule(spec: EngineProbeSpec): Promise<ProbeHit> {
   if (!spec.module || !spec.moduleVersionExpr) {
     return { hit: false, version: null, executablePath: null, probeOutput: null }
   }
   const py = process.env.EOS_PYTHON ?? "python3"
-  const pythonPath = await resolveOnPath(py, process.env.PATH ?? "")
+  // EOS_PYTHON may be a bare name on PATH (e.g. "python3") OR an absolute path
+  // (e.g. a project venv). resolveOnPath only understands bare names — joining
+  // PATH dirs with an absolute path always misses, which silently downgraded
+  // every python-module engine to "not installed" on hosts using absolute
+  // EOS_PYTHON values (found live 2026-10-22; unit-tested both ways below).
+  const pythonPath = path.isAbsolute(py)
+    ? (await isExecutableFile(py) ? py : null)
+    : await resolveOnPath(py, process.env.PATH ?? "")
   if (!pythonPath) {
     return { hit: false, version: null, executablePath: null, probeOutput: null }
   }
   try {
     const res = await execFileAsync(pythonPath, ["-c", spec.moduleVersionExpr], {
-      timeout: probeTimeoutMs,
+      timeout: pythonModuleProbeTimeoutMs,
       maxBuffer: 64 * 1024,
     })
     const output = `${res.stdout ?? ""}`.trim()

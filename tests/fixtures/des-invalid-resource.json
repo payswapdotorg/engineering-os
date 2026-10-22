@@ -1,0 +1,11 @@
+{
+  "format": "eos-des-scenario/1",
+  "name": "Scenario referencing an absent resource",
+  "timeUnit": "day",
+  "resources": [
+    { "id": "crew-a", "capacity": 1 }
+  ],
+  "jobs": [
+    { "id": "j1", "arriveAt": 0, "tasks": [ { "resourceId": "crew-a", "duration": 2 }, { "resourceId": "crane", "duration": 3 } ] }
+  ]
+}

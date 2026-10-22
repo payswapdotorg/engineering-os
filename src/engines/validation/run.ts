@@ -41,7 +41,30 @@ async function main(): Promise<void> {
       continue
     }
     const parts: string[] = []
-    if (c.expect === "success") {
+    if (c.discipline) {
+      const d = c.discipline
+      if (d.expect === "success") {
+        const engine =
+          d.engine === null || d.engine === undefined
+            ? "platform core (no engine)"
+            : `${d.engine.engineKey} ${d.engine.engineVersion}`
+        parts.push(engine)
+        if (d.determinism === null) {
+          parts.push(d.adapter === "libreoffice" ? "byte-determinism not claimed (single run, §5.4)" : "doc byte-determinism n/a")
+        } else {
+          parts.push(`doc byte-determinism=${d.determinism ? "true" : "FALSE"}`)
+        }
+        parts.push(`${d.comparisons.filter((x) => x.ok).length}/${d.comparisons.length} pins`)
+        const rels = d.comparisons
+          .filter((x) => x.observedRelError !== null && (x.observedRelError as number) > 0)
+          .map((x) => x.observedRelError as number)
+        if (rels.length > 0) {
+          parts.push(`max pin rel error ${Math.max(...rels).toExponential(3)}`)
+        }
+      } else if (d.status === "pass") {
+        parts.push(`threw: ${d.errorObserved ?? ""}`)
+      }
+    } else if (c.expect === "success") {
       parts.push(`determinism=${c.determinism ? "true" : "FALSE"}`)
       parts.push(`quantities ${c.quantityCount}/${c.groundTruthCount}`)
       if (c.comparisons) {

@@ -1,0 +1,30 @@
+Package: engineering-os
+Version: 0.1.0
+Section: science
+Priority: optional
+Architecture: amd64
+Depends: nodejs (>= 18)
+Maintainer: Engineering OS Team <payswapdotorg@users.noreply.github.com>
+Homepage: https://github.com/payswapdotorg/engineering-os
+Description: Engineering OS — unified engineering collaboration platform
+ A unified, open-source-first engineering workspace in which engineers across
+ civil, architectural, structural, mechanical, electrical, electronic,
+ industrial, computer, marine and related disciplines can collaborate with
+ people and agents, operate real open-source engineering engines, and
+ automate complete workflows — without manually reconstructing project
+ context in every tool.
+ .
+ Engineering OS does not rewrite CAD, BIM or solver engines. It integrates
+ existing open-source engines through a registered adapter layer, connected
+ by a common project & artifact graph, a shared quantity ledger and
+ estimating model, a Design Studio with a real 3D model viewer, and a
+ durable workflow and agent runtime. The engines themselves (cadquery,
+ IfcOpenShell, LibreOffice, …) are NOT bundled — the product detects what
+ is installed on the host.
+ .
+ Architecture note: the payload is application JS + python adapters, but the
+ bundled Prisma client ships a native linux-x64 query engine
+ (libquery_engine-debian-openssl-3.0.x.so.node) and sharp ships x64 native
+ bindings, so the package is amd64 — not Architecture: all. The node runtime
+ itself is a dependency (nodejs >= 18), not bundled. See
+ packaging/README.md for the honest reasoning record.

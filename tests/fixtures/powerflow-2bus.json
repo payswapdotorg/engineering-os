@@ -1,0 +1,16 @@
+{
+  "format": "eos-powerflow-network/1",
+  "name": "Two-bus lossless feeder",
+  "baseMva": 100,
+  "buses": [
+    { "id": "bus-1", "nominalVk": 20 },
+    { "id": "bus-2", "nominalVk": 20 }
+  ],
+  "lines": [
+    { "id": "line-1", "fromBus": "bus-1", "toBus": "bus-2", "lengthKm": 10, "rOhmPerKm": 0, "xOhmPerKm": 0.1, "maxCurrentKa": 1 }
+  ],
+  "externalGrid": { "busId": "bus-1", "vmPu": 1 },
+  "loads": [
+    { "id": "load-1", "busId": "bus-2", "pMw": 2, "qMvar": 0 }
+  ]
+}

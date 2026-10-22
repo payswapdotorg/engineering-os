@@ -104,6 +104,20 @@ export function ActorBadge({ actorType }: { actorType: string }) {
   }
 }
 
+/**
+ * Phase-6 future-dated rate warning (contract §1.6/§1.7, known-limitation #9):
+ * renders ONLY when the additive per-line field is present AND true — a line
+ * priced by a rate whose effectiveFrom is in the future is provisional. Amber
+ * treatment from the existing palette; no new colors.
+ */
+export function FutureRateBadge() {
+  return (
+    <Badge className="border-amber-400 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-900 dark:text-amber-200">
+      future rate
+    </Badge>
+  )
+}
+
 export function StateBadge({ state }: { state: string }) {
   // Status vocabulary: planned → installed → available → implemented → tested → verified
   switch (state) {

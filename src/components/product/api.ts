@@ -188,6 +188,11 @@ export interface AuditEventRow {
   projectId: string | null
   actorType: "user" | "agent" | "system"
   actorId: string
+  /** Phase-6 additive column (contract §1.1): the human actor's display name
+   *  for session-user events; agent/system events keep it null. Optional on the
+   *  wire so pre-Phase-6 rows (and a backend lane still warming up) render the
+   *  actorId form unchanged. */
+  userName?: string | null
   action: string
   entityType: string
   entityId: string
@@ -377,6 +382,10 @@ export interface EstimateLineBreakdownRow {
   unit: string
   unitPrice: number
   cost: number
+  /** Phase-6 additive (contract §1.7): set to true when this component's
+   *  resolved rate row has effectiveFrom in the future — the price is
+   *  provisional. Optional: absent for old payloads. */
+  futureDatedRate?: true
 }
 
 export interface EstimateLineRow {
@@ -389,6 +398,10 @@ export interface EstimateLineRow {
   lineTotal: number
   rateIds: string[]
   breakdown: EstimateLineBreakdownRow[]
+  /** Phase-6 additive (contract §1.7): a line-level mirror of the future-dated
+   *  rate warning when the line's resolved rate is effective in the future.
+   *  Optional: the UI guards on presence AND true. */
+  futureDatedRate?: true
   createdAt: string
 }
 
@@ -822,4 +835,247 @@ export async function getWorkflowDetail(workflowId: string) {
  */
 export async function transitionWorkflow(workflowId: string, action: WorkflowTransitionAction, note?: string) {
   return apiJson<{ workflow: WorkflowRow }>(`/api/workflows/${workflowId}/transition`, "POST", { action, note })
+}
+
+// ---------------------------------------------------------------------------
+// Extended disciplines (Phase 5) — wire types + typed call sites
+// ---------------------------------------------------------------------------
+// Mirrors docs/00-architecture/phase5-disciplines-contract.md §8 (routes) and
+// §2 (stored payload formats) exactly. W3-f owns the routes, W2-f the broker
+// ops; this file owns the client-side shape of the wire.
+//
+// HONEST TOLERANCE NOTE: the contract freezes the route families and their
+// 201 envelope keys ({femesh} {powerflow} {sim} {pdf} {analysis} {artifact})
+// plus the STORED payload formats — the inner field lists of the 201 bodies
+// follow the Phase-4 derive-mesh precedent (DerivedMeshRow) extended with the
+// full BrokerOutcome (stdout/stderr tails, exitCode, durationMs), but they are
+// not byte-pinned in the contract. Every result field below is therefore
+// optional except the identity trio the UI needs to point at the produced
+// artifact; the workspaces render each field only when the server sent it and
+// never invent a value. 422 refusals (BrokerRefusalError mapping) surface
+// VERBATIM via the shared unwrap idiom.
+// ---------------------------------------------------------------------------
+
+/** 201 inner shape shared by all derive/convert/analyze results (tolerant). */
+export interface DeriveRunResult {
+  /** produced (or appended-to) derived artifact — present in every 201 */
+  artifactId: string
+  name: string
+  kind: string
+  revisionNumber?: number | null
+  contentHash?: string | null
+  sizeBytes?: number | null
+  /** engine identity — ABSENT/null for platform-core ops (analyze_schedule) */
+  engineKey?: string | null
+  engineVersion?: string | null
+  adapterScript?: string | null
+  /** sha256 of the adapter script content (64-hex) */
+  adapterHash?: string | null
+  /** last 2000 chars, verbatim */
+  stdoutTail?: string | null
+  /** last 2000 chars, verbatim */
+  stderrTail?: string | null
+  exitCode?: number | null
+  durationMs?: number | null
+  /** derived_from link identity (the broker find-or-create precedent) */
+  derivedFromArtifactId?: string | null
+  derivedFromRevisionId?: string | null
+  sourceLatestRevisionId?: string | null
+  staleSource?: boolean | null
+  /** the PARSED stored document (§2 payload) — JSON outputs only; the PDF
+   *  route serves meta only. Source of truth for the result tables. */
+  document?: unknown
+  // --- op-appropriate structural summary fields (the meshCounts convention) ---
+  /** eos-femesh/1 */
+  nodeCount?: number
+  elementCount?: number
+  solidCount?: number
+  /** eos-powerflow/1 */
+  converged?: boolean
+  busCount?: number
+  lineCount?: number
+  /** eos-des/1 */
+  makespan?: number
+  resourceCount?: number
+  jobCount?: number
+  /** eos-cpm/1 */
+  activityCount?: number
+  criticalPathCount?: number
+  durationDays?: number
+}
+
+// --- Stored payload formats (contract §2 — frozen, JSON, byte-deterministic) ---
+
+/** eos-femesh/1 — gmsh linear-tet FE-mesh summary. */
+export interface FeMeshPayload {
+  format: "eos-femesh/1"
+  sourceArtifactName: string
+  units: string
+  generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string }
+  meshSizeMin: number
+  meshSizeMax: number
+  elementOrder: number
+  nodes: { count: number }
+  elements: { type: string; count: number }
+  solids: Array<{ ref: string; name?: string; tetCount: number; meshVolume: number }>
+  quality: { min: number; mean: number }
+}
+
+/** eos-powerflow/1 — pandapower result frame, numbers copied verbatim. */
+export interface PowerFlowPayload {
+  format: "eos-powerflow/1"
+  sourceArtifactName: string
+  converged: boolean
+  buses: Array<{ id: string; vmPu: number; angleDeg: number; pMw: number; qMvar: number }>
+  lines: Array<{ fromBus: string; toBus: string; iKa: number; pLossMw: number; qLossMvar: number }>
+  totals: { lossMw: number; loadMw: number }
+}
+
+/** eos-des/1 — SimPy FIFO discrete-event record. */
+export interface DesPayload {
+  format: "eos-des/1"
+  sourceArtifactName: string
+  policy: string
+  makespan: number
+  resources: Array<{ id: string; busy: number; utilization: number }>
+  jobs: Array<{ id: string; startAt: number; endAt: number }>
+}
+
+/** eos-cpm/1 — platform-core critical-path result (no engine). */
+export interface CpmAnalysisPayload {
+  format: "eos-cpm/1"
+  sourceArtifactName: string
+  activities: Array<{
+    id: string
+    name: string
+    durationDays: number
+    es: number
+    ef: number
+    ls: number
+    lf: number
+    totalFloat: number
+    critical: boolean
+  }>
+  criticalPath: string[]
+  durationDays: number
+}
+
+/** Which stored payload a derived artifact revision carries (discriminated by format). */
+export type AnalysisPayload = PowerFlowPayload | DesPayload | CpmAnalysisPayload
+
+// --- §8 routes (thin wrappers over broker cores; 422s verbatim) --------------
+
+/** POST /api/projects/[id]/artifacts/[aid]/fe-mesh — 201 {femesh}. */
+export async function runFeMesh(projectId: string, artifactId: string) {
+  return apiJson<{ femesh: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/fe-mesh`,
+    "POST",
+    {},
+  )
+}
+
+/** POST /api/projects/[id]/artifacts/[aid]/powerflow — 201 {powerflow}. */
+export async function runPowerFlow(projectId: string, artifactId: string) {
+  return apiJson<{ powerflow: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/powerflow`,
+    "POST",
+    {},
+  )
+}
+
+/** POST /api/projects/[id]/artifacts/[aid]/simulate — 201 {sim}. */
+export async function runDiscreteEvent(projectId: string, artifactId: string) {
+  return apiJson<{ sim: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/simulate`,
+    "POST",
+    {},
+  )
+}
+
+/** POST /api/projects/[id]/artifacts/[aid]/convert-document — 201 {pdf}. */
+export async function convertDocument(projectId: string, artifactId: string) {
+  return apiJson<{ pdf: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/convert-document`,
+    "POST",
+    {},
+  )
+}
+
+/** POST /api/projects/[id]/artifacts/[aid]/analyze-schedule — 201 {analysis}. */
+export async function analyzeSchedule(projectId: string, artifactId: string) {
+  return apiJson<{ analysis: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/analyze-schedule`,
+    "POST",
+    {},
+  )
+}
+
+// --- §3.1 schedule input (frozen; created through the Controls workspace) -----
+
+/** One eos-schedule/1 activity row (contract §3.1). */
+export interface ScheduleActivityInput {
+  id: string
+  name: string
+  durationDays: number
+  predecessorIds: string[]
+}
+
+/** POST /api/projects/[id]/schedules body — canonical eos-schedule/1 JSON. */
+export interface ScheduleCreateInput {
+  format: "eos-schedule/1"
+  name: string
+  activities: ScheduleActivityInput[]
+}
+
+/** POST /api/projects/[id]/schedules — 201 {artifact} (kind `schedule`, rev 1). */
+export async function createSchedule(projectId: string, input: ScheduleCreateInput) {
+  return apiJson<{ artifact: ArtifactListItem }>(`/api/projects/${projectId}/schedules`, "POST", input)
+}
+
+// --- §9 estimate recompute -----------------------------------------------------
+
+/** POST /api/estimates/[id]/recompute {} — tolerant: the contract pins the
+ *  semantics and the audit event, not the 201 body; every field is optional. */
+export interface EstimateRecomputeResult {
+  /** the NEW draft estimate ("<original> — revised draft") */
+  estimate?: EstimateRow
+  /** ids of the stale sources the recompute absorbed (audit-detail mirror) */
+  staleSourceArtifactIds?: string[]
+  newDraftId?: string
+}
+
+/** POST /api/estimates/[id]/recompute — approved+stale gates 422 verbatim. */
+export async function recomputeEstimate(estimateId: string) {
+  return apiJson<EstimateRecomputeResult>(`/api/estimates/${estimateId}/recompute`, "POST", {})
+}
+
+// --- Revision content (payload reads for derived JSON + PDF downloads) --------
+
+/**
+ * GET /api/revisions/[id]/download — raw revision bytes (the SAME URL the
+ * artifact-detail dialog's Download button uses). Not the {data} envelope, so
+ * failures surface with the server message verbatim (the exportEstimateBoqCsv
+ * idiom). Callers parse text/JSON themselves; a non-JSON body is returned as
+ * text and left to the caller to reject honestly.
+ */
+export async function fetchRevisionText(revisionId: string): Promise<string> {
+  const res = await fetch(`/api/revisions/${revisionId}/download`, { cache: "no-store" })
+  if (!res.ok) {
+    let body: unknown = null
+    try {
+      body = await res.json()
+    } catch {
+      // fall through to the throw below (non-JSON body, e.g. an HTML 404)
+    }
+    const err =
+      body && typeof body === "object" && "error" in body
+        ? (body as { error?: { code?: string; message?: string } }).error
+        : undefined
+    throw new ApiError(
+      err?.message ?? `Request failed (${res.status})`,
+      err?.code ?? "http_error",
+      res.status,
+    )
+  }
+  return res.text()
 }

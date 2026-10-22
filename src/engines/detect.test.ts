@@ -153,4 +153,59 @@ describe("detectEngines (fixture registry, no real engines)", () => {
     expect(result.version).toBe("1.0.0")
     expect(result.executablePath).toBe(path.join(tmpDir, "eos-shadow-fixture"))
   })
+
+  test("python-module probe: ABSOLUTE-path EOS_PYTHON resolves directly (Phase-6 regression)", async () => {
+    // Found live 2026-10-22: resolveOnPath() joins PATH dirs with the exe name, so
+    // an absolute EOS_PYTHON (a common venv setup) silently downgraded every
+    // python-module engine to not_installed. The probe must use an absolute
+    // executable path directly.
+    const fixturePath = makeFixtureExecutable(
+      "eos-fake-python",
+      'echo "fakevenv 7.7.7"',
+    )
+    const engine = fixtureEngine("eos-absolute-python-engine", [
+      {
+        kind: "python-module",
+        module: "anything",
+        moduleVersionExpr: "print(1)",
+      },
+    ])
+
+    const prevPython = process.env.EOS_PYTHON
+    process.env.EOS_PYTHON = fixturePath
+    try {
+      const [result] = await detectEngines([engine])
+      expect(result.state).toBe("installed")
+      expect(result.version).toBe("fakevenv 7.7.7")
+      expect(result.executablePath).toBe(fixturePath)
+    } finally {
+      if (prevPython === undefined) delete process.env.EOS_PYTHON
+      else process.env.EOS_PYTHON = prevPython
+    }
+  })
+
+  test("python-module probe: absolute EOS_PYTHON pointing at a NON-executable file reports not_installed", async () => {
+    const notExecutable = path.join(tmpDir, "eos-not-executable")
+    writeFileSync(notExecutable, "not executable")
+    chmodSync(notExecutable, 0o644)
+
+    const engine = fixtureEngine("eos-absolute-python-nonexec-engine", [
+      {
+        kind: "python-module",
+        module: "anything",
+        moduleVersionExpr: "print(1)",
+      },
+    ])
+
+    const prevPython = process.env.EOS_PYTHON
+    process.env.EOS_PYTHON = notExecutable
+    try {
+      const [result] = await detectEngines([engine])
+      expect(result.state).toBe("not_installed")
+      expect(result.executablePath).toBeNull()
+    } finally {
+      if (prevPython === undefined) delete process.env.EOS_PYTHON
+      else process.env.EOS_PYTHON = prevPython
+    }
+  })
 })

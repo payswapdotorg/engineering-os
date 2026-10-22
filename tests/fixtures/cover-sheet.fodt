@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" office:version="1.2" office:mimetype="application/vnd.oasis.opendocument.text">
+  <office:font-face-decls>
+    <style:font-face style:name="Liberation Serif" svg:font-family="'Liberation Serif'" style:font-family-generic="roman" style:font-pitch="variable"/>
+  </office:font-face-decls>
+  <office:automatic-styles>
+    <style:style style:name="P1" style:family="paragraph" style:parent-style-name="Standard">
+      <style:paragraph-properties fo:text-align="center" fo:margin-top="3cm"/>
+      <style:text-properties style:font-name="Liberation Serif" fo:font-size="28pt" fo:font-weight="bold"/>
+    </style:style>
+    <style:style style:name="P2" style:family="paragraph" style:parent-style-name="Standard">
+      <style:paragraph-properties fo:text-align="center" fo:margin-top="0.5cm"/>
+      <style:text-properties style:font-name="Liberation Serif" fo:font-size="12pt"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body>
+    <office:text>
+      <text:h text:style-name="P1" text:outline-level="1">Engineering OS — Cover Sheet</text:h>
+      <text:p text:style-name="P2">Document conversion validation fixture.</text:p>
+      <text:p text:style-name="P2">This flat-ODT file is hand-authored and deterministic:</text:p>
+      <text:p text:style-name="P2">the LibreOffice headless adapter converts it to PDF,</text:p>
+      <text:p text:style-name="P2">and the harness asserts structural evidence (%PDF bytes),</text:p>
+      <text:p text:style-name="P2">never byte-determinism — PDFs embed creation timestamps.</text:p>
+    </office:text>
+  </office:body>
+</office:document>

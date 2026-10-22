@@ -32,3 +32,76 @@ jobs:
         run: bun run test
         env:
           DATABASE_URL: "file:./db/ci.db"
+
+  # Phase-6 packaging lane (W2-g, contract §2): build the real .deb on a host
+  # that has sudo, then smoke-verify install → file layout → removal.
+  # Honest scope: GitHub runners have no running systemd, so the service and
+  # the sweep timer are NOT started here — this covers the dpkg lifecycle
+  # (postinst/prerm/postrm) and the installed file layout only. The units'
+  # first real start happens on a systemd host (see
+  # docs/07-release/installation-ubuntu.md). First run of this job happens on
+  # the next push after the packaging lane lands.
+  packaging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build .deb (real next build, clean seed DB, dpkg-deb)
+        run: scripts/build-deb.sh
+
+      - name: Validate desktop entry (desktop-file-utils on runner)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq desktop-file-utils
+          desktop-file-validate packaging/desktop/eos.desktop
+
+      - name: Install package (dpkg -i runs maintscripts as root)
+        run: sudo dpkg -i dist/*.deb
+
+      - name: Assert installed file layout
+        run: |
+          test -x /opt/engineering-os/server.js
+          test -x /opt/engineering-os/bin/preflight.sh
+          test -x /opt/engineering-os/bin/orphan-sweep.sh
+          test -f /opt/engineering-os/prisma/schema.prisma
+          test -f /opt/engineering-os/share/engineering-os-seed.db
+          test -d /opt/engineering-os/src/engines/adapters
+          test -f /lib/systemd/system/eos.service
+          test -f /lib/systemd/system/eos-orphan-sweep.service
+          test -f /lib/systemd/system/eos-orphan-sweep.timer
+          test -f /usr/share/applications/eos.desktop
+          test -f /usr/share/icons/hicolor/scalable/apps/eos.svg
+          getent passwd eos >/dev/null
+          test -f /var/lib/engineering-os/custom.db
+          test -f /etc/eos/eos.env
+          grep -q '^NEXTAUTH_SECRET=.' /etc/eos/eos.env
+          dpkg -s engineering-os | grep -q '^Depends: nodejs (>= 18)$'
+          dpkg -s engineering-os | grep -q '^Status: install ok installed$'
+
+      - name: Remove package (prerm + postrm, clean removal)
+        run: sudo dpkg -r engineering-os
+
+      - name: Assert removal clean (data retained by design)
+        run: |
+          test ! -e /opt/engineering-os
+          test ! -e /lib/systemd/system/eos.service
+          test ! -e /usr/share/applications/eos.desktop
+          # retention red line: operator data + config survive removal (manual cleanup documented)
+          test -d /var/lib/engineering-os
+          test -f /var/lib/engineering-os/custom.db
+          test -f /etc/eos/eos.env
+          dpkg-query -W -f='${Status}' engineering-os | grep -q '^deinstall ok config-files'
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: engineering-os-deb
+          path: dist/*.deb
+          if-no-files-found: error
+          retention-days: 14

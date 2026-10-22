@@ -1,6 +1,6 @@
 # Capability Matrix
 
-Owner: Worker 2 (Engines & Integration) · Date: **2026-10-21** · Adapter update: **2026-10-21 (W2-b)** · Validation update: **2026-10-21 (W2-c — benchmark harness, both quantity adapters validated 11/11)** · Tessellation update: **2026-10-21 (W2-d — eos-mesh/1 bridge, harness-validated incl. 9 mesh blocks)** · Companion to [engine-inventory.md](engine-inventory.md) · Contract: [ADR-0005](../adr/0005-engine-integration-contract.md) · Status vocabulary: `planned → installed → available → implemented → tested → verified → production-ready` (evidence-linked — never upgraded without a test, command output or acceptance item).
+Owner: Worker 2 (Engines & Integration) · Date: **2026-10-22** · Adapter update: **2026-10-22 (W2-f — Phase-5 disciplines: gmsh FE meshing, pandapower power flow, SimPy DES, LibreOffice conversion; CPM platform core)** · Validation update: **2026-10-21 (W2-c — benchmark harness, both quantity adapters validated 11/11)** · Tessellation update: **2026-10-21 (W2-d — eos-mesh/1 bridge, harness-validated incl. 9 mesh blocks)** · Companion to [engine-inventory.md](engine-inventory.md) · Contract: [ADR-0005](../adr/0005-engine-integration-contract.md) · Status vocabulary: `planned → installed → available → implemented → tested → verified → production-ready` (evidence-linked — never upgraded without a test, command output or acceptance item).
 
 ## Reading this matrix
 
@@ -57,20 +57,23 @@ Owner: Worker 2 (Engines & Integration) · Date: **2026-10-21** · Adapter updat
 | PCB layout + fabrication exports | KiCad (`kicad-cli`) | planned | 5 | Headless gerber/step/netlist exports |
 | Electrical installation diagrams (buildings) | QElectroTech | planned | 5 | Registry `qelectrotech` (GPL-2.0, 0.100); presence-only probe |
 | SPICE circuit simulation | ngspice | planned | 5 | Registry `ngspice` (BSD-3-Clause, 47); batch netlist runs via broker |
-| Power system analysis | pandapower | planned | 5 | Registry `pandapower` (BSD-3-Clause, 3.5.6); python-module probe |
+| Power system analysis | pandapower | **tested** (shipped — see Simulation & analysis above) | 5 (shipped 2026-10-22) | Harness-validated closed-form case; registry `validation` field: 2 cases pass |
 | Chip design flow (RTL → GDSII) | GHDL, Yosys, Verilator, OpenROAD | planned | 5 | Registry rows all verified (GPL-2.0 / ISC / LGPL-3.0-or-Artistic / BSD-3-Clause); flow orchestrated by broker, per-tool provenance recorded |
 
 ## Simulation & analysis (Phase 5)
 
 | Capability | Engine(s) | State | Target phase | Evidence / notes |
 |---|---|---|---|---|
-| Meshing (2D/3D FE meshes) | Gmsh | planned | 5 | Registry `gmsh` (GPL-2.0-or-later + exception, 4.15.2); `gmsh --version` probe |
-| FEA — structural & thermomechanics | Code_Aster, Elmer FEM | planned | 5 | Registry `code-aster` (GPL-3.0, 17.5.8), `elmerfem` (GPL-2.0, 26.2) |
-| FEA — earthquake/geotechnical (license-risk) | OpenSees | planned | 5 | Registry `opensees`: custom UC Regents noncommercial license — **no capability beyond `planned` until written license review** |
+| **FE meshing from STEP (linear tetrahedra, per-solid volumes + quality)** | **gmsh 4.15.2 (OCC)** | **tested** (harness-validated) | 5 (shipped 2026-10-22, W2-f) | REAL adapter `src/engines/adapters/step_femesh.py` (venv subprocess, `{storagePath, kind, parameters}` stdin protocol, temp .step copy for gmsh's extension-dispatched merge, system libs via `scripts/setup-engine-libs.sh` — libGLU/libOpenGL extracted user-locally); bridge `femesh.ts`; broker op `fe_mesh` → kind-`fe-mesh` artifacts (eos-femesh/1). **Harness: 4 cases** — bracket-solid 1088 v / 3482 tet4 (mesh volume within 2% of 36000−960π; linear-tet curved-hole bias 0.92% recorded), two-solids planar divergence volumes EXACT (rel 1.4e-15) with pinned 599+779 split, geometry-free verbatim refusal, IFC refused by name (gmsh has NO IFC reader — observed live; falls through to the .geo parser otherwise). Byte-deterministic double-run enforced. IFC FE meshing honestly not offered (IfcOpenShell wheel here lacks the OCC backend) |
+| FEA — structural & thermomechanics (SOLVING) | Code_Aster, Elmer FEM | planned | 5b | Meshing shipped above; solving is the next broker op on the same path |
+| **Power-flow analysis (Newton-Raphson, radial feeders)** | **pandapower 3.5.6** | **tested** (harness-validated) | 5 (shipped 2026-10-22, W2-f) | REAL adapter `src/engines/adapters/powerflow.py` (validated eos-powerflow-network/1 JSON → pandapower net → `runpp(init="flat")` → verbatim result frames, eos-powerflow/1, kind `analysis`); bridge `powerflow.ts`; broker op `run_powerflow`. **Harness: 2 cases** — 2-bus lossless closed form V₂ = √((1+√(1−4p²x²))/2) = 0.9999875 at rel 1.2e-5 with losses ≈ 0 at 1e-9 (the pinning caught a 10× slip in the contract's own derivation — engine right, pen wrong; corrected + recorded in the manifest); islanded bus → honest refusal naming the island (pandapower CONVERGES with NaN — NaN is not a result). Byte-deterministic double-run enforced |
+| **Discrete-event simulation (deterministic FIFO)** | **SimPy 4.1.2** | **tested** (harness-validated) | 5 (shipped 2026-10-22, W2-f) | REAL adapter `src/engines/adapters/des.py` (eos-des-scenario/1 → simpy Resources/jobs → eos-des/1: makespan, per-resource busy/utilization, per-job start/end, verbatim); bridge `des.ts`; broker op `run_des`. **Harness: 2 cases** — FIFO flow shop makespan 13 hand-traced (m1 busy 6, m2 busy 11 pinned; utilization invariant asserted), unknown-resource honest refusal. Byte-deterministic double-run enforced. Stochastic distributions + other policies are Phase-5b |
+| **CPM schedule analysis (platform core — NO engine)** | **platform (`src/core/cpm.ts`)** | **tested** (harness-validated) | 5 (shipped 2026-10-22) | Pure forward/backward passes with 15 unit tests (hand-derived floats, diamond graphs, cycle/unknown-predecessor/dup-id errors); broker op `analyze_schedule` → eos-cpm/1 kind-`analysis` artifacts; engineKey/adapterScript honestly ABSENT everywhere (UI renders "no engine — pure platform math"). **Harness case: 6-activity fixture, 28 pins** (critical path b→d→f→e, every ES/EF/LS/LF/float, byte-deterministic double-run). Schedule inputs are kind-`schedule` artifacts via the dedicated create route |
+| FEA — earthquake/geotechnical (license-risk) | OpenSees | planned | 5b | Registry `opensees`: custom UC Regents noncommercial license — **no capability beyond `planned` until written license review** |
 | CFD | OpenFOAM (Foundation, v14) | planned | 5 | Registry `openfoam` (GPL-3.0-or-later); Foundation/OpenCFD fork duality recorded |
 | Systems dynamics (Modelica, FMU) | OpenModelica | planned | 5 | Registry `openmodelica` (AGPL-3.0 OR OSMC-PL-1.8, 1.27.1); `omc --version` probe |
 | Chemical process simulation | DWSIM | planned | 5 | Registry `dwsim` (GPL-3.0, 10.2.12) — upstream repo moved (dwsim10); tracking updated |
-| Discrete-event simulation | SimPy | planned | 5 | Registry `simpy` (MIT, 4.1.2 — now hosted on GitLab); python-module probe |
+| Discrete-event simulation (stochastic, other policies) | SimPy | **tested** (FIFO shipped — see Simulation & analysis above; stochastic planned) | 5 (FIFO shipped 2026-10-22) | Registry `simpy` (MIT, 4.1.2 — now hosted on GitLab); python-module probe; registry `validation` field: 2 cases pass |
 | Robotics simulation | ROS 2 + Gazebo (gz-sim) | planned | 5 | Registry `ros2` (multi-license superproject), `gazebo` (Apache-2.0, 10.0.0) |
 | Result post-processing / visualization | ParaView | planned | 5 | Registry `paraview` (BSD-3-Clause, 6.2.0); headless pvpython/pvbatch rendering |
 
@@ -78,8 +81,9 @@ Owner: Worker 2 (Engines & Integration) · Date: **2026-10-21** · Adapter updat
 
 | Capability | Engine(s) | State | Target phase | Evidence / notes |
 |---|---|---|---|---|
-| Document conversion / rendering (headless) | LibreOffice | planned | 5 | Registry `libreoffice` (license conflict GPL-3.0 vs MPL-2.0/LGPL-3.0+ flagged for Phase-6); `libreoffice --version` probe |
-| Spreadsheet / BOQ document generation | LibreOffice headless + platform ledger | planned | 3/5 | BOQ data assembled by ledger (W3), rendered via LO in Phase 3 pilot |
+| **Document conversion → PDF (headless)** | **LibreOffice 25.2.3.2** | **tested** (harness-validated, structural) | 5 (shipped 2026-10-22, W2-f) | REAL TS-native bridge `src/engines/adapters/convert-document.ts` (registered soffice binary, fresh tmpdir, extension-bearing temp copy — LO dispatches import filters by extension and uploads register extensionless; flat-ODF fodt/fods supported via OASIS mediatypes + LO content sniffing, verified live); broker op `convert_document` → kind-`pdf` artifacts (raw application/pdf bytes). **Harness case: 1** — structural pins (%PDF- magic, size floor); **byte-determinism honestly NOT claimed** (PDFs embed creation timestamps; re-runs append revisions — pinned as such in e2e). Honest 422s for non-convertible kinds and already-PDF inputs; the route gate + broker gate + client register all delegate to the single `convertibleSourceName` implementation |
+| Document conversion / rendering (other formats) | LibreOffice | planned (beyond PDF) | 5b | PDF shipped above; other targets (e.g. docx→odt) are additive later |
+| Spreadsheet / BOQ document generation | LibreOffice headless + platform ledger | planned | 3/5 | BOQ data assembled by ledger (shipped as CSV/JSON export); LO-rendered BOQ documents remain future work |
 | Project scheduling (Gantt/CPM desktop) | ProjectLibre | planned | 3 | Registry `projectlibre` (CPAL-1.0, 1.9.8 via SourceForge); presence-only probe |
 | Work-package / schedule server (REST) | OpenProject | planned | 3/5 | Registry `openproject` (GPL-3.0, 17.9.2); arm's-length REST API integration |
 

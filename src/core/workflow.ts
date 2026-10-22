@@ -26,8 +26,22 @@ import { WORKFLOW_STATES, isWorkflowState, type WorkflowState } from "./index"
  * (W2 lane) is the ONLY execution path (ADR-0005) and runs these keys against
  * the real adapters; this pure-core copy pins the same vocabulary so the
  * definition schema validates without importing the engines.
+ *
+ * Phase 5 (extended-disciplines contract §4) grows the vocabulary by five ops:
+ * fe_mesh / run_powerflow / run_des / convert_document (engine ops) and
+ * analyze_schedule (platform core — engineKey honestly ABSENT in its
+ * execution records). All five take exactly one input artifact.
  */
-export const BROKER_OPERATIONS = ["derive_quantities", "derive_mesh", "build_report"] as const
+export const BROKER_OPERATIONS = [
+  "derive_quantities",
+  "derive_mesh",
+  "build_report",
+  "fe_mesh",
+  "run_powerflow",
+  "run_des",
+  "convert_document",
+  "analyze_schedule",
+] as const
 export type BrokerOperation = (typeof BROKER_OPERATIONS)[number]
 
 // ---------------------------------------------------------------------------
@@ -146,8 +160,10 @@ const stepSchema = z
     skipOnError: z.boolean().default(false),
   })
   .superRefine((step, ctx) => {
-    // Input shape is per-op (contract §2): derive ops take exactly one model
-    // artifact; build_report takes 1..4 artifacts.
+    // Input shape is per-op (contract §2 + Phase-5 contract §4): build_report
+    // takes 1..4 artifact ids; every other operation — the Phase-4 derive ops
+    // AND the five Phase-5 ops (fe_mesh / run_powerflow / run_des /
+    // convert_document / analyze_schedule) — takes exactly one input artifact.
     if (step.operation === "build_report") {
       if (step.inputs.artifactIds === undefined) {
         ctx.addIssue({
@@ -168,7 +184,7 @@ const stepSchema = z
         ctx.addIssue({
           code: "custom",
           path: ["inputs"],
-          message: `inputs.artifactId is required for ${step.operation} (exactly one model artifact)`,
+          message: `inputs.artifactId is required for ${step.operation} (exactly one input artifact)`,
         })
       }
       if (step.inputs.artifactIds !== undefined) {

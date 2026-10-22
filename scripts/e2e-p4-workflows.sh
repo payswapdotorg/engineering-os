@@ -27,6 +27,11 @@ FIXTURES="$REPO/tests/fixtures"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
+# Phase-6 auth (contract §1.5): sign in as the demo operator; ${EOS_AUTH}
+# carries the session cookie jar, and $EOS_USER_ID is the signed-in human the
+# approve gate must stamp (contract §1.3 session attribution).
+source "$(dirname "$0")/e2e-signin.sh"
+
 PASS=0
 FAIL=0
 
@@ -46,7 +51,7 @@ BODY=""
 http() { # method path [extra curl args…]
   local method="$1" path="$2"
   shift 2
-  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X "$method" "$BASE$path" "$@") || STATUS="000"
+  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X "$method" "$BASE$path" "$@" ${EOS_AUTH:-}) || STATUS="000"
   BODY=$(cat "$WORK/http.body")
 }
 jpost() { http POST "$1" -H 'Content-Type: application/json' --data-binary @"$2"; }
@@ -54,7 +59,7 @@ upload() { # path file kind [explicit artifact name]
   local path="$1" file="$2" kind="$3" name="${4:-}"
   local args=(-F "file=@$file" -F "kind=$kind")
   if [[ -n "$name" ]]; then args+=(-F "name=$name"); fi
-  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X POST "${args[@]}" "$BASE$path") || STATUS="000"
+  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X POST "${args[@]}" "$BASE$path" ${EOS_AUTH:-}) || STATUS="000"
   BODY=$(cat "$WORK/http.body")
 }
 j() { printf '%s' "$1" | /usr/bin/jq -r "$2"; }
@@ -103,8 +108,10 @@ jq -n --arg id "$SOLIDS_ID" '{name: "bad-op probe", definition: {steps: [
   {id: "quantities", operation: "render_view", inputs: {artifactId: $id}, parameters: {}, retry: {maxAttempts: 1, backoffMs: 0}, requiresApproval: false, skipOnError: false}
 ]}}' > "$WORK/wf-badop.json"
 jpost "/api/projects/$PROBE_ID/workflows" "$WORK/wf-badop.json"
+# AC-P5-07 note (2026-10-22): the operation vocabulary grew with the Phase-5
+# broker ops (contract §4) — the pinned message lists all eight.
 assert_eq "unknown operation → 422 with the joined verbatim message" \
-  'invalid workflow definition: steps.0.operation: operation must be one of: derive_quantities, derive_mesh, build_report' \
+  'invalid workflow definition: steps.0.operation: operation must be one of: derive_quantities, derive_mesh, build_report, fe_mesh, run_powerflow, run_des, convert_document, analyze_schedule' \
   "$(j "$BODY" '.error.message')"
 
 jq -n --arg id "$SOLIDS_ID" '{name: "dup-ids probe", definition: {steps: [
@@ -234,8 +241,8 @@ if poll_state "$WF1" "succeeded" 15 2; then
   DETAIL2="$POLL_BODY"
   printf '%s' "$DETAIL2" > "$WORK/wf1-succeeded.json"
   APPROVED_EVT=$(j "$DETAIL2" '[.data.events[] | select(.kind == "workflow.approved")][0]')
-  RED_LINE=$(if [[ "$APPROVE_STATUS" == "200" && "$(j "$DETAIL2" '[.data.events[] | select(.kind == "workflow.approved")] | length')" == "1" && "$(printf '%s' "$APPROVED_EVT" | /usr/bin/jq -r '.actorType')" == "user" && "$(printf '%s' "$APPROVED_EVT" | /usr/bin/jq -r '.actorId')" == "local-operator" ]]; then echo held; else echo broken; fi)
-  assert_eq "RED LINE: approve with a hostile actor field in the body → 200 and the approver is STILL the server-side human {user, local-operator} (agents never approve — no code path)" \
+  RED_LINE=$(if [[ "$APPROVE_STATUS" == "200" && "$(j "$DETAIL2" '[.data.events[] | select(.kind == "workflow.approved")] | length')" == "1" && "$(printf '%s' "$APPROVED_EVT" | /usr/bin/jq -r '.actorType')" == "user" && "$(printf '%s' "$APPROVED_EVT" | /usr/bin/jq -r '.actorId')" == "$EOS_USER_ID" ]]; then echo held; else echo broken; fi)
+  assert_eq "RED LINE: approve with a hostile actor field in the body → 200 and the approver is STILL the server-side session human {user, $EOS_USER_ID} (agents never approve — no code path; Phase-6 §1.3 stamps the signed-in user)" \
     "held" "$RED_LINE"
 else
   bad "approve published + workflow succeeded" "last state: $POLL_STATE" "succeeded"
@@ -252,8 +259,8 @@ REPORT_ART=$(step_of "$DETAIL1" report '.outputSummary | fromjson | .artifactId'
 REPORT_REV=$(step_of "$DETAIL1" report '.outputArtifactRevisionId')
 MESH_ART=$(step_of "$DETAIL1" mesh '.outputSummary | fromjson | .artifactId')
 http GET "/api/artifacts/$REPORT_ART"
-assert_eq "report artifact latest revision PUBLISHED: draft → approved with the workflow approval payload on the note" \
-  "approved|local-operator|$WF1|true" \
+assert_eq "report artifact latest revision PUBLISHED: draft → approved with the workflow approval payload on the note (approvedBy = the session human, Phase-6 §1.3)" \
+  "approved|$EOS_USER_ID|$WF1|true" \
   "$(j "$BODY" '.data.artifact.latestRevision.approvalState')|$(j "$BODY" '.data.artifact.latestRevision.note | fromjson | .approvedBy')|$(j "$BODY" '.data.artifact.latestRevision.note | fromjson | .workflowId')|$(j "$BODY" '.data.artifact.latestRevision.note | fromjson | .approvedAt | startswith("20")')"
 
 http GET "/api/artifacts/$MESH_ART"
@@ -512,7 +519,7 @@ DEMO_ID=$(printf '%s' "$BODY" | /usr/bin/jq -r '[.data.projects[] | select(.name
 http GET "/api/projects/$DEMO_ID/estimates"
 DEMO_EST=$(printf '%s' "$BODY" | /usr/bin/jq -r '[.data.estimates[] | select(.status == "approved")][0].id')
 STATUS=$(curl -sS -m 180 -o "$WORK/boq.csv" -D "$WORK/boq.headers" -w '%{http_code}' \
-  "$BASE/api/estimates/$DEMO_EST/export?format=csv") || STATUS="000"
+  ${EOS_AUTH:-} "$BASE/api/estimates/$DEMO_EST/export?format=csv") || STATUS="000"
 CT=$(tr -d '\r' < "$WORK/boq.headers" | grep -i '^content-type:' | cut -d' ' -f2-)
 assert_eq "REGRESSION MARKER: the e2e-takeoff demo estimate still exports (200 text/csv) after all workflow tests" \
   "200|text/csv; charset=utf-8" "$STATUS|$CT"

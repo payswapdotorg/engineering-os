@@ -3,6 +3,7 @@ import { z } from "zod"
 import { DISCIPLINE_VALUES } from "@/lib/disciplines"
 import { recordEvent } from "@/lib/audit"
 import { jsonOk, ERR, parseBody } from "@/lib/api-utils"
+import { getSessionUser } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { newId } from "@/lib/ids"
 
@@ -69,6 +70,19 @@ export const POST = handler(async (req) => {
 
   const projectId = newId("prj")
 
+  // Phase-6 (contract §1.3): the creating user becomes the project's owner
+  // TeamMember row — stamped with their session identity (name + email) so
+  // the team-member gate never locks out the creator. The session exists for
+  // every signed-in POST; the "Local Operator" fallback covers background
+  // contexts only (defensive — the gate makes those 401 before this point).
+  const session = await getSessionUser()
+  const ownerMember = {
+    id: newId("mem"),
+    name: session?.name ?? "Local Operator",
+    email: session?.email ?? null,
+    role: "owner",
+  }
+
   try {
     const project = await db.project.create({
       data: {
@@ -79,7 +93,7 @@ export const POST = handler(async (req) => {
         description: description?.trim().length ? description.trim() : null,
         status: "active",
         members: {
-          create: [{ id: newId("mem"), name: "Local Operator", role: "owner" }],
+          create: [ownerMember],
         },
       },
       include: { _count: { select: { artifacts: true, members: true } } },

@@ -17,6 +17,7 @@ import {
 } from "@/core/runtime/executor"
 import { recordEvent } from "@/lib/audit"
 import { jsonError, jsonOk, ERR, parseBody } from "@/lib/api-utils"
+import { getSessionUser } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { newId } from "@/lib/ids"
 
@@ -88,9 +89,11 @@ function stepRunData(snapshot: StepSnapshot) {
  * POST /api/workflows/[id]/transition — {action, note?} (contract §6).
  * `applyWorkflowAction` is the single authority: an illegal move is a 409
  * with the verbatim `cannot <action> a workflow in state "<current>"`
- * message. Every state change updates currentStateSince; user actions are
- * always performed by the human local-operator (the route never reads an
- * actor from the body).
+ * message. Every state change updates currentStateSince. NO actor is ever
+ * read from the body (ADR-0006 red line) — the acting human is the signed-in
+ * session user (contract §1.3), stamped on the workflow events and audit
+ * events; the `canApprove` defense makes an agent approver impossible by
+ * construction (403 if it could ever fail).
  *
  * queue: snapshot every step's input revisions (locked at QUEUE time, §8) —
  * a missing artifact is a 422 verbatim — create the WorkflowStepRun rows and
@@ -101,11 +104,11 @@ function stepRunData(snapshot: StepSnapshot) {
  * their rows (state pending, attempt 0) and re-queues. `failure` stays on
  * the row for audit; any later failure overwrites it.
  *
- * approve: THE RED LINE — the approver is ALWAYS the server-side human
- * {actorType:"user", actorId:"local-operator"}; no actor parameter exists,
- * and the `canApprove` defense below makes an agent approver impossible by
- * construction (403 if it could ever fail). Publishing happens in
- * approveWorkflow (artifact.approved + workflow.approved events).
+ * approve: THE RED LINE — there is no actor parameter; the approver is the
+ * signed-in session user resolved server-side (falling back to the
+ * Phase-1..5 "local-operator" identity only in non-session contexts), and
+ * publishing happens in approveWorkflow (artifact.approved +
+ * workflow.approved events).
  *
  * reject: the workflow is cancelled with a workflow.rejected event; the
  * gate step's draft output REMAINS (auditable, never silently deleted) and
@@ -113,6 +116,13 @@ function stepRunData(snapshot: StepSnapshot) {
  */
 export const POST = handler<{ id: string }>(async (req, ctx) => {
   const { id } = await ctx.params
+
+  // The acting human: the signed-in session user (session gates guarantee a
+  // session exists for this POST; the fallback keeps non-request callers
+  // honest). Never read from the body — ADR-0006 red line.
+  const session = await getSessionUser()
+  const actorId = session?.id ?? "local-operator"
+  const actorName = session?.name ?? "local-operator"
 
   const workflow = await db.workflow.findUnique({ where: { id } })
   if (!workflow) return ERR.notFound("Workflow")
@@ -137,7 +147,7 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
     if (!def.ok) return ERR.invalid(def.error)
 
     if (!(await guardMove(id, current, next))) return conflictFresh(id, action)
-    await recordWorkflowEvent(id, "workflow.ready", "user", "local-operator", {})
+    await recordWorkflowEvent(id, "workflow.ready", "user", actorId, {})
     await recordEvent({
       projectId: workflow.projectId,
       action: "workflow.updated",
@@ -185,7 +195,7 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
       throw err
     }
 
-    await recordWorkflowEvent(id, "workflow.queued", "user", "local-operator", {
+    await recordWorkflowEvent(id, "workflow.queued", "user", actorId, {
       stepCount: snap.snapshots.length,
     })
     await recordEvent({
@@ -203,7 +213,7 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
     if (!(await guardMove(id, current, next, { finishedAt: new Date() }))) {
       return conflictFresh(id, action)
     }
-    await recordWorkflowEvent(id, "workflow.cancelled", "user", "local-operator", { note })
+    await recordWorkflowEvent(id, "workflow.cancelled", "user", actorId, { note })
     await recordEvent({
       projectId: workflow.projectId,
       action: "workflow.updated",
@@ -263,7 +273,7 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
       throw err
     }
 
-    await recordWorkflowEvent(id, "workflow.queued", "user", "local-operator", {
+    await recordWorkflowEvent(id, "workflow.queued", "user", actorId, {
       retry: true,
       resumedFromStepId: def.value.steps[from]?.id ?? null,
     })
@@ -286,7 +296,7 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
     if (!canApprove(workflow.createdBy, "user")) {
       return jsonError(403, "forbidden", "only a human actor can approve a workflow (agents never approve)")
     }
-    const approved = await approveWorkflow(id, note)
+    const approved = await approveWorkflow(id, note, session ? { actorId, userName: actorName } : undefined)
     if (!approved.ok) return conflictFresh(id, action)
     await recordEvent({
       projectId: workflow.projectId,
@@ -302,7 +312,7 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
   if (!(await guardMove(id, current, next, { finishedAt: new Date() }))) {
     return conflictFresh(id, action)
   }
-  await recordWorkflowEvent(id, "workflow.rejected", "user", "local-operator", { note, by: "local-operator" })
+  await recordWorkflowEvent(id, "workflow.rejected", "user", actorId, { note, by: actorName })
   await recordEvent({
     projectId: workflow.projectId,
     action: "workflow.updated",

@@ -137,7 +137,20 @@ describe("validation corpus manifest (integrity — engine independent)", () => 
   })
 
   test("every ground-truth entry carries a valid tolerance class and a hand-derived audit string", () => {
+    const DISCIPLINE_ADAPTERS = new Set(["femesh", "powerflow", "des", "cpm", "libreoffice"])
     for (const c of manifest) {
+      if (DISCIPLINE_ADAPTERS.has(c.adapter)) {
+        // W2-f discipline cases pin hand-derived values in their per-adapter
+        // block instead of the quantity-ledger groundTruth shape; every pin
+        // must still carry a derivation audit string.
+        const block = (c as unknown as Record<string, unknown>)[c.adapter] as
+          | { pins?: Array<{ derivation: string }> }
+          | undefined
+        for (const pin of block?.pins ?? []) {
+          expect(pin.derivation.length).toBeGreaterThan(0)
+        }
+        continue
+      }
       if (c.expect === "error") {
         expect(typeof c.errorContains).toBe("string")
         expect((c.errorContains ?? "").length).toBeGreaterThan(0)
@@ -243,6 +256,11 @@ function syntheticReport(): HarnessReport {
       engineAvailability: {
         step: { available: true },
         ifc: { available: false, reason: "synthetic: engine absent" },
+        femesh: { available: false, reason: "synthetic: engine absent" },
+        powerflow: { available: false, reason: "synthetic: engine absent" },
+        des: { available: false, reason: "synthetic: engine absent" },
+        cpm: { available: true }, // platform core — always available, no engine
+        libreoffice: { available: false, reason: "synthetic: engine absent" },
       },
     },
     engineVersions: { cadquery: "synthetic", ifcopenshell: null },
@@ -348,6 +366,20 @@ describe.skipIf(!enginesAvailable)("engine validation harness (real engine runs)
       expect(successCases.length).toBe(manifest.filter((c: CorpusCase) => c.expect === "success").length)
       for (const c of successCases) {
         expect(c.status).toBe("pass")
+        if (c.discipline !== undefined) {
+          // W2-f discipline cases: determinism lives on the discipline block
+          // (null only where byte-determinism is honestly NOT claimed —
+          // libreoffice); every pin comparison must be ok.
+          if (c.discipline.adapter === "libreoffice") {
+            expect(c.discipline.determinism).toBeNull() // PDFs embed timestamps — §5.4
+          } else {
+            expect(c.discipline.determinism).toBe(true)
+          }
+          for (const cmp of c.discipline.comparisons) {
+            expect(cmp.ok).toBe(true)
+          }
+          continue
+        }
         expect(c.determinism).toBe(true)
         expect(c.comparisons).not.toBeNull()
         for (const cmp of c.comparisons ?? []) {
@@ -369,6 +401,11 @@ describe.skipIf(!enginesAvailable)("engine validation harness (real engine runs)
       report = report ?? (await runHarness())
       for (const c of report.cases.filter((x) => x.expect === "error")) {
         expect(c.status).toBe("pass")
+        if (c.discipline !== undefined) {
+          expect(c.discipline.errorObserved).toBeDefined()
+          expect(c.discipline.errorObserved ?? "").toContain(c.discipline.errorContains ?? "")
+          continue
+        }
         expect(c.errorObserved).toBeDefined()
         expect(c.errorObserved).toContain(c.errorContains ?? "")
       }

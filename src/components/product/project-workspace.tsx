@@ -2,10 +2,11 @@
 
 /**
  * Project workspace — Overview / Artifacts (Models & Drawings) / Design
- * Studio / Takeoff / Agents & Automations / Team / Activity. The tab is the
- * URL query (?tab=…), so workspace links (sidebar, Cmd+K) deep-link straight
- * into a tab — the page guard in src/app/projects/[id]/page.tsx routes every
- * tab id below, takeoff and studio included.
+ * Studio / Takeoff / Simulation & Verification / Project Controls /
+ * Documents & Deliverables / Agents & Automations / Team / Activity. The tab
+ * is the URL query (?tab=…), so workspace links (sidebar, Cmd+K) deep-link
+ * straight into a tab — the page guard in src/app/projects/[id]/page.tsx
+ * routes every tab id below, sim/controls/docs included.
  */
 import { Boxes, DraftingCompass, FileUp, GitBranch, Info, Plus, Ruler, UserPlus, Users } from "lucide-react"
 import Link from "next/link"
@@ -16,10 +17,15 @@ import { useApi, type ArtifactListItem, type AuditEventRow, type ProjectDetail }
 import { ApprovalBadge, DisciplineBadge, KindBadge, StalenessBadge } from "@/components/product/badges"
 import { ArtifactDetailDialog, RegisterArtifactDialog } from "@/components/product/artifact-dialogs"
 import { AgentsWorkspace } from "@/components/product/agents-workspace"
+import { ControlsWorkspace } from "@/components/product/controls-workspace"
+import { DocsWorkspace } from "@/components/product/docs-workspace"
+import { SimWorkspace } from "@/components/product/sim-workspace"
 import { EventFeed } from "@/components/product/event-feed"
 import { formatDate, humanBytes, relTime } from "@/components/product/format"
+import { GuardedButton, TEAM_MANAGE_DISABLED_REASON } from "@/components/product/guarded-button"
 import { AddMemberDialog, EditProjectDialog } from "@/components/product/project-dialogs"
 import { EmptyState, ErrorState, StatCard } from "@/components/product/parts"
+import { useSessionUser } from "@/components/product/session-user"
 import { StudioWorkspace } from "@/components/product/studio-workspace"
 import { TakeoffWorkspace } from "@/components/product/takeoff-workspace"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -42,7 +48,18 @@ import { ARTIFACT_KINDS } from "@/lib/artifact-meta"
 import { disciplineLabel } from "@/lib/disciplines"
 import { initialsOf } from "@/components/product/format"
 
-const TABS = ["overview", "artifacts", "studio", "takeoff", "agents", "team", "activity"] as const
+const TABS = [
+  "overview",
+  "artifacts",
+  "studio",
+  "takeoff",
+  "sim",
+  "controls",
+  "docs",
+  "agents",
+  "team",
+  "activity",
+] as const
 type TabId = (typeof TABS)[number]
 
 export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: string; tab: TabId; onTabChange: (tab: TabId) => void }) {
@@ -50,6 +67,7 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
 
   const workspace = useApi<ProjectDetail>(`/api/projects/${projectId}`)
   const activity = useApi<{ events: AuditEventRow[] }>(`/api/events?projectId=${projectId}&limit=200`)
+  const sessionUser = useSessionUser()
 
   const [registerOpen, setRegisterOpen] = useState(false)
   const [memberOpen, setMemberOpen] = useState(false)
@@ -61,6 +79,26 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
   const [actorFilter, setActorFilter] = useState("all")
 
   const project = workspace.data?.project ?? null
+
+  /** Team-member management gate (contract §1.3): the session user must be a
+   *  global admin or the project owner (the TeamMember row with role "owner").
+   *  The roster has no user link yet, so the owner is matched by email, falling
+   *  back to an exact name match (the seeded owner row carries no email — its
+   *  name is the operator). The server remains authoritative; this mirrors the
+   *  most defensible client-side computation with the verbatim refusal text. */
+  const isTeamManager = (() => {
+    if (sessionUser === null || sessionUser === "loading") return false
+    if (sessionUser.role === "admin") return true
+    if (sessionUser.role === "viewer") return false
+    if (!project) return false
+    return project.members.some(
+      (m) =>
+        m.role === "owner" &&
+        ((m.email !== null && m.email.toLowerCase() === sessionUser.email.toLowerCase()) ||
+          m.name.trim().toLowerCase() === sessionUser.name.trim().toLowerCase()),
+    )
+  })()
+  const teamManageReason = isTeamManager ? null : TEAM_MANAGE_DISABLED_REASON
 
   const refreshAll = () => {
     void workspace.refresh()
@@ -144,21 +182,24 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
               {project.description ?? "No description yet."} · Created {formatDate(project.createdAt)}
             </p>
           </div>
-          <Button variant="outline" className="h-10" onClick={() => setEditOpen(true)}>
+          <GuardedButton variant="outline" className="h-10" onClick={() => setEditOpen(true)}>
             Edit project
-          </Button>
+          </GuardedButton>
         </div>
       </header>
 
       <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as TabId)}>
-        {/* Six workspace sections overflow 390 px viewports, so the tab strip
-            scrolls horizontally when needed (same eos-scroll convention as the
+        {/* The tab strip overflows 390 px viewports, so it scrolls
+            horizontally when needed (same eos-scroll convention as the
             tables) instead of pushing the page wide. */}
         <TabsList aria-label="Project workspace sections" className="eos-scroll max-w-full overflow-x-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
           <TabsTrigger value="studio">Design Studio</TabsTrigger>
           <TabsTrigger value="takeoff">Takeoff</TabsTrigger>
+          <TabsTrigger value="sim">Simulation</TabsTrigger>
+          <TabsTrigger value="controls">Controls</TabsTrigger>
+          <TabsTrigger value="docs">Documents</TabsTrigger>
           <TabsTrigger value="agents">Agents</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -179,18 +220,18 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
           </section>
 
           <section aria-label="Quick actions" className="flex flex-wrap gap-3">
-            <Button className="h-10" onClick={openRegisterFromOverview}>
+            <GuardedButton className="h-10" onClick={openRegisterFromOverview}>
               <FileUp aria-hidden /> Register artifact
-            </Button>
+            </GuardedButton>
             <Button variant="outline" className="h-10" onClick={openTakeoffFromOverview}>
               <Ruler aria-hidden /> Takeoff & estimating
             </Button>
             <Button variant="outline" className="h-10" onClick={openStudioFromOverview}>
               <DraftingCompass aria-hidden /> Design studio
             </Button>
-            <Button variant="outline" className="h-10" onClick={openMemberFromOverview}>
+            <GuardedButton variant="outline" className="h-10" onClick={openMemberFromOverview} disabledReason={teamManageReason}>
               <UserPlus aria-hidden /> Add member
-            </Button>
+            </GuardedButton>
           </section>
 
           <section aria-label="Recent activity" className="flex flex-col gap-2">
@@ -230,9 +271,9 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
                 ))}
               </SelectContent>
             </Select>
-            <Button className="ml-auto h-10" onClick={() => setRegisterOpen(true)}>
+            <GuardedButton className="ml-auto h-10" onClick={() => setRegisterOpen(true)}>
               <Plus aria-hidden /> Register artifact
-            </Button>
+            </GuardedButton>
           </div>
 
           {filteredArtifacts.length === 0 && project.artifacts.length === 0 ? (
@@ -301,13 +342,33 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
         </TabsContent>
 
         {/* ---------------- Design Studio ---------------- */}
+        {/* onMutated: derive/regenerate actions refresh the project-level caches
+            (the AgentsWorkspace.onMutated pattern, Phase-6 known-limitation #13). */}
         <TabsContent value="studio" className="mt-4 flex flex-col gap-4">
-          <StudioWorkspace projectId={project.id} />
+          <StudioWorkspace projectId={project.id} onMutated={refreshAll} />
         </TabsContent>
 
         {/* ---------------- Takeoff ---------------- */}
         <TabsContent value="takeoff" className="mt-4 flex flex-col gap-4">
-          <TakeoffWorkspace projectId={project.id} />
+          <TakeoffWorkspace projectId={project.id} onMutated={refreshAll} />
+        </TabsContent>
+
+        {/* ---------------- Simulation & Verification (W1-f, Phase 5) ---------------- */}
+        {/* Same key/onMutated wiring as AgentsWorkspace: a project switch
+            remounts the workspace, and every mutation nudges the project-level
+            caches (the Phase-4 Artifacts-tab lesson, now the product standard). */}
+        <TabsContent value="sim" className="mt-4 flex flex-col gap-4">
+          <SimWorkspace key={project.id} projectId={project.id} onMutated={refreshAll} />
+        </TabsContent>
+
+        {/* ---------------- Project Controls (W1-f, Phase 5) ---------------- */}
+        <TabsContent value="controls" className="mt-4 flex flex-col gap-4">
+          <ControlsWorkspace key={project.id} projectId={project.id} onMutated={refreshAll} />
+        </TabsContent>
+
+        {/* ---------------- Documents & Deliverables (W1-f, Phase 5) ---------------- */}
+        <TabsContent value="docs" className="mt-4 flex flex-col gap-4">
+          <DocsWorkspace key={project.id} projectId={project.id} onMutated={refreshAll} />
         </TabsContent>
 
         {/* ---------------- Agents & Automations ---------------- */}
@@ -324,18 +385,19 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
         <TabsContent value="team" className="mt-4 flex flex-col gap-4">
           <Alert>
             <Info aria-hidden />
-            <AlertTitle>Local single-operator mode</AlertTitle>
+            <AlertTitle>Project roster with roles</AlertTitle>
             <AlertDescription>
-              Authentication ships in Phase 4 (see Security model) — members are a local roster with
-              roles, not logged-in identities.
+              Members are a project-scoped roster (owner / editor / viewer), not logged-in identities.
+              Sign-in shipped in Phase 6 — managing the roster requires the project owner or a global
+              admin, and the viewer role is read-only across the workspace (enforced server-side).
             </AlertDescription>
           </Alert>
 
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold tracking-tight">Members ({project.members.length})</h2>
-            <Button className="h-10" onClick={() => setMemberOpen(true)}>
+            <GuardedButton className="h-10" onClick={() => setMemberOpen(true)} disabledReason={teamManageReason}>
               <UserPlus aria-hidden /> Add member
-            </Button>
+            </GuardedButton>
           </div>
 
           {project.members.length === 0 ? (
@@ -345,6 +407,7 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
               description="Add reviewers or collaborators to the local roster."
               actionLabel="Add member"
               onAction={() => setMemberOpen(true)}
+              actionDisabledReason={teamManageReason}
             />
           ) : (
             <div className="eos-scroll overflow-x-auto rounded-lg border">

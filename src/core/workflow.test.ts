@@ -491,3 +491,111 @@ describe("WORKFLOW_TEMPLATES.modelQaPipeline", () => {
     }
   })
 })
+
+// ---------------------------------------------------------------------------
+// Phase-5 broker operations (extended-disciplines contract §4)
+// ---------------------------------------------------------------------------
+
+describe("BROKER_OPERATIONS — the five Phase-5 ops (contract §4)", () => {
+  test("the vocabulary is EXACTLY the eight contract keys in contract order", () => {
+    expect(BROKER_OPERATIONS).toEqual([
+      "derive_quantities",
+      "derive_mesh",
+      "build_report",
+      "fe_mesh",
+      "run_powerflow",
+      "run_des",
+      "convert_document",
+      "analyze_schedule",
+    ])
+  })
+
+  test("each new op parses with inputs {artifactId} and fills every default", () => {
+    for (const operation of ["fe_mesh", "run_powerflow", "run_des", "convert_document", "analyze_schedule"] as const) {
+      const parsed = parseWorkflowDefinition({
+        steps: [{ id: "step-1", operation, inputs: { artifactId: "art_model_1" } }],
+      })
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(parsed.value.steps[0].operation).toBe(operation)
+      expect(parsed.value.steps[0].inputs).toEqual({ artifactId: "art_model_1" })
+      expect(parsed.value.steps[0].parameters).toEqual({})
+      expect(parsed.value.steps[0].retry).toEqual({ maxAttempts: 1, backoffMs: 0 })
+      expect(parsed.value.steps[0].requiresApproval).toBe(false)
+      expect(parsed.value.steps[0].skipOnError).toBe(false)
+    }
+  })
+
+  test("each new op without an input artifact is refused (verbatim 422 material)", () => {
+    for (const operation of ["fe_mesh", "run_powerflow", "run_des", "convert_document", "analyze_schedule"] as const) {
+      const parsed = parseWorkflowDefinition({ steps: [{ id: "step-1", operation, inputs: {} }] })
+      expect(parsed.ok).toBe(false)
+      if (!parsed.ok) {
+        expect(parsed.error).toContain(`inputs.artifactId is required for ${operation} (exactly one input artifact)`)
+      }
+    }
+  })
+
+  test("each new op refuses the build_report input shape", () => {
+    for (const operation of ["fe_mesh", "run_powerflow", "run_des", "convert_document", "analyze_schedule"] as const) {
+      const parsed = parseWorkflowDefinition({
+        steps: [{ id: "step-1", operation, inputs: { artifactIds: ["a", "b"] } }],
+      })
+      expect(parsed.ok).toBe(false)
+      if (!parsed.ok) {
+        expect(parsed.error).toContain(`inputs.artifactId is required for ${operation}`)
+        expect(parsed.error).toContain(`inputs.artifactIds is not accepted for ${operation} — use inputs.artifactId`)
+      }
+    }
+  })
+
+  test("all five new ops compose in ONE definition (workflows can chain them)", () => {
+    const parsed = parseWorkflowDefinition({
+      steps: [
+        { id: "mesh", operation: "fe_mesh", inputs: { artifactId: "art_model_1" } },
+        { id: "powerflow", operation: "run_powerflow", inputs: { artifactId: "art_network_1" } },
+        { id: "simulate", operation: "run_des", inputs: { artifactId: "art_scenario_1" } },
+        { id: "convert", operation: "convert_document", inputs: { artifactId: "art_doc_1" } },
+        { id: "analyze", operation: "analyze_schedule", inputs: { artifactId: "art_schedule_1" } },
+      ],
+    })
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.steps.map((s) => s.operation)).toEqual([
+      "fe_mesh",
+      "run_powerflow",
+      "run_des",
+      "convert_document",
+      "analyze_schedule",
+    ])
+  })
+
+  test("fe_mesh accepts its contract parameters record (validated by the broker at run time)", () => {
+    const parsed = parseWorkflowDefinition({
+      steps: [
+        {
+          id: "mesh",
+          operation: "fe_mesh",
+          inputs: { artifactId: "art_model_1" },
+          parameters: { meshSizeMin: 2, meshSizeMax: 4, elementOrder: 1 },
+        },
+      ],
+    })
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.steps[0].parameters).toEqual({ meshSizeMin: 2, meshSizeMax: 4, elementOrder: 1 })
+  })
+
+  test("an unknown operation is still refused with the GROWN vocabulary", () => {
+    const parsed = parseWorkflowDefinition({
+      steps: [{ id: "step-1", operation: "run_cfd", inputs: { artifactId: "art_1" } }],
+    })
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) return
+    // v4 note: the explicit enum message fully replaces the default
+    // "invalid_option" text, so the refusal is exactly the vocabulary line.
+    expect(parsed.error).toContain(
+      `operation must be one of: ${BROKER_OPERATIONS.join(", ")}`,
+    )
+  })
+})

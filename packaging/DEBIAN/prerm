@@ -1,0 +1,31 @@
+#!/bin/bash
+# prerm — stop + disable the Engineering OS service (and sweep timer) before
+# files are removed or replaced by a newer version.
+#
+# Phase-6 packaging (contract §2). Guarded for hosts without a running
+# systemd (containers, CI runners): the package must never fail merely
+# because systemd is absent.
+set -e
+
+case "$1" in
+  remove|upgrade|deconfigure|failed-upgrade)
+    # Same guard as postinst: systemctl binary may exist without systemd
+    # running (GitHub Actions runners); /run/systemd/system is the honest
+    # "systemd is PID 1" marker.
+    if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+      systemctl stop eos.service >/dev/null 2>&1 || true
+      systemctl disable eos.service >/dev/null 2>&1 || true
+      systemctl stop eos-orphan-sweep.timer >/dev/null 2>&1 || true
+      systemctl disable eos-orphan-sweep.timer >/dev/null 2>&1 || true
+      echo "prerm: eos.service and eos-orphan-sweep.timer stopped + disabled"
+    else
+      echo "prerm: systemd is not running — nothing to stop/disable" >&2
+    fi
+    ;;
+
+  *)
+    echo "prerm: unhandled action '$1' — doing nothing (safe default)" >&2
+    ;;
+esac
+
+exit 0

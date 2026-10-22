@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { apiJson, useApi, type AuditEventRow, type ProjectSummary, type StatusData } from "@/components/product/api";
 import { DisciplineBadge } from "@/components/product/badges";
 import { EventFeed } from "@/components/product/event-feed";
+import { GuardedButton } from "@/components/product/guarded-button";
 import { EmptyState, ErrorState, StatCard } from "@/components/product/parts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -167,9 +168,9 @@ export default function ProjectHome() {
             Projects, artifact counts and audit activity across your local workspace.
           </p>
         </div>
-        <Button className="h-10" onClick={() => setDialogOpen(true)}>
+        <GuardedButton className="h-10" onClick={() => setDialogOpen(true)}>
           <Plus aria-hidden /> New project
-        </Button>
+        </GuardedButton>
       </header>
 
       <section aria-label="Workspace statistics" className="grid grid-cols-2 gap-4 lg:grid-cols-4">

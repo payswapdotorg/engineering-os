@@ -1,0 +1,121 @@
+#!/bin/bash
+# postinst — configure Engineering OS after unpacking.
+#
+# Phase-6 packaging (contract docs/00-architecture/phase-6-hardening-contract.md §2).
+# Idempotent by construction; SAFE on upgrade: operator data is never touched.
+#   1. create system user/group `eos` if missing
+#   2. create /var/lib/engineering-os owned by eos
+#   3. copy the bundled seed DB to /var/lib/engineering-os/custom.db ONLY if
+#      absent (first install — upgrades never overwrite operator data)
+#   4. generate /etc/eos/eos.env ONLY if absent (NEXTAUTH_SECRET randomized)
+#   5. systemd: daemon-reload + enable --now (guarded for non-systemd hosts)
+set -e
+
+OPT=/opt/engineering-os
+DATA=/var/lib/engineering-os
+ETC=/etc/eos
+USER=eos
+GROUP=eos
+SEED="$OPT/share/engineering-os-seed.db"
+
+case "$1" in
+  configure)
+    # --- 1) system user + group (idempotent) -------------------------------
+    if ! getent passwd "$USER" >/dev/null; then
+      useradd --system --home "$DATA" --shell /usr/sbin/nologin "$USER"
+      echo "postinst: created system user $USER (home $DATA, shell /usr/sbin/nologin)"
+    fi
+    if ! getent group "$GROUP" >/dev/null; then
+      groupadd --system "$GROUP"
+    fi
+
+    # --- 2) data home owned by eos ------------------------------------------
+    mkdir -p "$DATA"
+    chown "$USER:$GROUP" "$DATA"
+    chmod 0750 "$DATA"
+
+    # --- 3) seed DB — FIRST INSTALL ONLY -------------------------------------
+    if [ ! -e "$DATA/custom.db" ]; then
+      if [ -f "$SEED" ]; then
+        cp "$SEED" "$DATA/custom.db"
+        chown "$USER:$GROUP" "$DATA/custom.db"
+        chmod 0640 "$DATA/custom.db"
+        echo "postinst: seeded fresh database schema at $DATA/custom.db (first install only — upgrades never touch it)"
+      else
+        echo "postinst: WARNING: bundled seed DB $SEED missing — $DATA/custom.db left absent" >&2
+      fi
+    else
+      echo "postinst: $DATA/custom.db already present — kept as-is (operator data is never overwritten)"
+    fi
+
+    # --- 4) env file — FIRST INSTALL ONLY ------------------------------------
+    if [ ! -e "$ETC/eos.env" ]; then
+      mkdir -p "$ETC"
+      # NEXTAUTH_SECRET: openssl when available, /dev/urandom|base64 fallback.
+      SECRET=""
+      if command -v openssl >/dev/null 2>&1; then
+        SECRET="$(openssl rand -base64 32)" || SECRET=""
+      fi
+      if [ -z "$SECRET" ]; then
+        SECRET="$(head -c 32 /dev/urandom | base64)" || SECRET=""
+      fi
+      if [ -z "$SECRET" ]; then
+        echo "postinst: cannot generate NEXTAUTH_SECRET (no openssl, /dev/urandom unreadable)" >&2
+        exit 1
+      fi
+      cat > "$ETC/eos.env" <<EOF
+# Engineering OS runtime environment — generated at package install (edit freely).
+# Loaded by systemd (EnvironmentFile= in eos.service / eos-orphan-sweep.service).
+# Apply changes with:  systemctl restart eos
+# Every key is explained in /opt/engineering-os/eos.env.example.
+# NOTE: values are raw (no quotes) — systemd reads them literally.
+
+DATABASE_URL=file:$DATA/custom.db
+NEXTAUTH_SECRET=$SECRET
+NEXTAUTH_URL=http://localhost:3000
+EOS_PYTHON=python3
+EOS_STORAGE_ROOT=$DATA/artifacts
+
+# Scheduled orphan sweep (eos-orphan-sweep.timer) — the sweep calls the ADMIN
+# storage APIs, which require a signed-in admin-role session. Until an admin
+# service account is configured below, the sweep logs a skip note and exits 0.
+# Create the account in the product UI, then uncomment BOTH lines and restart:
+#   systemctl restart eos && systemctl restart eos-orphan-sweep.timer
+# EOS_SWEEP_EMAIL=sweep@eos.local
+# EOS_SWEEP_PASSWORD=change-me-raw-password-no-quotes
+EOF
+      chown root:"$GROUP" "$ETC/eos.env"
+      chmod 0640 "$ETC/eos.env"
+      echo "postinst: generated $ETC/eos.env with a randomized NEXTAUTH_SECRET (perms 0640 root:$GROUP)"
+    else
+      echo "postinst: $ETC/eos.env already present — kept as-is (operator config is never overwritten)"
+    fi
+
+    # --- 5) systemd (guarded) -------------------------------------------------
+    # Guard note (recorded in the worklog): `command -v systemctl` alone is NOT
+    # sufficient — CI runners and containers ship the systemctl BINARY without
+    # a running systemd, and daemon-reload would fail there and break install.
+    # /run/systemd/system exists only when systemd is actually PID 1.
+    if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+      systemctl daemon-reload
+      systemctl enable --now eos.service
+      systemctl enable --now eos-orphan-sweep.timer
+      echo "postinst: eos.service + eos-orphan-sweep.timer enabled and started"
+    else
+      echo "postinst: systemd is not running on this host — service/timer NOT enabled." >&2
+      echo "postinst: start manually with:  /usr/bin/node $OPT/server.js" >&2
+    fi
+
+    echo "postinst: Engineering OS configured — first run: open http://localhost:3000 and create the admin account on the setup screen"
+    ;;
+
+  abort-upgrade|abort-deconfigure|abort-remove)
+    # Nothing to roll back — this script performs no destructive actions.
+    ;;
+
+  *)
+    echo "postinst: unhandled action '$1' — doing nothing (safe default)" >&2
+    ;;
+esac
+
+exit 0

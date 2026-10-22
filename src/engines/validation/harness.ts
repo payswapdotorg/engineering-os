@@ -26,6 +26,36 @@
  *     pinned `errorContains` substring.
  *   - If python / an engine is unavailable, every affected case is reported as
  *     `skip` with the honest reason (never faked); an all-skip run is NOT RUN.
+ *
+ * W2-f (Phase 5, contract §7) — the harness now also drives the four
+ * disciplines engines + the platform CPM core over the SAME manifest:
+ *   - `femesh` cases run the REAL gmsh bridge (`feMeshFromFile` in
+ *     src/engines/adapters/femesh.ts → `step_femesh.py`, system-library
+ *     bootstrap via LD_LIBRARY_PATH) with pinned node/tet counts, per-solid
+ *     divergence-theorem mesh volumes vs closed forms (planar exact at
+ *     rel ≤ 1e-12, the bracket's curved holes at the pinned 2%), quality
+ *     range checks, and byte-deterministic eos-femesh/1 document double-runs.
+ *   - `powerflow` cases run the REAL pandapower bridge (`runPowerflowFromFile`
+ *     → `powerflow.py`) — the 2-bus lossless closed form V₂ =
+ *     √((1+√(1−4p²x²))/2) pinned at rel ≤ 1e-6, loss ≈ 0 at 1e-9, plus the
+ *     islanded honest-refusal probe.
+ *   - `des` cases run the REAL SimPy bridge (`runDesFromFile` → `des.py`) — the
+ *     makespan-13 flow-shop hand trace with pinned busy/utilization and
+ *     byte-deterministic eos-des/1 double-runs.
+ *   - `cpm` cases drive the EXACT pure pipeline the `analyze_schedule` broker
+ *     core runs (`validateScheduleDocument` → `analyzeCpm` →
+ *     `buildCpmAnalysisDocument` from src/engines/broker.ts + src/core/cpm.ts,
+ *     all pure) — the DB-backed op path stays with the routes/e2e; the case
+ *     notes record that routing honestly. Engine identity is asserted ABSENT.
+ *   - `libreoffice` cases run the REAL conversion bridge
+ *     (`convertDocumentToFile` → headless soffice) ONCE with structural pins
+ *     (%PDF magic, size floor) — byte-determinism is NOT claimed for PDFs
+ *     (contract §5.4: creation timestamps are embedded) and is honestly
+ *     reported as null. Skips on EOS_LIBREOFFICE=/nonexistent.
+ *   - Determinism pins for femesh/powerflow/des compare the BYTE-IDENTICAL
+ *     §2 documents the broker would store (buildFeMeshDocument /
+ *     buildPowerflowDocument / buildDesDocument), not the subprocess streams
+ *     (gmsh/LO chatter on stderr carries timing lines — evidence, not payload).
  */
 
 import { spawnSync } from "node:child_process"
@@ -33,6 +63,7 @@ import { existsSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { analyzeCpm } from "@/core/cpm"
 import {
   deriveFromFile,
   EngineUnavailableError,
@@ -40,14 +71,28 @@ import {
   type DeriveResult,
 } from "../adapters/quantities"
 import { tessellateFromFile, type MeshElement, type MeshResult } from "../adapters/mesh"
+import { defaultFeMeshParameters, femeshLdLibraryPath, feMeshFromFile, validateFeMeshParameters, type FeMeshParameters, type FeMeshResult } from "../adapters/femesh"
+import { runPowerflowFromFile, type PowerflowResult } from "../adapters/powerflow"
+import { runDesFromFile, type DesResult } from "../adapters/des"
+import { convertDocumentToFile, type ConversionResult } from "../adapters/convert-document"
+import {
+  buildCpmAnalysisDocument,
+  buildDesDocument,
+  buildFeMeshDocument,
+  buildPowerflowDocument,
+  validateScheduleDocument,
+} from "../broker"
 
 // ---------------------------------------------------------------------------
 // Corpus manifest types (shape pinned in worklog.md "Contract A — W2-c")
 // ---------------------------------------------------------------------------
 
-export type AdapterKind = "ifc" | "step"
+export type AdapterKind = "ifc" | "step" | "femesh" | "powerflow" | "des" | "cpm" | "libreoffice"
 export type ToleranceKind = "exact" | "analytic" | "mesh"
 export type QuantityType = DerivedQuantity["quantityType"]
+
+/** The Phase-5 discipline case kinds (W2-f — one shared pin schema). */
+export type DisciplineAdapter = "femesh" | "powerflow" | "des" | "cpm" | "libreoffice"
 
 export interface GroundTruthEntry {
   elementRef: string
@@ -70,6 +115,52 @@ export interface CorpusCase {
    * vertex/triangle counts, payload invariants, divergence-theorem mesh
    * volumes vs closed forms, or an honest error probe. */
   mesh?: MeshExpectation
+  /** W2-f (Phase 5): the per-adapter expectation block for the discipline
+   * kinds — `femesh` for adapter "femesh", `powerflow` for "powerflow",
+   * `des` for "des", `cpm` for "cpm", `libreoffice` for "libreoffice"
+   * (exactly one block per case, validated in parseManifest). */
+  femesh?: DisciplineExpectation
+  powerflow?: DisciplineExpectation
+  des?: DisciplineExpectation
+  cpm?: DisciplineExpectation
+  libreoffice?: DisciplineExpectation
+}
+
+// ---------------------------------------------------------------------------
+// Discipline expectations (W2-f — contract §7; one shared pin schema for the
+// femesh/powerflow/des/cpm/libreoffice case kinds)
+// ---------------------------------------------------------------------------
+
+/** One pinned expectation: locate a value in the adapter result by `field`
+ * (plus `ref` for per-bus/per-solid/per-resource/per-job/per-activity rows)
+ * and compare it against the hand-derived `value`. */
+export interface DisciplinePin {
+  /** row locator: bus id / "from>to" line key / solid ref / resource id / job id / activity id; null for scalars */
+  ref: string | null
+  /** the observed-value field name on the result payload (see resolveDisciplineObserved) */
+  field: string
+  value: number | string | boolean | (string | number)[]
+  unit?: string
+  /** numeric: |obs − exp| ≤ relTolerance·|exp| */
+  relTolerance?: number
+  /** numeric: |obs − exp| ≤ absTolerance */
+  absTolerance?: number
+  /** numeric: observed ≥ value (structural lower bound, e.g. the PDF size floor) */
+  minBound?: boolean
+  derivation: string
+}
+
+export interface DisciplineExpectation {
+  expect: "success" | "error"
+  errorContains?: string
+  /** femesh only: the broker-style model-kind detection input (default "step") */
+  kind?: "step" | "ifc"
+  /** femesh only: mesh parameters override (defaults per contract §4) */
+  parameters?: { meshSizeMin: number; meshSizeMax: number; elementOrder: number }
+  /** success cases only: the pinned expectation set (every entry carries a derivation) */
+  pins?: DisciplinePin[]
+  /** honest routing/limitation note, rendered into the case notes */
+  note?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +236,43 @@ export interface CaseResult {
   problems: string[]
   /** W2-d: tessellation sub-result for cases carrying mesh expectations */
   mesh?: MeshCaseResult
+  /** W2-f: disciplines sub-result for the Phase-5 case kinds */
+  discipline?: DisciplineCaseResult
+}
+
+// ---------------------------------------------------------------------------
+// Discipline case results (W2-f — the shared shape for femesh / powerflow /
+// des / cpm / libreoffice sub-expectations)
+// ---------------------------------------------------------------------------
+
+export interface DisciplineComparison {
+  /** the manifest pin's field name ("nodes", "meshVolume", "vmPu", "makespan", "criticalPath", …) */
+  field: string
+  ref: string | null
+  expected: number | string | boolean | (string | number)[] | null
+  observed: number | string | boolean | (string | number)[] | null
+  unit: string | null
+  /** "rel:<n>" | "abs:<n>" | "min" | "exact" | "structural" */
+  bound: string | null
+  absDiff: number | null
+  observedRelError: number | null
+  ok: boolean
+  problem: "matched" | "missing" | "value" | "type"
+  derivation: string | null
+}
+
+export interface DisciplineCaseResult {
+  adapter: DisciplineAdapter
+  expect: "success" | "error"
+  status: "pass" | "fail"
+  /** engine provenance — null for the cpm platform core (the honest record) */
+  engine?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string } | null
+  errorObserved?: string
+  errorContains?: string
+  /** true iff the two real runs' stored-document bytes are identical; null when byte-determinism is NOT claimed (libreoffice) or n/a (error cases) */
+  determinism: boolean | null
+  comparisons: DisciplineComparison[]
+  problems: string[]
 }
 
 export interface MeshComparison {
@@ -211,20 +339,65 @@ const FIXTURES_DIR = path.join(REPO_ROOT, "tests", "fixtures")
 /** Interpreter hosting the real engines (same override the bridge honours). */
 const PYTHON_BIN = process.env.EOS_PYTHON ?? "/home/z/.venv/bin/python3"
 
-const ENGINE_MODULES: Record<AdapterKind, string> = { step: "cadquery", ifc: "ifcopenshell" }
+/** The LibreOffice binary (same override the conversion bridge honours). */
+const LIBREOFFICE_BIN = process.env.EOS_LIBREOFFICE ?? "/usr/bin/libreoffice"
+
+/** Python engines per adapter kind (cpm/libreoffice are probed differently). */
+const PYTHON_ENGINE_MODULES: Record<"step" | "ifc" | "femesh" | "powerflow" | "des", string> = {
+  step: "cadquery",
+  ifc: "ifcopenshell",
+  femesh: "gmsh",
+  powerflow: "pandapower",
+  des: "simpy",
+}
+
+/** Human labels for the availability line in the evidence doc. */
+export const ADAPTER_LABELS: Record<AdapterKind, string> = {
+  step: "cadquery (STEP quantities)",
+  ifc: "ifcopenshell (IFC quantities)",
+  femesh: "gmsh (FE mesh)",
+  powerflow: "pandapower (power flow)",
+  des: "simpy (discrete-event)",
+  cpm: "platform CPM core (no engine)",
+  libreoffice: "libreoffice (document conversion)",
+}
 
 /**
  * Real-availability probe (no mocks): is the engine importable in the venv the
- * bridge spawns? Mirrors the pattern proven in quantities.test.ts.
+ * bridge spawns? Mirrors the pattern proven in quantities.test.ts. W2-f:
+ *   - gmsh needs its system libraries, so the femesh probe runs with the SAME
+ *     LD_LIBRARY_PATH construction the bridge injects (`femeshLdLibraryPath`)
+ *     — the probe answer can never disagree with the spawn.
+ *   - the cpm platform core has NO engine — always available, honestly.
+ *   - libreoffice is probed via `--version` (EOS_LIBREOFFICE-overridable, so
+ *     EOS_LIBREOFFICE=/nonexistent yields honest skips for its cases).
  */
 export function probeEngine(kind: AdapterKind): { available: boolean; reason?: string } {
-  const mod = ENGINE_MODULES[kind]
-  const res = spawnSync(PYTHON_BIN, ["-c", `import ${mod}`], { timeout: 60_000 })
+  if (kind === "cpm") {
+    return { available: true } // pure platform core — no engine to probe (contract §6)
+  }
+  if (kind === "libreoffice") {
+    const res = spawnSync(LIBREOFFICE_BIN, ["--version"], { timeout: 60_000 })
+    if (res.error) {
+      return { available: false, reason: `libreoffice is not runnable at ${LIBREOFFICE_BIN} (${res.error.message})` }
+    }
+    if (res.status !== 0) {
+      return { available: false, reason: `libreoffice --version exited with code ${res.status} at ${LIBREOFFICE_BIN}` }
+    }
+    return { available: true }
+  }
+  const mod = PYTHON_ENGINE_MODULES[kind]
+  const probeEnv =
+    kind === "femesh"
+      ? { ...process.env, LD_LIBRARY_PATH: femeshLdLibraryPath(process.env.LD_LIBRARY_PATH) }
+      : undefined
+  const res = spawnSync(PYTHON_BIN, ["-c", `import ${mod}`], { timeout: 60_000, env: probeEnv })
   if (res.error) {
     return { available: false, reason: `python interpreter not runnable at ${PYTHON_BIN} (${res.error.message})` }
   }
   if (res.status !== 0) {
-    return { available: false, reason: `${mod} is not importable in ${PYTHON_BIN} (exit code ${res.status})` }
+    const libs = kind === "femesh" ? " — missing system libs? run scripts/setup-engine-libs.sh" : ""
+    return { available: false, reason: `${mod} is not importable in ${PYTHON_BIN} (exit code ${res.status})${libs}` }
   }
   return { available: true }
 }
@@ -354,6 +527,132 @@ function parseMeshExpectation(caseId: string, meshRaw: unknown): MeshExpectation
   return mesh
 }
 
+/** W2-f: strict validation of a Phase-5 discipline expectation block. */
+function parseDisciplineExpectation(
+  caseId: string,
+  blockName: string,
+  raw: unknown,
+): DisciplineExpectation {
+  if (!isPlainObject(raw)) {
+    throw new Error(`manifest case ${caseId}: the ${blockName} block must be an object`)
+  }
+  const { expect, errorContains, kind, parameters, pins, note } = raw
+  if (expect !== "success" && expect !== "error") {
+    throw new Error(`manifest case ${caseId}: ${blockName}.expect must be "success"|"error"`)
+  }
+  const block: DisciplineExpectation = { expect }
+  if (note !== undefined && (typeof note !== "string" || note.length === 0)) {
+    throw new Error(`manifest case ${caseId}: ${blockName}.note must be a non-empty string when provided`)
+  }
+  if (typeof note === "string") block.note = note
+  if (expect === "error") {
+    if (typeof errorContains !== "string" || errorContains.length === 0) {
+      throw new Error(`manifest case ${caseId}: ${blockName} error cases must pin errorContains`)
+    }
+    block.errorContains = errorContains
+    // error cases may pin the model kind too (e.g. the femesh IFC refusal is
+    // reached by handing the bridge kind "ifc" — without this the case would
+    // run as "step" and never exercise the refusal)
+    if (kind !== undefined) {
+      if (kind !== "step" && kind !== "ifc") {
+        throw new Error(`manifest case ${caseId}: ${blockName}.kind must be "step"|"ifc" (got ${JSON.stringify(kind)})`)
+      }
+      block.kind = kind
+    }
+    return block
+  }
+  if (kind !== undefined && kind !== "step" && kind !== "ifc") {
+    throw new Error(`manifest case ${caseId}: ${blockName}.kind must be "step"|"ifc" (got ${JSON.stringify(kind)})`)
+  }
+  if (kind !== undefined) block.kind = kind
+  if (parameters !== undefined) {
+    if (!isPlainObject(parameters)) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.parameters must be an object`)
+    }
+    const { meshSizeMin, meshSizeMax, elementOrder } = parameters
+    if (typeof meshSizeMin !== "number" || !(meshSizeMin > 0)) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.parameters.meshSizeMin must be a positive number`)
+    }
+    if (typeof meshSizeMax !== "number" || !(meshSizeMax > 0)) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.parameters.meshSizeMax must be a positive number`)
+    }
+    if (elementOrder !== 1) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.parameters.elementOrder must be 1 (linear tets only this phase)`)
+    }
+    block.parameters = { meshSizeMin, meshSizeMax, elementOrder: 1 }
+  }
+  if (!Array.isArray(pins) || pins.length === 0) {
+    throw new Error(
+      `manifest case ${caseId}: ${blockName} success cases must pin a non-empty pins array (structural pins included)`,
+    )
+  }
+  block.pins = pins.map((p: unknown, j: number) => {
+    if (!isPlainObject(p)) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.pins[${j}] is not an object`)
+    }
+    const { ref, field, value, unit, relTolerance, absTolerance, minBound, derivation } = p
+    if (ref !== null && (typeof ref !== "string" || ref.length === 0)) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.pins[${j}].ref must be a non-empty string or null`)
+    }
+    if (typeof field !== "string" || field.length === 0) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.pins[${j}] has no field`)
+    }
+    const isNumber = typeof value === "number" && Number.isFinite(value)
+    const isString = typeof value === "string"
+    const isBool = typeof value === "boolean"
+    const isArray =
+      Array.isArray(value) && value.length > 0 && value.every((x) => typeof x === "string" || typeof x === "number")
+    if (!isNumber && !isString && !isBool && !isArray) {
+      throw new Error(
+        `manifest case ${caseId}: ${blockName}.pins[${j}].value must be a finite number, string, boolean or a non-empty (string|number)[]`,
+      )
+    }
+    if (isNumber || isArray) {
+      // numeric pins need an explicit bound (relTolerance | absTolerance | minBound;
+      // a missing bound means bitwise-exact, which is also explicit via abs 0)
+      if (
+        relTolerance !== undefined &&
+        (typeof relTolerance !== "number" || !(relTolerance > 0))
+      ) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.pins[${j}].relTolerance must be a positive number`)
+      }
+      if (
+        absTolerance !== undefined &&
+        (typeof absTolerance !== "number" || !(absTolerance >= 0))
+      ) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.pins[${j}].absTolerance must be a number ≥ 0`)
+      }
+      if (minBound !== undefined && minBound !== true) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.pins[${j}].minBound must be true when provided`)
+      }
+      if (minBound === true && (relTolerance !== undefined || absTolerance !== undefined)) {
+        throw new Error(
+          `manifest case ${caseId}: ${blockName}.pins[${j}] cannot combine minBound with relTolerance/absTolerance`,
+        )
+      }
+    } else if (relTolerance !== undefined || absTolerance !== undefined || minBound !== undefined) {
+      throw new Error(
+        `manifest case ${caseId}: ${blockName}.pins[${j}] string/boolean pins are compared exactly — no tolerance keys allowed`,
+      )
+    }
+    if (unit !== undefined && (typeof unit !== "string" || unit.length === 0)) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.pins[${j}].unit must be a non-empty string when provided`)
+    }
+    if (typeof derivation !== "string" || derivation.length === 0) {
+      throw new Error(
+        `manifest case ${caseId}: ${blockName}.pins[${j}] must carry a hand-derived audit string (the closed form or the live-observed pin provenance)`,
+      )
+    }
+    const pin: DisciplinePin = { ref: ref === null ? null : (ref as string), field, value, derivation }
+    if (typeof unit === "string") pin.unit = unit
+    if (typeof relTolerance === "number") pin.relTolerance = relTolerance
+    if (typeof absTolerance === "number") pin.absTolerance = absTolerance
+    if (minBound === true) pin.minBound = true
+    return pin
+  })
+  return block
+}
+
 function parseManifest(raw: unknown): CorpusCase[] {
   if (!Array.isArray(raw) || raw.length === 0) {
     throw new Error(`corpus manifest must be a non-empty JSON array (got ${typeof raw})`)
@@ -365,7 +664,8 @@ function parseManifest(raw: unknown): CorpusCase[] {
     if (!isPlainObject(c)) {
       throw new Error(`manifest case [${i}] is not an object`)
     }
-    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh } = c
+    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, cpm, libreoffice } =
+      c
     if (typeof caseId !== "string" || caseId.length === 0) {
       throw new Error(`manifest case [${i}] has no caseId`)
     }
@@ -373,8 +673,13 @@ function parseManifest(raw: unknown): CorpusCase[] {
       throw new Error(`manifest caseId ${caseId} is not unique`)
     }
     seen.add(caseId)
-    if (adapter !== "step" && adapter !== "ifc") {
-      throw new Error(`manifest case ${caseId}: adapter must be "step"|"ifc" (got ${JSON.stringify(adapter)})`)
+    const isModelAdapter = adapter === "step" || adapter === "ifc"
+    const isDisciplineAdapter =
+      adapter === "femesh" || adapter === "powerflow" || adapter === "des" || adapter === "cpm" || adapter === "libreoffice"
+    if (!isModelAdapter && !isDisciplineAdapter) {
+      throw new Error(
+        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"cpm"|"libreoffice" (got ${JSON.stringify(adapter)})`,
+      )
     }
     if (typeof fixture !== "string" || fixture.length === 0) {
       throw new Error(`manifest case ${caseId}: fixture must be a file name under tests/fixtures/`)
@@ -386,6 +691,27 @@ function parseManifest(raw: unknown): CorpusCase[] {
       throw new Error(`manifest case ${caseId}: expect must be "success"|"error"`)
     }
     const parsed: CorpusCase = { caseId, adapter, fixture, expect }
+    if (isDisciplineAdapter) {
+      // W2-f: exactly ONE per-adapter block, named after the adapter kind
+      const blockName = adapter as DisciplineAdapter
+      const blockRaw = c[blockName]
+      if (blockRaw === undefined) {
+        throw new Error(`manifest case ${caseId}: adapter "${adapter}" requires a "${blockName}" expectation block`)
+      }
+      parsed[blockName] = parseDisciplineExpectation(caseId, blockName, blockRaw)
+      // the case-level expectation must agree with the block
+      if ((parsed[blockName] as DisciplineExpectation).expect !== expect) {
+        throw new Error(
+          `manifest case ${caseId}: expect ${JSON.stringify(expect)} disagrees with the ${blockName} block's expect`,
+        )
+      }
+      if (expect === "error") {
+        // error cases pin the substring in the block; the case-level key mirrors it
+        parsed.errorContains = (parsed[blockName] as DisciplineExpectation).errorContains
+      }
+      cases.push(parsed)
+      continue
+    }
     if (expect === "error") {
       if (typeof errorContains !== "string" || errorContains.length === 0) {
         throw new Error(`manifest case ${caseId}: error cases must pin errorContains`)
@@ -737,6 +1063,17 @@ async function runMeshChecks(
     problems: [],
   }
 
+  if (c.adapter !== "step" && c.adapter !== "ifc") {
+    // mesh expectations ride the step/ifc quantity cases only (see the guard
+    // on the success branch below) — refuse a mis-wired discipline case
+    // honestly instead of coercing the kind.
+    r.problems.push(
+      `mesh expectations are only defined for step/ifc cases (got adapter "${c.adapter}" — harness wiring bug)`,
+    )
+    r.status = "fail"
+    return r
+  }
+
   if (m.expect === "error") {
     let caught: unknown
     try {
@@ -766,6 +1103,17 @@ async function runMeshChecks(
   }
 
   // expect === "success": run the REAL tessellation bridge TWICE (byte-determinism).
+  // Mesh expectations ride the step/ifc quantity cases only — a discipline
+  // case reaching this runner would be a manifest/harness wiring bug: refuse
+  // honestly instead of coercing the kind (the guard also satisfies the type
+  // narrowing; runtime truth beats a cast).
+  if (c.adapter !== "step" && c.adapter !== "ifc") {
+    r.problems.push(
+      `mesh expectations are only defined for step/ifc cases (got adapter "${c.adapter}" — harness wiring bug, refusing to run the tessellator)`,
+    )
+    r.status = "fail"
+    return r
+  }
   let first: MeshResult
   let second: MeshResult
   try {
@@ -998,6 +1346,427 @@ async function runMeshChecks(
 }
 
 // ---------------------------------------------------------------------------
+// Discipline checks (W2-f — the femesh/powerflow/des/cpm/libreoffice case
+// kinds; REAL bridges only, hand-derived pins, document-byte determinism)
+// ---------------------------------------------------------------------------
+
+/** Resolve a pin's observed value on a femesh result (structural computed
+ * fields included — they are pinned in the manifest like any other value). */
+function femeshObserved(r: FeMeshResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "nodes":
+      return r.nodes.count
+    case "elements":
+      return r.elements.count
+    case "elementType":
+      return r.elements.type
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "qualityRangeOk":
+      return (
+        r.quality.min > 0 &&
+        r.quality.min <= 1 &&
+        r.quality.mean > 0 &&
+        r.quality.mean <= 1 &&
+        r.quality.min <= r.quality.mean
+      )
+    case "solidRefOrderOk":
+      return r.solids.every((s, i) => s.ref === `step:solid:${i}`)
+    case "tetSumOk":
+      return r.solids.reduce((n, s) => n + s.tetCount, 0) === r.elements.count
+    default: {
+      const solid = pin.ref === null ? undefined : r.solids.find((s) => s.ref === pin.ref)
+      if (solid === undefined) return undefined
+      if (pin.field === "tetCount") return solid.tetCount
+      if (pin.field === "meshVolume") return solid.meshVolume
+      if (pin.field === "name") return solid.name ?? null
+      return undefined
+    }
+  }
+}
+
+function powerflowObserved(r: PowerflowResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "converged":
+      return r.converged
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "lossMw":
+      return r.totals.lossMw
+    case "loadMw":
+      return r.totals.loadMw
+    case "busCount":
+      return r.buses.length
+    case "lineCount":
+      return r.lines.length
+    default:
+      break
+  }
+  if (pin.ref === null) return undefined
+  if (pin.ref.includes(">")) {
+    const [from, to] = pin.ref.split(">")
+    const line = r.lines.find((l) => l.fromBus === from && l.toBus === to)
+    if (line === undefined) return undefined
+    if (pin.field === "iKa") return line.iKa
+    if (pin.field === "pLossMw") return line.pLossMw
+    if (pin.field === "qLossMvar") return line.qLossMvar
+    return undefined
+  }
+  const bus = r.buses.find((b) => b.id === pin.ref)
+  if (bus === undefined) return undefined
+  const busRecord = bus as unknown as Record<string, unknown>
+  return pin.field === "id" ? bus.id : busRecord[pin.field]
+}
+
+function desObserved(r: DesResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "policy":
+      return r.policy
+    case "makespan":
+      return r.makespan
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "resourceCount":
+      return r.resources.length
+    case "jobCount":
+      return r.jobs.length
+    case "utilizationInvariantOk":
+      return r.resources.every((res) => res.utilization === res.busy / r.makespan)
+    default:
+      break
+  }
+  if (pin.ref === null) return undefined
+  const resource = r.resources.find((x) => x.id === pin.ref)
+  if (resource !== undefined) {
+    if (pin.field === "busy") return resource.busy
+    if (pin.field === "utilization") return resource.utilization
+  }
+  const job = r.jobs.find((x) => x.id === pin.ref)
+  if (job !== undefined) {
+    if (pin.field === "startAt") return job.startAt
+    if (pin.field === "endAt") return job.endAt
+  }
+  return undefined
+}
+
+function libreOfficeObserved(r: ConversionResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "pdfMagic":
+      return r.pdfBytes.subarray(0, 5).toString("latin1")
+    case "sizeBytes":
+      return r.pdfBytes.byteLength
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "adapterScript":
+      return r.adapterScript
+    default:
+      return undefined
+  }
+}
+
+/** Compare one pin's observed value against its hand-derived expectation. */
+function compareDisciplinePin(pin: DisciplinePin, observed: unknown): DisciplineComparison {
+  const row: DisciplineComparison = {
+    field: pin.field,
+    ref: pin.ref,
+    expected: pin.value,
+    observed: observed === undefined ? null : (observed as number | string | boolean | (string | number)[]),
+    unit: pin.unit ?? null,
+    bound: null,
+    absDiff: null,
+    observedRelError: null,
+    ok: false,
+    problem: "value",
+    derivation: pin.derivation,
+  }
+  if (observed === undefined) {
+    row.problem = "missing"
+    return row
+  }
+  if (typeof pin.value === "number") {
+    if (typeof observed !== "number" || !Number.isFinite(observed)) {
+      row.problem = "type"
+      return row
+    }
+    row.absDiff = Math.abs(observed - pin.value)
+    if (pin.minBound === true) {
+      row.bound = "min"
+      row.ok = observed >= pin.value
+      return row
+    }
+    if (pin.relTolerance !== undefined) {
+      row.bound = `rel:${pin.relTolerance}`
+      row.observedRelError = row.absDiff / Math.abs(pin.value)
+      row.ok = row.absDiff <= pin.relTolerance * Math.abs(pin.value)
+      return row
+    }
+    const bound = pin.absTolerance ?? 0
+    row.bound = `abs:${bound}`
+    row.observedRelError = row.absDiff / Math.abs(pin.value)
+    row.ok = row.absDiff <= bound
+    return row
+  }
+  if (typeof pin.value === "boolean" || typeof pin.value === "string") {
+    row.bound = "structural"
+    row.ok = observed === pin.value
+    return row
+  }
+  // array pins (e.g. a critical path): JSON deep equality, rendered as text
+  row.bound = "structural"
+  row.ok = JSON.stringify(observed) === JSON.stringify(pin.value)
+  return row
+}
+
+function pushDisciplineProblems(r: DisciplineCaseResult): void {
+  for (const cmp of r.comparisons) {
+    if (cmp.ok) continue
+    if (cmp.problem === "missing") {
+      r.problems.push(
+        `pin ${cmp.ref === null ? "" : `${cmp.ref} `}${cmp.field}: no observed value at that location (expected ${JSON.stringify(cmp.expected)}) — ${cmp.derivation}`,
+      )
+    } else if (cmp.problem === "type") {
+      r.problems.push(
+        `pin ${cmp.ref === null ? "" : `${cmp.ref} `}${cmp.field}: observed ${JSON.stringify(cmp.observed)} is not comparable to the pinned ${JSON.stringify(cmp.expected)}`,
+      )
+    } else {
+      r.problems.push(
+        `pin ${cmp.ref === null ? "" : `${cmp.ref} `}${cmp.field} observed ${JSON.stringify(cmp.observed)} ≠ pinned ${JSON.stringify(cmp.expected)}${cmp.absDiff !== null ? ` (|Δ| ${cmp.absDiff}, rel ${cmp.observedRelError?.toExponential(3)})` : ""}${cmp.bound !== null ? ` [bound ${cmp.bound}]` : ""} — ${cmp.derivation}`,
+      )
+    }
+  }
+}
+
+/** Run the discipline sub-expectation of one corpus case against the REAL bridge. */
+async function runDisciplineChecks(
+  c: CorpusCase,
+  fixturePath: string,
+  report: Pick<HarnessReport, "engineVersions" | "adapterHashes">,
+): Promise<DisciplineCaseResult> {
+  const adapter = c.adapter as DisciplineAdapter
+  const block = c[adapter] as DisciplineExpectation
+  const r: DisciplineCaseResult = {
+    adapter,
+    expect: block.expect,
+    status: "fail",
+    determinism: null,
+    comparisons: [],
+    problems: [],
+  }
+
+  if (block.expect === "error") {
+    let caught: unknown
+    try {
+      if (adapter === "femesh") {
+        await feMeshFromFile(fixturePath, block.kind ?? "step", block.parameters ?? {})
+      } else if (adapter === "powerflow") {
+        await runPowerflowFromFile(fixturePath)
+      } else if (adapter === "des") {
+        await runDesFromFile(fixturePath)
+      } else {
+        r.problems.push(`adapter "${adapter}" has no error-case bridge path (honest harness bug — fix the manifest)`)
+        r.status = "fail"
+        return r
+      }
+    } catch (err) {
+      caught = err
+    }
+    r.errorContains = block.errorContains
+    if (caught === undefined) {
+      r.problems.push(
+        `expected the ${adapter} bridge to throw an EngineUnavailableError containing ${JSON.stringify(block.errorContains)}, but the run succeeded`,
+      )
+    } else if (!(caught instanceof EngineUnavailableError)) {
+      r.problems.push(
+        `expected an EngineUnavailableError containing ${JSON.stringify(block.errorContains)}, got ${typeof caught === "object" && caught !== null ? (caught as Error).constructor.name : typeof caught}: ${String(caught)}`,
+      )
+    } else {
+      r.errorObserved = caught.message
+      if (!caught.message.includes(block.errorContains ?? "")) {
+        r.problems.push(
+          `error message does not contain the pinned substring ${JSON.stringify(block.errorContains)}: ${caught.message}`,
+        )
+      }
+    }
+    r.status = r.problems.length === 0 ? "pass" : "fail"
+    return r
+  }
+
+  // expect === "success"
+  const sourceName = c.fixture
+  try {
+    if (adapter === "femesh") {
+      let params: FeMeshParameters
+      try {
+        params = block.parameters ? validateFeMeshParameters(block.parameters) : defaultFeMeshParameters()
+      } catch (err) {
+        r.problems.push(`manifest femesh parameters failed bridge validation: ${(err as Error).message}`)
+        r.status = "fail"
+        return r
+      }
+      const first = await feMeshFromFile(fixturePath, block.kind ?? "step", block.parameters ?? {})
+      const second = await feMeshFromFile(fixturePath, block.kind ?? "step", block.parameters ?? {})
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      const documentOf = (res: FeMeshResult) =>
+        buildFeMeshDocument(
+          sourceName,
+          { engineKey: res.engineKey, engineVersion: res.engineVersion, adapterScript: res.adapterScript },
+          params,
+          res,
+        )
+      r.determinism = documentOf(first) === documentOf(second)
+      if (!r.determinism) {
+        r.problems.push("two consecutive real runs produced different eos-femesh/1 document bytes — the stored artifact would not be byte-deterministic")
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, femeshObserved(first, pin)))
+      }
+    } else if (adapter === "powerflow") {
+      const first = await runPowerflowFromFile(fixturePath)
+      const second = await runPowerflowFromFile(fixturePath)
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      const documentOf = (res: PowerflowResult) => buildPowerflowDocument(sourceName, res)
+      r.determinism = documentOf(first) === documentOf(second)
+      if (!r.determinism) {
+        r.problems.push("two consecutive real runs produced different eos-powerflow/1 document bytes — the stored artifact would not be byte-deterministic")
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, powerflowObserved(first, pin)))
+      }
+    } else if (adapter === "des") {
+      const first = await runDesFromFile(fixturePath)
+      const second = await runDesFromFile(fixturePath)
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      const documentOf = (res: DesResult) => buildDesDocument(sourceName, res)
+      r.determinism = documentOf(first) === documentOf(second)
+      if (!r.determinism) {
+        r.problems.push("two consecutive real runs produced different eos-des/1 document bytes — the stored artifact would not be byte-deterministic")
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, desObserved(first, pin)))
+      }
+    } else if (adapter === "cpm") {
+      // The EXACT pure pipeline the analyze_schedule broker core runs — the
+      // DB-backed op path stays with the routes/e2e (recorded in the note).
+      const doc = JSON.parse(readFileSync(fixturePath, "utf-8"))
+      if (!isPlainObject(doc)) {
+        r.problems.push(`fixture ${c.fixture} is not a JSON object`)
+        r.status = "fail"
+        return r
+      }
+      const schedule = validateScheduleDocument(doc)
+      if (!schedule.ok) {
+        r.problems.push(`the stored schedule failed the §3.1 defense: ${schedule.error}`)
+        r.status = "fail"
+        return r
+      }
+      const analysisFirst = analyzeCpm(schedule.value)
+      if (!analysisFirst.ok) {
+        r.problems.push(`analyzeCpm refused the schedule: ${analysisFirst.error}`)
+        r.status = "fail"
+        return r
+      }
+      const analysisSecond = analyzeCpm(schedule.value)
+      if (!analysisSecond.ok) {
+        r.problems.push(`analyzeCpm refused the schedule on the second run: ${analysisSecond.error}`)
+        r.status = "fail"
+        return r
+      }
+      const first = buildCpmAnalysisDocument(sourceName, analysisFirst.value)
+      const second = buildCpmAnalysisDocument(sourceName, analysisSecond.value)
+      r.determinism = first === second
+      if (!r.determinism) {
+        r.problems.push("two consecutive pure-core runs produced different eos-cpm/1 document bytes")
+      }
+      // the honest record: a platform core ran — NO engine identity exists
+      r.engine = null
+      const activities = analysisFirst.value
+      const activityById = new Map(activities.activities.map((a) => [a.id, a]))
+      const cpmObserved = (pin: DisciplinePin): unknown => {
+        switch (pin.field) {
+          case "durationDays":
+            return activities.durationDays
+          case "criticalPath":
+            return activities.criticalPath
+          case "criticalPathCount":
+            return activities.criticalPath.length
+          case "activityCount":
+            return activities.activities.length
+          case "formatOk":
+            return first.startsWith(`{"format":"eos-cpm/1","sourceArtifactName":"${sourceName}",`)
+          case "engineKeyAbsent":
+            return !first.includes("engineKey") && !first.includes("adapterScript")
+          default: {
+            if (pin.ref === null) return undefined
+            const activity = activityById.get(pin.ref)
+            if (activity === undefined) return undefined
+            const record = activity as unknown as Record<string, unknown>
+            return record[pin.field]
+          }
+        }
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, cpmObserved(pin)))
+      }
+    } else {
+      // libreoffice — ONE real conversion; byte-determinism NOT claimed (§5.4:
+      // PDFs embed creation timestamps) and honestly reported as null
+      const first = await convertDocumentToFile(fixturePath, c.fixture)
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      r.determinism = null // honest: not asserted, never faked (single run)
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, libreOfficeObserved(first, pin)))
+      }
+    }
+  } catch (err) {
+    r.problems.push(
+      `expected a successful ${adapter} run but the bridge threw: ${err instanceof EngineUnavailableError ? err.message : String(err)}`,
+    )
+    r.status = "fail"
+    return r
+  }
+
+  pushDisciplineProblems(r)
+  r.status = r.problems.length === 0 ? "pass" : "fail"
+  return r
+}
+
+// ---------------------------------------------------------------------------
 // The harness
 // ---------------------------------------------------------------------------
 
@@ -1018,14 +1787,23 @@ export async function runHarness(): Promise<HarnessReport> {
       engineAvailability: {
         step: probeEngine("step"),
         ifc: probeEngine("ifc"),
+        femesh: probeEngine("femesh"),
+        powerflow: probeEngine("powerflow"),
+        des: probeEngine("des"),
+        cpm: probeEngine("cpm"),
+        libreoffice: probeEngine("libreoffice"),
       },
     },
-    engineVersions: { cadquery: null, ifcopenshell: null },
+    engineVersions: { cadquery: null, ifcopenshell: null, gmsh: null, pandapower: null, simpy: null, libreoffice: null },
     adapterHashes: {
       "step_quantities.py": null,
       "ifc_quantities.py": null,
       "step_mesh.py": null,
       "ifc_mesh.py": null,
+      "step_femesh.py": null,
+      "powerflow.py": null,
+      "des.py": null,
+      "convert-document.ts": null,
     },
     cases: [],
     summary: { total: manifest.length, pass: 0, fail: 0, skip: 0, ran: 0, notRun: false },
@@ -1061,6 +1839,22 @@ export async function runHarness(): Promise<HarnessReport> {
       result.skipReason = `engine unavailable for the ${c.adapter} adapter: ${availability.reason}`
       report.cases.push(result)
       report.summary.skip += 1
+      continue
+    }
+
+    // W2-f: the Phase-5 discipline kinds run their own sub-expectation (REAL
+    // bridge, hand-derived pins, document determinism) — everything else is
+    // the step/ifc quantity+mesh machinery below.
+    if (c.adapter !== "step" && c.adapter !== "ifc") {
+      const discipline = await runDisciplineChecks(c, fixturePath, report)
+      result.discipline = discipline
+      if (discipline.status !== "pass") {
+        for (const p of discipline.problems) result.problems.push(p)
+      }
+      result.status = discipline.status === "pass" ? "pass" : "fail"
+      report.cases.push(result)
+      if (result.status === "pass") report.summary.pass += 1
+      else report.summary.fail += 1
       continue
     }
 

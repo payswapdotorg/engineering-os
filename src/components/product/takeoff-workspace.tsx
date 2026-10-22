@@ -31,8 +31,9 @@ import {
   type QuantityTransitionAction,
   type RateRow,
 } from "@/components/product/api"
-import { ApprovalBadge } from "@/components/product/badges"
+import { ApprovalBadge, FutureRateBadge } from "@/components/product/badges"
 import { formatDate } from "@/components/product/format"
+import { GuardedButton } from "@/components/product/guarded-button"
 import { EmptyState, ErrorState, InfoNote, RowSkeleton } from "@/components/product/parts"
 import {
   AddEstimateLineDialog,
@@ -139,12 +140,25 @@ const ESTIMATE_TRANSITION_TOAST: Record<EstimateTransitionAction, string> = {
 // Workspace
 // ---------------------------------------------------------------------------
 
-export function TakeoffWorkspace({ projectId }: { projectId: string }) {
+const noop = () => {}
+
+export function TakeoffWorkspace({
+  projectId,
+  onMutated,
+}: {
+  projectId: string
+  /** Parent-side cache nudge (Phase-6 known-limitation #13): the
+   *  derive-quantities action appends audit events (and can surface failures
+   *  that change source staleness) the project-level caches don't observe on
+   *  their own — the AgentsWorkspace.onMutated pattern, mirrored exactly. */
+  onMutated?: () => void
+}) {
   const quantities = useApi<{ quantities: QuantityRow[] }>(`/api/projects/${projectId}/quantities`)
   const assemblies = useApi<{ assemblies: AssemblyRow[] }>(`/api/projects/${projectId}/assemblies`)
   const rates = useApi<{ rates: RateRow[] }>(`/api/projects/${projectId}/rates`)
   const estimates = useApi<{ estimates: EstimateRow[] }>(`/api/projects/${projectId}/estimates`)
   const artifacts = useApi<{ artifacts: ArtifactListItem[] }>(`/api/projects/${projectId}/artifacts`)
+  const notifyMutated = onMutated ?? noop
 
   const [tab, setTab] = useState<"ledger" | "assemblies" | "estimates">("ledger")
 
@@ -299,12 +313,12 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold tracking-tight">Quantity ledger ({quantityRows.length})</h3>
             <div className="ml-auto flex flex-wrap gap-2">
-              <Button variant="outline" className="h-10" onClick={() => setDeriveOpen(true)}>
+              <GuardedButton variant="outline" className="h-10" onClick={() => setDeriveOpen(true)}>
                 <Boxes aria-hidden /> Derive from model…
-              </Button>
-              <Button className="h-10" onClick={() => setRecordOpen(true)}>
+              </GuardedButton>
+              <GuardedButton className="h-10" onClick={() => setRecordOpen(true)}>
                 <Plus aria-hidden /> Record quantity
-              </Button>
+              </GuardedButton>
             </div>
           </div>
 
@@ -404,9 +418,9 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
           <section aria-label="Trade assemblies" className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-sm font-semibold tracking-tight">Trade assemblies ({assemblyRows.length})</h3>
-              <Button className="ml-auto h-10" onClick={() => setAssemblyOpen(true)}>
+              <GuardedButton className="ml-auto h-10" onClick={() => setAssemblyOpen(true)}>
                 <Plus aria-hidden /> New assembly
-              </Button>
+              </GuardedButton>
             </div>
             {assemblies.error ? (
               <ErrorState message={assemblies.error} onRetry={() => void assemblies.refresh()} />
@@ -466,9 +480,9 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
           <section aria-label="Component rates" className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-sm font-semibold tracking-tight">Rates ({rateRows.length})</h3>
-              <Button variant="outline" className="ml-auto h-10" onClick={() => setRateOpen(true)}>
+              <GuardedButton variant="outline" className="ml-auto h-10" onClick={() => setRateOpen(true)}>
                 <Plus aria-hidden /> Add rate
-              </Button>
+              </GuardedButton>
             </div>
             <InfoNote>
               Rates are engineer-entered records with an explicit source — agents and adapters never
@@ -563,9 +577,9 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
 
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold tracking-tight">Estimates ({estimateRows.length})</h3>
-            <Button className="ml-auto h-10" onClick={() => setEstimateOpen(true)}>
+            <GuardedButton className="ml-auto h-10" onClick={() => setEstimateOpen(true)}>
               <Plus aria-hidden /> New estimate
-            </Button>
+            </GuardedButton>
           </div>
 
           {estimates.error ? (
@@ -650,51 +664,51 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
                   <div className="flex flex-wrap gap-2">
                     {selectedEstimate.status === "draft" ? (
                       <>
-                        <Button variant="outline" className="h-9" onClick={() => setLineOpen(true)}>
+                        <GuardedButton variant="outline" className="h-9" onClick={() => setLineOpen(true)}>
                           <Plus aria-hidden /> Add line
-                        </Button>
-                        <Button
+                        </GuardedButton>
+                        <GuardedButton
                           className="h-9"
                           disabled={estimateAction !== null}
                           onClick={() => void applyEstimateTransition(selectedEstimate, "submit")}
                         >
                           {estimateAction === "submit" ? "Submitting…" : "Submit for review"}
-                        </Button>
-                        <Button
+                        </GuardedButton>
+                        <GuardedButton
                           variant="ghost"
                           className="h-9 text-muted-foreground"
                           disabled={estimateAction !== null}
                           onClick={() => setSupersedeOpen(true)}
                         >
                           Supersede
-                        </Button>
+                        </GuardedButton>
                       </>
                     ) : null}
                     {selectedEstimate.status === "in_review" ? (
                       <>
-                        <Button
+                        <GuardedButton
                           variant="outline"
                           className="h-9"
                           disabled={estimateAction !== null}
                           onClick={() => void applyEstimateTransition(selectedEstimate, "reject")}
                         >
                           {estimateAction === "reject" ? "Rejecting…" : "Reject"}
-                        </Button>
-                        <Button
+                        </GuardedButton>
+                        <GuardedButton
                           className="h-9"
                           disabled={estimateAction !== null}
                           onClick={() => void applyEstimateTransition(selectedEstimate, "approve")}
                         >
                           {estimateAction === "approve" ? "Approving…" : "Approve"}
-                        </Button>
-                        <Button
+                        </GuardedButton>
+                        <GuardedButton
                           variant="ghost"
                           className="h-9 text-muted-foreground"
                           disabled={estimateAction !== null}
                           onClick={() => setSupersedeOpen(true)}
                         >
                           Supersede
-                        </Button>
+                        </GuardedButton>
                       </>
                     ) : null}
                     {selectedEstimate.status === "approved" ? (
@@ -707,14 +721,14 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
                         >
                           <Download aria-hidden /> {exportingBoq ? "Exporting…" : "Export BOQ (CSV)"}
                         </Button>
-                        <Button
+                        <GuardedButton
                           variant="ghost"
                           className="h-9 text-muted-foreground"
                           disabled={estimateAction !== null}
                           onClick={() => setSupersedeOpen(true)}
                         >
                           Supersede
-                        </Button>
+                        </GuardedButton>
                       </>
                     ) : null}
                   </div>
@@ -735,6 +749,22 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
                   <p className="text-xs text-muted-foreground">
                     Under review — lines are frozen. Approve requires every line&apos;s quantity to be
                     approved (the server lists any blockers verbatim).
+                  </p>
+                ) : null}
+                {selectedEstimate.lines.some(
+                  (line) => line.futureDatedRate === true || line.breakdown.some((b) => b.futureDatedRate === true),
+                ) ? (
+                  // Phase-6 future-dated rate warning (known-limitation #9):
+                  // rendered only when the additive per-line field is present AND
+                  // true. Amber treatment from the existing palette.
+                  <p
+                    role="note"
+                    className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                  >
+                    <FutureRateBadge />
+                    <span>
+                      rate effectiveFrom is in the future — price is provisional
+                    </span>
                   </p>
                 ) : null}
 
@@ -762,6 +792,10 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
                         {selectedEstimate.lines.map((line) => {
                           const quantity = quantityIndex.get(line.quantityId)
                           const assembly = assemblyIndex.get(line.assemblyId)
+                          // Phase-6 additive field — guard on presence AND true.
+                          const lineFutureRate =
+                            line.futureDatedRate === true ||
+                            line.breakdown.some((b) => b.futureDatedRate === true)
                           return (
                             <TableRow key={line.id}>
                               <TableCell>
@@ -795,7 +829,10 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
                                 )}
                               </TableCell>
                               <TableCell className="text-right font-mono tabular-nums">
-                                {formatMoney(line.lineTotal, line.currency)}
+                                <span className="flex flex-col items-end gap-1">
+                                  <span>{formatMoney(line.lineTotal, line.currency)}</span>
+                                  {lineFutureRate ? <FutureRateBadge /> : null}
+                                </span>
                               </TableCell>
                               <TableCell>
                                 <Collapsible>
@@ -819,6 +856,7 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
                                           <span className="font-mono tabular-nums">
                                             {formatMoney(b.unitPrice, line.currency)}
                                           </span>
+                                          {b.futureDatedRate === true ? <FutureRateBadge /> : null}
                                           <span aria-hidden>=</span>
                                           <span className="font-mono tabular-nums text-foreground">
                                             {formatMoney(b.cost, line.currency)}
@@ -831,7 +869,7 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
                               </TableCell>
                               {selectedEstimate.status === "draft" ? (
                                 <TableCell className="text-right">
-                                  <Button
+                                  <GuardedButton
                                     variant="ghost"
                                     size="icon"
                                     className="size-8"
@@ -840,7 +878,7 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
                                     onClick={() => void removeLine(selectedEstimate, line.id)}
                                   >
                                     <Trash2 className="size-4" aria-hidden />
-                                  </Button>
+                                  </GuardedButton>
                                 </TableCell>
                               ) : null}
                             </TableRow>
@@ -912,7 +950,12 @@ export function TakeoffWorkspace({ projectId }: { projectId: string }) {
         artifacts={artifactSource}
         open={deriveOpen}
         onOpenChange={setDeriveOpen}
-        onDerived={() => void quantities.refresh()}
+        onDerived={() => {
+          void quantities.refresh()
+          // Cache nudge (Phase-6 #13): the derivation appends audit events the
+          // project-level activity/artifact caches don't observe on their own.
+          notifyMutated()
+        }}
       />
       <NewAssemblyDialog
         projectId={projectId}
@@ -983,10 +1026,10 @@ function QuantityActions({
     case "draft":
       return (
         <span className="flex justify-end gap-1.5">
-          <Button size="sm" className="h-8" disabled={busy} onClick={() => onTransition("submit")}>
+          <GuardedButton size="sm" className="h-8" disabled={busy} onClick={() => onTransition("submit")}>
             Submit for review
-          </Button>
-          <Button
+          </GuardedButton>
+          <GuardedButton
             size="sm"
             variant="ghost"
             className="h-8 text-muted-foreground"
@@ -994,24 +1037,24 @@ function QuantityActions({
             onClick={() => onTransition("supersede")}
           >
             Supersede
-          </Button>
+          </GuardedButton>
         </span>
       )
     case "in_review":
       return (
         <span className="flex justify-end gap-1.5">
-          <Button size="sm" className="h-8" disabled={busy} onClick={() => onTransition("approve")}>
+          <GuardedButton size="sm" className="h-8" disabled={busy} onClick={() => onTransition("approve")}>
             Approve
-          </Button>
-          <Button size="sm" variant="outline" className="h-8" disabled={busy} onClick={() => onTransition("reject")}>
+          </GuardedButton>
+          <GuardedButton size="sm" variant="outline" className="h-8" disabled={busy} onClick={() => onTransition("reject")}>
             Reject
-          </Button>
+          </GuardedButton>
         </span>
       )
     case "approved":
       return (
         <span className="flex justify-end gap-1.5">
-          <Button
+          <GuardedButton
             size="sm"
             variant="ghost"
             className="h-8 text-muted-foreground"
@@ -1019,7 +1062,7 @@ function QuantityActions({
             onClick={() => onTransition("supersede")}
           >
             Supersede
-          </Button>
+          </GuardedButton>
         </span>
       )
   }

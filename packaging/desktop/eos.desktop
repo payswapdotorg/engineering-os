@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Engineering OS
+Comment=A unified, open-source-first engineering workspace
+Exec=/usr/bin/xdg-open http://localhost:3000
+Icon=eos
+Terminal=false
+StartupNotify=true
+Categories=Science;Engineering;

@@ -89,6 +89,18 @@ export function EventFeed({
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <span className="font-mono text-sm font-medium">{event.action}</span>
                   <ActorBadge actorType={event.actorType} />
+                  {event.actorType === "user" ? (
+                    // Phase-6 human attribution (contract §1.6): the session
+                    // user's display name replaces the actorId rendering; the
+                    // raw id stays available as the tooltip. Agent/system
+                    // events are unchanged.
+                    <span
+                      className="max-w-[180px] truncate text-xs text-muted-foreground"
+                      title={event.userName ? event.actorId : undefined}
+                    >
+                      by {event.userName ?? event.actorId}
+                    </span>
+                  ) : null}
                   {showProject && event.project ? (
                     <span className="text-xs text-muted-foreground">· {event.project.name}</span>
                   ) : null}

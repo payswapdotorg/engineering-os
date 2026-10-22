@@ -1,0 +1,14 @@
+[Unit]
+Description=Engineering OS — daily orphan sweep (admin-API storage scan + confirm-gated cleanup)
+Documentation=https://github.com/payswapdotorg/engineering-os
+After=eos.service
+# NOTE: no Wants/Requires on eos.service on purpose — the sweep script checks
+# /api/status first and SKIPS GRACEFULLY (exit 0) when the app is down, so a
+# stopped product never produces a failed timer.
+
+[Service]
+Type=oneshot
+User=eos
+Group=eos
+EnvironmentFile=/etc/eos/eos.env
+ExecStart=/opt/engineering-os/bin/orphan-sweep.sh

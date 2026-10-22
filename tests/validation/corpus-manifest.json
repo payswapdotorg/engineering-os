@@ -9,17 +9,17 @@
         "elementRef": "step:solid:0",
         "quantityType": "volume",
         "value": 32984.0710525538,
-        "unit": "mm³",
+        "unit": "mm\u00b3",
         "tolerance": "analytic",
-        "derivation": "L-profile area (80·10 + 10·50 − 10·10) = 1200 mm² extruded 30 mm, minus two Ø8 through-holes: 36000 − 960π mm³"
+        "derivation": "L-profile area (80\u00b710 + 10\u00b750 \u2212 10\u00b710) = 1200 mm\u00b2 extruded 30 mm, minus two \u00d88 through-holes: 36000 \u2212 960\u03c0 mm\u00b3"
       },
       {
         "elementRef": "step:solids:all",
         "quantityType": "area",
         "value": 11506.902543893353,
-        "unit": "mm²",
+        "unit": "mm\u00b2",
         "tolerance": "analytic",
-        "derivation": "2·(1200 − 2π·4²) + 2·(80+50)·30 + 2·(2π·4·30) = 10200 + 416π mm² (profile perimeter equals the 80×50 box: the L-notch removes and re-adds equal runs)"
+        "derivation": "2\u00b7(1200 \u2212 2\u03c0\u00b74\u00b2) + 2\u00b7(80+50)\u00b730 + 2\u00b7(2\u03c0\u00b74\u00b730) = 10200 + 416\u03c0 mm\u00b2 (profile perimeter equals the 80\u00d750 box: the L-notch removes and re-adds equal runs)"
       },
       {
         "elementRef": "step:model:bbox",
@@ -27,7 +27,7 @@
         "value": 98.99494936611666,
         "unit": "mm",
         "tolerance": "analytic",
-        "derivation": "bounding box 80 × 50 × 30 mm → diagonal √(80² + 50² + 30²) = √9800 mm"
+        "derivation": "bounding box 80 \u00d7 50 \u00d7 30 mm \u2192 diagonal \u221a(80\u00b2 + 50\u00b2 + 30\u00b2) = \u221a9800 mm"
       }
     ]
   },
@@ -40,17 +40,24 @@
       "expect": "success",
       "upAxis": "z",
       "tolerance": 0.0001,
-      "elementRefs": ["step:solid:0"],
+      "elementRefs": [
+        "step:solid:0"
+      ],
       "elements": [
-        { "elementRef": "step:solid:0", "name": "Solid 1", "vertexCount": 506, "triangleCount": 500 }
+        {
+          "elementRef": "step:solid:0",
+          "name": "Solid 1",
+          "vertexCount": 506,
+          "triangleCount": 500
+        }
       ],
       "volume": [
         {
           "elementRef": "step:solid:0",
-          "value": 0.00012566370614359172,
-          "unit": "m³",
+          "value": 0.0001256637061435917,
+          "unit": "m\u00b3",
           "tolerance": "mesh",
-          "derivation": "π · 20² · 100 mm³ = 40000π mm³ = 4π×10⁻⁵ m³ (Ø40×100 mm cylinder). 'mesh' tolerance (pinned 1%): the divergence-theorem volume over the OCCT triangulation is an approximation on the CURVED lateral surface (the inscribed tessellation slightly underestimates) — the harness records the observed relative error per run"
+          "derivation": "\u03c0 \u00b7 20\u00b2 \u00b7 100 mm\u00b3 = 40000\u03c0 mm\u00b3 = 4\u03c0\u00d710\u207b\u2075 m\u00b3 (\u00d840\u00d7100 mm cylinder). 'mesh' tolerance (pinned 1%): the divergence-theorem volume over the OCCT triangulation is an approximation on the CURVED lateral surface (the inscribed tessellation slightly underestimates) \u2014 the harness records the observed relative error per run"
         }
       ]
     },
@@ -59,17 +66,17 @@
         "elementRef": "step:solid:0",
         "quantityType": "volume",
         "value": 125663.70614359173,
-        "unit": "mm³",
+        "unit": "mm\u00b3",
         "tolerance": "analytic",
-        "derivation": "π · 20² · 100 = 40000π mm³ (Ø40 × 100 mm cylinder, exact OCCT BRepGProp path — no meshing)"
+        "derivation": "\u03c0 \u00b7 20\u00b2 \u00b7 100 = 40000\u03c0 mm\u00b3 (\u00d840 \u00d7 100 mm cylinder, exact OCCT BRepGProp path \u2014 no meshing)"
       },
       {
         "elementRef": "step:solids:all",
         "quantityType": "area",
         "value": 15079.644737231007,
-        "unit": "mm²",
+        "unit": "mm\u00b2",
         "tolerance": "analytic",
-        "derivation": "lateral 2π·20·100 = 4000π plus two caps 2·π·20² = 800π → 4800π mm² (curved surface through the EXACT OCCT integration path)"
+        "derivation": "lateral 2\u03c0\u00b720\u00b7100 = 4000\u03c0 plus two caps 2\u00b7\u03c0\u00b720\u00b2 = 800\u03c0 \u2192 4800\u03c0 mm\u00b2 (curved surface through the EXACT OCCT integration path)"
       },
       {
         "elementRef": "step:model:bbox",
@@ -77,7 +84,7 @@
         "value": 114.89125293076057,
         "unit": "mm",
         "tolerance": "analytic",
-        "derivation": "bounding box 40 × 40 × 100 mm → diagonal √(40² + 40² + 100²) = √13200 mm"
+        "derivation": "bounding box 40 \u00d7 40 \u00d7 100 mm \u2192 diagonal \u221a(40\u00b2 + 40\u00b2 + 100\u00b2) = \u221a13200 mm"
       }
     ]
   },
@@ -90,25 +97,38 @@
       "expect": "success",
       "upAxis": "z",
       "tolerance": 0.0001,
-      "elementRefs": ["step:solid:0", "step:solid:1"],
+      "elementRefs": [
+        "step:solid:0",
+        "step:solid:1"
+      ],
       "elements": [
-        { "elementRef": "step:solid:0", "name": "Solid 1", "vertexCount": 24, "triangleCount": 12 },
-        { "elementRef": "step:solid:1", "name": "Solid 2", "vertexCount": 24, "triangleCount": 12 }
+        {
+          "elementRef": "step:solid:0",
+          "name": "Solid 1",
+          "vertexCount": 24,
+          "triangleCount": 12
+        },
+        {
+          "elementRef": "step:solid:1",
+          "name": "Solid 2",
+          "vertexCount": 24,
+          "triangleCount": 12
+        }
       ],
       "volume": [
         {
           "elementRef": "step:solid:0",
-          "value": 6e-6,
-          "unit": "m³",
+          "value": 6e-06,
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "box A 30 × 20 × 10 mm = 6000 mm³ = 6×10⁻⁶ m³ (PLANAR solid → divergence-theorem mesh volume is mathematically exact; only IEEE rounding remains, and the mesh elementRef set-equals the quantity ledger's per-solid refs)"
+          "derivation": "box A 30 \u00d7 20 \u00d7 10 mm = 6000 mm\u00b3 = 6\u00d710\u207b\u2076 m\u00b3 (PLANAR solid \u2192 divergence-theorem mesh volume is mathematically exact; only IEEE rounding remains, and the mesh elementRef set-equals the quantity ledger's per-solid refs)"
         },
         {
           "elementRef": "step:solid:1",
-          "value": 9e-6,
-          "unit": "m³",
+          "value": 9e-06,
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "box B 15 × 15 × 40 mm = 9000 mm³ = 9×10⁻⁶ m³ (PLANAR solid → mesh volume exact)"
+          "derivation": "box B 15 \u00d7 15 \u00d7 40 mm = 9000 mm\u00b3 = 9\u00d710\u207b\u2076 m\u00b3 (PLANAR solid \u2192 mesh volume exact)"
         }
       ]
     },
@@ -117,25 +137,25 @@
         "elementRef": "step:solid:0",
         "quantityType": "volume",
         "value": 6000,
-        "unit": "mm³",
+        "unit": "mm\u00b3",
         "tolerance": "analytic",
-        "derivation": "box A 30 × 20 × 10 mm at the origin = 6000 mm³ (first solid written to the fixture file; OCCT enumerates it as solid 0 — enumeration order is pinned by the generator self-check and re-verified by the harness determinism double-run)"
+        "derivation": "box A 30 \u00d7 20 \u00d7 10 mm at the origin = 6000 mm\u00b3 (first solid written to the fixture file; OCCT enumerates it as solid 0 \u2014 enumeration order is pinned by the generator self-check and re-verified by the harness determinism double-run)"
       },
       {
         "elementRef": "step:solid:1",
         "quantityType": "volume",
         "value": 9000,
-        "unit": "mm³",
+        "unit": "mm\u00b3",
         "tolerance": "analytic",
-        "derivation": "box B 15 × 15 × 40 mm at (100, 0, 0) = 9000 mm³ (disjoint from box A, 70 mm gap)"
+        "derivation": "box B 15 \u00d7 15 \u00d7 40 mm at (100, 0, 0) = 9000 mm\u00b3 (disjoint from box A, 70 mm gap)"
       },
       {
         "elementRef": "step:solids:all",
         "quantityType": "area",
         "value": 5050,
-        "unit": "mm²",
+        "unit": "mm\u00b2",
         "tolerance": "analytic",
-        "derivation": "S_A + S_B = 2·(30·20 + 30·10 + 20·10) + 2·(15·15 + 15·40 + 15·40) = 2200 + 2850 = 5050 mm²"
+        "derivation": "S_A + S_B = 2\u00b7(30\u00b720 + 30\u00b710 + 20\u00b710) + 2\u00b7(15\u00b715 + 15\u00b740 + 15\u00b740) = 2200 + 2850 = 5050 mm\u00b2"
       },
       {
         "elementRef": "step:model:bbox",
@@ -143,7 +163,7 @@
         "value": 123.38962679253066,
         "unit": "mm",
         "tolerance": "analytic",
-        "derivation": "overall bounding box 115 × 20 × 40 mm (union of the two disjoint boxes) → diagonal √(115² + 20² + 40²) = √15225 mm"
+        "derivation": "overall bounding box 115 \u00d7 20 \u00d7 40 mm (union of the two disjoint boxes) \u2192 diagonal \u221a(115\u00b2 + 20\u00b2 + 40\u00b2) = \u221a15225 mm"
       }
     ]
   },
@@ -181,7 +201,7 @@
         "value": 3.0,
         "unit": "m",
         "tolerance": "exact",
-        "derivation": "declared BaseQuantities 'Length' — authored wall 3.0 × 0.2 × 2.0 m (closed form in make_fixture_wall.py)"
+        "derivation": "declared BaseQuantities 'Length' \u2014 authored wall 3.0 \u00d7 0.2 \u00d7 2.0 m (closed form in make_fixture_wall.py)"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
@@ -203,49 +223,49 @@
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 12.8,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "declared 'GrossSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
+        "derivation": "declared 'GrossSideArea' = 2\u00b7(3.0 + 0.2)\u00b72.0 = 12.8 m\u00b2"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 12.8,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "declared 'NetSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
+        "derivation": "declared 'NetSideArea' = 2\u00b7(3.0 + 0.2)\u00b72.0 = 12.8 m\u00b2"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 0.6,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "declared 'GrossFootprintArea' = 3.0 · 0.2 = 0.6 m²"
+        "derivation": "declared 'GrossFootprintArea' = 3.0 \u00b7 0.2 = 0.6 m\u00b2"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 0.6,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "declared 'NetFootprintArea' = 3.0 · 0.2 = 0.6 m²"
+        "derivation": "declared 'NetFootprintArea' = 3.0 \u00b7 0.2 = 0.6 m\u00b2"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "volume",
         "value": 1.2,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "exact",
-        "derivation": "declared 'GrossVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
+        "derivation": "declared 'GrossVolume' = 3.0 \u00b7 0.2 \u00b7 2.0 = 1.2 m\u00b3"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "volume",
         "value": 1.2,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "exact",
-        "derivation": "declared 'NetVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
+        "derivation": "declared 'NetVolume' = 3.0 \u00b7 0.2 \u00b7 2.0 = 1.2 m\u00b3"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
@@ -266,33 +286,52 @@
       "expect": "success",
       "upAxis": "z",
       "tolerance": 0.001,
-      "elementRefs": ["#3rUnE8CnPHBwLdZzIqZkf1", "#3rUnE8CnPHBwLdZzIqZkf2", "#3rUnE8CnPHBwLdZzIqZkf3"],
+      "elementRefs": [
+        "#3rUnE8CnPHBwLdZzIqZkf1",
+        "#3rUnE8CnPHBwLdZzIqZkf2",
+        "#3rUnE8CnPHBwLdZzIqZkf3"
+      ],
       "elements": [
-        { "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1", "name": "Wall A", "vertexCount": 8, "triangleCount": 12 },
-        { "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2", "name": "Wall B", "vertexCount": 8, "triangleCount": 12 },
-        { "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3", "name": "Slab S", "vertexCount": 8, "triangleCount": 12 }
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+          "name": "Wall A",
+          "vertexCount": 8,
+          "triangleCount": 12
+        },
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+          "name": "Wall B",
+          "vertexCount": 8,
+          "triangleCount": 12
+        },
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+          "name": "Slab S",
+          "vertexCount": 8,
+          "triangleCount": 12
+        }
       ],
       "volume": [
         {
           "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
           "value": 2.8,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "Wall A 4.0 × 0.25 × 2.8 m = 2.8 m³ (PLANAR → divergence-theorem mesh volume exact; metres authored and verified)"
+          "derivation": "Wall A 4.0 \u00d7 0.25 \u00d7 2.8 m = 2.8 m\u00b3 (PLANAR \u2192 divergence-theorem mesh volume exact; metres authored and verified)"
         },
         {
           "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
           "value": 0.84,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "Wall B 2.0 × 0.15 × 2.8 m = 0.84 m³ (PLANAR → exact)"
+          "derivation": "Wall B 2.0 \u00d7 0.15 \u00d7 2.8 m = 0.84 m\u00b3 (PLANAR \u2192 exact)"
         },
         {
           "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
           "value": 3.0,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "Slab S 5.0 × 3.0 × 0.2 m = 3.0 m³ (PLANAR → exact)"
+          "derivation": "Slab S 5.0 \u00d7 3.0 \u00d7 0.2 m = 3.0 m\u00b3 (PLANAR \u2192 exact)"
         }
       ]
     },
@@ -303,7 +342,7 @@
         "value": 4.0,
         "unit": "m",
         "tolerance": "exact",
-        "derivation": "Wall A 'Length' — 4.0 × 0.25 × 2.8 m wall"
+        "derivation": "Wall A 'Length' \u2014 4.0 \u00d7 0.25 \u00d7 2.8 m wall"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
@@ -325,17 +364,17 @@
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 23.8,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "Wall A 'GrossSideArea' = 2·(4.0 + 0.25)·2.8 = 23.8 m²"
+        "derivation": "Wall A 'GrossSideArea' = 2\u00b7(4.0 + 0.25)\u00b72.8 = 23.8 m\u00b2"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "volume",
         "value": 2.8,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "exact",
-        "derivation": "Wall A 'NetVolume' = 4.0 · 0.25 · 2.8 = 2.8 m³"
+        "derivation": "Wall A 'NetVolume' = 4.0 \u00b7 0.25 \u00b7 2.8 = 2.8 m\u00b3"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
@@ -343,7 +382,7 @@
         "value": 2.0,
         "unit": "m",
         "tolerance": "exact",
-        "derivation": "Wall B 'Length' — 2.0 × 0.15 × 2.8 m wall"
+        "derivation": "Wall B 'Length' \u2014 2.0 \u00d7 0.15 \u00d7 2.8 m wall"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
@@ -365,25 +404,25 @@
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
         "quantityType": "area",
         "value": 12.04,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "Wall B 'NetSideArea' = 2·(2.0 + 0.15)·2.8 = 12.04 m²"
+        "derivation": "Wall B 'NetSideArea' = 2\u00b7(2.0 + 0.15)\u00b72.8 = 12.04 m\u00b2"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
         "quantityType": "area",
         "value": 0.3,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "Wall B 'NetFootprintArea' = 2.0 · 0.15 = 0.3 m²"
+        "derivation": "Wall B 'NetFootprintArea' = 2.0 \u00b7 0.15 = 0.3 m\u00b2"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
         "quantityType": "volume",
         "value": 0.84,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "exact",
-        "derivation": "Wall B 'NetVolume' = 2.0 · 0.15 · 2.8 = 0.84 m³"
+        "derivation": "Wall B 'NetVolume' = 2.0 \u00b7 0.15 \u00b7 2.8 = 0.84 m\u00b3"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
@@ -391,7 +430,7 @@
         "value": 5.0,
         "unit": "m",
         "tolerance": "exact",
-        "derivation": "Slab S 'Length' — 5.0 × 3.0 × 0.2 m slab"
+        "derivation": "Slab S 'Length' \u2014 5.0 \u00d7 3.0 \u00d7 0.2 m slab"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
@@ -405,17 +444,17 @@
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
         "quantityType": "area",
         "value": 15.0,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "Slab S 'GrossArea' = 5.0 · 3.0 = 15.0 m²"
+        "derivation": "Slab S 'GrossArea' = 5.0 \u00b7 3.0 = 15.0 m\u00b2"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
         "quantityType": "volume",
         "value": 3.0,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "exact",
-        "derivation": "Slab S 'NetVolume' = 5.0 · 3.0 · 0.2 = 3.0 m³"
+        "derivation": "Slab S 'NetVolume' = 5.0 \u00b7 3.0 \u00b7 0.2 = 3.0 m\u00b3"
       }
     ]
   },
@@ -428,17 +467,24 @@
       "expect": "success",
       "upAxis": "z",
       "tolerance": 0.001,
-      "elementRefs": ["#2rUnE8CnPHBwLdZzIqZkf1"],
+      "elementRefs": [
+        "#2rUnE8CnPHBwLdZzIqZkf1"
+      ],
       "elements": [
-        { "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1", "name": "Quantity Wall", "vertexCount": 8, "triangleCount": 12 }
+        {
+          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+          "name": "Quantity Wall",
+          "vertexCount": 8,
+          "triangleCount": 12
+        }
       ],
       "volume": [
         {
           "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
           "value": 1.2,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³ (PLANAR → divergence-theorem mesh volume is mathematically exact; the mesh elementRef set-equals the quantity ledger ref)"
+          "derivation": "box 3.0 \u00d7 0.2 \u00d7 2.0 m = 1.2 m\u00b3 (PLANAR \u2192 divergence-theorem mesh volume is mathematically exact; the mesh elementRef set-equals the quantity ledger ref)"
         }
       ]
     },
@@ -447,17 +493,17 @@
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "volume",
         "value": 1.2,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "analytic",
-        "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³. Tolerance 'analytic' (not 'mesh') is justified: the mesh path is divergence-theorem volume over planar triangles, which is mathematically EXACT for planar solids — only IEEE rounding remains (observed 1.2000000000000002, rel ≈ 2e-16)"
+        "derivation": "box 3.0 \u00d7 0.2 \u00d7 2.0 m = 1.2 m\u00b3. Tolerance 'analytic' (not 'mesh') is justified: the mesh path is divergence-theorem volume over planar triangles, which is mathematically EXACT for planar solids \u2014 only IEEE rounding remains (observed 1.2000000000000002, rel \u2248 2e-16)"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 14.0,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "analytic",
-        "derivation": "total box surface 2·(3·0.2) + 2·(3·2) + 2·(0.2·2) = 1.2 + 12 + 0.8 = 14.0 m². Tolerance 'analytic' justified: triangle-sum area over planar faces is exact in exact arithmetic (observed 14.000000000000002, rel ≈ 1e-16)"
+        "derivation": "total box surface 2\u00b7(3\u00b70.2) + 2\u00b7(3\u00b72) + 2\u00b7(0.2\u00b72) = 1.2 + 12 + 0.8 = 14.0 m\u00b2. Tolerance 'analytic' justified: triangle-sum area over planar faces is exact in exact arithmetic (observed 14.000000000000002, rel \u2248 1e-16)"
       }
     ]
   },
@@ -470,17 +516,24 @@
       "expect": "success",
       "upAxis": "z",
       "tolerance": 0.001,
-      "elementRefs": ["#4rUnE8CnPHBwLdZzIqZkf1"],
+      "elementRefs": [
+        "#4rUnE8CnPHBwLdZzIqZkf1"
+      ],
       "elements": [
-        { "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1", "name": "Mesh Column", "vertexCount": 90, "triangleCount": 176 }
+        {
+          "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+          "name": "Mesh Column",
+          "vertexCount": 90,
+          "triangleCount": 176
+        }
       ],
       "volume": [
         {
           "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
           "value": 0.3769911184307752,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "mesh",
-          "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance (pinned 1%): the default-settings triangulation (44 segments) is an APPROXIMATION on the curved surface — the harness records the observed relative error per run (same triangulation the quantity adapter's fallback reports on)"
+          "derivation": "\u03c0 \u00b7 0.2\u00b2 \u00b7 3.0 = 0.12\u03c0 m\u00b3 (\u00d8400 \u00d7 3000 mm column). 'mesh' tolerance (pinned 1%): the default-settings triangulation (44 segments) is an APPROXIMATION on the curved surface \u2014 the harness records the observed relative error per run (same triangulation the quantity adapter's fallback reports on)"
         }
       ]
     },
@@ -489,17 +542,17 @@
         "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "volume",
         "value": 0.3769911184307752,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "mesh",
-        "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance: the PyPI ifcopenshell wheel has no OCCT backend (has_occ=False), so this curved surface is triangulated — an APPROXIMATION; the harness records the observed relative error to quantify that limitation honestly"
+        "derivation": "\u03c0 \u00b7 0.2\u00b2 \u00b7 3.0 = 0.12\u03c0 m\u00b3 (\u00d8400 \u00d7 3000 mm column). 'mesh' tolerance: the PyPI ifcopenshell wheel has no OCCT backend (has_occ=False), so this curved surface is triangulated \u2014 an APPROXIMATION; the harness records the observed relative error to quantify that limitation honestly"
       },
       {
         "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 4.0212385965949355,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "mesh",
-        "derivation": "lateral 2π·0.2·3.0 = 1.2π plus two caps 2·π·0.2² = 0.08π → 1.28π m². 'mesh' tolerance (1% pinned): triangulated curved surface — observed relative error recorded per run"
+        "derivation": "lateral 2\u03c0\u00b70.2\u00b73.0 = 1.2\u03c0 plus two caps 2\u00b7\u03c0\u00b70.2\u00b2 = 0.08\u03c0 \u2192 1.28\u03c0 m\u00b2. 'mesh' tolerance (1% pinned): triangulated curved surface \u2014 observed relative error recorded per run"
       }
     ]
   },
@@ -523,6 +576,543 @@
     "mesh": {
       "expect": "error",
       "errorContains": "could not open the file"
+    }
+  },
+  {
+    "caseId": "femesh-bracket-solid",
+    "adapter": "femesh",
+    "fixture": "bracket-solid.step",
+    "expect": "success",
+    "femesh": {
+      "expect": "success",
+      "kind": "step",
+      "note": "REAL gmsh bridge (venv + engine libs); live-observed pins 2026-10-22 (gmsh 4.15.2, defaults 2.0/4.0/1).",
+      "pins": [
+        {
+          "ref": null,
+          "field": "nodes",
+          "value": 1088,
+          "derivation": "live-observed node count at MeshSizeMin 2.0 / MeshSizeMax 4.0, gmsh 4.15.2 linear tets \u2014 pinned after the TL smoke run"
+        },
+        {
+          "ref": null,
+          "field": "elements",
+          "value": 3482,
+          "derivation": "live-observed tet4 count under the same pinned options"
+        },
+        {
+          "ref": null,
+          "field": "solidRefOrderOk",
+          "value": true,
+          "derivation": "solids[i].ref === step:solid:i for every index (the pinned ascending order)"
+        },
+        {
+          "ref": null,
+          "field": "tetSumOk",
+          "value": true,
+          "derivation": "sum of per-solid tetCounts === elements.count (payload self-consistency)"
+        },
+        {
+          "ref": null,
+          "field": "qualityRangeOk",
+          "value": true,
+          "derivation": "gmsh element qualities in (0,1] with min <= mean (observed min 0.2997 / mean 0.7848 live)"
+        },
+        {
+          "ref": "step:solid:0",
+          "field": "tetCount",
+          "value": 3482,
+          "derivation": "single-solid fixture: the whole tet count"
+        },
+        {
+          "ref": "step:solid:0",
+          "field": "meshVolume",
+          "value": 32984.071,
+          "unit": "mm3",
+          "relTolerance": 0.02,
+          "derivation": "closed form 36000 - 960*pi mm3 (40x30x30 block minus two r=4 h=30 through-holes; pi=3.14159265358979 -> 32984.07105). Linear tets under-trap the curved holes so the mesh volume runs HIGH: live-observed 33286.264 = +0.92%, the expected O(h^2) bias at these sizes; pinned at the contract's 2%"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "femesh-two-solids",
+    "adapter": "femesh",
+    "fixture": "two-solids.step",
+    "expect": "success",
+    "femesh": {
+      "expect": "success",
+      "kind": "step",
+      "note": "PLANAR solids -> the divergence-theorem sum of signed linear-tet volumes is the exact box volume up to IEEE rounding (interior faces cancel): the analytic tolerance is a mathematical pin, not an aspiration.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "nodes",
+          "value": 479,
+          "derivation": "live-observed node count, gmsh 4.15.2 defaults"
+        },
+        {
+          "ref": null,
+          "field": "elements",
+          "value": 1378,
+          "derivation": "live-observed tet4 count"
+        },
+        {
+          "ref": "step:solid:0",
+          "field": "tetCount",
+          "value": 599,
+          "derivation": "live-observed per-solid split (599 + 779 = 1378)"
+        },
+        {
+          "ref": "step:solid:1",
+          "field": "tetCount",
+          "value": 779,
+          "derivation": "live-observed per-solid split"
+        },
+        {
+          "ref": "step:solid:0",
+          "field": "meshVolume",
+          "value": 6000,
+          "unit": "mm3",
+          "relTolerance": 1e-12,
+          "derivation": "closed form 30x20x10 mm = 6000 mm3 (make_fixture_step_solids.py); planar -> EXACT by divergence theorem"
+        },
+        {
+          "ref": "step:solid:1",
+          "field": "meshVolume",
+          "value": 9000,
+          "unit": "mm3",
+          "relTolerance": 1e-12,
+          "derivation": "closed form 15x15x40 mm = 9000 mm3; planar -> EXACT by divergence theorem"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "femesh-geometry-free",
+    "adapter": "femesh",
+    "fixture": "bracket.step",
+    "expect": "error",
+    "femesh": {
+      "expect": "error",
+      "kind": "step",
+      "errorContains": "no solid geometry found in STEP file",
+      "note": "valid STEP, zero solids after OCC import -> the pinned verbatim refusal, never an empty mesh"
+    }
+  },
+  {
+    "caseId": "femesh-ifc-refused",
+    "adapter": "femesh",
+    "fixture": "wall-quantities.ifc",
+    "expect": "error",
+    "femesh": {
+      "expect": "error",
+      "kind": "ifc",
+      "errorContains": "gmsh cannot import IFC geometry",
+      "note": "observed live on gmsh 4.15.2: .ifc falls through to the .geo parser and dies with a misleading error \u2014 the adapter refuses by name instead (honest absence)"
+    }
+  },
+  {
+    "caseId": "powerflow-2bus-closed-form",
+    "adapter": "powerflow",
+    "fixture": "powerflow-2bus.json",
+    "expect": "success",
+    "powerflow": {
+      "expect": "success",
+      "note": "2-bus LOSSLESS feeder: the Newton-Raphson solution has a closed form via the high-voltage branch of the quadratic V2^4 - V2^2 + (p*x)^2 = 0 (lossless line, Q=0 => cos(delta) = V2/V1).",
+      "pins": [
+        {
+          "ref": null,
+          "field": "converged",
+          "value": true,
+          "derivation": "lossless radial 2-bus with a light load: NR from a flat start converges to the high branch"
+        },
+        {
+          "ref": null,
+          "field": "busCount",
+          "value": 2,
+          "derivation": "fixture declares 2 buses"
+        },
+        {
+          "ref": null,
+          "field": "lineCount",
+          "value": 1,
+          "derivation": "fixture declares 1 line"
+        },
+        {
+          "ref": null,
+          "field": "lossMw",
+          "value": 0,
+          "absTolerance": 1e-09,
+          "derivation": "r = 0 ohm/km -> I^2*R losses are identically zero; pandapower's residual rounding pinned at 1e-9"
+        },
+        {
+          "ref": null,
+          "field": "loadMw",
+          "value": 2,
+          "absTolerance": 1e-09,
+          "derivation": "the single declared load (2 MW)"
+        },
+        {
+          "ref": "bus-1",
+          "field": "vmPu",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "slack bus holds the external-grid setpoint exactly"
+        },
+        {
+          "ref": "bus-2",
+          "field": "vmPu",
+          "value": 0.9999875,
+          "relTolerance": 1e-06,
+          "derivation": "V2 = sqrt((1 + sqrt(1 - 4*(p*x)^2)) / 2) with p = P/baseMva = 2/100 = 0.02 pu and x = Xohm/baseZ = (0.1 ohm/km * 10 km) / ((20 kV)^2 / 100 MVA) = 1 / 4 = 0.25 pu -> p*x = 5e-3 -> 4*(px)^2 = 1e-4 -> V2^2 = (1 + 0.99995)/2 = 0.999975 -> V2 = 0.9999875 (the high branch NR converges to). [An earlier draft of this derivation wrote 1/4 as 0.025 \u2014 the harness caught the 10x slip against the real engine, which is exactly its job.]"
+        },
+        {
+          "ref": "bus-2",
+          "field": "angleDeg",
+          "value": -0.28647895,
+          "absTolerance": 0.0001,
+          "derivation": "sin(delta) = p*x/V2 = 5.00000625e-3 rad = 0.28647895 degrees across the line (lossless: P = V1*V2*sin(delta)/X); bus-2 LAGS the slack reference so pandapower reports the negative angle; absTolerance 1e-4 deg absorbs NR's convergence residual (observed -0.28648367, residual 4.7e-6 deg \u2014 the solver's own tolerance, not a formula error)"
+        },
+        {
+          "ref": "bus-1>bus-2",
+          "field": "iKa",
+          "value": 0.057735749,
+          "relTolerance": 1e-05,
+          "derivation": "I = P / (sqrt(3) * V2_LL * ...) with the SOLVED V2: 2 MW / (1.7320508 * 20 kV * 0.9999875) = 0.05773575 kA (the current reflects the actual end-of-line voltage, not the nominal)"
+        },
+        {
+          "ref": "bus-1>bus-2",
+          "field": "pLossMw",
+          "value": 0,
+          "absTolerance": 1e-09,
+          "derivation": "r = 0 -> zero active loss on the line"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "powerflow-islanded",
+    "adapter": "powerflow",
+    "fixture": "powerflow-islanded.json",
+    "expect": "error",
+    "powerflow": {
+      "expect": "error",
+      "errorContains": "islanded network - buses with no path to the external grid",
+      "note": "observed live: pandapower 3.5.6 CONVERGES and reports NaN vm_pu for bus-3 (no line path) \u2014 NaN is not a result; the adapter refuses naming the island"
+    }
+  },
+  {
+    "caseId": "des-flowshop-makespan",
+    "adapter": "des",
+    "fixture": "des-flowshop.json",
+    "expect": "success",
+    "des": {
+      "expect": "success",
+      "note": "deterministic FIFO flow shop, hand-traced event by event.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "policy",
+          "value": "fifo",
+          "derivation": "the only policy shipped (contract \u00a73.3)"
+        },
+        {
+          "ref": null,
+          "field": "jobCount",
+          "value": 3,
+          "derivation": "fixture declares 3 jobs"
+        },
+        {
+          "ref": null,
+          "field": "resourceCount",
+          "value": 2,
+          "derivation": "fixture declares 2 machines"
+        },
+        {
+          "ref": null,
+          "field": "makespan",
+          "value": 13,
+          "derivation": "hand trace: m1 serves j1[0,2] j2[2,5] j3[5,6] (busy 6); m2 serves j1[2,6] then j2[6,8] (j2 arrives at 5, waits), then j3[8,13] -> last completion 13"
+        },
+        {
+          "ref": null,
+          "field": "utilizationInvariantOk",
+          "value": true,
+          "derivation": "utilization === busy/makespan for every resource (payload self-consistency)"
+        },
+        {
+          "ref": "m1",
+          "field": "busy",
+          "value": 6,
+          "derivation": "sum of m1 task durations 2+3+1"
+        },
+        {
+          "ref": "m2",
+          "field": "busy",
+          "value": 11,
+          "derivation": "sum of m2 task durations 4+2+5"
+        },
+        {
+          "ref": "m1",
+          "field": "utilization",
+          "value": 0.46153846153846156,
+          "absTolerance": 1e-12,
+          "derivation": "6/13 (busy/makespan)"
+        },
+        {
+          "ref": "m2",
+          "field": "utilization",
+          "value": 0.8461538461538461,
+          "absTolerance": 1e-12,
+          "derivation": "11/13"
+        },
+        {
+          "ref": "j1",
+          "field": "endAt",
+          "value": 6,
+          "derivation": "j1: m1 [0,2] then m2 [2,6]"
+        },
+        {
+          "ref": "j3",
+          "field": "endAt",
+          "value": 13,
+          "derivation": "j3: m1 [5,6] then m2 [8,13] (waits for m2 to clear j2 at 8)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "des-invalid-resource",
+    "adapter": "des",
+    "fixture": "des-invalid-resource.json",
+    "expect": "error",
+    "des": {
+      "expect": "error",
+      "errorContains": "references unknown resource",
+      "note": "defense-in-depth: the route zod refuses first; the adapter still defends itself (never crashes on alien input)"
+    }
+  },
+  {
+    "caseId": "cpm-platform-rollout",
+    "adapter": "cpm",
+    "fixture": "schedule-cpm.json",
+    "expect": "success",
+    "cpm": {
+      "expect": "success",
+      "note": "PLATFORM CORE (no engine): the exact analyze_schedule pure pipeline (analyzeCpm + buildCpmAnalysisDocument); engineKey/adapterScript are ABSENT from the document \u2014 recorded honestly.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "activityCount",
+          "value": 6,
+          "derivation": "fixture declares 6 activities"
+        },
+        {
+          "ref": null,
+          "field": "durationDays",
+          "value": 11,
+          "derivation": "longest path b(2)+d(5)+f(1)+e(3) = 11 days"
+        },
+        {
+          "ref": null,
+          "field": "criticalPathCount",
+          "value": 4,
+          "derivation": "critical activities: b, d, f, e"
+        },
+        {
+          "ref": null,
+          "field": "criticalPath",
+          "value": [
+            "b",
+            "d",
+            "f",
+            "e"
+          ],
+          "derivation": "the single zero-float chain b->d->f->e (a and c each carry 1 day float)"
+        },
+        {
+          "ref": null,
+          "field": "formatOk",
+          "value": true,
+          "derivation": "document starts with the pinned eos-cpm/1 prefix (byte-deterministic pure assembly)"
+        },
+        {
+          "ref": null,
+          "field": "engineKeyAbsent",
+          "value": true,
+          "derivation": "NO engineKey/adapterScript in the document \u2014 platform core honesty (contract \u00a74)"
+        },
+        {
+          "ref": "a",
+          "field": "es",
+          "value": 0,
+          "derivation": "no predecessors -> starts day 0"
+        },
+        {
+          "ref": "a",
+          "field": "ef",
+          "value": 3,
+          "derivation": "0 + duration 3"
+        },
+        {
+          "ref": "a",
+          "field": "totalFloat",
+          "value": 1,
+          "derivation": "ls 4 - es 3... hand: a feeds c(e->8 chain: c.ls = e.ls - dur = 8-3? c: ls = min(successor e.ls) - 4 = 8-4 = 4 -> float = 4-3 = 1"
+        },
+        {
+          "ref": "a",
+          "field": "critical",
+          "value": false,
+          "derivation": "float 1 > 0"
+        },
+        {
+          "ref": "b",
+          "field": "es",
+          "value": 0,
+          "derivation": "no predecessors"
+        },
+        {
+          "ref": "b",
+          "field": "ef",
+          "value": 2,
+          "derivation": "0 + 2"
+        },
+        {
+          "ref": "b",
+          "field": "totalFloat",
+          "value": 0,
+          "derivation": "b->d->f->e is the critical chain -> b.ls = 0 = es"
+        },
+        {
+          "ref": "b",
+          "field": "critical",
+          "value": true,
+          "derivation": "zero float"
+        },
+        {
+          "ref": "c",
+          "field": "es",
+          "value": 3,
+          "derivation": "after a (ef 3)"
+        },
+        {
+          "ref": "c",
+          "field": "ef",
+          "value": 7,
+          "derivation": "3 + 4"
+        },
+        {
+          "ref": "c",
+          "field": "totalFloat",
+          "value": 1,
+          "derivation": "c.ls = e.ls(8) - 4 = 4 -> float 1"
+        },
+        {
+          "ref": "d",
+          "field": "es",
+          "value": 2,
+          "derivation": "after b (ef 2)"
+        },
+        {
+          "ref": "d",
+          "field": "ef",
+          "value": 7,
+          "derivation": "2 + 5"
+        },
+        {
+          "ref": "d",
+          "field": "ls",
+          "value": 2,
+          "derivation": "f.ls(7) - 5 = 2"
+        },
+        {
+          "ref": "d",
+          "field": "critical",
+          "value": true,
+          "derivation": "zero float"
+        },
+        {
+          "ref": "f",
+          "field": "es",
+          "value": 7,
+          "derivation": "after d (ef 7)"
+        },
+        {
+          "ref": "f",
+          "field": "ef",
+          "value": 8,
+          "derivation": "7 + 1"
+        },
+        {
+          "ref": "f",
+          "field": "critical",
+          "value": true,
+          "derivation": "zero float"
+        },
+        {
+          "ref": "e",
+          "field": "es",
+          "value": 8,
+          "derivation": "after max(c ef 7, f ef 8)"
+        },
+        {
+          "ref": "e",
+          "field": "ef",
+          "value": 11,
+          "derivation": "8 + 3 = project duration"
+        },
+        {
+          "ref": "e",
+          "field": "lf",
+          "value": 11,
+          "derivation": "terminal activity on the critical chain"
+        },
+        {
+          "ref": "e",
+          "field": "critical",
+          "value": true,
+          "derivation": "zero float"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "lo-cover-sheet-convert",
+    "adapter": "libreoffice",
+    "fixture": "cover-sheet.fodt",
+    "expect": "success",
+    "libreoffice": {
+      "expect": "success",
+      "note": "REAL headless soffice run, ONCE (byte-determinism NOT claimed \u2014 PDFs embed creation timestamps, contract \u00a75.4). Structural pins only.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "pdfMagic",
+          "value": "%PDF-",
+          "derivation": "a PDF must start with the %PDF- magic (the bridge also refuses non-PDF output)"
+        },
+        {
+          "ref": null,
+          "field": "sizeBytes",
+          "value": 1000,
+          "minBound": true,
+          "derivation": "the converted Writer document is a multi-digit-KB PDF (live-observed 26201 bytes) \u2014 a lower bound only, never an equality claim (timestamps affect exact bytes)"
+        },
+        {
+          "ref": null,
+          "field": "engineKey",
+          "value": "libreoffice",
+          "derivation": "the registry key of the converting engine"
+        },
+        {
+          "ref": null,
+          "field": "adapterScript",
+          "value": "convert-document.ts",
+          "derivation": "the TS-native bridge name (no python in the LO path)"
+        }
+      ]
     }
   }
 ]

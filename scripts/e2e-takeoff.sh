@@ -18,6 +18,11 @@ FIXTURES="$(cd "$(dirname "$0")/.." && pwd)/tests/fixtures"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
+# Phase-6 auth (contract §1.5): bootstrap the demo operator (first-run setup)
+# if needed, then sign in via the REAL NextAuth flow. Every curl below appends
+# ${EOS_AUTH} (cookie jar) — the API requires a session now.
+source "$(dirname "$0")/e2e-signin.sh"
+
 PASS=0
 FAIL=0
 
@@ -37,7 +42,7 @@ BODY=""
 http() { # method path [extra curl args…]
   local method="$1" path="$2"
   shift 2
-  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X "$method" "$BASE$path" "$@") || STATUS="000"
+  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X "$method" "$BASE$path" "$@" ${EOS_AUTH:-}) || STATUS="000"
   BODY=$(cat "$WORK/http.body")
 }
 jpost() { # path jsonfile
@@ -50,7 +55,7 @@ upload() { # path file kind [explicit artifact name]
   # the pinned BOQ joins reference full filenames ("wall-quantities.ifc"), so
   # the demo uploads set the name explicitly.
   if [[ -n "$name" ]]; then args+=(-F "name=$name"); fi
-  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X POST "${args[@]}" "$BASE$path") || STATUS="000"
+  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X POST "${args[@]}" "$BASE$path" ${EOS_AUTH:-}) || STATUS="000"
   BODY=$(cat "$WORK/http.body")
 }
 j() { printf '%s' "$1" | /usr/bin/jq -r "$2"; }

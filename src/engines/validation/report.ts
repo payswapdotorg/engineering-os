@@ -19,9 +19,11 @@ import { mkdirSync, writeFileSync } from "node:fs"
 import path from "node:path"
 
 import {
+  ADAPTER_LABELS,
   REPO_ROOT,
   type CaseResult,
   type ComparisonResult,
+  type DisciplineCaseResult,
   type HarnessReport,
   type MeshCaseResult,
   type ToleranceKind,
@@ -75,6 +77,9 @@ function caseNotes(c: CaseResult): string {
   if (c.mesh) {
     notes.push(meshNote(c.mesh))
   }
+  if (c.discipline) {
+    notes.push(disciplineNote(c.discipline))
+  }
   if (c.expect === "error") {
     if (c.status === "pass") {
       notes.push(`threw honest error: \`${(c.errorObserved ?? "").slice(0, 140)}\``)
@@ -116,16 +121,36 @@ function meshNote(m: MeshCaseResult): string {
   return `${head}${det}${worst}${m.status === "pass" ? "" : ` — mesh FAIL: ${m.problems.join(" · ")}`}`
 }
 
+/** One-line Phase-5 discipline sub-result for the results table (W2-f). */
+function disciplineNote(d: DisciplineCaseResult): string {
+  if (d.expect === "error") {
+    if (d.status === "pass") {
+      return `${d.adapter}: threw honest error: \`${(d.errorObserved ?? "").slice(0, 120)}\``
+    }
+    return `${d.adapter}: FAIL — ${d.problems.join(" · ")}`
+  }
+  const det =
+    d.determinism === null
+      ? d.adapter === "libreoffice"
+        ? " · byte-determinism not claimed (PDFs embed creation timestamps — single run, §5.4)"
+        : ""
+      : ` · doc byte-determinism ${d.determinism ? "✅" : "**FALSE**"}`
+  const engine =
+    d.engine === null || d.engine === undefined
+      ? " · engine identity absent (platform core)"
+      : ` · ${d.engine.engineKey} ${d.engine.engineVersion}`
+  const rels = d.comparisons.filter((x) => x.observedRelError !== null && (x.observedRelError as number) > 0)
+  const worst =
+    rels.length > 0 ? ` · max pin rel error ${Math.max(...rels.map((x) => x.observedRelError as number)).toExponential(3)}` : ""
+  return `${d.adapter}: ${d.comparisons.length} pin(s)${engine}${det}${worst}${d.status === "pass" ? "" : ` — FAIL: ${d.problems.join(" · ")}`}`
+}
+
 /** Human evidence document (regenerated wholesale by every harness run). */
 export function buildMarkdownReport(report: HarnessReport): string {
   const s = report.summary
-  const stepAvail = report.environment.engineAvailability.step
-  const ifcAvail = report.environment.engineAvailability.ifc
-  const avail = (a: { available: boolean; reason?: string }): string =>
-    a.available ? "available" : `UNAVAILABLE (${a.reason ?? "unknown"})`
 
   const lines: string[] = []
-  lines.push("# Engine validation report — model-derived quantity adapters + mesh tessellation")
+  lines.push("# Engine validation report — quantities + tessellation + Phase-5 disciplines")
   lines.push("")
   lines.push("> **Regenerated file — do not edit by hand.** Regenerate with `bun run validate:engines`.")
   lines.push("> Machine-readable companion: [`tests/validation/report.json`](../../tests/validation/report.json) ·")
@@ -148,12 +173,20 @@ export function buildMarkdownReport(report: HarnessReport): string {
   lines.push("  vertex/triangle counts are pinned exactly, the two runs must be byte-identical (no timestamps anywhere —")
   lines.push("  Contract A), and divergence-theorem mesh volumes are checked against hand-derived closed forms (planar exact;")
   lines.push("  curved within the pinned 1% `mesh` tolerance with the observed relative error recorded).")
+  lines.push("- **Phase-5 disciplines (W2-f)**: the femesh/powerflow/des cases drive the REAL gmsh / pandapower / SimPy")
+  lines.push("  bridges TWICE and require the stored §2 documents (built by the broker's own pure builders) to be")
+  lines.push("  BYTE-IDENTICAL across the runs; the cpm case drives the exact pure pipeline behind the `analyze_schedule`")
+  lines.push("  broker op and asserts engine identity ABSENT (platform core); the libreoffice case runs ONE real conversion")
+  lines.push("  with structural pins and claims NO byte-determinism (PDFs embed creation timestamps — contract §5.4).")
   lines.push("")
   lines.push("## Environment")
   lines.push("")
   lines.push(`- Ran at (UTC): \`${report.ranAt}\``)
   lines.push(`- Python (engine venv, \`EOS_PYTHON\`-overridable): \`${report.pythonBin}\``)
-  lines.push(`- Engine availability probe — cadquery (STEP): ${avail(stepAvail)} · ifcopenshell (IFC): ${avail(ifcAvail)}`)
+  lines.push(`- LibreOffice (\`EOS_LIBREOFFICE\`-overridable): \`${process.env.EOS_LIBREOFFICE ?? "/usr/bin/libreoffice"}\``)
+  for (const [kind, avail] of Object.entries(report.environment.engineAvailability)) {
+    lines.push(`- Engine availability probe — ${ADAPTER_LABELS[kind as keyof typeof ADAPTER_LABELS]}: ${avail.available ? "available" : `UNAVAILABLE (${avail.reason ?? "unknown"})`}`)
+  }
   const versions = Object.entries(report.engineVersions)
     .map(([k, v]) => `${k} ${v ?? "no successful run (version unknown)"}`)
     .join(" · ")
@@ -280,6 +313,77 @@ export function buildMarkdownReport(report: HarnessReport): string {
   lines.push("")
   lines.push("Full derivations for every pinned value live in the committed corpus manifest")
   lines.push("(`tests/validation/corpus-manifest.json`, one `derivation` string per entry — the audit trail).")
+  lines.push("")
+  lines.push("## Phase-5 disciplines validation (W2-f — femesh / power flow / DES / CPM / LibreOffice)")
+  lines.push("")
+  lines.push("Cases with a Phase-5 adapter drive the REAL discipline bridges — gmsh (FE meshing via `step_femesh.py`,")
+  lines.push("system-library bootstrap through LD_LIBRARY_PATH), pandapower (`powerflow.py`), SimPy (`des.py`), the headless")
+  lines.push("LibreOffice conversion bridge, and the pure CPM platform core behind the `analyze_schedule` broker op. Every pin")
+  lines.push("carries its hand-derived closed form or its live-observed provenance in the manifest. The femesh/powerflow/des")
+  lines.push("success cases run TWICE and the BYTE-IDENTICAL §2 documents the broker stores must come out identical; the cpm")
+  lines.push("case runs the exact pure pipeline the broker core runs and records NO engine identity (honest null); the")
+  lines.push("LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversions (contract §5.4).")
+  lines.push("")
+  const disciplineCases = report.cases.filter((c) => c.discipline)
+  lines.push("| Case | Adapter | Fixture | Expect | Engine | Doc byte-determinism | Pins | Status |")
+  lines.push("|---|---|---|---|---|---|---|---|")
+  for (const c of disciplineCases) {
+    const d = c.discipline as DisciplineCaseResult
+    const engine =
+      d.engine === null || d.engine === undefined
+        ? "— (platform core, honestly absent)"
+        : `${d.engine.engineKey} ${d.engine.engineVersion}`
+    const det =
+      d.determinism === null
+        ? d.adapter === "libreoffice"
+          ? "not claimed (single run, §5.4)"
+          : "—"
+        : d.determinism
+          ? "✅ true"
+          : "**FALSE**"
+    lines.push(
+      `| \`${c.caseId}\` | ${d.adapter} | \`${c.fixture}\` | ${d.expect} | ${engine} | ${det} | ${d.comparisons.length} | ${d.status === "pass" ? "pass" : "**FAIL**"} |`,
+    )
+  }
+  lines.push("")
+  lines.push("### Discipline pin comparisons (observed vs hand-derived)")
+  lines.push("")
+  const pinRows: string[] = []
+  for (const c of disciplineCases) {
+    const d = c.discipline as DisciplineCaseResult
+    for (const cmp of d.comparisons) {
+      const at = cmp.ref === null ? "" : ` @ ${cmp.ref}`
+      const obs =
+        cmp.observed === null
+          ? "—"
+          : typeof cmp.observed === "number"
+            ? num(cmp.observed)
+            : JSON.stringify(cmp.observed)
+      const exp =
+        cmp.expected === null
+          ? "—"
+          : typeof cmp.expected === "number"
+            ? num(cmp.expected)
+            : JSON.stringify(cmp.expected)
+      const rel =
+        cmp.observedRelError === null
+          ? ""
+          : ` → rel error ${relTextFor(cmp.observedRelError, null)}`
+      const status = cmp.ok ? "" : ` — **PROBLEM: ${cmp.problem}**`
+      pinRows.push(
+        `- \`${c.caseId}\` ${cmp.field}${at}: observed **${obs}** vs pinned ${exp}${cmp.unit ? ` ${cmp.unit}` : ""}${cmp.bound ? ` [bound ${cmp.bound}]` : ""}${rel}${status} · ${cmp.derivation}`,
+      )
+    }
+    if (d.expect === "error" && d.status === "pass") {
+      pinRows.push(
+        `- \`${c.caseId}\` (${d.adapter}) threw the honest error: \`${(d.errorObserved ?? "").slice(0, 160)}\``,
+      )
+    }
+  }
+  if (pinRows.length === 0) {
+    pinRows.push("- no discipline pin comparisons ran (cases skipped or none expected)")
+  }
+  lines.push(...pinRows)
   lines.push("")
   lines.push("## Regenerate")
   lines.push("")

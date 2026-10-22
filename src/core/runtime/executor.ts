@@ -575,10 +575,21 @@ function parseDefinitionRow(
 
 export type ApproveWorkflowResult = { ok: true } | { ok: false; error: string }
 
+/** Human approver identity for `approveWorkflow` (Phase-6 session stamping).
+ *
+ * The red line is UNCHANGED: this is typed `{ actorId }` only, is set by the
+ * server-side route from the signed-in session (never read from any request
+ * body), and `canApprove` in the route still enforces actorType "user" —
+ * agents can never approve on any path. Omitted → Phase-1..5 "local-operator". */
+export interface WorkflowApprover {
+  actorId: string
+  userName?: string
+}
+
 /**
- * Publish + resume an awaiting workflow. THE RED LINE: the approver is
- * hard-coded to the server-side human {actorType:"user",
- * actorId:"local-operator"} — this function takes NO actor parameter, so no
+ * Publish + resume an awaiting workflow. THE RED LINE: the approver is a
+ * server-side human {actorType:"user"} — the identity comes from the signed-in
+ * session via the route (contract §1.3), never from a request body, so no
  * caller can ever make an agent approve (ADR-0006 §3, contract §4.1).
  *
  *  1. atomically claim awaiting_approval → running (approve)
@@ -597,6 +608,7 @@ export type ApproveWorkflowResult = { ok: true } | { ok: false; error: string }
 export async function approveWorkflow(
   workflowId: string,
   note?: string | null,
+  approver?: WorkflowApprover,
 ): Promise<ApproveWorkflowResult> {
   const resumed = await db.workflow.updateMany({
     where: { id: workflowId, state: "awaiting_approval" },
@@ -617,11 +629,11 @@ export async function approveWorkflow(
 
   let publishedRevisionId: string | null = null
   if (step.outputArtifactRevisionId) {
-    publishedRevisionId = await publishStepRevision(workflow, step, note)
+    publishedRevisionId = await publishStepRevision(workflow, step, note, approver)
   }
 
   await db.workflowStepRun.update({ where: { id: step.id }, data: { state: "succeeded" } })
-  await recordWorkflowEvent(workflowId, "workflow.approved", "user", "local-operator", {
+  await recordWorkflowEvent(workflowId, "workflow.approved", "user", approver?.actorId ?? "local-operator", {
     stepId: step.stepId,
     outputArtifactRevisionId: publishedRevisionId,
     note: note ?? null,
@@ -636,12 +648,14 @@ export async function approveWorkflow(
  * approval convention of POST /api/artifacts/[id]/approve (state machine +
  * prior-approved supersede + `artifact.approved` audit event), and storing
  * the workflow approval payload on the revision note so the published
- * revision points back at the workflow that gated it.
+ * revision points back at the workflow that gated it. The approver identity
+ * (Phase-6 session stamping) defaults to the Phase-1..5 "local-operator".
  */
 async function publishStepRevision(
   workflow: { id: string; projectId: string },
   step: { stepId: string; outputArtifactRevisionId: string | null },
   note?: string | null,
+  approver?: WorkflowApprover,
 ): Promise<string | null> {
   const revisionId = step.outputArtifactRevisionId
   if (!revisionId) return null // defensive — the caller guards this
@@ -685,7 +699,7 @@ async function publishStepRevision(
     data: {
       approvalState: next,
       note: JSON.stringify({
-        approvedBy: "local-operator",
+        approvedBy: approver?.actorId ?? "local-operator",
         approvedAt: new Date().toISOString(),
         workflowId: workflow.id,
       }),
@@ -695,7 +709,8 @@ async function publishStepRevision(
   await recordEvent({
     projectId: workflow.projectId,
     actorType: "user",
-    actorId: "local-operator",
+    actorId: approver?.actorId ?? "local-operator",
+    userName: approver?.userName ?? null,
     action: "artifact.approved",
     entityType: "artifact",
     entityId: revision.artifactId,

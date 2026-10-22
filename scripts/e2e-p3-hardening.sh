@@ -19,6 +19,10 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
+# Phase-6 auth (contract §1.5): sign in as the demo operator (bootstrap via the
+# first-run setup route when needed); ${EOS_AUTH} carries the session cookie jar.
+source "$(dirname "$0")/e2e-signin.sh"
+
 PASS=0
 FAIL=0
 
@@ -38,7 +42,7 @@ BODY=""
 http() { # method path [extra curl args…]
   local method="$1" path="$2"
   shift 2
-  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X "$method" "$BASE$path" "$@") || STATUS="000"
+  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X "$method" "$BASE$path" "$@" ${EOS_AUTH:-}) || STATUS="000"
   BODY=$(cat "$WORK/http.body")
 }
 jpost() { http POST "$1" -H 'Content-Type: application/json' --data-binary @"$2"; }
@@ -178,7 +182,7 @@ http GET "/api/events?projectId=$DEMO_ID&limit=200"
 EVENTS_BEFORE=$(j "$BODY" '.data.events | length')
 
 STATUS=$(curl -sS -m 180 -o "$WORK/boq.csv" -D "$WORK/boq.headers" -w '%{http_code}' \
-  "$BASE/api/estimates/$DEMO_EST/export?format=csv") || STATUS="000"
+  ${EOS_AUTH:-} "$BASE/api/estimates/$DEMO_EST/export?format=csv") || STATUS="000"
 CT=$(tr -d '\r' < "$WORK/boq.headers" | grep -i '^content-type:' | cut -d' ' -f2-)
 CD=$(tr -d '\r' < "$WORK/boq.headers" | grep -i '^content-disposition:' | cut -d' ' -f2-)
 assert_eq "CSV export 200 with Content-Type text/csv; charset=utf-8" \

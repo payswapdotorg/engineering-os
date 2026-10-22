@@ -19,6 +19,10 @@ FIXTURES="$(cd "$HERE/.." && pwd)/tests/fixtures"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
+# Phase-6 auth (contract §1.5): sign in as the demo operator; ${EOS_AUTH}
+# carries the session cookie jar on every curl below.
+source "$(dirname "$0")/e2e-signin.sh"
+
 PASS=0
 FAIL=0
 
@@ -38,14 +42,14 @@ BODY=""
 http() { # method path [extra curl args…]
   local method="$1" path="$2"
   shift 2
-  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X "$method" "$BASE$path" "$@") || STATUS="000"
+  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X "$method" "$BASE$path" "$@" ${EOS_AUTH:-}) || STATUS="000"
   BODY=$(cat "$WORK/http.body")
 }
 upload() { # path file kind [explicit artifact name]
   local path="$1" file="$2" kind="$3" name="${4:-}"
   local args=(-F "file=@$file" -F "kind=$kind")
   if [[ -n "$name" ]]; then args+=(-F "name=$name"); fi
-  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X POST "${args[@]}" "$BASE$path") || STATUS="000"
+  STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X POST "${args[@]}" "$BASE$path" ${EOS_AUTH:-}) || STATUS="000"
   BODY=$(cat "$WORK/http.body")
 }
 j() { printf '%s' "$1" | /usr/bin/jq -r "$2"; }

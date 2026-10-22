@@ -1,0 +1,14 @@
+{
+  "format": "eos-des-scenario/1",
+  "name": "Two-machine flow shop",
+  "timeUnit": "day",
+  "resources": [
+    { "id": "m1", "capacity": 1 },
+    { "id": "m2", "capacity": 1 }
+  ],
+  "jobs": [
+    { "id": "j1", "arriveAt": 0, "tasks": [ { "resourceId": "m1", "duration": 2 }, { "resourceId": "m2", "duration": 4 } ] },
+    { "id": "j2", "arriveAt": 0, "tasks": [ { "resourceId": "m1", "duration": 3 }, { "resourceId": "m2", "duration": 2 } ] },
+    { "id": "j3", "arriveAt": 0, "tasks": [ { "resourceId": "m1", "duration": 1 }, { "resourceId": "m2", "duration": 5 } ] }
+  ]
+}

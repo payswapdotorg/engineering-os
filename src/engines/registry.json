@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters — model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json — 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) — see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py → eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) — 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index — both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod.",
+  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run \u2014 via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters \u2014 model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json \u2014 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) \u2014 see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py \u2192 eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) \u2014 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index \u2014 both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod.",
   "engines": [
     {
       "key": "freecad",
@@ -17,22 +17,32 @@
         "verifiedMethod": "github-api /repos/FreeCAD/FreeCAD (license field LGPL-2.1; repo LICENSE = LGPL v2.1 text) + releases/latest tag 1.1.4"
       },
       "integration": {
-        "mechanisms": ["cli", "python-module", "native-process"],
+        "mechanisms": [
+          "cli",
+          "python-module",
+          "native-process"
+        ],
         "notes": "FreeCADCmd headless scripting; GUI opens for interactive editing (Phase 2)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["FreeCADCmd", "freecadcmd", "freecad"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "FreeCADCmd",
+            "freecadcmd",
+            "freecad"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "FreeCAD\\s+([0-9][0-9A-Za-z.+-]*)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "DWG read/write requires external converter (LibreDWG) — separate compatibility program",
-        "GitHub license field is the legacy shorthand LGPL-2.1; upstream declares LGPL-2.1-or-later — exact 'only/or-later' scope to be pinned at Phase-6 release review",
-        "Sandbox investigation (2026-10-21, W2-d): FreeCAD is not importable in the engine venv, no freecad/FreeCADCmd binary is on PATH, and pip finds no FreeCAD distribution ('No matching distribution found') — it stays 'planned' for editor/authoring; the Phase-2 geometry pipeline is served by cadquery/IfcOpenShell"
+        "DWG read/write requires external converter (LibreDWG) \u2014 separate compatibility program",
+        "GitHub license field is the legacy shorthand LGPL-2.1; upstream declares LGPL-2.1-or-later \u2014 exact 'only/or-later' scope to be pinned at Phase-6 release review",
+        "Sandbox investigation (2026-10-21, W2-d): FreeCAD is not importable in the engine venv, no freecad/FreeCADCmd binary is on PATH, and pip finds no FreeCAD distribution ('No matching distribution found') \u2014 it stays 'planned' for editor/authoring; the Phase-2 geometry pipeline is served by cadquery/IfcOpenShell"
       ]
     },
     {
@@ -47,11 +57,13 @@
         "latestStable": "2.8.0",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/CadQuery/cadquery (repo live, id 155099400; some follow-up API calls rate-limited from this host — recorded) + /tags (v2.8.0 latest, installed v2.6.1 tag exists) + raw LICENSE file (Apache-2.0 text) + PyPI JSON (cadquery 2.8.0, Apache-2.0 classifier, home_page = the repo)"
+        "verifiedMethod": "github-api /repos/CadQuery/cadquery (repo live, id 155099400; some follow-up API calls rate-limited from this host \u2014 recorded) + /tags (v2.8.0 latest, installed v2.6.1 tag exists) + raw LICENSE file (Apache-2.0 text) + PyPI JSON (cadquery 2.8.0, Apache-2.0 classifier, home_page = the repo)"
       },
       "integration": {
-        "mechanisms": ["python-module"],
-        "notes": "FIRST REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/step_quantities.py computes model-derived quantities (per-solid volume, total surface area, bbox diagonal) from STEP files via OCCT BRepGProp, spawned as an arm's-length subprocess of the uv venv python. Bridge: src/engines/adapters/quantities.ts (deriveFromFile); tests: quantities.test.ts (analytic cross-check on tests/fixtures/bracket-solid.step, 2% tolerance). TESSELLATION ADAPTER (W2-d, 2026-10-21): src/engines/adapters/step_mesh.py emits eos-mesh/1 (vertices in metres, converted from the file's declared unit; solids enumerated identically to the quantity adapter; linear deflection pinned at 0.0001 m = native 0.1 in mm files). Bridge: src/engines/adapters/mesh.ts (tessellateFromFile); tests: mesh.test.ts (pinned counts, mm→m conversion, divergence-volume cross-check, byte-determinism)."
+        "mechanisms": [
+          "python-module"
+        ],
+        "notes": "FIRST REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/step_quantities.py computes model-derived quantities (per-solid volume, total surface area, bbox diagonal) from STEP files via OCCT BRepGProp, spawned as an arm's-length subprocess of the uv venv python. Bridge: src/engines/adapters/quantities.ts (deriveFromFile); tests: quantities.test.ts (analytic cross-check on tests/fixtures/bracket-solid.step, 2% tolerance). TESSELLATION ADAPTER (W2-d, 2026-10-21): src/engines/adapters/step_mesh.py emits eos-mesh/1 (vertices in metres, converted from the file's declared unit; solids enumerated identically to the quantity adapter; linear deflection pinned at 0.0001 m = native 0.1 in mm files). Bridge: src/engines/adapters/mesh.ts (tessellateFromFile); tests: mesh.test.ts (pinned counts, mm\u2192m conversion, divergence-volume cross-check, byte-determinism)."
       },
       "probes": [
         {
@@ -71,15 +83,15 @@
           "cases": 4,
           "lastRun": "2026-10-21",
           "result": "pass",
-          "note": "2 tessellation success cases (two-solids.step 2×24v/12t planar-exact volumes; cylinder-solid.step 506v/500t at 0.0414% on the curved surface) + 2 honest-error probes (0-solid STEP, non-model file)"
+          "note": "2 tessellation success cases (two-solids.step 2\u00d724v/12t planar-exact volumes; cylinder-solid.step 506v/500t at 0.0414% on the curved surface) + 2 honest-error probes (0-solid STEP, non-model file)"
         }
       },
       "limitations": [
-        "Engine is a venv python library, not a CLI on PATH — the registry probe reports 'installed' only when EOS_PYTHON points at the uv venv interpreter (/home/z/.venv/bin/python3)",
+        "Engine is a venv python library, not a CLI on PATH \u2014 the registry probe reports 'installed' only when EOS_PYTHON points at the uv venv interpreter (/home/z/.venv/bin/python3)",
         "import cadquery emits fontconfig warnings to stderr on this host (cosmetic; the adapter redirects fd-level stdout so they can never contaminate the JSON protocol)",
-        "STEP adapter emits per-solid volume, total surface area and overall bounding-box diagonal only — no per-face/feature-level quantities yet",
-        "Solid enumeration order follows OCCT's compound order — elementRef step:solid:i indices are engine-determined, not semantically meaningful",
-        "STEP tessellation (step_mesh.py, W2-d) emits per-face nodes — vertices are duplicated across shared face edges (OCCT BRepMesh behaviour: a box tessellates to 24 verts/12 tris); the linear deflection is pinned at 0.0001 m (native 0.1 in mm-authored files) and must be re-pinned together with the engine pin if counts change"
+        "STEP adapter emits per-solid volume, total surface area and overall bounding-box diagonal only \u2014 no per-face/feature-level quantities yet",
+        "Solid enumeration order follows OCCT's compound order \u2014 elementRef step:solid:i indices are engine-determined, not semantically meaningful",
+        "STEP tessellation (step_mesh.py, W2-d) emits per-face nodes \u2014 vertices are duplicated across shared face edges (OCCT BRepMesh behaviour: a box tessellates to 24 verts/12 tris); the linear deflection is pinned at 0.0001 m (native 0.1 in mm-authored files) and must be re-pinned together with the engine pin if counts change"
       ]
     },
     {
@@ -97,20 +109,27 @@
         "verifiedMethod": "github-api /repos/LibreCAD/LibreCAD (license field NOASSERTION) + repo LICENSE text (GPLv2) + releases/latest tag v2.2.1.6"
       },
       "integration": {
-        "mechanisms": ["cli", "native-process"],
+        "mechanisms": [
+          "cli",
+          "native-process"
+        ],
         "notes": "Batch drawing export via CLI where supported; GUI app for interactive 2D drafting (Phase 2)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["librecad"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "librecad"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "LibreCAD\\s+([0-9][0-9A-Za-z.+-]*)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2 — arm's-length process integration only (ADR-0004)",
+        "GPLv2 \u2014 arm's-length process integration only (ADR-0004)",
         "GitHub license detection returned NOASSERTION; GPLv2 read from repo LICENSE text"
       ]
     },
@@ -118,7 +137,7 @@
       "key": "libredwg",
       "name": "LibreDWG",
       "domain": "cad",
-      "description": "GNU library and CLI tools (dwg2dxf, dwgread, dwgwrite) for DWG reading/writing — the DWG compatibility layer.",
+      "description": "GNU library and CLI tools (dwg2dxf, dwgread, dwgwrite) for DWG reading/writing \u2014 the DWG compatibility layer.",
       "upstream": {
         "canonical": "https://savannah.gnu.org/projects/libredwg/",
         "repo": "LibreDWG/libredwg",
@@ -129,21 +148,29 @@
         "verifiedMethod": "github-api /repos/LibreDWG/libredwg (official mirror of the GNU Savannah project) + releases/latest tag 0.14"
       },
       "integration": {
-        "mechanisms": ["cli"],
-        "notes": "CLI conversion service for DWG↔DXF in CAD/BIM workflows (Phase 2 compatibility program)."
+        "mechanisms": [
+          "cli"
+        ],
+        "notes": "CLI conversion service for DWG\u2194DXF in CAD/BIM workflows (Phase 2 compatibility program)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["dwg2dxf", "dwgread", "dwgwrite"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "dwg2dxf",
+            "dwgread",
+            "dwgwrite"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "([0-9][0-9.]*)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "GPLv3 — arm's-length CLI process boundary only (ADR-0004); never linked in-process",
-        "DWG support is reverse-engineered; upstream keeps a compatibility test suite — pin versions per release"
+        "GPLv3 \u2014 arm's-length CLI process boundary only (ADR-0004); never linked in-process",
+        "DWG support is reverse-engineered; upstream keeps a compatibility test suite \u2014 pin versions per release"
       ]
     },
     {
@@ -161,22 +188,30 @@
         "verifiedMethod": "github-api /repos/blender/blender (official mirror; license field NOASSERTION) + repo COPYING and doc/license/GPL-license.txt (GPLv2 text) + upstream docs page blender.org/about/license ('GNU General Public License, Version 2 or later'); latest stable from /tags v5.2.2 (mirror publishes no GitHub releases)"
       },
       "integration": {
-        "mechanisms": ["cli", "python-module", "native-process"],
+        "mechanisms": [
+          "cli",
+          "python-module",
+          "native-process"
+        ],
         "notes": "blender --background headless batch (Bonsai/IfcOpenShell pipeline); GUI for native BIM editing (Phase 2)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["blender"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "blender"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "Blender\\s+([0-9][0-9A-Za-z.]+)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2+ — arm's-length process integration only (ADR-0004)",
+        "GPLv2+ \u2014 arm's-length process integration only (ADR-0004)",
         "GitHub mirror carries no releases; stable versions identified by tags (v5.2.2) and blender.org",
-        "Sandbox investigation (2026-10-21, W2-d): no blender binary on PATH and pip finds no installable Blender-as-python-module (bpy: 'Could not find a version that satisfies the requirement'); the PyPI package named 'blender' (1.4) is an unrelated third-party package, NOT the Blender 3D suite — Bonsai (BlenderBIM) stays 'planned' for IFC authoring"
+        "Sandbox investigation (2026-10-21, W2-d): no blender binary on PATH and pip finds no installable Blender-as-python-module (bpy: 'Could not find a version that satisfies the requirement'); the PyPI package named 'blender' (1.4) is an unrelated third-party package, NOT the Blender 3D suite \u2014 Bonsai (BlenderBIM) stays 'planned' for IFC authoring"
       ]
     },
     {
@@ -194,8 +229,11 @@
         "verifiedMethod": "github-api /repos/IfcOpenShell/IfcOpenShell (license field LGPL-3.0) + releases (latest GitHub release is a Bonsai 0.9.1-alpha date-coded tag) + PyPI JSON (ifcopenshell 0.9.0.post1)"
       },
       "integration": {
-        "mechanisms": ["python-module", "cli"],
-        "notes": "REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/ifc_quantities.py extracts per-element declared quantities (IfcElementQuantity, BaseQuantities first; elementRef '#<GlobalId>') with an ifcopenshell.geom mesh-triangulation fallback for geometry-only models. Installed in the uv venv via uv pip install (PyPI ifcopenshell==0.9.0.post1, network available). Bridge: src/engines/adapters/quantities.ts; tests: quantities.test.ts (declared-value round-trip on tests/fixtures/wall-quantities.ifc + analytic mesh cross-check on tests/fixtures/wall-geometry.ifc). TESSELLATION ADAPTER (W2-d, 2026-10-21): src/engines/adapters/ifc_mesh.py emits eos-mesh/1 via ifcopenshell.geom with DEFAULT settings (the proven create_shape iteration from the quantities fallback; coordinates arrive in SI metres regardless of project units — verified with an mm-authored probe; tolerance = the runtime default mesher-linear-deflection, 0.001 m). Bridge: src/engines/adapters/mesh.ts (tessellateFromFile); tests: mesh.test.ts (pinned counts, refs set-equal the quantity ledger, divergence-volume cross-checks, byte-determinism)."
+        "mechanisms": [
+          "python-module",
+          "cli"
+        ],
+        "notes": "REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/ifc_quantities.py extracts per-element declared quantities (IfcElementQuantity, BaseQuantities first; elementRef '#<GlobalId>') with an ifcopenshell.geom mesh-triangulation fallback for geometry-only models. Installed in the uv venv via uv pip install (PyPI ifcopenshell==0.9.0.post1, network available). Bridge: src/engines/adapters/quantities.ts; tests: quantities.test.ts (declared-value round-trip on tests/fixtures/wall-quantities.ifc + analytic mesh cross-check on tests/fixtures/wall-geometry.ifc). TESSELLATION ADAPTER (W2-d, 2026-10-21): src/engines/adapters/ifc_mesh.py emits eos-mesh/1 via ifcopenshell.geom with DEFAULT settings (the proven create_shape iteration from the quantities fallback; coordinates arrive in SI metres regardless of project units \u2014 verified with an mm-authored probe; tolerance = the runtime default mesher-linear-deflection, 0.001 m). Bridge: src/engines/adapters/mesh.ts (tessellateFromFile); tests: mesh.test.ts (pinned counts, refs set-equal the quantity ledger, divergence-volume cross-checks, byte-determinism)."
       },
       "probes": [
         {
@@ -215,15 +253,15 @@
           "cases": 5,
           "lastRun": "2026-10-21",
           "result": "pass",
-          "note": "3 tessellation success cases (two-elements.ifc 3×8v/12t planar-exact volumes; wall-geometry.ifc 8v/12t exact; cylinder-geometry.ifc 90v/176t at 0.3246% on the curved column) + 2 honest-error probes (geometry-free IFC, non-model file)"
+          "note": "3 tessellation success cases (two-elements.ifc 3\u00d78v/12t planar-exact volumes; wall-geometry.ifc 8v/12t exact; cylinder-geometry.ifc 90v/176t at 0.3246% on the curved column) + 2 honest-error probes (geometry-free IFC, non-model file)"
         }
       },
       "limitations": [
-        "GitHub 'latest' release is a Bonsai 0.9.1 alpha (date-coded tags); stable distribution channel is PyPI (0.9.0.post1) — pin exact channel at integration",
-        "PyPI wheel ships WITHOUT the OCCT geometry backend (ifcopenshell.geom.has_occ == False on this host) — the adapter's geometric fallback uses mesh triangulation: exact for planar solids, approximate for curved surfaces (recorded in every quantity's raw.method)",
-        "IfcQuantityWeight/Time and complex quantities are skipped honestly (no 'weight' slot in the DerivedQuantity contract) — skipped names are recorded in raw.skippedUnsupportedQuantities",
-        "Bonsai (Blender add-on) authoring/editing remains Phase 2 — this adapter is read-only quantity extraction",
-        "The tessellation adapter (ifc_mesh.py, W2-d) rides the same no-OCCT triangulation — curved surfaces are approximated (observed 0.32% divergence-volume error on the Ø400×3000 mm column fixture at the default 0.001 m deflection; planar solids exact); coordinates arrive in SI metres regardless of project units (verified with an mm-authored probe)"
+        "GitHub 'latest' release is a Bonsai 0.9.1 alpha (date-coded tags); stable distribution channel is PyPI (0.9.0.post1) \u2014 pin exact channel at integration",
+        "PyPI wheel ships WITHOUT the OCCT geometry backend (ifcopenshell.geom.has_occ == False on this host) \u2014 the adapter's geometric fallback uses mesh triangulation: exact for planar solids, approximate for curved surfaces (recorded in every quantity's raw.method)",
+        "IfcQuantityWeight/Time and complex quantities are skipped honestly (no 'weight' slot in the DerivedQuantity contract) \u2014 skipped names are recorded in raw.skippedUnsupportedQuantities",
+        "Bonsai (Blender add-on) authoring/editing remains Phase 2 \u2014 this adapter is read-only quantity extraction",
+        "The tessellation adapter (ifc_mesh.py, W2-d) rides the same no-OCCT triangulation \u2014 curved surfaces are approximated (observed 0.32% divergence-volume error on the \u00d8400\u00d73000 mm column fixture at the default 0.001 m deflection; planar solids exact); coordinates arrive in SI metres regardless of project units (verified with an mm-authored probe)"
       ]
     },
     {
@@ -241,21 +279,23 @@
         "verifiedMethod": "github-api /orgs/ThatOpen/repos + /repos/ThatOpen/engine_components + releases/latest tag v3.4.9"
       },
       "integration": {
-        "mechanisms": ["web-module"],
-        "notes": "npm/ESM web components consumed by the Engineering OS web viewer (Phase 2 model viewer). 'web-module' is a proposed addition to the ADR-0005 mechanism vocabulary — flagged for TL approval."
+        "mechanisms": [
+          "web-module"
+        ],
+        "notes": "npm/ESM web components consumed by the Engineering OS web viewer (Phase 2 model viewer). 'web-module' is a proposed addition to the ADR-0005 mechanism vocabulary \u2014 flagged for TL approval."
       },
       "probes": [],
       "state": "planned",
       "limitations": [
-        "Suggested slug ThatOpen/engine 404s — That Open Engine is a component family (engine_components MIT, engine_web-ifc MPL-2.0, engine_fragment MIT); engine_components recorded as primary upstream",
-        "JS library detected via package-lock inspection at integration time — no PATH/python probe applies (probe defined at adapter time)"
+        "Suggested slug ThatOpen/engine 404s \u2014 That Open Engine is a component family (engine_components MIT, engine_web-ifc MPL-2.0, engine_fragment MIT); engine_components recorded as primary upstream",
+        "JS library detected via package-lock inspection at integration time \u2014 no PATH/python probe applies (probe defined at adapter time)"
       ]
     },
     {
       "key": "web-ifc",
       "name": "web-ifc",
       "domain": "bim",
-      "description": "WASM/JS library for reading and writing IFC files at native speeds — the fast IFC parsing core of That Open Engine.",
+      "description": "WASM/JS library for reading and writing IFC files at native speeds \u2014 the fast IFC parsing core of That Open Engine.",
       "upstream": {
         "canonical": "https://thatopen.github.io/engine_web-ifc/demo",
         "repo": "ThatOpen/engine_web-ifc",
@@ -266,14 +306,16 @@
         "verifiedMethod": "github-api /repos/ThatOpen/engine_web-ifc + releases/latest tag 0.78"
       },
       "integration": {
-        "mechanisms": ["web-module"],
+        "mechanisms": [
+          "web-module"
+        ],
         "notes": "In-browser IFC parsing for the Phase 2 viewer; server-side use possible via Node (separate license review if in-process)."
       },
       "probes": [],
       "state": "planned",
       "limitations": [
-        "MPL-2.0 — file-level copyleft; in-process use reviewed under ADR-0004 exception path",
-        "WASM/JS module detected via package-lock inspection at integration time — no PATH/python probe applies"
+        "MPL-2.0 \u2014 file-level copyleft; in-process use reviewed under ADR-0004 exception path",
+        "WASM/JS module detected via package-lock inspection at integration time \u2014 no PATH/python probe applies"
       ]
     },
     {
@@ -291,20 +333,27 @@
         "verifiedMethod": "github-api /repos/qgis/QGIS (license field GPL-2.0; repo COPYING = GPLv2 text) + releases/latest tag final-3_44_15 (= 3.44.15)"
       },
       "integration": {
-        "mechanisms": ["cli", "native-process"],
-        "notes": "qgis_process for headless geospatial operations (CRS-aware takeoff context, site/civil data) — Phase 5 GIS pack."
+        "mechanisms": [
+          "cli",
+          "native-process"
+        ],
+        "notes": "qgis_process for headless geospatial operations (CRS-aware takeoff context, site/civil data) \u2014 Phase 5 GIS pack."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["qgis_process"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "qgis_process"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "QGIS\\s+([0-9][0-9A-Za-z.]+)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2 (upstream site describes GPLv2+) — arm's-length process integration only (ADR-0004)"
+        "GPLv2 (upstream site describes GPLv2+) \u2014 arm's-length process integration only (ADR-0004)"
       ]
     },
     {
@@ -322,27 +371,34 @@
         "verifiedMethod": "github-api /repos/OSGeo/grass (license field NOASSERTION) + repo COPYING text ('either version 2 of the License, or (at your option) any later version') + releases/latest tag 8.5.0"
       },
       "integration": {
-        "mechanisms": ["cli", "python-module"],
+        "mechanisms": [
+          "cli",
+          "python-module"
+        ],
         "notes": "grass CLI + grass.script python API for geospatial pipelines (Phase 5)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["grass"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "grass"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "GRASS\\s+([0-9][0-9A-Za-z.]+)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2+ with third-party exceptions — arm's-length integration only (ADR-0004)"
+        "GPLv2+ with third-party exceptions \u2014 arm's-length integration only (ADR-0004)"
       ]
     },
     {
       "key": "swmm",
       "name": "EPA SWMM",
       "domain": "gis",
-      "description": "US EPA Stormwater Management Model — dynamic hydrology-hydraulic water quality simulation for stormwater/wastewater collection systems (civil/drainage).",
+      "description": "US EPA Stormwater Management Model \u2014 dynamic hydrology-hydraulic water quality simulation for stormwater/wastewater collection systems (civil/drainage).",
       "upstream": {
         "canonical": "https://www.epa.gov/water-research/storm-water-management-model-swmm",
         "repo": "USEPA/Stormwater-Management-Model",
@@ -350,24 +406,29 @@
         "latestStable": "5.2.4",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/USEPA/Stormwater-Management-Model (no LICENSE file in tree; repo README states source 'is released in the Public Domain') + releases/latest tag v5.2.4. Note: suggested slug USEPA/SWMM 404s — canonical repo is USEPA/Stormwater-Management-Model"
+        "verifiedMethod": "github-api /repos/USEPA/Stormwater-Management-Model (no LICENSE file in tree; repo README states source 'is released in the Public Domain') + releases/latest tag v5.2.4. Note: suggested slug USEPA/SWMM 404s \u2014 canonical repo is USEPA/Stormwater-Management-Model"
       },
       "integration": {
-        "mechanisms": ["cli"],
+        "mechanisms": [
+          "cli"
+        ],
         "notes": "Solver-only CLI (runswmm/swmm5) driven for drainage analysis; python-level via pyswmm (separate row)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["runswmm", "swmm5"],
+          "executables": [
+            "runswmm",
+            "swmm5"
+          ],
           "versionArgs": [],
           "versionRegex": null
         }
       ],
       "state": "planned",
       "limitations": [
-        "No SPDX id: public-domain US Government work per repo README (no LICENSE file) — record kept honest as such",
-        "Solver repo has no version flag — presence-only probe; versions pinned by release tag",
+        "No SPDX id: public-domain US Government work per repo README (no LICENSE file) \u2014 record kept honest as such",
+        "Solver repo has no version flag \u2014 presence-only probe; versions pinned by release tag",
         "Repo activity is release-driven (last push 2025-05-01 at audit)"
       ]
     },
@@ -375,7 +436,7 @@
       "key": "pyswmm",
       "name": "pyswmm",
       "domain": "gis",
-      "description": "Python wrappers for the SWMM engine — node/link system analysis and stepwise simulation control.",
+      "description": "Python wrappers for the SWMM engine \u2014 node/link system analysis and stepwise simulation control.",
       "upstream": {
         "canonical": "https://www.pyswmm.org",
         "repo": "pyswmm/pyswmm",
@@ -386,8 +447,10 @@
         "verifiedMethod": "github-api /repos/pyswmm/pyswmm (license field NOASSERTION) + repo LICENSE.txt text (BSD-2-Clause) + releases/latest tag v2.2.0"
       },
       "integration": {
-        "mechanisms": ["python-module"],
-        "notes": "Python-level drainage analysis in-process (BSD-2; ADR-0004 exception path — python-module mechanism, no modification)."
+        "mechanisms": [
+          "python-module"
+        ],
+        "notes": "Python-level drainage analysis in-process (BSD-2; ADR-0004 exception path \u2014 python-module mechanism, no modification)."
       },
       "probes": [
         {
@@ -398,14 +461,14 @@
       ],
       "state": "planned",
       "limitations": [
-        "Bundles its own compiled SWMM engine — version may differ from a system-installed EPA SWMM binary"
+        "Bundles its own compiled SWMM engine \u2014 version may differ from a system-installed EPA SWMM binary"
       ]
     },
     {
       "key": "opentakeoff",
       "name": "OpenTakeoff",
       "domain": "takeoff",
-      "description": "Open-source (AGPL-3.0) PDF takeoff engine for construction & flooring — browser canvas for estimators plus an MCP tool surface for agents (npm: opentakeoff-mcp).",
+      "description": "Open-source (AGPL-3.0) PDF takeoff engine for construction & flooring \u2014 browser canvas for estimators plus an MCP tool surface for agents (npm: opentakeoff-mcp).",
       "upstream": {
         "canonical": "https://github.com/Kentucky-ai/opentakeoff",
         "repo": "Kentucky-ai/opentakeoff",
@@ -413,24 +476,29 @@
         "latestStable": "0.9.98",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /search/repositories?q=opentakeoff (mandated candidate audit — credible active project located) + /repos/Kentucky-ai/opentakeoff (license field AGPL-3.0; releases/latest tag mcp-v0.9.98) + npm registry opentakeoff-mcp (dist-tag 0.9.98, bin {opentakeoff-mcp: dist/server.js}, license AGPL-3.0-only)"
+        "verifiedMethod": "github-api /search/repositories?q=opentakeoff (mandated candidate audit \u2014 credible active project located) + /repos/Kentucky-ai/opentakeoff (license field AGPL-3.0; releases/latest tag mcp-v0.9.98) + npm registry opentakeoff-mcp (dist-tag 0.9.98, bin {opentakeoff-mcp: dist/server.js}, license AGPL-3.0-only)"
       },
       "integration": {
-        "mechanisms": ["mcp", "server"],
-        "notes": "MCP server (opentakeoff-mcp) as the first agent-drivable takeoff engine; web canvas for human review — Phase 3 takeoff pack."
+        "mechanisms": [
+          "mcp",
+          "server"
+        ],
+        "notes": "MCP server (opentakeoff-mcp) as the first agent-drivable takeoff engine; web canvas for human review \u2014 Phase 3 takeoff pack."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["opentakeoff-mcp"],
+          "executables": [
+            "opentakeoff-mcp"
+          ],
           "versionArgs": [],
           "versionRegex": null
         }
       ],
       "state": "planned",
       "limitations": [
-        "AGPL-3.0 (npm metadata declares AGPL-3.0-only) — strict arm's-length process/network boundary (ADR-0004)",
-        "Pre-1.0 (0.9.98) with fast-moving development — pin exact tag at integration",
+        "AGPL-3.0 (npm metadata declares AGPL-3.0-only) \u2014 strict arm's-length process/network boundary (ADR-0004)",
+        "Pre-1.0 (0.9.98) with fast-moving development \u2014 pin exact tag at integration",
         "Presence-only probe for the npm-installed MCP server binary; version read from npm metadata at adapter time"
       ]
     },
@@ -446,23 +514,30 @@
         "latestStable": "10.0.7",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/KiCad/kicad-source-mirror (suggested slug KiCad/kicad redirects here; canonical development repo is GitLab) — license field GPL-3.0, repo LICENSE = GPLv3 text, LICENSE.README states 'developed and distributed under the terms of the GPLv3 or later' + releases/latest tag 10.0.7"
+        "verifiedMethod": "github-api /repos/KiCad/kicad-source-mirror (suggested slug KiCad/kicad redirects here; canonical development repo is GitLab) \u2014 license field GPL-3.0, repo LICENSE = GPLv3 text, LICENSE.README states 'developed and distributed under the terms of the GPLv3 or later' + releases/latest tag 10.0.7"
       },
       "integration": {
-        "mechanisms": ["cli", "native-process"],
-        "notes": "kicad-cli for headless exports (gerber/step/netlist) — Phase 5 EE pack."
+        "mechanisms": [
+          "cli",
+          "native-process"
+        ],
+        "notes": "kicad-cli for headless exports (gerber/step/netlist) \u2014 Phase 5 EE pack."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["kicad-cli"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "kicad-cli"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "([0-9][0-9.]*)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "SEED CORRECTED: the earlier AGPL-3.0 claim is not supported by the pinned source tree — LICENSE/LICENSE.README say GPLv3-or-later (GitHub license field GPL-3.0). AGPL re-verification removed; GPLv3 still requires arm's-length process integration (ADR-0004)"
+        "SEED CORRECTED: the earlier AGPL-3.0 claim is not supported by the pinned source tree \u2014 LICENSE/LICENSE.README say GPLv3-or-later (GitHub license field GPL-3.0). AGPL re-verification removed; GPLv3 still requires arm's-length process integration (ADR-0004)"
       ]
     },
     {
@@ -480,21 +555,26 @@
         "verifiedMethod": "github-api /search/repositories?q=qelectrotech + /repos/qelectrotech/qelectrotech-source-mirror (license field GPL-2.0; repo LICENSE = GPLv2 text) + releases/latest tag 0.100 (repo README: current stable 0.100, released 2026-01-25)"
       },
       "integration": {
-        "mechanisms": ["cli", "native-process"],
-        "notes": "Schematic authoring; headless capabilities limited — file-driven interchange (.qet, DXF/SVG/PDF export) reviewed at adapter time."
+        "mechanisms": [
+          "cli",
+          "native-process"
+        ],
+        "notes": "Schematic authoring; headless capabilities limited \u2014 file-driven interchange (.qet, DXF/SVG/PDF export) reviewed at adapter time."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["qelectrotech"],
+          "executables": [
+            "qelectrotech"
+          ],
           "versionArgs": [],
           "versionRegex": null
         }
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2 — arm's-length process integration only (ADR-0004)",
-        "No documented --version flag — presence-only probe",
+        "GPLv2 \u2014 arm's-length process integration only (ADR-0004)",
+        "No documented --version flag \u2014 presence-only probe",
         "Elements collection maintained in a separate upstream repo (qelectrotech-elements)"
       ]
     },
@@ -513,20 +593,27 @@
         "verifiedMethod": "sourceforge REST /rest/p/ngspice (license category 'BSD License') + best_release.json (ngspice-47.tar.gz, 2026-08-11) + github-api /repos/imr/ngspice (active mirror of git://git.code.sf.net/p/ngspice/ngspice, pushed 2026-10-17; mirror COPYING text: 'Modified BSD' license)"
       },
       "integration": {
-        "mechanisms": ["cli", "server"],
-        "notes": "Batch SPICE netlist simulation (ngspice -b) driven by the broker for circuit analysis — Phase 5 EE pack; shared-library (shared-ngspice) mode possible after license review."
+        "mechanisms": [
+          "cli",
+          "server"
+        ],
+        "notes": "Batch SPICE netlist simulation (ngspice -b) driven by the broker for circuit analysis \u2014 Phase 5 EE pack; shared-library (shared-ngspice) mode possible after license review."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["ngspice"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "ngspice"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "ngspice-?([0-9][0-9A-Za-z.]*)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "A few vendored components carry different licenses (tclspice LGPLv2, OSDI MPLv2.0) per upstream COPYING — reviewed at bundling time",
+        "A few vendored components carry different licenses (tclspice LGPLv2, OSDI MPLv2.0) per upstream COPYING \u2014 reviewed at bundling time",
         "Canonical is on SourceForge (no GitHub releases); version verified via SourceForge best_release.json"
       ]
     },
@@ -545,8 +632,10 @@
         "verifiedMethod": "github-api /repos/e2nIEE/pandapower (license field NOASSERTION) + repo LICENSE text (BSD 3-Clause, University of Kassel/Fraunhofer IEE) + releases/latest tag v3.5.6"
       },
       "integration": {
-        "mechanisms": ["python-module"],
-        "notes": "In-process python module for power-system analysis (permissive BSD-3 — ADR-0004 exception path permitted after license review)."
+        "mechanisms": [
+          "python-module"
+        ],
+        "notes": "In-process python module for power-system analysis (permissive BSD-3 \u2014 ADR-0004 exception path permitted after license review)."
       },
       "probes": [
         {
@@ -557,8 +646,15 @@
       ],
       "state": "planned",
       "limitations": [
-        "GitHub license field returned NOASSERTION — BSD-3-Clause read from repo LICENSE text"
-      ]
+        "GitHub license field returned NOASSERTION \u2014 BSD-3-Clause read from repo LICENSE text"
+      ],
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 2,
+        "lastRun": "2026-10-22",
+        "result": "pass",
+        "note": "2-bus lossless closed form V2=0.9999875 at rel 1.2e-5 (10/10 pins incl. losses=0 at 1e-9) + islanded-bus honest refusal"
+      }
     },
     {
       "key": "ghdl",
@@ -575,27 +671,33 @@
         "verifiedMethod": "github-api /repos/ghdl/GHDL (license field GPL-2.0) + releases/latest tag v6.0.0"
       },
       "integration": {
-        "mechanisms": ["cli"],
+        "mechanisms": [
+          "cli"
+        ],
         "notes": "VHDL analysis/simulation in the open chip-design flow alongside yosys/verilator (Phase 5)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["ghdl"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "ghdl"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "GHDL\\s+([0-9][0-9A-Za-z.]+)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2 — arm's-length CLI process integration only (ADR-0004)"
+        "GPLv2 \u2014 arm's-length CLI process integration only (ADR-0004)"
       ]
     },
     {
       "key": "yosys",
       "name": "Yosys",
       "domain": "ee",
-      "description": "Open SYnthesis Suite — framework for RTL synthesis of Verilog and other HDLs.",
+      "description": "Open SYnthesis Suite \u2014 framework for RTL synthesis of Verilog and other HDLs.",
       "upstream": {
         "canonical": "https://yosyshq.net/yosys/",
         "repo": "YosysHQ/yosys",
@@ -606,14 +708,20 @@
         "verifiedMethod": "github-api /repos/YosysHQ/yosys (license field ISC) + releases/latest tag v0.70"
       },
       "integration": {
-        "mechanisms": ["cli"],
-        "notes": "Synthesis step of the open chip-design flow (yosys → openroad) — Phase 5."
+        "mechanisms": [
+          "cli"
+        ],
+        "notes": "Synthesis step of the open chip-design flow (yosys \u2192 openroad) \u2014 Phase 5."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["yosys"],
-          "versionArgs": ["-V"],
+          "executables": [
+            "yosys"
+          ],
+          "versionArgs": [
+            "-V"
+          ],
           "versionRegex": "Yosys\\s+([0-9][0-9A-Za-z.]+)"
         }
       ],
@@ -635,20 +743,26 @@
         "verifiedMethod": "github-api /repos/verilator/verilator (license field NOASSERTION; repo LICENSE = LGPLv3 text) + upstream docs page verilator.org/guide/latest ('LGPL-3.0 or Artistic-2.0') + /tags v5.052 (no GitHub releases)"
       },
       "integration": {
-        "mechanisms": ["cli"],
+        "mechanisms": [
+          "cli"
+        ],
         "notes": "RTL simulation/lint in the chip-design flow (Phase 5)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["verilator"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "verilator"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "Verilator\\s+([0-9][0-9.]+)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "No GitHub releases — stable identified by tags (v5.052)",
+        "No GitHub releases \u2014 stable identified by tags (v5.052)",
         "GitHub license detection returned NOASSERTION; dual license read from upstream docs + repo LICENSE text"
       ]
     },
@@ -667,21 +781,27 @@
         "verifiedMethod": "github-api /repos/The-OpenROAD-Project/OpenROAD (license field BSD-3-Clause) + /tags v2.0 (no GitHub releases)"
       },
       "integration": {
-        "mechanisms": ["cli"],
+        "mechanisms": [
+          "cli"
+        ],
         "notes": "Place-and-route stage of the chip-design flow (Phase 5)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["openroad"],
-          "versionArgs": ["-version"],
+          "executables": [
+            "openroad"
+          ],
+          "versionArgs": [
+            "-version"
+          ],
           "versionRegex": "([0-9][0-9.]*)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "No GitHub releases — stable identified by tags (v2.0)",
-        "Toolchain partners (yosys, klayout, openvaf…) each carry their own licenses — verify at bundling"
+        "No GitHub releases \u2014 stable identified by tags (v2.0)",
+        "Toolchain partners (yosys, klayout, openvaf\u2026) each carry their own licenses \u2014 verify at bundling"
       ]
     },
     {
@@ -696,31 +816,45 @@
         "latestStable": "4.15.2",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "upstream docs page gmsh.info ('Current stable release (version 4.15.2, 24 March 2026)') + gmsh.info/LICENSE.txt text (GPL 'Version 2 or later' with linking exception). Canonical code host gitlab.onelab.info/gmsh/gmsh was NOT machine-verifiable this run — its API returns a bot-challenge page; no credible official GitHub mirror found (search returned only automated clones)"
+        "verifiedMethod": "upstream docs page gmsh.info ('Current stable release (version 4.15.2, 24 March 2026)') + gmsh.info/LICENSE.txt text (GPL 'Version 2 or later' with linking exception). Canonical code host gitlab.onelab.info/gmsh/gmsh was NOT machine-verifiable this run \u2014 its API returns a bot-challenge page; no credible official GitHub mirror found (search returned only automated clones)"
       },
       "integration": {
-        "mechanisms": ["cli", "python-module"],
-        "notes": "Meshing service for FEA workflows (gmsh CLI + gmsh python API) — Phase 5 simulation pack."
+        "mechanisms": [
+          "cli",
+          "python-module"
+        ],
+        "notes": "Meshing service for FEA workflows (gmsh CLI + gmsh python API) \u2014 Phase 5 simulation pack."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["gmsh"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "gmsh"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "([0-9][0-9.]*)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2+ with a linking exception for Netgen/METIS/OpenCASCADE/ParaView — read upstream LICENSE.txt before any bundling",
-        "Canonical GitLab (onelab) API unreachable from audit host (bot challenge) — upstream docs used instead; re-verify against pinned tree at Phase 6"
-      ]
+        "GPLv2+ with a linking exception for Netgen/METIS/OpenCASCADE/ParaView \u2014 read upstream LICENSE.txt before any bundling",
+        "Canonical GitLab (onelab) API unreachable from audit host (bot challenge) \u2014 upstream docs used instead; re-verify against pinned tree at Phase 6"
+      ],
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 4,
+        "lastRun": "2026-10-22",
+        "result": "pass",
+        "note": "fe-mesh cases: bracket-solid (1088 v / 3482 tet4, mesh volume within 2% of 36000-960pi \u2014 linear-tet curved-hole bias 0.92%), two-solids planar EXACT at rel 1.4e-15, geometry-free + IFC honest refusals; requires scripts/setup-engine-libs.sh on clean hosts"
+      }
     },
     {
       "key": "code-aster",
       "name": "Code_Aster",
       "domain": "simulation",
-      "description": "Structure and thermomechanics finite-element analysis (EDF R&D) — the solver behind Salome-Meca.",
+      "description": "Structure and thermomechanics finite-element analysis (EDF R&D) \u2014 the solver behind Salome-Meca.",
       "upstream": {
         "canonical": "https://www.code-aster.org",
         "repo": "codeaster/src (gitlab.com)",
@@ -731,22 +865,28 @@
         "verifiedMethod": "gitlab-api /projects/codeaster/src (last activity 2026-10-21) + repository/tree + repository/files/LICENSE (GPLv3 text) + repository/tags (17.5.8 most recently updated; 18.1.x development series also present)"
       },
       "integration": {
-        "mechanisms": ["cli", "python-module"],
-        "notes": "Study runner (as_run) and python API for FEA jobs — Phase 5 structural pack."
+        "mechanisms": [
+          "cli",
+          "python-module"
+        ],
+        "notes": "Study runner (as_run) and python API for FEA jobs \u2014 Phase 5 structural pack."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["as_run", "aster"],
+          "executables": [
+            "as_run",
+            "aster"
+          ],
           "versionArgs": [],
           "versionRegex": null
         }
       ],
       "state": "planned",
       "limitations": [
-        "GPLv3 — arm's-length process integration only (ADR-0004)",
+        "GPLv3 \u2014 arm's-length process integration only (ADR-0004)",
         "Version pinning needs care: stable (17.5.x) and development (18.1.x) tag series coexist",
-        "No documented --version flag — presence-only probe"
+        "No documented --version flag \u2014 presence-only probe"
       ]
     },
     {
@@ -764,28 +904,34 @@
         "verifiedMethod": "github-api /repos/ElmerCSC/elmerfem (license field NOASSERTION) + repo LICENSE.md text ('GPL 2.0 license' + GPLv2 text) + releases/latest tag release-26.2"
       },
       "integration": {
-        "mechanisms": ["cli", "native-process"],
-        "notes": "ElmerSolver/ElmerGrid batch runs for FEA/multiphysics — Phase 5."
+        "mechanisms": [
+          "cli",
+          "native-process"
+        ],
+        "notes": "ElmerSolver/ElmerGrid batch runs for FEA/multiphysics \u2014 Phase 5."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["ElmerSolver", "ElmerGrid"],
+          "executables": [
+            "ElmerSolver",
+            "ElmerGrid"
+          ],
           "versionArgs": [],
           "versionRegex": null
         }
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2 — arm's-length process integration only (ADR-0004)",
-        "No documented --version flag — presence-only probe (solver banners vary by build)"
+        "GPLv2 \u2014 arm's-length process integration only (ADR-0004)",
+        "No documented --version flag \u2014 presence-only probe (solver banners vary by build)"
       ]
     },
     {
       "key": "opensees",
       "name": "OpenSees",
       "domain": "simulation",
-      "description": "Open System for Earthquake Engineering Simulation — framework for structural/geotechnical nonlinear analysis (Tcl + OpenSeesPy).",
+      "description": "Open System for Earthquake Engineering Simulation \u2014 framework for structural/geotechnical nonlinear analysis (Tcl + OpenSeesPy).",
       "upstream": {
         "canonical": "https://opensees.berkeley.edu",
         "repo": "OpenSees/OpenSees",
@@ -796,21 +942,27 @@
         "verifiedMethod": "github-api /repos/OpenSees/OpenSees (license field NOASSERTION) + repo COPYRIGHT text (custom Regents of the University of California license: educational/research/non-profit noncommercial use; other entities internal use only; commercial incorporation requires a UC license) + releases/latest tag v3.8.0"
       },
       "integration": {
-        "mechanisms": ["cli", "python-module"],
-        "notes": "Structural analysis engine (OpenSees CLI / OpenSeesPy) — Phase 5 structural pack, pending license review."
+        "mechanisms": [
+          "cli",
+          "python-module"
+        ],
+        "notes": "Structural analysis engine (OpenSees CLI / OpenSeesPy) \u2014 Phase 5 structural pack, pending license review."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["OpenSees", "opensees"],
+          "executables": [
+            "OpenSees",
+            "opensees"
+          ],
           "versionArgs": [],
           "versionRegex": null
         }
       ],
       "state": "planned",
       "limitations": [
-        "LICENSE RISK: custom non-commercial UC Regents license — NOT OSI open source; commercial use of results/incorporation needs a written license review before any 'available' state",
-        "Binary is an interactive Tcl shell — presence-only probe; never executed without input"
+        "LICENSE RISK: custom non-commercial UC Regents license \u2014 NOT OSI open source; commercial use of results/incorporation needs a written license review before any 'available' state",
+        "Binary is an interactive Tcl shell \u2014 presence-only probe; never executed without input"
       ]
     },
     {
@@ -825,24 +977,29 @@
         "latestStable": "14",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /users/OpenFOAM/repos (Foundation publishes per-version repositories; suggested org lookup /orgs/OpenFOAM is a user, not an org) + /repos/OpenFOAM/OpenFOAM-14 + repo COPYING text ('GNU General Public License version 3 … or (at your option) any later version') + /tags version-14"
+        "verifiedMethod": "github-api /users/OpenFOAM/repos (Foundation publishes per-version repositories; suggested org lookup /orgs/OpenFOAM is a user, not an org) + /repos/OpenFOAM/OpenFOAM-14 + repo COPYING text ('GNU General Public License version 3 \u2026 or (at your option) any later version') + /tags version-14"
       },
       "integration": {
-        "mechanisms": ["cli"],
-        "notes": "Solvers/utilities (blockMesh, simpleFoam, …) driven by the broker for CFD cases — Phase 5."
+        "mechanisms": [
+          "cli"
+        ],
+        "notes": "Solvers/utilities (blockMesh, simpleFoam, \u2026) driven by the broker for CFD cases \u2014 Phase 5."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["blockMesh", "simpleFoam"],
+          "executables": [
+            "blockMesh",
+            "simpleFoam"
+          ],
           "versionArgs": [],
           "versionRegex": null
         }
       ],
       "state": "planned",
       "limitations": [
-        "Fork duality: OpenFOAM Foundation (openfoam.org, GPL) vs OpenCFD/OpenFOAM.com (also GPL, separate releases e.g. v2506) — choose and record which fork is integrated",
-        "Environment-activated toolchain (bashrc sourcing) — presence-only probe; solver versions surfaced via case control dicts at adapter time"
+        "Fork duality: OpenFOAM Foundation (openfoam.org, GPL) vs OpenCFD/OpenFOAM.com (also GPL, separate releases e.g. v2506) \u2014 choose and record which fork is integrated",
+        "Environment-activated toolchain (bashrc sourcing) \u2014 presence-only probe; solver versions surfaced via case control dicts at adapter time"
       ]
     },
     {
@@ -860,20 +1017,28 @@
         "verifiedMethod": "github-api /repos/Kitware/paraview (license field BSD-3-Clause) + /tags v6.2.0 (no GitHub releases)"
       },
       "integration": {
-        "mechanisms": ["cli", "native-process"],
-        "notes": "Post-processing/visualization of solver outputs (pvpython/pvbatch headless rendering) — Phase 5."
+        "mechanisms": [
+          "cli",
+          "native-process"
+        ],
+        "notes": "Post-processing/visualization of solver outputs (pvpython/pvbatch headless rendering) \u2014 Phase 5."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["paraview", "pvpython"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "paraview",
+            "pvpython"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "([0-9][0-9.]*)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "No GitHub releases — stable identified by tags (v6.2.0)"
+        "No GitHub releases \u2014 stable identified by tags (v6.2.0)"
       ]
     },
     {
@@ -891,20 +1056,27 @@
         "verifiedMethod": "github-api /repos/OpenModelica/OpenModelica (license field NOASSERTION) + repo OSMC-License.txt text ('provided under the terms of AGPL version 3 license or this OSMC Public License (OSMC-PL) version 1.8') + releases/latest tag v1.27.1"
       },
       "integration": {
-        "mechanisms": ["cli", "native-process"],
-        "notes": "omc (Modelica compiler/simulator) for system-level dynamics and FMU workflows — Phase 5."
+        "mechanisms": [
+          "cli",
+          "native-process"
+        ],
+        "notes": "omc (Modelica compiler/simulator) for system-level dynamics and FMU workflows \u2014 Phase 5."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["omc"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "omc"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "OpenModelica\\s+([0-9][0-9A-Za-z.]+)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "Dual AGPL-3.0 / OSMC-PL-1.8 — arm's-length CLI integration (omc) keeps both options open; never bundle without choosing and recording the license path"
+        "Dual AGPL-3.0 / OSMC-PL-1.8 \u2014 arm's-length CLI integration (omc) keeps both options open; never bundle without choosing and recording the license path"
       ]
     },
     {
@@ -922,21 +1094,26 @@
         "verifiedMethod": "github-api /search/repositories?q=DWSIM + /repos/DanWBR/dwsim10 (active, license field GPL-3.0, releases/latest tag v10.2.12). IMPORTANT: suggested slug DWSIM/DWSIM 404s and DanWBR/dwsim (the historical main repo) is ARCHIVED (verified via /repos/DanWBR/dwsim: archived=true)"
       },
       "integration": {
-        "mechanisms": ["native-process", "cli"],
-        "notes": "Process simulation flowsheets via DWSIM CLI/automation surface — Phase 5."
+        "mechanisms": [
+          "native-process",
+          "cli"
+        ],
+        "notes": "Process simulation flowsheets via DWSIM CLI/automation surface \u2014 Phase 5."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["dwsim"],
+          "executables": [
+            "dwsim"
+          ],
           "versionArgs": [],
           "versionRegex": null
         }
       ],
       "state": "planned",
       "limitations": [
-        "Upstream moved: historical repo DanWBR/dwsim is ARCHIVED; active development is in DanWBR/dwsim10 (.NET 10) — track the new repo",
-        "Binary/CLI surface name varies by installer — presence-only probe; adapter defines exact entry point"
+        "Upstream moved: historical repo DanWBR/dwsim is ARCHIVED; active development is in DanWBR/dwsim10 (.NET 10) \u2014 track the new repo",
+        "Binary/CLI surface name varies by installer \u2014 presence-only probe; adapter defines exact entry point"
       ]
     },
     {
@@ -951,11 +1128,13 @@
         "latestStable": "4.1.2",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "PyPI JSON api pypi.org/pypi/simpy/json (version 4.1.2; project source URL = gitlab.com/team-simpy/simpy — suggested slug simpy/simpy 404s, the project has moved) + gitlab-api repository/tags (4.1.2) + license via PyPI sdist LICENSE text (MIT)"
+        "verifiedMethod": "PyPI JSON api pypi.org/pypi/simpy/json (version 4.1.2; project source URL = gitlab.com/team-simpy/simpy \u2014 suggested slug simpy/simpy 404s, the project has moved) + gitlab-api repository/tags (4.1.2) + license via PyPI sdist LICENSE text (MIT)"
       },
       "integration": {
-        "mechanisms": ["python-module"],
-        "notes": "In-process discrete-event simulation for construction-process/queueing models (MIT — ADR-0004 exception path)."
+        "mechanisms": [
+          "python-module"
+        ],
+        "notes": "In-process discrete-event simulation for construction-process/queueing models (MIT \u2014 ADR-0004 exception path)."
       },
       "probes": [
         {
@@ -966,14 +1145,21 @@
       ],
       "state": "planned",
       "limitations": [
-        "Source host is GitLab (team-simpy/simpy), not GitHub — npm-style package presence is pip-only"
-      ]
+        "Source host is GitLab (team-simpy/simpy), not GitHub \u2014 npm-style package presence is pip-only"
+      ],
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 2,
+        "lastRun": "2026-10-22",
+        "result": "pass",
+        "note": "deterministic FIFO flow shop: makespan 13 hand-traced (11/11 pins) + unknown-resource honest refusal"
+      }
     },
     {
       "key": "ros2",
       "name": "ROS 2",
       "domain": "simulation",
-      "description": "Robot Operating System 2 — libraries and tools for robotics applications (DDS middleware, ros2 CLI).",
+      "description": "Robot Operating System 2 \u2014 libraries and tools for robotics applications (DDS middleware, ros2 CLI).",
       "upstream": {
         "canonical": "https://github.com/ros2",
         "repo": "ros2/ros2",
@@ -981,24 +1167,29 @@
         "latestStable": "release-lyrical-20260807",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/ros2/ros2 (superproject release repository; releases/latest tag release-lyrical-20260807 = the 'Lyrical' distribution release). License: the superproject carries no LICENSE file of its own — core components are permissive (e.g. /repos/ros2/rclcpp → Apache-2.0); per-component verification required at integration"
+        "verifiedMethod": "github-api /repos/ros2/ros2 (superproject release repository; releases/latest tag release-lyrical-20260807 = the 'Lyrical' distribution release). License: the superproject carries no LICENSE file of its own \u2014 core components are permissive (e.g. /repos/ros2/rclcpp \u2192 Apache-2.0); per-component verification required at integration"
       },
       "integration": {
-        "mechanisms": ["cli", "server"],
+        "mechanisms": [
+          "cli",
+          "server"
+        ],
         "notes": "ros2 CLI tooling for robotics/automation workflows (Phase 5 robotics pack)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["ros2"],
+          "executables": [
+            "ros2"
+          ],
           "versionArgs": [],
           "versionRegex": null
         }
       ],
       "state": "planned",
       "limitations": [
-        "Multi-license ecosystem (Apache-2.0/BSD-3-Clause core, per-component variety) — verify each integrated component's license",
-        "ros2 CLI has no --version — presence-only probe; distribution version surfaced via ROS_DISTRO env at adapter time"
+        "Multi-license ecosystem (Apache-2.0/BSD-3-Clause core, per-component variety) \u2014 verify each integrated component's license",
+        "ros2 CLI has no --version \u2014 presence-only probe; distribution version surfaced via ROS_DISTRO env at adapter time"
       ]
     },
     {
@@ -1016,20 +1207,28 @@
         "verifiedMethod": "github-api /repos/gazebosim/gz-sim (license field Apache-2.0) + releases/latest tag gz-sim10_10.0.0"
       },
       "integration": {
-        "mechanisms": ["cli", "server"],
-        "notes": "gz sim (headless server mode) for robotics simulation — pairs with ROS 2 (Phase 5)."
+        "mechanisms": [
+          "cli",
+          "server"
+        ],
+        "notes": "gz sim (headless server mode) for robotics simulation \u2014 pairs with ROS 2 (Phase 5)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["gz"],
-          "versionArgs": ["sim", "--versions"],
+          "executables": [
+            "gz"
+          ],
+          "versionArgs": [
+            "sim",
+            "--versions"
+          ],
           "versionRegex": "([0-9][0-9.]*)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "Gazebo distribution ('Ionic'/'Jetty'-style names) bundles multiple gz-* libraries with their own versions — record the set at integration"
+        "Gazebo distribution ('Ionic'/'Jetty'-style names) bundles multiple gz-* libraries with their own versions \u2014 record the set at integration"
       ]
     },
     {
@@ -1044,25 +1243,40 @@
         "latestStable": "26.8",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/LibreOffice/core (read-only official mirror; license field GPL-3.0; repo COPYING at master = pure GPLv3 text) + upstream site libreoffice.org/download (LibreOffice 26.8; 26.2 also listed). CONFLICT recorded: libreoffice.org/about-us/licenses describes dual 'MPL-2.0 OR LGPL-3.0-or-later' — mirror COPYING text and site statements disagree; resolves at Phase-6 pinning"
+        "verifiedMethod": "github-api /repos/LibreOffice/core (read-only official mirror; license field GPL-3.0; repo COPYING at master = pure GPLv3 text) + upstream site libreoffice.org/download (LibreOffice 26.8; 26.2 also listed). CONFLICT recorded: libreoffice.org/about-us/licenses describes dual 'MPL-2.0 OR LGPL-3.0-or-later' \u2014 mirror COPYING text and site statements disagree; resolves at Phase-6 pinning"
       },
       "integration": {
-        "mechanisms": ["cli", "native-process"],
+        "mechanisms": [
+          "cli",
+          "native-process"
+        ],
         "notes": "Headless document conversion/rendering for the docs workspace (Phase 5 docs pack)."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["libreoffice", "soffice"],
-          "versionArgs": ["--version"],
+          "executables": [
+            "libreoffice",
+            "soffice"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
           "versionRegex": "LibreOffice\\s+([0-9][0-9.]+)"
         }
       ],
       "state": "planned",
       "limitations": [
-        "LICENSE CONFLICT: GitHub mirror COPYING shows GPLv3 text (GitHub license field GPL-3.0) while libreoffice.org states MPL-2.0 OR LGPL-3.0-or-later — must be resolved against the pinned release tree before bundling/redistribution (ADR-0004)",
+        "LICENSE CONFLICT: GitHub mirror COPYING shows GPLv3 text (GitHub license field GPL-3.0) while libreoffice.org states MPL-2.0 OR LGPL-3.0-or-later \u2014 must be resolved against the pinned release tree before bundling/redistribution (ADR-0004)",
         "Mirror carries no GitHub releases/tags; versions published on libreoffice.org"
-      ]
+      ],
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 1,
+        "lastRun": "2026-10-22",
+        "result": "pass",
+        "note": "headless fodt->PDF conversion, structural pins (%PDF- magic, size floor); byte-determinism NOT claimed (PDFs embed creation timestamps)"
+      }
     },
     {
       "key": "openproject",
@@ -1079,20 +1293,25 @@
         "verifiedMethod": "github-api /repos/opf/openproject (license field GPL-3.0) + releases/latest tag v17.9.2"
       },
       "integration": {
-        "mechanisms": ["server", "cli"],
-        "notes": "Rails server — REST API integration for schedule/controls workflows (Phase 3/5); packaged installs provide an 'openproject' CLI."
+        "mechanisms": [
+          "server",
+          "cli"
+        ],
+        "notes": "Rails server \u2014 REST API integration for schedule/controls workflows (Phase 3/5); packaged installs provide an 'openproject' CLI."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["openproject"],
+          "executables": [
+            "openproject"
+          ],
           "versionArgs": [],
           "versionRegex": null
         }
       ],
       "state": "planned",
       "limitations": [
-        "GPLv3 server — integrate at arm's length via documented REST API; no --version flag documented on the packaged CLI — presence-only probe",
+        "GPLv3 server \u2014 integrate at arm's length via documented REST API; no --version flag documented on the packaged CLI \u2014 presence-only probe",
         "Server deployment (docker/DEB) is the realistic integration target, not a per-workstation binary"
       ]
     },
@@ -1108,25 +1327,30 @@
         "latestStable": "1.9.8",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/smartqubit/projectlibre (official GitHub mirror of the SourceForge project; no LICENSE file at root — license dir openproj_build/license confirms 'Common Public Attribution License Version 1.0 (CPAL)'; mirror last push 2022-10-04, no GitHub releases) + sourceforge REST /rest/p/projectlibre (license category 'CPAL 1.0') + best_release.json (ProjectLibre 1.9.8, 2025-04-28). Canonical marketing site projectlibre.com returned HTTP 403 from the audit host — releases verified via SourceForge"
+        "verifiedMethod": "github-api /repos/smartqubit/projectlibre (official GitHub mirror of the SourceForge project; no LICENSE file at root \u2014 license dir openproj_build/license confirms 'Common Public Attribution License Version 1.0 (CPAL)'; mirror last push 2022-10-04, no GitHub releases) + sourceforge REST /rest/p/projectlibre (license category 'CPAL 1.0') + best_release.json (ProjectLibre 1.9.8, 2025-04-28). Canonical marketing site projectlibre.com returned HTTP 403 from the audit host \u2014 releases verified via SourceForge"
       },
       "integration": {
-        "mechanisms": ["native-process", "cli"],
+        "mechanisms": [
+          "native-process",
+          "cli"
+        ],
         "notes": "Schedule authoring for construction controls (Phase 3/5); file-driven interchange (MPP/XML) via the desktop app."
       },
       "probes": [
         {
           "kind": "executable",
-          "executables": ["projectlibre"],
+          "executables": [
+            "projectlibre"
+          ],
           "versionArgs": [],
           "versionRegex": null
         }
       ],
       "state": "planned",
       "limitations": [
-        "CPAL-1.0 (OSI-approved, attribution + network-use conditions) — arm's-length desktop integration; review notice requirements at adapter time",
-        "GitHub mirror inactive since 2022; current releases distributed through SourceForge (1.9.8) — pin exact installer at integration",
-        "No --version flag documented — presence-only probe"
+        "CPAL-1.0 (OSI-approved, attribution + network-use conditions) \u2014 arm's-length desktop integration; review notice requirements at adapter time",
+        "GitHub mirror inactive since 2022; current releases distributed through SourceForge (1.9.8) \u2014 pin exact installer at integration",
+        "No --version flag documented \u2014 presence-only probe"
       ]
     }
   ]

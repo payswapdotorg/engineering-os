@@ -2,7 +2,7 @@
 
 /**
  * Primary workspaces (product-requirements.md §3) + platform group.
- * Implemented items navigate; planned items respond with an honest toast.
+ * Implemented items navigate to their real route or in-project tab.
  */
 import {
   Activity,
@@ -27,7 +27,7 @@ export interface WorkspaceItem {
   /** Implemented route (workspace is real in Phase 1) */
   href?: string
   /** Implemented, but scoped to the open project (tab name) */
-  inProjectTab?: "artifacts" | "studio" | "team" | "takeoff" | "agents"
+  inProjectTab?: "artifacts" | "studio" | "team" | "takeoff" | "agents" | "sim" | "controls" | "docs"
   /** Planned-workspace badge, e.g. "Planned · Phase 2" */
   phaseNote?: string
   /** Honest explanation shown when the planned item is clicked */
@@ -39,27 +39,11 @@ export const WORKSPACES: WorkspaceItem[] = [
   { key: "design-studio", label: "Design Studio", icon: DraftingCompass, inProjectTab: "studio" },
   { key: "models", label: "Models & Drawings", icon: Boxes, inProjectTab: "artifacts" },
   { key: "takeoff", label: "Takeoff & Estimating", icon: Ruler, inProjectTab: "takeoff" },
-  {
-    key: "simulation",
-    label: "Simulation & Verification",
-    icon: FlaskConical,
-    phaseNote: "Planned · Phase 4–5",
-    plannedToast: "Simulation & Verification ships with Phases 4–5 engine-run integration — see Status & Roadmap",
-  },
-  {
-    key: "controls",
-    label: "Project Controls",
-    icon: ClipboardList,
-    phaseNote: "Planned · Phase 3+",
-    plannedToast: "Project Controls ships with Phase 3+ schedule and controls integration — see Status & Roadmap",
-  },
-  {
-    key: "documents",
-    label: "Documents & Deliverables",
-    icon: Files,
-    phaseNote: "Planned · Phase 3+",
-    plannedToast: "Documents & Deliverables ship with Phase 3+ review and issue states — see Status & Roadmap",
-  },
+  // Phase-5 workspaces (W1-f): real in-project tabs — the former planned
+  // badges/toasts are gone; the tabs are implemented in project-workspace.tsx.
+  { key: "simulation", label: "Simulation & Verification", icon: FlaskConical, inProjectTab: "sim" },
+  { key: "controls", label: "Project Controls", icon: ClipboardList, inProjectTab: "controls" },
+  { key: "documents", label: "Documents & Deliverables", icon: Files, inProjectTab: "docs" },
   { key: "agents", label: "Agents & Automations", icon: Bot, inProjectTab: "agents" },
   { key: "team", label: "Team & Administration", icon: Users, inProjectTab: "team" },
 ]

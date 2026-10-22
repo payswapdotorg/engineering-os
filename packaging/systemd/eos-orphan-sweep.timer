@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily orphan-sweep timer for Engineering OS
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=eos-orphan-sweep.service
+
+[Install]
+WantedBy=timers.target

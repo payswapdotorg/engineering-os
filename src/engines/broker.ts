@@ -34,9 +34,20 @@
 import path from "node:path"
 
 import { LedgerError, makeQuantityRecord, type QuantityRecord } from "@/core"
+import { analyzeCpm, type CpmActivity, type CpmActivityResult } from "@/core/cpm"
 import { deriveKind } from "@/engines/adapters/derive-kind"
 import { EngineUnavailableError, deriveFromFile, isPlainObject, type DeriveResult } from "@/engines/adapters/quantities"
 import { tessellateFromFile } from "@/engines/adapters/mesh"
+import { feMeshFromFile, type FeMeshParameters, type FeMeshResult } from "@/engines/adapters/femesh"
+import { runPowerflowFromFile, type PowerflowBus, type PowerflowLine, type PowerflowTotals } from "@/engines/adapters/powerflow"
+import { runDesFromFile, type DesJob, type DesResource } from "@/engines/adapters/des"
+import {
+  alreadyPdfMessage,
+  conversionExtensionKind,
+  convertDocumentToFile,
+  convertibleSourceName,
+  notConvertibleMessage,
+} from "@/engines/adapters/convert-document"
 import {
   buildMeshFile,
   extractGeneratedBy,
@@ -55,7 +66,22 @@ import { newId } from "@/lib/ids"
 // Frozen broker interface (contract §5 — W3-e executor codes against this)
 // ---------------------------------------------------------------------------
 
-export type BrokerOperation = "derive_quantities" | "derive_mesh" | "build_report"
+/**
+ * The operation vocabulary grew additively in Phase 5 (contract §4): the five
+ * new disciplines-discipline ops join the frozen three. The workflow core's
+ * own pure BROKER_OPERATIONS copy (W3-f) grows to match, and the executor
+ * stores operation strings from definitions, so the runtime defense in the
+ * switch below stays honest for unknown strings.
+ */
+export type BrokerOperation =
+  | "derive_quantities"
+  | "derive_mesh"
+  | "build_report"
+  | "fe_mesh"
+  | "run_powerflow"
+  | "run_des"
+  | "convert_document"
+  | "analyze_schedule"
 
 export interface BrokerContext {
   projectId: string
@@ -922,6 +948,1133 @@ async function persistReportRevision(
 }
 
 // ---------------------------------------------------------------------------
+// Phase-5 disciplines ops (contract §4/§2 — W2-f): pure document builders
+// first (byte-deterministic, pinned key orders, NO timestamps), then the
+// shared derived-artifact persistence, then the five cores.
+// ---------------------------------------------------------------------------
+
+/** Pinned 422 `unsupported` text for a non-model artifact handed to fe_mesh. */
+export function femeshUnsupportedMessage(artifactName: string, storageKey: string): string {
+  return `artifact "${artifactName}" (storage key ${storageKey}) does not carry a meshable model extension (.step/.stp/.ifc)`
+}
+
+/** The three per-op no-revision `bad_request` texts (mirror the derive cores' style). */
+export const FEMESH_NO_REVISIONS_MESSAGE = "This artifact has no revisions to generate an FE mesh from"
+export const POWERFLOW_NO_REVISIONS_MESSAGE = "This artifact has no revisions to run a power flow on"
+export const DES_NO_REVISIONS_MESSAGE = "This artifact has no revisions to simulate"
+export const CONVERT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to convert"
+export const ANALYZE_NO_REVISIONS_MESSAGE = "This artifact has no revisions to analyze"
+
+/** Pinned 422 `unsupported` text for a JSON artifact of the wrong analysis format. */
+export function notAnalysisFormatMessage(artifactName: string, expectedFormat: string, got: string): string {
+  return `artifact "${artifactName}" is not an ${expectedFormat} document (format ${got})`
+}
+
+/** Pinned 422 `unsupported` text for content that is not JSON at all. */
+export function notJsonDocumentMessage(artifactName: string, expectedFormat: string): string {
+  return `artifact "${artifactName}" is not an ${expectedFormat} document (content is not valid JSON)`
+}
+
+/**
+ * Read + gate a stored JSON artifact for one of the analysis ops (§3 formats):
+ * content must parse as a JSON object whose `format` field equals
+ * `expectedFormat`. Refuses honestly (422 `unsupported`) otherwise — never
+ * guesses, never hands alien content to an adapter or the platform core.
+ */
+async function readJsonArtifact(
+  projectId: string,
+  artifactId: string,
+  expectedFormat: string,
+  noRevisionsMessage: string,
+): Promise<{ artifact: { id: string; name: string }; revision: { id: string; storageKey: string }; json: Record<string, unknown> }> {
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", noRevisionsMessage)
+  }
+  const revision = artifact.latestRevision
+
+  const bytes = await readRevisionFile(revision.storageKey)
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(bytes.toString("utf8"))
+  } catch {
+    throw new BrokerRefusalError("unsupported", notJsonDocumentMessage(artifact.name, expectedFormat))
+  }
+  if (!isPlainObject(parsed)) {
+    throw new BrokerRefusalError("unsupported", notJsonDocumentMessage(artifact.name, expectedFormat))
+  }
+  if (parsed.format !== expectedFormat) {
+    throw new BrokerRefusalError(
+      "unsupported",
+      notAnalysisFormatMessage(artifact.name, expectedFormat, JSON.stringify(parsed.format ?? null)),
+    )
+  }
+  return { artifact: { id: artifact.id, name: artifact.name }, revision: { id: revision.id, storageKey: revision.storageKey }, json: parsed }
+}
+
+// ---------------------------------------------------------------------------
+// Pure §2 document builders (byte-deterministic: pinned key orders, every
+// nested object re-wrapped, NO timestamps — creation time lives in the DB
+// revision row; numbers are the engine's verbatim IEEE doubles)
+// ---------------------------------------------------------------------------
+
+/** Engine identity block of eos-femesh/1 (NO adapterHash in the document — §2). */
+export interface DocumentGeneratedBy {
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+}
+
+/**
+ * Assemble the eos-femesh/1 document bytes. PURE: pinned key order
+ * format → sourceArtifactName → units → generatedBy → meshSizeMin →
+ * meshSizeMax → elementOrder → nodes → elements → solids → quality;
+ * solids in the adapter's literal ascending order; name optional (omitted
+ * when absent); no timestamps anywhere.
+ */
+export function buildFeMeshDocument(
+  sourceArtifactName: string,
+  generatedBy: DocumentGeneratedBy,
+  parameters: FeMeshParameters,
+  payload: Pick<FeMeshResult, "nodes" | "elements" | "solids" | "quality">,
+): string {
+  return JSON.stringify({
+    format: "eos-femesh/1",
+    sourceArtifactName,
+    units: "mm",
+    generatedBy: {
+      engineKey: generatedBy.engineKey,
+      engineVersion: generatedBy.engineVersion,
+      adapterScript: generatedBy.adapterScript,
+    },
+    meshSizeMin: parameters.meshSizeMin,
+    meshSizeMax: parameters.meshSizeMax,
+    elementOrder: parameters.elementOrder,
+    nodes: { count: payload.nodes.count },
+    elements: { type: payload.elements.type, count: payload.elements.count },
+    solids: payload.solids.map((solid) => ({
+      ref: solid.ref,
+      ...(solid.name !== undefined ? { name: solid.name } : {}),
+      tetCount: solid.tetCount,
+      meshVolume: solid.meshVolume,
+    })),
+    quality: { min: payload.quality.min, mean: payload.quality.mean },
+  })
+}
+
+/**
+ * Assemble the eos-powerflow/1 document bytes. PURE: pinned key order
+ * format → sourceArtifactName → converged → buses → lines → totals; every
+ * numeric is the engine's verbatim result-frame double (ADR-0006 §2 —
+ * nobody rounds "for presentation").
+ */
+export function buildPowerflowDocument(
+  sourceArtifactName: string,
+  payload: { converged: boolean; buses: PowerflowBus[]; lines: PowerflowLine[]; totals: PowerflowTotals },
+): string {
+  return JSON.stringify({
+    format: "eos-powerflow/1",
+    sourceArtifactName,
+    converged: payload.converged,
+    buses: payload.buses.map((bus) => ({
+      id: bus.id,
+      vmPu: bus.vmPu,
+      angleDeg: bus.angleDeg,
+      pMw: bus.pMw,
+      qMvar: bus.qMvar,
+    })),
+    lines: payload.lines.map((line) => ({
+      fromBus: line.fromBus,
+      toBus: line.toBus,
+      iKa: line.iKa,
+      pLossMw: line.pLossMw,
+      qLossMvar: line.qLossMvar,
+    })),
+    totals: { lossMw: payload.totals.lossMw, loadMw: payload.totals.loadMw },
+  })
+}
+
+/**
+ * Assemble the eos-des/1 document bytes. PURE: pinned key order
+ * format → sourceArtifactName → policy → makespan → resources → jobs; time
+ * values verbatim from the deterministic SimPy event record.
+ */
+export function buildDesDocument(
+  sourceArtifactName: string,
+  payload: { policy: "fifo"; makespan: number; resources: DesResource[]; jobs: DesJob[] },
+): string {
+  return JSON.stringify({
+    format: "eos-des/1",
+    sourceArtifactName,
+    policy: payload.policy,
+    makespan: payload.makespan,
+    resources: payload.resources.map((resource) => ({
+      id: resource.id,
+      busy: resource.busy,
+      utilization: resource.utilization,
+    })),
+    jobs: payload.jobs.map((job) => ({
+      id: job.id,
+      startAt: job.startAt,
+      endAt: job.endAt,
+    })),
+  })
+}
+
+/**
+ * Assemble the eos-cpm/1 document bytes. PURE: pinned key order
+ * format → sourceArtifactName → activities → criticalPath → durationDays;
+ * activity key order id → name → durationDays → es → ef → ls → lf →
+ * totalFloat → critical. The values come from W3-f's pure `analyzeCpm` core
+ * (contract §6) — byte-deterministic because the core is.
+ */
+export function buildCpmAnalysisDocument(sourceArtifactName: string, result: CpmActivityResult): string {
+  return JSON.stringify({
+    format: "eos-cpm/1",
+    sourceArtifactName,
+    activities: result.activities.map((activity) => ({
+      id: activity.id,
+      name: activity.name,
+      durationDays: activity.durationDays,
+      es: activity.es,
+      ef: activity.ef,
+      ls: activity.ls,
+      lf: activity.lf,
+      totalFloat: activity.totalFloat,
+      critical: activity.critical,
+    })),
+    criticalPath: result.criticalPath,
+    durationDays: result.durationDays,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Pure input defenses for the new ops (testable without any DB)
+// ---------------------------------------------------------------------------
+
+function isPositiveFinite(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+}
+
+/**
+ * Validate + default the fe_mesh parameters (contract §4: meshSizeMin 2.0 /
+ * meshSizeMax 4.0 / elementOrder 1 — linear tets only this phase). Pure; the
+ * pinned 422 `unsupported` messages are returned verbatim for the routes.
+ */
+export function feMeshBrokerParameters(
+  parameters: Record<string, unknown>,
+): { ok: true; value: FeMeshParameters } | { ok: false; message: string } {
+  const min = parameters.meshSizeMin ?? 2.0
+  const max = parameters.meshSizeMax ?? 4.0
+  const order = parameters.elementOrder ?? 1
+  if (!isPositiveFinite(min)) {
+    return { ok: false, message: "fe_mesh parameters.meshSizeMin must be a positive number when provided" }
+  }
+  if (!isPositiveFinite(max)) {
+    return { ok: false, message: "fe_mesh parameters.meshSizeMax must be a positive number when provided" }
+  }
+  if (min > max) {
+    return { ok: false, message: "fe_mesh parameters.meshSizeMin must be <= parameters.meshSizeMax" }
+  }
+  if (order !== 1) {
+    return {
+      ok: false,
+      message: `fe_mesh parameters.elementOrder must be 1 (linear tets only in this phase) — got ${JSON.stringify(parameters.elementOrder)}`,
+    }
+  }
+  return { ok: true, value: { meshSizeMin: min, meshSizeMax: max, elementOrder: 1 } }
+}
+
+/** Pinned §3.1 activity id pattern (a-z0-9-, 1..32 — the zod's pattern). */
+const SCHEDULE_ID_RE = /^[a-z0-9-]{1,32}$/
+
+/**
+ * Structural §3.1 defense for analyze_schedule (pure; the create-route zod is
+ * the primary gate, the platform core owns the graph errors — cycles and
+ * unknown predecessors surface from `analyzeCpm` with the §3.1 messages). This
+ * defense owns the joined `invalid schedule: path: msg; …` style plus the
+ * pinned duplicate-id message, because stored bytes are never trusted.
+ */
+export function validateScheduleDocument(
+  json: Record<string, unknown>,
+): { ok: true; value: CpmActivity[] } | { ok: false; error: string } {
+  const problems: string[] = []
+  const failWith = (messages: string[]): { ok: false; error: string } => ({
+    ok: false,
+    error: messages.length === 1 ? `invalid schedule: ${messages[0]}` : `invalid schedule: ${messages.join("; ")}`,
+  })
+
+  const activities = json.activities
+  if (!Array.isArray(activities) || activities.length < 1 || activities.length > 64) {
+    return failWith(["activities: must be an array of 1..64 activities"])
+  }
+
+  const seen = new Set<string>()
+  const value: CpmActivity[] = []
+  activities.forEach((raw, i) => {
+    if (!isPlainObject(raw)) {
+      problems.push(`activities[${i}]: must be an object`)
+      return
+    }
+    const id = raw.id
+    if (typeof id !== "string" || !SCHEDULE_ID_RE.test(id)) {
+      problems.push(`activities[${i}].id: must match ^[a-z0-9-]{1,32}$`)
+      return
+    }
+    if (seen.has(id)) {
+      problems.push(`activity id "${id}" is used more than once`)
+      return
+    }
+    seen.add(id)
+    const name = raw.name
+    if (typeof name !== "string" || name.length < 1 || name.length > 200) {
+      problems.push(`activities[${i}].name: must be a string of 1..200 characters`)
+      return
+    }
+    const durationDays = raw.durationDays
+    if (typeof durationDays !== "number" || !Number.isInteger(durationDays) || durationDays < 0 || durationDays > 10000) {
+      problems.push(`activities[${i}].durationDays: must be an integer between 0 and 10000`)
+      return
+    }
+    const predecessorIds = raw.predecessorIds
+    if (!Array.isArray(predecessorIds) || predecessorIds.some((p) => typeof p !== "string" || p.length === 0)) {
+      problems.push(`activities[${i}].predecessorIds: must be an array of activity id strings`)
+      return
+    }
+    value.push({ id, name, durationDays, predecessorIds: predecessorIds as string[] })
+  })
+
+  if (problems.length > 0) return failWith(problems)
+  return { ok: true, value }
+}
+
+/**
+ * The analyze_schedule outcome builder (pure): a platform-core BrokerOutcome
+ * carries NO engine fields — engineKey/engineVersion/adapterScript/adapterHash
+ * are ABSENT (visible as nulls in the workflow execution record), exitCode is
+ * 0 (no adapter subprocess ran; build_report uses null for the same reason).
+ */
+export function platformCoreOutcome(
+  summary: Record<string, unknown>,
+  outputArtifactRevisionId: string,
+  durationMs: number,
+): BrokerOutcome {
+  return {
+    summary,
+    outputArtifactRevisionId,
+    exitCode: 0,
+    durationMs,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared derived-artifact persistence for the Phase-5 ops (the build_report
+// find-or-create semantics, generalized per-op; contract §4)
+// ---------------------------------------------------------------------------
+
+interface DerivedPersistSpec {
+  /** log label for the honest orphan-log line */
+  opLabel: string
+  kind: "fe-mesh" | "analysis" | "pdf"
+  /** stored-content discriminator (the JSON `format` field); null = binary (pdf) */
+  format: string | null
+  name: string
+  description: string
+  bytes: Buffer
+  mimeType: string
+  /** revision uploadedBy + link createdBy — `adapter:<engine>` or ctx.actor (report precedent) */
+  contentAuthor: string
+  inputIds: string[]
+  audit: { actor: string; action: string; detail: Record<string, unknown> }
+}
+
+/** Parse a stored revision's content and return its JSON `format` field (or null). */
+async function storedJsonFormat(storageKey: string): Promise<string | null> {
+  try {
+    const parsed = JSON.parse((await readRevisionFile(storageKey)).toString("utf8"))
+    if (isPlainObject(parsed) && typeof parsed.format === "string") return parsed.format
+    return null
+  } catch {
+    return null // unparseable content is not this op's target (conservative, honest)
+  }
+}
+
+/**
+ * Find-or-create the derived artifact (matched by the derived_from TARGET SET
+ * — the build_report precedent — plus the stored `format` discriminator,
+ * which keeps the three kind-"analysis" ops' outputs distinct on the same
+ * source), then append the NEXT sequential revision (DRAFT — publishing stays
+ * a human act, ADR-0006), and record exactly ONE audit event.
+ */
+async function persistDerivedArtifactRevision(
+  projectId: string,
+  opts: BrokerDeriveOptions | undefined,
+  sourceArtifactId: string,
+  sourceRevisionId: string,
+  spec: DerivedPersistSpec,
+): Promise<{ artifactId: string; revisionId: string; revisionNumber: number; sha256: string; sizeBytes: number; name: string }> {
+  const seedLinks = await db.artifactLink.findMany({
+    where: {
+      relationType: "derived_from",
+      toArtifactId: { in: spec.inputIds },
+      fromArtifact: { kind: spec.kind, projectId },
+    },
+    orderBy: { createdAt: "asc" },
+    include: { fromArtifact: { include: { latestRevision: { select: { storageKey: true } } } } },
+  })
+
+  let targetId: string | null = null
+  for (const link of [...new Map(seedLinks.map((l) => [l.fromArtifactId, l])).values()]) {
+    if (spec.format !== null) {
+      const fmt = link.fromArtifact.latestRevision
+        ? await storedJsonFormat(link.fromArtifact.latestRevision.storageKey)
+        : null
+      if (fmt !== spec.format) continue
+    }
+    targetId = link.fromArtifactId
+    break
+  }
+
+  try {
+    let artifactId: string
+    let revisionNumber: number
+    let revisionId: string
+    let stored: StoredRevision
+
+    if (targetId) {
+      const maxRev = await db.artifactRevision.aggregate({
+        where: { artifactId: targetId },
+        _max: { revNumber: true },
+      })
+      revisionNumber = (maxRev._max.revNumber ?? 0) + 1
+      revisionId = newId("rev")
+      stored = await saveRevisionFile(projectId, targetId, revisionId, spec.bytes)
+      await db.$transaction(async (tx) => {
+        await tx.artifactRevision.create({
+          data: {
+            id: revisionId,
+            artifactId: targetId as string,
+            revNumber: revisionNumber,
+            contentHash: stored.sha256,
+            sizeBytes: stored.sizeBytes,
+            storageKey: stored.storageKey,
+            mimeType: spec.mimeType,
+            uploadedBy: spec.contentAuthor,
+          },
+        })
+        await tx.artifact.update({
+          where: { id: targetId as string },
+          data: { latestRevisionId: revisionId },
+        })
+      })
+      artifactId = targetId
+    } else {
+      artifactId = newId("art")
+      revisionId = newId("rev")
+      stored = await saveRevisionFile(projectId, artifactId, revisionId, spec.bytes)
+      await db.$transaction(async (tx) => {
+        await tx.artifact.create({
+          data: {
+            id: artifactId,
+            projectId,
+            kind: spec.kind,
+            name: spec.name,
+            description: spec.description,
+          },
+        })
+        await tx.artifactRevision.create({
+          data: {
+            id: revisionId,
+            artifactId,
+            revNumber: 1,
+            contentHash: stored.sha256,
+            sizeBytes: stored.sizeBytes,
+            storageKey: stored.storageKey,
+            mimeType: spec.mimeType,
+            uploadedBy: spec.contentAuthor,
+          },
+        })
+        await tx.artifact.update({
+          where: { id: artifactId },
+          data: { latestRevisionId: revisionId },
+        })
+        for (const inputId of spec.inputIds) {
+          await tx.artifactLink.create({
+            data: {
+              id: newId("lnk"),
+              fromArtifactId: artifactId,
+              toArtifactId: inputId,
+              relationType: "derived_from",
+              createdBy: spec.contentAuthor,
+            },
+          })
+        }
+      })
+      revisionNumber = 1
+    }
+
+    // Exactly ONE audit event per run; the workflow seam appends the additive
+    // detail fields on the executor path (route path: byte-stable).
+    await recordEvent({
+      projectId,
+      actorType: auditActorType(spec.audit.actor),
+      actorId: spec.audit.actor,
+      action: spec.audit.action,
+      entityType: "artifact",
+      entityId: artifactId,
+      detail: {
+        ...spec.audit.detail,
+        sourceArtifactId,
+        sourceRevisionId,
+        revisionNumber,
+        sha256: stored.sha256,
+        ...auditDetailSeam(opts),
+      },
+    })
+
+    return { artifactId, revisionId, revisionNumber, sha256: stored.sha256, sizeBytes: stored.sizeBytes, name: spec.name }
+  } catch (err) {
+    console.error(`[broker] ${spec.opLabel} failed after file write — orphaned bytes remain in store:`, err)
+    throw err
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The five Phase-5 cores (route wrappers call these — contract §8)
+// ---------------------------------------------------------------------------
+
+/** Pinned 201 `femesh` response object (exact key order — mirror of the mesh 201). */
+export interface BrokerFeMeshResponse {
+  artifactId: string
+  name: string
+  kind: "fe-mesh"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-femesh/1"
+  units: "mm"
+  nodeCount: number
+  elementCount: number
+  solidCount: number
+  meshSizeMin: number
+  meshSizeMax: number
+  elementOrder: number
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerFeMeshResult {
+  femesh: BrokerFeMeshResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of POST …/fe-mesh — the REAL gmsh linear-tet FE-mesh run (contract §4/§5.1):
+ * gate the artifact as a model (canonical multi-signal detection), run the
+ * bridge (gmsh + system-library bootstrap via LD_LIBRARY_PATH), assemble the
+ * byte-deterministic eos-femesh/1 document, find-or-create the kind-"fe-mesh"
+ * artifact (DRAFT revision appended per run), exactly ONE `femesh.derived`
+ * audit event. `opts` is the workflow seam (route path: `adapter:gmsh` actor).
+ */
+export async function brokerFeMeshCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerFeMeshResult> {
+  const params = feMeshBrokerParameters(parameters)
+  if (!params.ok) throw new BrokerRefusalError("unsupported", params.message)
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", FEMESH_NO_REVISIONS_MESSAGE)
+  }
+  const revision = artifact.latestRevision
+
+  const kind = deriveKind(revision.storageKey, artifact.name, revision.mimeType)
+  if (!kind) {
+    throw new BrokerRefusalError("unsupported", femeshUnsupportedMessage(artifact.name, revision.storageKey))
+  }
+
+  const absPath = path.join(getStorageRoot(), revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof feMeshFromFile>>
+  try {
+    result = await feMeshFromFile(absPath, kind, parameters)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildFeMeshDocument(
+    artifact.name,
+    { engineKey: result.engineKey, engineVersion: result.engineVersion, adapterScript: result.adapterScript },
+    params.value,
+    result,
+  )
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, revision.id, {
+    opLabel: "fe_mesh",
+    kind: "fe-mesh",
+    format: "eos-femesh/1",
+    name: `${artifact.name} — FE mesh`,
+    description: `Linear tetrahedral FE mesh generated by ${result.engineKey}`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "femesh.derived",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        nodeCount: result.nodes.count,
+        elementCount: result.elements.count,
+        solidCount: result.solids.length,
+      },
+    },
+  })
+
+  return {
+    femesh: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "fe-mesh",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-femesh/1",
+      units: "mm",
+      nodeCount: result.nodes.count,
+      elementCount: result.elements.count,
+      solidCount: result.solids.length,
+      meshSizeMin: params.value.meshSizeMin,
+      meshSizeMax: params.value.meshSizeMax,
+      elementOrder: params.value.elementOrder,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: revision.id,
+      sourceLatestRevisionId: revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
+/** Pinned 201 `powerflow` response object (exact key order — mirror of the mesh 201). */
+export interface BrokerPowerflowResponse {
+  artifactId: string
+  name: string
+  kind: "analysis"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-powerflow/1"
+  converged: boolean
+  busCount: number
+  lineCount: number
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerPowerflowResult {
+  powerflow: BrokerPowerflowResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of POST …/powerflow — the REAL pandapower Newton-Raphson run (contract
+ * §4/§5.2): gate the stored JSON as an eos-powerflow-network/1 document, run
+ * the bridge (init="flat", every numeric verbatim from the result frames),
+ * assemble the byte-deterministic eos-powerflow/1 document, find-or-create
+ * the kind-"analysis" artifact (DRAFT revision per run), exactly ONE
+ * `powerflow.derived` audit event.
+ */
+export async function brokerRunPowerflowCore(
+  projectId: string,
+  artifactId: string,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerPowerflowResult> {
+  const source = await readJsonArtifact(projectId, artifactId, "eos-powerflow-network/1", POWERFLOW_NO_REVISIONS_MESSAGE)
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof runPowerflowFromFile>>
+  try {
+    result = await runPowerflowFromFile(absPath)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildPowerflowDocument(source.artifact.name, result)
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "run_powerflow",
+    kind: "analysis",
+    format: "eos-powerflow/1",
+    name: `${source.artifact.name} — power flow analysis`,
+    description: `Newton-Raphson power flow (${result.engineKey})`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "powerflow.derived",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        converged: result.converged,
+        busCount: result.buses.length,
+        lineCount: result.lines.length,
+      },
+    },
+  })
+
+  return {
+    powerflow: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-powerflow/1",
+      converged: result.converged,
+      busCount: result.buses.length,
+      lineCount: result.lines.length,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
+/** Pinned 201 `sim` response object (exact key order — mirror of the mesh 201). */
+export interface BrokerSimResponse {
+  artifactId: string
+  name: string
+  kind: "analysis"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-des/1"
+  policy: "fifo"
+  makespan: number
+  resourceCount: number
+  jobCount: number
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerSimResult {
+  sim: BrokerSimResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of POST …/simulate — the REAL SimPy FIFO discrete-event run (contract
+ * §4/§5.3): gate the stored JSON as an eos-des-scenario/1 document, run the
+ * deterministic bridge, assemble the byte-deterministic eos-des/1 document,
+ * find-or-create the kind-"analysis" artifact (DRAFT revision per run),
+ * exactly ONE `sim.completed` audit event.
+ */
+export async function brokerRunDesCore(
+  projectId: string,
+  artifactId: string,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerSimResult> {
+  const source = await readJsonArtifact(projectId, artifactId, "eos-des-scenario/1", DES_NO_REVISIONS_MESSAGE)
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof runDesFromFile>>
+  try {
+    result = await runDesFromFile(absPath)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildDesDocument(source.artifact.name, result)
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "run_des",
+    kind: "analysis",
+    format: "eos-des/1",
+    name: `${source.artifact.name} — discrete-event simulation`,
+    description: `Deterministic FIFO discrete-event simulation (${result.engineKey})`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "sim.completed",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        makespan: result.makespan,
+        resourceCount: result.resources.length,
+        jobCount: result.jobs.length,
+      },
+    },
+  })
+
+  return {
+    sim: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-des/1",
+      policy: result.policy,
+      makespan: result.makespan,
+      resourceCount: result.resources.length,
+      jobCount: result.jobs.length,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
+/** Pinned 201 `pdf` response object (exact key order — mirror of the mesh 201). */
+export interface BrokerPdfResponse {
+  artifactId: string
+  name: string
+  kind: "pdf"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  mimeType: "application/pdf"
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerConvertResult {
+  pdf: BrokerPdfResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of POST …/convert-document — the REAL headless LibreOffice conversion
+ * (contract §4/§5.4): the convertible-extension gate (pinned 422s for
+ * non-convertible kinds and already-PDF inputs), the conversion in a fresh
+ * tmpdir, the raw `application/pdf` bytes stored verbatim as the DRAFT
+ * revision content of a kind-"pdf" artifact (find-or-create; byte-determinism
+ * is NOT claimed — PDFs embed creation timestamps), exactly ONE
+ * `document.converted` audit event. Download flows through the existing
+ * artifact download route.
+ */
+export async function brokerConvertDocumentCore(
+  projectId: string,
+  artifactId: string,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerConvertResult> {
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", CONVERT_NO_REVISIONS_MESSAGE)
+  }
+  const revision = artifact.latestRevision
+
+  // Two-signal convertibility gate: the artifact name (uploads usually register
+  // WITHOUT an extension) and the recorded revision MIME resolve to an
+  // extension-bearing source name for LO's extension-dispatched filters.
+  // Neither signal mappable → the pinned 422s (already-PDF vs no filter).
+  const sourceName = convertibleSourceName(artifact.name, revision.mimeType)
+  if (sourceName === null) {
+    if (revision.mimeType === "application/pdf" || conversionExtensionKind(artifact.name) === "pdf") {
+      throw new BrokerRefusalError("unsupported", alreadyPdfMessage(artifact.name))
+    }
+    throw new BrokerRefusalError("unsupported", notConvertibleMessage(artifact.name))
+  }
+
+  const absPath = path.join(getStorageRoot(), revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof convertDocumentToFile>>
+  try {
+    result = await convertDocumentToFile(absPath, sourceName)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, revision.id, {
+    opLabel: "convert_document",
+    kind: "pdf",
+    format: null, // binary content — the kind is unique to this op (§2)
+    name: `${artifact.name} — PDF`,
+    description: `PDF converted from the source document by ${result.engineKey}`,
+    bytes: result.pdfBytes,
+    mimeType: "application/pdf",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "document.converted",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        sizeBytes: result.pdfBytes.byteLength,
+      },
+    },
+  })
+
+  return {
+    pdf: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "pdf",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      mimeType: "application/pdf",
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: revision.id,
+      sourceLatestRevisionId: revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
+/** Pinned 201 `analysis` response object (CPM — NO engine fields, honestly absent). */
+export interface BrokerCpmResponse {
+  artifactId: string
+  name: string
+  kind: "analysis"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-cpm/1"
+  activityCount: number
+  durationDays: number
+  criticalPath: string[]
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerCpmResult {
+  analysis: BrokerCpmResponse
+  outputArtifactRevisionId: string
+}
+
+/**
+ * Core of POST …/analyze-schedule — the PLATFORM core operation (contract
+ * §4/§6): gate the stored JSON as an eos-schedule/1 document, structurally
+ * defend §3.1, run W3-f's pure `analyzeCpm` (graph errors surface with the
+ * §3.1 verbatim messages as 422s), assemble the byte-deterministic eos-cpm/1
+ * document, find-or-create the kind-"analysis" artifact (DRAFT revision per
+ * run), exactly ONE `schedule.analyzed` audit event. NO engine runs: the
+ * audit event carries no engine fields and the BrokerOutcome leaves them
+ * absent (null in the workflow execution record) — the honest record.
+ */
+export async function brokerAnalyzeScheduleCore(
+  projectId: string,
+  artifactId: string,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerCpmResult> {
+  const source = await readJsonArtifact(projectId, artifactId, "eos-schedule/1", ANALYZE_NO_REVISIONS_MESSAGE)
+  const json = source.json
+
+  const schedule = validateScheduleDocument(json)
+  if (!schedule.ok) {
+    throw new BrokerRequestError("validation_failed", schedule.error)
+  }
+
+  const analysis = analyzeCpm(schedule.value)
+  if (!analysis.ok) {
+    throw new BrokerRequestError("validation_failed", analysis.error)
+  }
+  const cpm = analysis.value
+
+  const document = buildCpmAnalysisDocument(source.artifact.name, cpm)
+  const bytes = Buffer.from(document, "utf8")
+  const actor = opts?.actor ?? "local-operator"
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "analyze_schedule",
+    kind: "analysis",
+    format: "eos-cpm/1",
+    name: `${source.artifact.name} — CPM analysis`,
+    description: "Critical-path analysis of the schedule (platform core — no engine)",
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: actor,
+    inputIds: [artifactId],
+    audit: {
+      actor,
+      action: "schedule.analyzed",
+      // deliberately NO engineKey/engineVersion/adapterScript/adapterHash —
+      // a platform core ran, and the event records that honestly
+      detail: {
+        activityCount: cpm.activities.length,
+        durationDays: cpm.durationDays,
+        criticalPath: cpm.criticalPath,
+      },
+    },
+  })
+
+  return {
+    analysis: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-cpm/1",
+      activityCount: cpm.activities.length,
+      durationDays: cpm.durationDays,
+      criticalPath: cpm.criticalPath,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The broker dispatch — the single entry point (ADR-0005 rule 1)
 // ---------------------------------------------------------------------------
 
@@ -1073,6 +2226,130 @@ export async function runBrokerOperation(
         exitCode: null,
         durationMs: Date.now() - startedAt,
       }
+    }
+
+    case "fe_mesh": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "fe_mesh requires inputs.artifactId (one model artifact id)")
+      }
+      const core = await brokerFeMeshCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.femesh.artifactId,
+          revisionNumber: core.femesh.revisionNumber,
+          contentHash: core.femesh.contentHash,
+          nodeCount: core.femesh.nodeCount,
+          elementCount: core.femesh.elementCount,
+          solidCount: core.femesh.solidCount,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "run_powerflow": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "run_powerflow requires inputs.artifactId (one network artifact id)")
+      }
+      const core = await brokerRunPowerflowCore(ctx.projectId, inputs.artifactId, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.powerflow.artifactId,
+          revisionNumber: core.powerflow.revisionNumber,
+          contentHash: core.powerflow.contentHash,
+          converged: core.powerflow.converged,
+          busCount: core.powerflow.busCount,
+          lineCount: core.powerflow.lineCount,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "run_des": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "run_des requires inputs.artifactId (one scenario artifact id)")
+      }
+      const core = await brokerRunDesCore(ctx.projectId, inputs.artifactId, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.sim.artifactId,
+          revisionNumber: core.sim.revisionNumber,
+          contentHash: core.sim.contentHash,
+          makespan: core.sim.makespan,
+          resourceCount: core.sim.resourceCount,
+          jobCount: core.sim.jobCount,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "convert_document": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "convert_document requires inputs.artifactId (one document artifact id)")
+      }
+      const core = await brokerConvertDocumentCore(ctx.projectId, inputs.artifactId, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.pdf.artifactId,
+          revisionNumber: core.pdf.revisionNumber,
+          contentHash: core.pdf.contentHash,
+          sizeBytes: core.pdf.sizeBytes,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "analyze_schedule": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "analyze_schedule requires inputs.artifactId (one schedule artifact id)")
+      }
+      const core = await brokerAnalyzeScheduleCore(ctx.projectId, inputs.artifactId, deriveOptsFromCtx(ctx))
+      // Platform core: NO engine fields on the outcome — engineKey/
+      // engineVersion/adapterScript/adapterHash are absent (honestly null in
+      // the execution record); exitCode 0 (no adapter subprocess ran).
+      return platformCoreOutcome(
+        {
+          artifactId: core.analysis.artifactId,
+          revisionNumber: core.analysis.revisionNumber,
+          contentHash: core.analysis.contentHash,
+          activityCount: core.analysis.activityCount,
+          durationDays: core.analysis.durationDays,
+          criticalPath: core.analysis.criticalPath,
+        },
+        core.outputArtifactRevisionId,
+        Date.now() - startedAt,
+      )
     }
 
     default:

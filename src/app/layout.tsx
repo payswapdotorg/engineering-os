@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 
 import { AppShell } from "@/components/product/app-shell";
+import { SessionProvider } from "@/components/product/session-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
@@ -39,7 +40,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AppShell>{children}</AppShell>
+          <SessionProvider>
+            <AppShell>{children}</AppShell>
+          </SessionProvider>
           <Toaster position="bottom-right" richColors closeButton />
         </ThemeProvider>
       </body>

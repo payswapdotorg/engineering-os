@@ -1,0 +1,31 @@
+#!/bin/bash
+# postrm — after removal. DELIBERATELY DESTRUCTIVE-PROOF.
+#
+# Phase-6 packaging (contract §2): /var/lib/engineering-os (database + artifact
+# content store) and /etc/eos (runtime env incl. the generated NEXTAUTH_SECRET)
+# are NEVER auto-deleted — not on `dpkg -r` and not on `dpkg --purge`. This is a
+# data-retention red line for an engineering tool: project data outlives the
+# package. Full cleanup is a documented MANUAL operator step:
+#
+#   sudo dpkg --purge engineering-os        # removes package state from dpkg
+#   sudo rm -rf /var/lib/engineering-os    # removes ALL project data (manual)
+#   sudo rm -rf /etc/eos                   # removes config + secret (manual)
+#   sudo userdel eos                       # removes the system user (manual)
+#
+# See docs/07-release/installation-ubuntu.md ("Data retention & removal").
+set -e
+
+case "$1" in
+  remove|purge|upgrade|disappear|abort-install|abort-upgrade)
+    echo "postrm: retained operator data by design:"
+    echo "postrm:   /var/lib/engineering-os  (SQLite DB + artifact store) — kept"
+    echo "postrm:   /etc/eos                  (runtime env + NEXTAUTH_SECRET) — kept"
+    echo "postrm: manual full cleanup is documented in docs/07-release/installation-ubuntu.md"
+    ;;
+
+  *)
+    echo "postrm: unhandled action '$1' — doing nothing (safe default)" >&2
+    ;;
+esac
+
+exit 0

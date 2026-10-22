@@ -12,7 +12,20 @@ import { Suspense, useCallback } from "react";
 import { ProjectWorkspace } from "@/components/product/project-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const TABS = ["overview", "artifacts", "studio", "takeoff", "agents", "team", "activity"] as const;
+// Tab guard — mirrors project-workspace.tsx's TABS (W1-f: sim/controls/docs
+// are real tabs in Phase 5; the guard keeps ?tab= deep-links honest).
+const TABS = [
+  "overview",
+  "artifacts",
+  "studio",
+  "takeoff",
+  "sim",
+  "controls",
+  "docs",
+  "agents",
+  "team",
+  "activity",
+] as const;
 type TabId = (typeof TABS)[number];
 
 function isTabId(v: string | null): v is TabId {

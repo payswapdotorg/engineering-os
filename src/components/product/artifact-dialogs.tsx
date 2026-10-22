@@ -18,6 +18,7 @@ import {
 } from "@/components/product/api"
 import { ApprovalBadge, KindBadge, RelationBadge, StalenessBadge } from "@/components/product/badges"
 import { formatDate, humanBytes, relTime, shortHash, RELATION_HELP } from "@/components/product/format"
+import { GuardedButton } from "@/components/product/guarded-button"
 import { CopyButton, EmptyState, ErrorState, RowSkeleton } from "@/components/product/parts"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -473,9 +474,9 @@ export function ArtifactDetailDialog({
                     maxLength={500}
                   />
                 </div>
-                <Button type="submit" disabled={uploading}>
+                <GuardedButton type="submit" disabled={uploading}>
                   <Upload aria-hidden /> {uploading ? "Uploading…" : "Upload"}
-                </Button>
+                </GuardedButton>
               </form>
             </section>
 
@@ -523,9 +524,9 @@ export function ArtifactDetailDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" disabled={!relationTarget || !relationType}>
+                <GuardedButton type="submit" disabled={!relationTarget || !relationType}>
                   <Link2 aria-hidden /> Link
-                </Button>
+                </GuardedButton>
               </form>
               {relationType ? (
                 <p
@@ -554,9 +555,9 @@ export function ArtifactDetailDialog({
                   <ShieldCheck aria-hidden /> Approve
                 </Button>
               ) : (
-                <Button className="h-9" variant="outline" onClick={() => setApproveOpen(true)}>
+                <GuardedButton className="h-9" variant="outline" onClick={() => setApproveOpen(true)}>
                   <ShieldCheck aria-hidden /> Approve r{latest?.revNumber}
-                </Button>
+                </GuardedButton>
               )}
             </section>
 

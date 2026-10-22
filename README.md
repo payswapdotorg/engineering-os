@@ -38,6 +38,25 @@ bun run dev
 
 Requirements and troubleshooting: [docs/07-release/installation-ubuntu.md](docs/07-release/installation-ubuntu.md).
 
+## Ubuntu install (.deb)
+
+For a server-style deployment on Ubuntu 22.04/24.04 — systemd service `eos`, desktop entry, daily orphan-sweep timer:
+
+```bash
+sudo dpkg -i engineering-os_<version>_amd64.deb   # or: sudo apt-get install ./engineering-os_<version>_amd64.deb
+systemctl status eos                              # then open http://localhost:3000
+```
+
+- The package comes from the `packaging` CI job (artifact `engineering-os-deb`), or build it from source with `scripts/build-deb.sh` → `dist/engineering-os_<version>_amd64.deb`.
+- Requires `nodejs (>= 18)` (dependency of the package, never bundled). Engineering engines (cadquery, IfcOpenShell, …) are optional and **not** bundled — the product detects what is installed.
+- First run opens a setup screen that creates the admin account; `NEXTAUTH_SECRET` is auto-generated at install. Data lives in `/var/lib/engineering-os` and is never deleted by package removal.
+
+Requirements, orphan-sweep service-account setup, troubleshooting, upgrade and data-retention notes: [docs/07-release/installation-ubuntu.md](docs/07-release/installation-ubuntu.md).
+
+## Development
+
+Dev mode runs from the repo with `.env` (gitignored; template `.env.example`): `DATABASE_URL` (SQLite dev backend), `EOS_PYTHON` (interpreter hosting the engineering engines), `NEXTAUTH_SECRET` / `NEXTAUTH_URL` (session signing). Signing in is required in dev too — the first-run setup screen creates your local admin account. The e2e scripts (`scripts/e2e-*.sh`) create and use a demo operator credential that is **dev/e2e-only**: `operator@eos.local` / `operator-demo-2026` — never use it outside development.
+
 ## Repository map
 
 | Path | Owner | Contents |

@@ -46,6 +46,7 @@ import {
   type MeshGetResult,
 } from "@/components/product/api"
 import { EmptyState, ErrorState, InfoNote } from "@/components/product/parts"
+import { GuardedButton } from "@/components/product/guarded-button"
 import { deriveKind } from "@/engines/adapters/derive-kind"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -114,8 +115,21 @@ function webglSupported(): boolean {
   }
 }
 
-export function StudioWorkspace({ projectId }: { projectId: string }) {
+const noop = () => {}
+
+export function StudioWorkspace({
+  projectId,
+  onMutated,
+}: {
+  projectId: string
+  /** Parent-side cache nudge (Phase-6 known-limitation #13): derive/regenerate
+   *  create derived mesh artifacts + audit events the project-level caches
+   *  don't observe on their own (useApi is manual-refresh — the
+   *  AgentsWorkspace.onMutated pattern, mirrored exactly). */
+  onMutated?: () => void
+}) {
   const artifacts = useApi<{ artifacts: ArtifactListItem[] }>(`/api/projects/${projectId}/artifacts`)
+  const notifyMutated = onMutated ?? noop
 
   // WebGL capability — probed client-side once; "probing" defers the verdict.
   const [webgl, setWebgl] = useState<"probing" | "available" | "unavailable">("probing")
@@ -231,6 +245,11 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
       setPickedElementRef(null)
       void artifacts.refresh() // rebuilds the source → mesh map through the effect
       void meshData.refresh() // re-reads the mesh when it already existed (regenerate)
+      // Cache nudge: the new derived mesh artifact + audit event belong to the
+      // project-level caches too (Artifacts tab, activity feed) — the
+      // AgentsWorkspace.onMutated pattern, now applied to the Studio derive
+      // actions (Phase-6 known-limitation #13).
+      notifyMutated()
     } catch (err) {
       // 422s (unsupported extension, engine_unavailable) surface verbatim.
       toast.error(err instanceof Error ? err.message : "Mesh generation failed")
@@ -254,17 +273,17 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
     }
     if (meshArtifactId === null) {
       return (
-        <Button className="h-11" disabled={generating} onClick={() => void generateMesh(false)}>
+        <GuardedButton className="h-11" disabled={generating} onClick={() => void generateMesh(false)}>
           {generating ? <Loader2 className="animate-spin" aria-hidden /> : <Boxes aria-hidden />}
           {generating ? "Generating…" : "Generate 3D view"}
-        </Button>
+        </GuardedButton>
       )
     }
     return (
-      <Button variant="outline" className="h-11" disabled={generating} onClick={() => void generateMesh(true)}>
+      <GuardedButton variant="outline" className="h-11" disabled={generating} onClick={() => void generateMesh(true)}>
         {generating ? <Loader2 className="animate-spin" aria-hidden /> : <RefreshCw aria-hidden />}
         {generating ? "Regenerating…" : "Regenerate"}
-      </Button>
+      </GuardedButton>
     )
   }
 
@@ -367,7 +386,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
                     revision and is kept for provenance until you regenerate it.
                   </AlertDescription>
                   <div className="col-start-2">
-                    <Button
+                    <GuardedButton
                       variant="outline"
                       className="mt-1 h-11 border-amber-400 bg-amber-100/60 text-amber-900 hover:bg-amber-100 hover:text-amber-950 dark:border-amber-700 dark:bg-amber-900 dark:text-amber-200 dark:hover:bg-amber-900/80"
                       disabled={generating}
@@ -375,7 +394,7 @@ export function StudioWorkspace({ projectId }: { projectId: string }) {
                     >
                       {generating ? <Loader2 className="animate-spin" aria-hidden /> : <RefreshCw aria-hidden />}
                       {generating ? "Regenerating…" : "Regenerate"}
-                    </Button>
+                    </GuardedButton>
                   </div>
                 </Alert>
               ) : null}

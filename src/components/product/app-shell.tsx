@@ -28,9 +28,12 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useApi, type ProjectSummary, type StatusData } from "@/components/product/api"
+import { AuthSurface } from "@/components/product/auth-surface"
 import { CommandMenu } from "@/components/product/command-menu"
 import { DisciplineBadge } from "@/components/product/badges"
 import { GITHUB_REPO_URL, PLATFORM_NAV, WORKSPACES, type WorkspaceItem } from "@/components/product/nav"
+import { useSessionUser, type SessionUser } from "@/components/product/session-user"
+import { UserMenu } from "@/components/product/user-menu"
 import { disciplineLabel } from "@/lib/disciplines"
 import { cn } from "@/lib/utils"
 
@@ -199,7 +202,49 @@ function ThemeToggle() {
   )
 }
 
+/** Session-loading screen — the existing skeleton standard, no flash of the
+ * unauthenticated surface (Phase-6 auth gate). */
+function BootSkeleton() {
+  return (
+    <div className="flex min-h-screen flex-col bg-background text-foreground" role="status" aria-label="Loading session">
+      <div className="border-b">
+        <div className="flex h-14 items-center gap-2 px-3 sm:px-4 md:px-6">
+          <Skeleton className="size-8 rounded-md" />
+          <Skeleton className="h-4 w-28" />
+          <div className="ml-auto flex items-center gap-1">
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="size-9 rounded-md" />
+          </div>
+        </div>
+      </div>
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8">
+        <Skeleton className="h-9 w-72" />
+        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-20" />
+          ))}
+        </div>
+        <Skeleton className="mt-6 h-64" />
+      </main>
+    </div>
+  )
+}
+
+/**
+ * AppShell — the Phase-6 auth gate (W1-g lane). While the session is loading it
+ * shows the skeleton standard; with no session the full-screen auth surface
+ * REPLACES the shell; once authenticated the authenticated shell mounts FRESH
+ * (its project/status fetches only start after a session exists, so they never
+ * carry a stale 401 from the unauthenticated moment).
+ */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const user = useSessionUser()
+  if (user === "loading") return <BootSkeleton />
+  if (user === null) return <AuthSurface />
+  return <AuthenticatedShell user={user}>{children}</AuthenticatedShell>
+}
+
+function AuthenticatedShell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -349,6 +394,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </TooltipTrigger>
               <TooltipContent>payswapdotorg/engineering-os</TooltipContent>
             </Tooltip>
+
+            <UserMenu user={user} />
           </div>
         </div>
       </header>

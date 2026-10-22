@@ -13,6 +13,11 @@
  * EngineProbeResult rows are NEVER touched (engine discovery state is true
  * product state, not probe litter).
  *
+ * User rows are NEVER touched either (Phase-6, contract §1.5): operator
+ * accounts persist across cleanups — setup is first-run only, so deleting
+ * users here would lock the product behind a bootstrap that can never run
+ * again. Demo rebuild = the signed-in takeoff run.
+ *
  * Usage (bun resolves ../src/lib/db and auto-loads .env from the cwd):
  *   bun scripts/dev-db-cleanup.ts                    # dry run: list what could be removed
  *   bun scripts/dev-db-cleanup.ts --all              # delete EVERY project row + storage dir,

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { GuardedButton } from "@/components/product/guarded-button"
 
 export function StatCard({
   label,
@@ -51,12 +52,17 @@ export function EmptyState({
   description,
   actionLabel,
   onAction,
+  actionDisabledReason,
   icon: Icon,
 }: {
   title: string
   description: string
   actionLabel?: string
   onAction?: () => void
+  /** When non-null (e.g. the team owner/admin rule) the action renders
+   *  visible-but-disabled with this exact tooltip; the viewer role is applied
+   *  by GuardedButton itself (Phase-6 contract §1.6). */
+  actionDisabledReason?: string | null
   icon?: React.ComponentType<{ className?: string }>
 }) {
   return (
@@ -65,9 +71,9 @@ export function EmptyState({
       <p className="text-sm font-medium">{title}</p>
       <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
       {actionLabel && onAction ? (
-        <Button onClick={onAction} size="sm" className="mt-2 h-9">
+        <GuardedButton onClick={onAction} size="sm" className="mt-2 h-9" disabledReason={actionDisabledReason}>
           <Plus aria-hidden /> {actionLabel}
-        </Button>
+        </GuardedButton>
       ) : null}
     </div>
   )

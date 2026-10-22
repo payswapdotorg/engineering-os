@@ -169,7 +169,8 @@ export function AddMemberDialog({
         <DialogHeader>
           <DialogTitle>Add member</DialogTitle>
           <DialogDescription>
-            Local roster entry with a role. Real authentication and permissions ship in Phase 4.
+            Local roster entry with a role (owner / editor / viewer). Sign-in shipped in Phase 6 —
+            roster changes are gated to the project owner or a global admin, enforced server-side.
           </DialogDescription>
         </DialogHeader>
         <form

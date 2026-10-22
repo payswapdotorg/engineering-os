@@ -94,6 +94,16 @@ model ArtifactLink {
   @@unique([fromArtifactId, toArtifactId, relationType])
 }
 
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("engineer") // "admin" | "engineer" | "viewer"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model EngineProbeResult {
   id             String   @id
   engineKey      String   @unique
@@ -129,6 +139,7 @@ model AuditEvent {
   project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   actorType  String   @default("user") // user|agent|system
   actorId    String   @default("local-operator")
+  userName   String? // signed-in human display name (Phase-6 session attribution); null for agent/system/background events
   action     String
   entityType String
   entityId   String

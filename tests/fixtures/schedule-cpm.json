@@ -1,0 +1,12 @@
+{
+  "format": "eos-schedule/1",
+  "name": "Platform rollout schedule",
+  "activities": [
+    { "id": "a", "name": "Site preparation", "durationDays": 3, "predecessorIds": [] },
+    { "id": "b", "name": "Foundations", "durationDays": 2, "predecessorIds": [] },
+    { "id": "c", "name": "Steel frame", "durationDays": 4, "predecessorIds": ["a"] },
+    { "id": "d", "name": "Envelope", "durationDays": 5, "predecessorIds": ["b"] },
+    { "id": "f", "name": "MEP rough-in", "durationDays": 1, "predecessorIds": ["d"] },
+    { "id": "e", "name": "Handover", "durationDays": 3, "predecessorIds": ["c", "f"] }
+  ]
+}
