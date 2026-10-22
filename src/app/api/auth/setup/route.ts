@@ -29,19 +29,25 @@ const setupSchema = z.object({
   password: z.string().min(8, SETUP_PASSWORD_TOO_SHORT).max(200, "password must be at most 200 characters"),
 })
 
-/** GET /api/auth/setup — {needed: true} while the User table is empty. */
+/** GET /api/auth/setup — {needed: true} while no OPERATOR (non-demo) user exists. */
 export const GET = handler(
   async () => {
-    const count = await db.user.count()
+    // §1.2 extension (demo-accounts slice, recorded): counts NON-DEMO users
+    // only — provisioning demo personas must never consume the first-run
+    // operator bootstrap. Deviation from the frozen §1.2 wording recorded in
+    // the worklog + contract §1.8.
+    const count = await db.user.count({ where: { isDemo: false } })
     return jsonOk({ needed: count === 0 })
   },
   { auth: "public" },
 )
 
-/** POST /api/auth/setup — create the first user (admin); 422 once one exists. */
+/** POST /api/auth/setup — create the first OPERATOR (admin); 422 once one exists. */
 export const POST = handler(
   async (req) => {
-    const existing = await db.user.count()
+    // §1.2 extension: only non-demo users guard the bootstrap — demo personas
+    // (isDemo=true, created by /api/auth/demo-accounts) never count here.
+    const existing = await db.user.count({ where: { isDemo: false } })
     if (existing > 0) {
       return ERR.invalid(SETUP_ALREADY_DONE)
     }

@@ -100,6 +100,8 @@ model User {
   name         String
   passwordHash String
   role         String   @default("engineer") // "admin" | "engineer" | "viewer"
+  isDemo       Boolean  @default(false) // demo-accounts slice: provisionable demo personas never count towards first-run setup (§1.2 extension)
+  title        String? // optional display title (demo personas carry one)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

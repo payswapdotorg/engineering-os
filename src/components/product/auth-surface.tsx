@@ -24,18 +24,23 @@
  *
  * Dev credentials are NEVER baked in here — they live in docs/scripts only.
  */
-import { Loader2, LogIn, ShieldCheck } from "lucide-react"
+import { Loader2, LogIn, ShieldCheck, UserPlus, UsersRound } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { signIn } from "next-auth/react"
 import { toast } from "sonner"
 
-import { useApi, type StatusData } from "@/components/product/api"
+import { apiJson, useApi, type StatusData } from "@/components/product/api"
+import { initialsOf } from "@/components/product/format"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DEMO_ACCOUNT_PASSWORD } from "@/lib/demo-accounts"
+import { cn } from "@/lib/utils"
 
 /** Which form the surface shows while unauthenticated. */
 type AuthMode = "checking" | "setup" | "signin" | "unavailable"
@@ -354,6 +359,205 @@ function SignInForm({ recheck }: { recheck: () => void }) {
 }
 
 // ---------------------------------------------------------------------------
+// Demo accounts (post-Phase-6 slice, contract §1.8) — provisionable personas
+// with one-click quick sign-in. Every quick sign-in runs the REAL credentials
+// flow with the shared public password — no shortcut session, ever.
+// ---------------------------------------------------------------------------
+
+interface DemoAccountRow {
+  id: string
+  name: string
+  email: string
+  role: "admin" | "engineer" | "viewer"
+  title: string | null
+}
+
+interface DemoAccountsData {
+  accounts: DemoAccountRow[]
+}
+
+/** Role badge — existing palette only (W1-g standard, mirrors user-menu). */
+function DemoRoleBadge({ role }: { role: DemoAccountRow["role"] }) {
+  switch (role) {
+    case "admin":
+      return (
+        <Badge className="border-orange-300 bg-orange-100 text-orange-800 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-300">
+          admin
+        </Badge>
+      )
+    case "engineer":
+      return (
+        <Badge className="border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+          engineer
+        </Badge>
+      )
+    case "viewer":
+    default:
+      return <Badge variant="outline" className="text-muted-foreground">viewer</Badge>
+  }
+}
+
+/** Role-tinted avatar colors — existing palette only. */
+function demoAvatarClass(role: DemoAccountRow["role"]): string {
+  switch (role) {
+    case "admin":
+      return "bg-orange-700 text-orange-50 dark:bg-orange-600 dark:text-orange-950"
+    case "engineer":
+      return "bg-emerald-700 text-emerald-50 dark:bg-emerald-600 dark:text-emerald-950"
+    case "viewer":
+    default:
+      return "bg-muted text-muted-foreground"
+  }
+}
+
+function DemoAccountsPanel() {
+  const router = useRouter()
+  const accounts = useApi<DemoAccountsData>("/api/auth/demo-accounts")
+  const [provisioning, setProvisioning] = useState(false)
+  const [signingIn, setSigningIn] = useState<string | null>(null)
+
+  const provision = async () => {
+    if (provisioning) return
+    setProvisioning(true)
+    try {
+      const result = await apiJson<{ created: number; accounts: DemoAccountRow[] }>(
+        "/api/auth/demo-accounts",
+        "POST",
+      )
+      await accounts.refresh()
+      if (result.created > 0) {
+        toast.success(
+          `provisioned ${result.created} demo account${result.created === 1 ? "" : "s"} — quick sign-in is live`,
+        )
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "provisioning failed — please try again")
+    } finally {
+      setProvisioning(false)
+    }
+  }
+
+  const quickSignIn = async (account: DemoAccountRow) => {
+    if (signingIn !== null) return
+    setSigningIn(account.email)
+    try {
+      // The REAL credentials flow — the exact path the manual sign-in form
+      // runs (§1.8). demo1234 is the public shared demo password.
+      const result = await signIn("credentials", {
+        redirect: false,
+        email: account.email,
+        password: DEMO_ACCOUNT_PASSWORD,
+      })
+      if (result && !result.ok) {
+        toast.error("quick sign-in failed — credentials or the auth service are unavailable")
+        return
+      }
+      // Success: the SessionProvider update flips the shell gate on its own.
+      router.refresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "quick sign-in failed — please try again")
+    } finally {
+      setSigningIn(null)
+    }
+  }
+
+  return (
+    <Card className="border-dashed">
+      <CardContent className="flex flex-col gap-4 p-5">
+        <div className="flex items-center gap-2">
+          <UsersRound aria-hidden className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold tracking-tight">Demo accounts</h2>
+          <Badge variant="outline" className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground">
+            quick login
+          </Badge>
+        </div>
+
+        {accounts.loading ? (
+          <div className="space-y-2" role="status" aria-label="Loading demo accounts">
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" />
+          </div>
+        ) : accounts.error !== null ? (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Demo accounts are unavailable right now ({accounts.error}). The manual forms above are
+            unaffected.
+          </p>
+        ) : accounts.data !== null && accounts.data.accounts.length === 0 ? (
+          <div className="space-y-3">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Explore Engineering OS without touching first-run setup: one click creates three
+              clearly-labelled demo users (admin / engineer / viewer) who share the public password{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">demo1234</code>.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 w-full"
+              onClick={() => void provision()}
+              disabled={provisioning}
+            >
+              {provisioning ? <Loader2 className="animate-spin" aria-hidden /> : <UserPlus aria-hidden />}
+              {provisioning ? "Provisioning…" : "Provision demo accounts"}
+            </Button>
+          </div>
+        ) : accounts.data !== null ? (
+          <>
+            <ul className="space-y-2">
+              {accounts.data.accounts.map((account) => (
+                <li
+                  key={account.id}
+                  className="flex items-center gap-3 rounded-lg border px-3 py-2.5"
+                >
+                  <Avatar className="size-9">
+                    <AvatarFallback
+                      className={cn("text-[11px] font-semibold", demoAvatarClass(account.role))}
+                    >
+                      {initialsOf(account.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium">{account.name}</span>
+                      <DemoRoleBadge role={account.role} />
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {account.title ?? account.role} · {account.email}
+                    </span>
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 shrink-0"
+                    onClick={() => void quickSignIn(account)}
+                    disabled={signingIn !== null}
+                    aria-label={`Quick sign in as ${account.name} (${account.role})`}
+                  >
+                    {signingIn === account.email ? (
+                      <Loader2 className="animate-spin" aria-hidden />
+                    ) : (
+                      <LogIn aria-hidden />
+                    )}
+                    {signingIn === account.email ? "Signing in…" : "Sign in"}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              All demo accounts share the password{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">demo1234</code>{" "}
+              — quick sign-in runs the real credentials flow; removal is an admin action in the
+              user menu.
+            </p>
+          </>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Surface
 // ---------------------------------------------------------------------------
 
@@ -464,6 +668,9 @@ export function AuthSurface() {
               )}
             </CardContent>
           </Card>
+          {/* Demo accounts (§1.8) — available in EVERY unauthenticated mode:
+              setup (fresh DB), sign-in, and even while the setup check polls. */}
+          <DemoAccountsPanel />
         </div>
       </main>
       <footer className="mt-auto border-t bg-background px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 text-xs text-muted-foreground">

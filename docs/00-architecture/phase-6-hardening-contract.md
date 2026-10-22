@@ -149,6 +149,47 @@ fallback branch), the line breakdown gains `futureDatedRate: true` (additive —
 existing e2e assertions on breakdown contents must be re-checked and stay
 green). No 422s added; pricing math unchanged.
 
+### 1.8 Demo accounts (post-Phase-6 addition — slice added 2026-10-22, TL)
+
+Provisionable demo personas with one-click quick sign-in on the auth surface.
+Amends §1.1 (additive schema), §1.2 (recorded extension), §1.3 (two public
+routes + one pinned 403), §1.4 (system actor), §1.6 (auth-surface panel +
+admin menu item):
+
+- `src/lib/demo-accounts.ts` — single source of truth: fixed roster
+  (admin "Ama Boateng" / engineer "Kwame Mensah" / viewer "Zara Ahmed",
+  `*.demo@eos.local`) + the PUBLIC shared password `demo1234`. Server
+  (provisioning route) and client (quick-login panel) import the same
+  constants — they cannot drift.
+- Schema (§1.1 amendment, additive): `User.isDemo Boolean @default(false)` +
+  `User.title String?`.
+- `/api/auth/demo-accounts`: GET (public) lists; POST (public) idempotently
+  ensures the FIXED roster — accepts no client-supplied fields, so
+  provisioning can never mint a privileged non-demo account. DELETE is
+  session-gated: viewer → the pinned read-only 403; engineer → 403 `only an
+  admin can remove demo accounts`; admin removes ONLY `isDemo=true` rows and
+  NEVER the signed-in caller.
+- §1.2 extension (recorded deviation from the frozen wording): setup GET+POST
+  count NON-DEMO users only — provisioning demo personas never consumes the
+  first-run operator bootstrap. The pinned 422 message is unchanged.
+- Audit: provision → one `user.demo.provisioned` event, system actor
+  (`system:demo-provisioner`, userName null per §1.4); removal → one
+  `user.demo.removed` event, session-attributed to the admin human.
+- Frontend (§1.6 extension): "Demo accounts" panel on the auth surface in
+  every unauthenticated mode — provision button (empty roster) or quick-login
+  cards (role badge, title, email; accessible label `Quick sign in as <name>
+  (<role>)`). Quick sign-in runs the REAL credentials flow
+  (`signIn("credentials", …)` + router refresh — no shortcut session). The
+  header user menu gains an admin-only "Remove demo accounts" item.
+- Verification standard: live curl contract checks (roster, idempotency,
+  §1.2 non-consumption, 401/403/200 layering, self-removal guard, audit
+  attribution) + agent-browser journeys per role (viewer disabled states,
+  engineer enabled states, admin removal + verbatim toasts, re-provision
+  restore) + the five e2e scripts stay green in one session with the §1.2
+  extension live (takeoff: 27 PASS). No new unit tests in this slice (session
+  constraint, recorded honestly); the shared-constant seam keeps the roster
+  single-sourced.
+
 ## 2. Packaging (W2-g owns `scripts/build-deb.sh`, `packaging/**`, release docs)
 
 - `scripts/build-deb.sh` → `dist/engineering-os_<version>_amd64.deb` via

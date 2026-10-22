@@ -57,6 +57,8 @@ Requirements, orphan-sweep service-account setup, troubleshooting, upgrade and d
 
 Dev mode runs from the repo with `.env` (gitignored; template `.env.example`): `DATABASE_URL` (SQLite dev backend), `EOS_PYTHON` (interpreter hosting the engineering engines), `NEXTAUTH_SECRET` / `NEXTAUTH_URL` (session signing). Signing in is required in dev too — the first-run setup screen creates your local admin account. The e2e scripts (`scripts/e2e-*.sh`) create and use a demo operator credential that is **dev/e2e-only**: `operator@eos.local` / `operator-demo-2026` — never use it outside development.
 
+The sign-in screen also offers **demo accounts** (post-Phase-6 slice, [contract §1.8](docs/00-architecture/phase-6-hardening-contract.md)): one click provisions three clearly-labelled users — admin *Ama Boateng*, engineer *Kwame Mensah*, viewer *Zara Ahmed* — sharing the public password `demo1234`, each with a one-click **quick login** button. They are real accounts through the real credentials flow (never shortcut sessions), they never consume first-run setup, and removing them is an admin action in the user menu. Perfect for exploring role-based access without touching the operator account.
+
 ## Repository map
 
 | Path | Owner | Contents |

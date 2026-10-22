@@ -14,6 +14,7 @@ Owner: TL · An item passes only with recorded evidence (command + observed resu
 | F | Agent proposes & executes change | ✅ **passed (Phase 4)** | AC-P4-01…10; browser Journey F end-to-end (agent:qa-runner runs the Model QA pipeline on a persisted STEP model, human approves the publish) |
 | G | Change impact across delivery | ✅ **passed (Phase 1 seed + Phase 4 outputs)** | AC-P1-06; Phase-4 workflow outputs (mesh + report) ride the same cascade with path evidence (AC-P4-05) |
 | H | Reopen & resume | 🚧 Phase 1 partial | SQLite durability verified; full app-restart drill → Phase 6 |
+| I | Demo accounts: quick-login role exploration (§1.8) | ✅ **passed (2026-10-22)** | curl contract suite (roster idempotency, §1.2 non-consumption, 401/403/200 layering, self-removal guard, audit attribution) + agent-browser per-role journeys: viewer read-only states, engineer enabled states, admin removal + verbatim toasts, re-provision restore; evidence/dm-01…dm-09 |
 
 ## Phase-1 acceptance items — verified 2026-10-21 (TL, dev host)
 

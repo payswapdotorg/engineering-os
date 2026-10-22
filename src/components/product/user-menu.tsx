@@ -6,9 +6,11 @@
  * Sign out uses signOut({ callbackUrl: "/" }) so the full app re-renders from a
  * clean GET — the client-router pattern this shell already uses for navigation.
  */
-import { ChevronDown, LogOut } from "lucide-react"
+import { ChevronDown, LogOut, UserX } from "lucide-react"
 import { signOut } from "next-auth/react"
+import { toast } from "sonner"
 
+import { apiJson } from "@/components/product/api"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,6 +44,31 @@ function RoleBadge({ role }: { role: SessionUser["role"] }) {
     case "viewer":
     default:
       return <Badge variant="outline" className="text-muted-foreground">viewer</Badge>
+  }
+}
+
+/** Admin-only removal of the demo roster (contract §1.8) — honest +
+ * reversible: re-provisioning restores it; the signed-in user is never
+ * deleted by their own action. */
+async function removeDemoAccounts() {
+  try {
+    const result = await apiJson<{ removed: number; remaining: number }>(
+      "/api/auth/demo-accounts",
+      "DELETE",
+    )
+    if (result.removed > 0) {
+      toast.success(`removed ${result.removed} demo account${result.removed === 1 ? "" : "s"}`)
+    }
+    if (result.remaining > 0) {
+      toast.info(
+        `a signed-in demo user cannot remove itself — ${result.remaining} still present`,
+      )
+    }
+    if (result.removed === 0 && result.remaining === 0) {
+      toast.info("no demo accounts were present")
+    }
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : "removing demo accounts failed")
   }
 }
 
@@ -79,6 +106,12 @@ export function UserMenu({ user }: { user: SessionUser }) {
             {user.email}
           </span>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {user.role === "admin" ? (
+          <DropdownMenuItem onSelect={() => void removeDemoAccounts()}>
+            <UserX aria-hidden /> Remove demo accounts
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
