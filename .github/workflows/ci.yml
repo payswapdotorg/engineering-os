@@ -239,7 +239,7 @@ jobs:
           echo "init.sql tables: $(grep -c 'CREATE TABLE' /tmp/init.sql)"
 
       - name: Apply init SQL to the live PostgreSQL service (prisma db execute)
-        run: bunx prisma db execute --file /tmp/init.sql --schema prisma/schema.postgres.prisma --url postgresql://eos:eos@localhost:5432/eos_ci
+        run: bunx prisma db execute --file /tmp/init.sql --url postgresql://eos:eos@localhost:5432/eos_ci
 
       - name: db push against the live service (must report — already in sync)
         run: bunx prisma db push --skip-generate --schema prisma/schema.postgres.prisma
@@ -280,6 +280,9 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq desktop-file-utils
           desktop-file-validate packaging/desktop/eos.desktop
+
+      - name: Install nodejs (documented package dependency — mirrors the operator flow)
+        run: sudo apt-get install -y -qq nodejs
 
       - name: Install package (dpkg -i runs maintscripts as root)
         run: sudo dpkg -i dist/*.deb

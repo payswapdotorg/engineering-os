@@ -34,7 +34,9 @@ alone did nothing. This addendum closes that gap without forking the schema:
 2. **Production init/upgrade procedure** (no shadow database needed):
    - init: `bunx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.postgres.prisma --script > init.sql`
    - upgrade: `bunx prisma migrate diff --from-schema-datasource prisma/schema.postgres.prisma --to-schema-datamodel prisma/schema.postgres.prisma --script > upgrade.sql`
-   - apply: `bunx prisma db execute --file <sql> --schema prisma/schema.postgres.prisma --url $DATABASE_URL`
+   - apply: `bunx prisma db execute --file <sql> --url "$DATABASE_URL"`
+     (`--schema` and `--url` are mutually exclusive in `db execute` — pass the URL
+     explicitly; the schema is not needed for the apply step)
    - verify drift-free: a live-vs-model diff must contain no DDL.
    (When committed migrations are later adopted, `prisma migrate deploy` becomes the
    apply step; the diff-execute path works from day one and is what CI exercises.)
