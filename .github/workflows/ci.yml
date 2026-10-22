@@ -303,7 +303,11 @@ jobs:
           getent passwd eos >/dev/null
           test -f /var/lib/engineering-os/custom.db
           test -f /etc/eos/eos.env
-          grep -q '^NEXTAUTH_SECRET=.' /etc/eos/eos.env
+          # /etc/eos/eos.env is root:eos 0640 BY DESIGN (it holds the session
+          # secret — non-root must NOT read it). The assert therefore reads it
+          # with sudo; a non-sudo grep would fail on permissions, which is the
+          # product working as intended, not a packaging defect.
+          sudo grep -q '^NEXTAUTH_SECRET=.' /etc/eos/eos.env
           dpkg -s engineering-os | grep -q '^Depends: nodejs (>= 18)$'
           dpkg -s engineering-os | grep -q '^Status: install ok installed$'
 
