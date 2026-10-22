@@ -119,8 +119,15 @@ single authority; routes AND the executor both call it — no ad-hoc transitions
 ## 4. Approval gates (ADR-0006 §3 — the red line)
 
 1. `approve` and `reject` are accepted ONLY with a human actor. The API never accepts an
-   actor parameter for these actions: the approver is server-side `local-operator`
-   (actorType "user"). An agent actor can never approve or reject — there is no code path.
+   actor parameter for these actions: the approver is the **signed-in session user,
+   resolved server-side** (Phase-6 auth: `session?.id ?? "local-operator"` — the legacy
+   operator identity survives only as the fallback for non-session callers such as
+   maintenance scripts; the session gates make it unreachable from request paths), and is
+   stamped on the workflow event + audit event (`userName`). An agent actor can never
+   approve or reject — there is no code path.
+   *(Amendment 2026-10-22, release-truth pass: this section originally pinned the approver
+   to `local-operator`; the shipped Phase-6 transition route attributes approval to the
+   authenticated user. History preserved per the doc convention.)*
 2. When `workflow.createdBy` starts with `agent:`, a human approving is by construction a
    distinct identity. When the creator is human (`local-operator`), self-approval is the
    existing Phase-1..3 semantics (humans approve their own submissions) and stays allowed.

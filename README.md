@@ -74,7 +74,7 @@ The Takeoff workspace also has **Sheet Measure** (Slice 8, [contract](docs/00-ar
 | `prisma/` | TL | Database schema (Prisma; SQLite dev / PostgreSQL production target) |
 | `docs/` | TL + workers | Architecture, ADRs, engine inventory, schemas, QA, release docs |
 | `tests/fixtures/` | TL | Real representative engineering files for tests and verification |
-| `.github/workflows/` | TL | CI: lint, typecheck, unit tests |
+| `.github/workflows/` | TL | CI: lint, typecheck, unit tests, engine validation harness, five e2e acceptance suites, PostgreSQL portability gate, .deb packaging lifecycle |
 
 ## Documentation index
 

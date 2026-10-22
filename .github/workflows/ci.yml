@@ -6,9 +6,14 @@ on:
       - main
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -33,16 +38,231 @@ jobs:
         env:
           DATABASE_URL: "file:./db/ci.db"
 
+      # Production-build gate (release-truth pass, 2026-10-22): the standalone
+      # build must succeed on every push/PR, independent of the packaging job.
+      - name: Production build (standalone)
+        run: bun run build
+        env:
+          DATABASE_URL: "file:./db/ci.db"
+
+  # Engine validation harness (release-truth pass, 2026-10-22): the real
+  # adapters run against the committed fixture corpus with analytical ground
+  # truths on CI, exactly like `bun run validate:engines` locally. An
+  # all-skip run is NOT a pass — the assertion below fails the job if any
+  # case was skipped or the harness did not run.
+  engines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install engineering engines (the harness-validated set)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0
+          python3 -m venv /tmp/eos-engines
+          /tmp/eos-engines/bin/pip install --quiet --upgrade pip
+          /tmp/eos-engines/bin/pip install --quiet cadquery ifcopenshell gmsh pandapower simpy
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy; print("engines importable")'
+          soffice --version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: bunx prisma generate
+
+      - name: Engine validation harness (real adapters, analytical ground truth)
+        env:
+          EOS_PYTHON: /tmp/eos-engines/bin/python
+          DATABASE_URL: "file:./db/ci-engines.db"
+        run: |
+          bun run validate:engines
+          python3 - <<'PY'
+          import json
+          r = json.load(open("tests/validation/report.json"))
+          s = r["summary"]
+          assert s["fail"] == 0, f"engine harness failures: {s['fail']}"
+          assert s["skip"] == 0, f"engine harness skips: {s['skip']} — an all-skip run is NOT a pass"
+          assert s["pass"] > 0 and not s["notRun"], "engine harness did not run"
+          print(f"engine harness: {s['pass']}/{s['total']} passed, 0 failed, 0 skipped")
+          PY
+
+  # End-to-end acceptance gate (release-truth pass, 2026-10-22): the five
+  # golden-path shell suites run against a real dev server on a real database
+  # through the real NextAuth sign-in flow, with the real engineering engines
+  # installed — the same evidence standard as the local acceptance record.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install engineering engines (the harness-validated set)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0
+          python3 -m venv /tmp/eos-engines
+          /tmp/eos-engines/bin/pip install --quiet --upgrade pip
+          /tmp/eos-engines/bin/pip install --quiet cadquery ifcopenshell gmsh pandapower simpy
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy; print("engines importable")'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: bunx prisma generate
+
+      - name: Prepare dev database + environment
+        run: |
+          set -euo pipefail
+          mkdir -p db
+          SECRET="$(openssl rand -base64 32)"
+          cat > .env <<EOF
+          DATABASE_URL=file:./db/custom.db
+          EOS_PYTHON=/tmp/eos-engines/bin/python
+          NEXTAUTH_SECRET=${SECRET}
+          NEXTAUTH_URL=http://localhost:3000
+          EOF
+          bunx prisma db push --skip-generate
+
+      - name: Start dev server (scripts/dev-server.sh exports .env at exec time)
+        run: |
+          set -euo pipefail
+          nohup bash scripts/dev-server.sh > dev.log 2>&1 &
+          for i in $(seq 1 60); do
+            sleep 3
+            if curl -sf http://localhost:3000/api/status > /dev/null; then
+              echo "dev server up after ~$((i * 3))s"; exit 0
+            fi
+          done
+          echo "dev server did not come up"; tail -60 dev.log; exit 1
+
+      - name: e2e-takeoff (31 PASS expected)
+        run: |
+          bun scripts/dev-db-cleanup.ts --all
+          bash scripts/e2e-takeoff.sh 2>&1 | tee /tmp/e2e-takeoff.log
+
+      - name: e2e-p2-modelviewer (40 PASS expected)
+        run: |
+          bun scripts/dev-db-cleanup.ts --all
+          bash scripts/e2e-p2-modelviewer.sh 2>&1 | tee /tmp/e2e-p2.log
+
+      - name: e2e-p3-hardening (67 PASS expected)
+        run: |
+          bun scripts/dev-db-cleanup.ts --all
+          bash scripts/e2e-p3-hardening.sh 2>&1 | tee /tmp/e2e-p3.log
+
+      - name: e2e-p4-workflows (49 PASS expected)
+        run: |
+          bun scripts/dev-db-cleanup.ts --all
+          bash scripts/e2e-p4-workflows.sh 2>&1 | tee /tmp/e2e-p4.log
+
+      - name: e2e-p5-disciplines (47 PASS expected)
+        run: |
+          bun scripts/dev-db-cleanup.ts --all
+          bash scripts/e2e-p5-disciplines.sh 2>&1 | tee /tmp/e2e-p5.log
+
+      - name: Upload server + suite logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
+          path: |
+            dev.log
+            /tmp/e2e-*.log
+          if-no-files-found: warn
+          retention-days: 7
+
+  # PostgreSQL portability gate (release-truth pass, 2026-10-22, ADR-0003
+  # addendum): the production deployment path is exercised against a LIVE
+  # postgres:16 service on every push — schema regeneration + drift check,
+  # prisma validate, the production init SQL (migrate diff from empty)
+  # applied with db execute, db push confirming sync, and a live-vs-model
+  # diff that must contain no DDL. Honest scope: this validates the schema,
+  # SQL and deployment procedure on real PostgreSQL; product runtime suites
+  # still run on the SQLite dev backend.
+  db-portability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: eos
+          POSTGRES_PASSWORD: eos
+          POSTGRES_DB: eos_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Regenerate PostgreSQL schema + drift check (single source of truth)
+        run: |
+          node scripts/gen-postgres-schema.mjs
+          git diff --exit-code prisma/schema.postgres.prisma
+
+      - name: Validate the PostgreSQL schema
+        run: bunx prisma validate --schema prisma/schema.postgres.prisma
+
+      - name: Production init path — migrate diff from empty must yield real DDL
+        run: |
+          bunx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.postgres.prisma --script > /tmp/init.sql
+          test -s /tmp/init.sql
+          grep -q 'CREATE TABLE "Project"' /tmp/init.sql
+          echo "init.sql tables: $(grep -c 'CREATE TABLE' /tmp/init.sql)"
+
+      - name: Apply init SQL to the live PostgreSQL service (prisma db execute)
+        run: bunx prisma db execute --file /tmp/init.sql --schema prisma/schema.postgres.prisma --url postgresql://eos:eos@localhost:5432/eos_ci
+
+      - name: db push against the live service (must report — already in sync)
+        env:
+          DATABASE_URL: postgresql://eos:eos@localhost:5432/eos_ci
+        run: bunx prisma db push --skip-generate --schema prisma/schema.postgres.prisma
+
+      - name: Upgrade-diff loop closed — live-vs-model diff must contain no DDL
+        env:
+          DATABASE_URL: postgresql://eos:eos@localhost:5432/eos_ci
+        run: |
+          bunx prisma migrate diff --from-schema-datasource prisma/schema.postgres.prisma --to-schema-datamodel prisma/schema.postgres.prisma --script > /tmp/upgrade.sql
+          if grep -E 'CREATE TABLE|ALTER TABLE|DROP TABLE|CREATE *(UNIQUE )*INDEX|DROP *(UNIQUE )*INDEX' /tmp/upgrade.sql; then
+            echo "unexpected DDL in the live-vs-model upgrade diff:"; cat /tmp/upgrade.sql; exit 1
+          fi
+          echo "live PostgreSQL matches the model — no DDL in upgrade diff"
+
   # Phase-6 packaging lane (W2-g, contract §2): build the real .deb on a host
   # that has sudo, then smoke-verify install → file layout → removal.
   # Honest scope: GitHub runners have no running systemd, so the service and
   # the sweep timer are NOT started here — this covers the dpkg lifecycle
   # (postinst/prerm/postrm) and the installed file layout only. The units'
   # first real start happens on a systemd host (see
-  # docs/07-release/installation-ubuntu.md). First run of this job happens on
-  # the next push after the packaging lane lands.
+  # docs/07-release/installation-ubuntu.md). First run recorded 2026-10-22
+  # on commit bcaf826, after pushes were unblocked.
   packaging:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -54,7 +274,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build .deb (real next build, clean seed DB, dpkg-deb)
-        run: scripts/build-deb.sh
+        run: bash scripts/build-deb.sh
 
       - name: Validate desktop entry (desktop-file-utils on runner)
         run: |

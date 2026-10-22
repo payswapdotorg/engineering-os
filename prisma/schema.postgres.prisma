@@ -1,0 +1,308 @@
+// GENERATED FILE — DO NOT EDIT BY HAND.
+// Regenerate with: node scripts/gen-postgres-schema.mjs  (byte-deterministic; CI
+// fails the build on drift). Source of truth: prisma/schema.prisma (SQLite dev
+// backend). This variant exists so the PostgreSQL production path (ADR-0003)
+// is a real, validated artifact — not a documented assumption.
+// Production init/upgrade: prisma migrate diff --to-schema-datamodel THIS FILE
+// --script | prisma db execute  (see ADR-0003 addendum + CI db-portability job).
+
+// Engineering OS — Phase-1 data schema
+// Production target: PostgreSQL (ADR-0003). Dev backend: SQLite (same schema).
+// Rules: no SQLite-specific features; JSON payloads stored as String; enums as
+// plain String, validated at the boundary (zod + src/core state machines).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String        @id
+  slug        String        @unique
+  name        String
+  discipline  String // see src/lib/disciplines.ts
+  description String?
+  status      String        @default("active")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  artifacts   Artifact[]
+  members     TeamMember[]
+  events      AuditEvent[]
+  workflows   Workflow[]
+  quantities  QuantityRecord[]
+  assemblies  TradeAssembly[]
+  rates       Rate[]
+  estimates   Estimate[]
+}
+
+model TeamMember {
+  id        String   @id
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  role      String   @default("editor") // owner | editor | viewer (src/core)
+  addedAt   DateTime @default(now())
+
+  @@unique([projectId, name])
+}
+
+model Artifact {
+  id               String            @id
+  projectId        String
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind             String // model|mesh|drawing|document|dataset|calculation|report|other — "mesh" = engine-generated tessellation, never upload-detected
+  name             String
+  description      String?
+  latestRevisionId String?           @unique
+  latestRevision   ArtifactRevision? @relation("LatestRevision", fields: [latestRevisionId], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  revisions        ArtifactRevision[]
+  linksFrom        ArtifactLink[]     @relation("From")
+  linksTo          ArtifactLink[]     @relation("To")
+
+  @@index([projectId])
+}
+
+model ArtifactRevision {
+  id           String      @id
+  artifactId   String
+  artifact     Artifact     @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  revNumber    Int
+  contentHash  String // sha256 of exact bytes
+  sizeBytes    Int
+  storageKey   String // relative path inside content store
+  mimeType     String?
+  note         String?
+  approvalState String      @default("draft") // draft|in_review|approved|superseded (src/core)
+  staleness    String      @default("current") // current|stale|recomputing (src/core)
+  uploadedBy   String      @default("local-operator")
+  createdAt    DateTime    @default(now())
+  latestOf     Artifact[]  @relation("LatestRevision")
+
+  @@unique([artifactId, revNumber])
+  @@index([contentHash])
+}
+
+model ArtifactLink {
+  id             String   @id
+  fromArtifactId String
+  toArtifactId   String
+  relationType   String // one of src/core RELATION_TYPES
+  createdBy      String   @default("local-operator")
+  createdAt       DateTime @default(now())
+  fromArtifact   Artifact @relation("From", fields: [fromArtifactId], references: [id], onDelete: Cascade)
+  toArtifact     Artifact @relation("To", fields: [toArtifactId], references: [id], onDelete: Cascade)
+
+  @@unique([fromArtifactId, toArtifactId, relationType])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("engineer") // "admin" | "engineer" | "viewer"
+  isDemo       Boolean  @default(false) // demo-accounts slice: provisionable demo personas never count towards first-run setup (§1.2 extension)
+  title        String? // optional display title (demo personas carry one)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model EngineProbeResult {
+  id             String   @id
+  engineKey      String   @unique
+  state          String // installed | not_installed
+  version        String?
+  executablePath String?
+  probeOutput    String?
+  probedAt       DateTime @default(now())
+}
+
+model Workflow {
+  id                String    @id
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name              String
+  state             String    @default("draft") // src/core WORKFLOW_STATES + applyWorkflowAction (Phase 4)
+  definition        String? // JSON text (typed steps, src/core WorkflowDefinitionSchema)
+  createdBy         String    @default("local-operator") // "local-operator" | "agent:<name>" (CREATOR_ACTOR_RE)
+  currentStateSince DateTime? // set on EVERY state change (recovery scan input)
+  failure           String? // JSON: {stepId, attempt, error, at} — set on failed (kept for audit on retry)
+  finishedAt        DateTime? // succeeded | failed | cancelled
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  stepRuns          WorkflowStepRun[]
+  events            WorkflowEvent[]
+
+  @@index([projectId, state])
+}
+
+model AuditEvent {
+  id         String   @id
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actorType  String   @default("user") // user|agent|system
+  actorId    String   @default("local-operator")
+  userName   String? // signed-in human display name (Phase-6 session attribution); null for agent/system/background events
+  action     String
+  entityType String
+  entityId   String
+  detail     String? // JSON text
+  createdAt  DateTime @default(now())
+
+  @@index([projectId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Phase-3 quantity ledger & estimating (W3 lane, docs/03-data/quantity-ledger-schema.md)
+// Nested objects (verification, approval, provenance, components, breakdown,
+// rateIds) are stored as JSON text per the header convention; value enums as
+// plain String, validated at the boundary (zod + src/core/ledger.ts).
+// ---------------------------------------------------------------------------
+
+model QuantityRecord {
+  id                       String   @id
+  projectId                String
+  project                  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // ledger rows always point at a revision, never at a mutable artifact
+  sourceArtifactRevisionId String
+  sheetRef                 String? // required for drawing-measured (src/core)
+  elementRef               String? // required for model-derived (src/core)
+  quantityType             String // length|area|volume|count|mass|time|other (src/core)
+  value                    Float
+  unit                     String
+  method                   String // drawing-measured|model-derived — never silently merged
+  scale                    String? // calibrated-scale record for drawings
+  quantityMethod            String? // extraction method for models (e.g. "cadquery 2.6.1 via step_quantities.py")
+  rulesetId                 String
+  rulesetVersion           String
+  status                    String   @default("draft") // draft|in_review|approved|superseded (src/core)
+  tradeAssemblyId          String?
+  verification              String   @default("{\"status\":\"unverified\"}") // JSON: {status, checker?, evidence?}
+  reviewer                 String?
+  approval                 String? // JSON: {approvedBy, approvedAt} — required when status approved
+  provenance               String // JSON: {createdAt, createdBy, recomputeHistory, …}
+  createdAt                DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model TradeAssembly {
+  id        String   @id
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  trade     String
+  components String // JSON: [{ id, kind: material|labor, name, quantityPerUnit, unit, wastePct?, productivityFactor? }]
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model Rate {
+  id            String    @id
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  componentId   String // key into TradeAssembly.components[].id (engineer-approved, never agent-generated)
+  currency      String
+  unitPrice     Float
+  source        String // price-book|contract|quote (src/core RATE_SOURCES)
+  effectiveFrom DateTime? // rate becomes effective at this instant
+  createdBy     String    @default("local-operator")
+  createdAt     DateTime  @default(now())
+
+  @@index([projectId, componentId])
+}
+
+model Estimate {
+  id               String   @id
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name             String
+  currency         String
+  overheadPct      Float
+  profitPct        Float
+  taxPct           Float
+  roundingMode     String   @default("half-up") // src/core ROUNDING_MODES
+  roundingDecimals Int      @default(2)
+  status           String   @default("draft") // draft|in_review|approved|superseded
+  approval         String? // JSON: {approvedBy, approvedAt}
+  createdBy         String   @default("local-operator")
+  createdAt         DateTime @default(now())
+  lines             EstimateLine[]
+
+  // totals are NEVER stored — always recomputed from stored lineTotals on read
+  @@index([projectId])
+}
+
+model EstimateLine {
+  id         String   @id
+  estimateId String
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  quantityId String // QuantityRecord id (project-scoped, checked at line-add time)
+  assemblyId String // TradeAssembly id (project-scoped, checked at line-add time)
+  currency   String
+  lineTotal  Float // computed via src/core estimateLineTotal; authoritative stored line value
+  rateIds    String // JSON: string[] — resolved rate ids in assembly component order
+  breakdown  String // JSON: [{ componentId, kind, name, amount, unit, unitPrice, cost }]
+  createdAt  DateTime @default(now())
+
+  @@index([estimateId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase-4 durable workflow runtime (W3 lane, docs/00-architecture/workflow-runtime-contract.md)
+// WorkflowStepRun is the per-step execution record (ADR-0005: every field comes
+// from the real broker run); WorkflowEvent is the append-only per-workflow
+// execution log. JSON payloads (inputRevisionIds, inputHashes, outputSummary,
+// payload) are stored as String per the header convention; state enums as
+// plain String, validated at the boundary (zod + src/core/workflow.ts).
+// ---------------------------------------------------------------------------
+
+model WorkflowStepRun {
+  id                       String   @id
+  workflowId               String
+  workflow                 Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  stepId                   String // definition step key (step.id)
+  seq                      Int // execution order (definition array order, 1-based)
+  state                    String   @default("pending") // pending|running|succeeded|failed|skipped|awaiting_approval
+  attempt                  Int      @default(0) // current attempt number (1-based once a run started)
+  maxAttempts              Int      @default(1) // snapshot from definition at queue time
+  operation                String // BROKER_OPERATIONS key
+  engineKey                String? // resolved at execution ("cadquery" | "ifcopenshell")
+  inputRevisionIds         String // JSON: string[] — artifact revision ids locked at queue time
+  inputHashes              String // JSON: string[] — sha256 of those revisions' content
+  outputArtifactRevisionId String? // produced artifact revision (report/mesh) — null for ledger-only ops
+  outputSummary            String? // JSON — per-op structured summary, NO free-form numbers
+  stdoutTail               String? // last 2000 chars, verbatim
+  stderrTail               String? // last 2000 chars, verbatim
+  exitCode                 Int? // adapter subprocess exit code (null when no subprocess ran)
+  engineVersion            String?
+  adapterScript            String?
+  adapterHash              String?
+  startedAt               DateTime?
+  endedAt                 DateTime?
+  durationMs               Int?
+
+  @@index([workflowId])
+}
+
+model WorkflowEvent {
+  id         String   @id
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  seq        Int // per-workflow monotonic (1, 2, …) — event order is content
+  kind       String // contract §7 vocabulary (src/core/runtime/executor.ts WORKFLOW_EVENT_KINDS)
+  actorType  String // user | agent | system
+  actorId    String // "local-operator" | "agent:<name>" | "system:executor" | "system:recovery"
+  payload    String? // JSON — kind-specific; failures carry the verbatim error text
+  createdAt  DateTime @default(now())
+
+  @@unique([workflowId, seq])
+}
