@@ -14,6 +14,7 @@ import { DisciplineBadge } from "@/components/product/badges";
 import { EventFeed } from "@/components/product/event-feed";
 import { GuardedButton } from "@/components/product/guarded-button";
 import { EmptyState, ErrorState, StatCard } from "@/components/product/parts";
+import { useSessionUser } from "@/components/product/session-user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -152,6 +153,12 @@ export default function ProjectHome() {
   const status = useApi<StatusData>("/api/status");
   const projects = useApi<{ projects: ProjectSummary[] }>("/api/projects");
   const events = useApi<{ events: AuditEventRow[] }>("/api/events?limit=8");
+  const sessionUser = useSessionUser();
+
+  // Slice-10 (contract §6): the list is server-filtered to the session user's
+  // memberships — a viewer with no grants sees an honest ask-to-be-added copy
+  // (they cannot create projects anyway); engineers/admins keep today's copy.
+  const isViewer = sessionUser !== null && sessionUser !== "loading" && sessionUser.role === "viewer";
 
   const refreshAll = () => {
     void status.refresh();
@@ -213,7 +220,11 @@ export default function ProjectHome() {
         ) : projects.data && projects.data.projects.length === 0 ? (
           <EmptyState
             icon={FolderTree}
-            title="No projects yet — create your first project"
+            title={
+              isViewer
+                ? "No projects you can access yet — ask a project owner to add you to their team."
+                : "No projects yet — create your first project"
+            }
             description="A project roots the artifact graph: register models, drawings and datasets, link them, and keep a hash-anchored revision history."
             actionLabel="New project"
             onAction={() => setDialogOpen(true)}

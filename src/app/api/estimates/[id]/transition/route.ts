@@ -4,7 +4,7 @@ import { recordEvent } from "@/lib/audit"
 import { jsonOk, ERR, parseBody } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 
-import { handler } from "../../../_lib/route-helpers"
+import { handler, requireEntityProject } from "../../../_lib/route-helpers"
 import { serializeEstimate } from "../../../_lib/ledger-rows"
 
 export const dynamic = "force-dynamic"
@@ -45,6 +45,10 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
 
   const estimate = await db.estimate.findUnique({ where: { id }, include: { lines: true } })
   if (!estimate) return ERR.notFound("Estimate")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(estimate, "Estimate", "write")
+  if (!access.ok) return access.response
 
   const parsed = await parseBody(req, transitionSchema)
   if (!parsed.ok) return parsed.response

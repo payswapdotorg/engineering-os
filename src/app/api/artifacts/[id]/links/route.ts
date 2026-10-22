@@ -6,7 +6,7 @@ import { jsonOk, ERR, parseBody } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 import { newId } from "@/lib/ids"
 
-import { handler, isUniqueViolation, stringEnum } from "../../../_lib/route-helpers"
+import { handler, isUniqueViolation, requireEntityProject, stringEnum } from "../../../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -21,6 +21,10 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
 
   const source = await db.artifact.findUnique({ where: { id }, select: { id: true, projectId: true, name: true } })
   if (!source) return ERR.notFound("Source artifact")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(source, "Artifact", "write")
+  if (!access.ok) return access.response
 
   const parsed = await parseBody(req, linkSchema)
   if (!parsed.ok) return parsed.response

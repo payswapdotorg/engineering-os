@@ -19,9 +19,11 @@ Phase 6 + `docs/07-release/implementation-status.md` rows 41–43):
 
 Out of scope (recorded, not silently skipped): PostgreSQL production backend
 (no postgres binaries in this sandbox, no root — stays planned with an honest
-note); project-level read isolation between users (single-space local product
-for now — the permission model below is enforced on operations, not on data
-visibility; recorded as future work); template authoring (Phase-5b), native
+note); ~~project-level read isolation between users~~ **CLOSED in Slice 10**
+(2026-10-22: account-linked TeamMember grants, 404-no-leak reads/writes,
+project-viewer read-only, admin superuser — frozen in
+`project-isolation-contract.md` + ADR-0007, pinned by `e2e-p6-isolation.sh`);
+template authoring (Phase-5b), native
 editor adapters (Phase-2b, sandbox-blocked).
 
 ## 1. Auth & permissions (W3-g backend · W1-g frontend)

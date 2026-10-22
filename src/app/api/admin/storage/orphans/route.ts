@@ -2,9 +2,10 @@ import { z } from "zod"
 
 import { recordEvent } from "@/lib/audit"
 import { jsonOk, parseBody } from "@/lib/api-utils"
+import { getSessionUser } from "@/lib/auth"
 import { removeStorageOrphans } from "@/lib/storage-orphans"
 
-import { handler } from "../../../_lib/route-helpers"
+import { ERR_ADMIN_ONLY, ERR_SIGN_IN_REQUIRED, handler } from "../../../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -23,6 +24,11 @@ const confirmSchema = z.object({
  * `storage.orphans-removed` audit event carries the removed keys in detail.
  */
 export const DELETE = handler(async (req) => {
+  // Slice 10: project isolation (contract §4)
+  const session = await getSessionUser()
+  if (!session) return ERR_SIGN_IN_REQUIRED()
+  if (session.role !== "admin") return ERR_ADMIN_ONLY()
+
   const parsed = await parseBody(req, confirmSchema)
   if (!parsed.ok) return parsed.response
 

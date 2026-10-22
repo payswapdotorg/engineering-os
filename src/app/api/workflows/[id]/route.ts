@@ -2,7 +2,7 @@ import { canApprove } from "@/core/workflow"
 import { jsonOk, ERR } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 
-import { handler } from "../../_lib/route-helpers"
+import { handler, requireEntityProject } from "../../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -19,6 +19,10 @@ export const GET = handler<{ id: string }>(async (_req, ctx) => {
 
   const workflow = await db.workflow.findUnique({ where: { id } })
   if (!workflow) return ERR.notFound("Workflow")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(workflow, "Workflow", "read")
+  if (!access.ok) return access.response
 
   const [steps, events] = await Promise.all([
     db.workflowStepRun.findMany({ where: { workflowId: id }, orderBy: { seq: "asc" } }),

@@ -1,8 +1,9 @@
 import { recordEvent } from "@/lib/audit"
 import { jsonOk } from "@/lib/api-utils"
+import { getSessionUser } from "@/lib/auth"
 import { scanStorageOrphans } from "@/lib/storage-orphans"
 
-import { handler } from "../../../_lib/route-helpers"
+import { ERR_ADMIN_ONLY, ERR_SIGN_IN_REQUIRED, handler } from "../../../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -15,6 +16,11 @@ export const dynamic = "force-dynamic"
  * so NO WorkflowEvent is written here).
  */
 export const POST = handler(async () => {
+  // Slice 10: project isolation (contract §4)
+  const session = await getSessionUser()
+  if (!session) return ERR_SIGN_IN_REQUIRED()
+  if (session.role !== "admin") return ERR_ADMIN_ONLY()
+
   const orphans = await scanStorageOrphans()
   const detectedAt = new Date().toISOString()
 

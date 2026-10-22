@@ -1,7 +1,7 @@
 import { jsonError, jsonOk, ERR } from "@/lib/api-utils"
 import { BrokerRefusalError, BrokerRequestError, brokerDeriveQuantitiesCore } from "@/engines/broker"
 
-import { handler } from "../../../../../_lib/route-helpers"
+import { handler, requireProjectAccess } from "../../../../../_lib/route-helpers"
 import { serializeQuantityRows } from "../../../../../_lib/ledger-rows"
 
 export const dynamic = "force-dynamic"
@@ -21,6 +21,10 @@ export const dynamic = "force-dynamic"
  */
 export const POST = handler<{ id: string; artifactId: string }>(async (_req, ctx) => {
   const { id, artifactId } = await ctx.params
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireProjectAccess(id, "write")
+  if (!access.ok) return access.response
 
   try {
     const core = await brokerDeriveQuantitiesCore(id, artifactId)

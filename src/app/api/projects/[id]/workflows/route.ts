@@ -7,7 +7,7 @@ import { jsonOk, ERR, parseBody } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 import { newId } from "@/lib/ids"
 
-import { handler } from "../../../_lib/route-helpers"
+import { handler, requireProjectAccess } from "../../../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -30,6 +30,10 @@ export const GET = handler<{ id: string }>(async (_req, ctx) => {
 
   const project = await db.project.findUnique({ where: { id }, select: { id: true } })
   if (!project) return ERR.notFound("Project")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireProjectAccess(id, "read")
+  if (!access.ok) return access.response
 
   try {
     await recoverOrphanedRuns()
@@ -66,6 +70,9 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
 
   const project = await db.project.findUnique({ where: { id }, select: { id: true } })
   if (!project) return ERR.notFound("Project")
+
+  const access = await requireProjectAccess(id, "write")
+  if (!access.ok) return access.response
 
   const parsed = await parseBody(req, createSchema)
   if (!parsed.ok) return parsed.response

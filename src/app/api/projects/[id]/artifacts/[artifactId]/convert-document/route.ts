@@ -2,7 +2,7 @@ import { jsonError, jsonOk, ERR } from "@/lib/api-utils"
 import { BrokerRefusalError, BrokerRequestError, runBrokerOperation } from "@/engines/broker"
 import { db } from "@/lib/db"
 
-import { handler } from "../../../../../_lib/route-helpers"
+import { handler, requireProjectAccess } from "../../../../../_lib/route-helpers"
 import {
   alreadyPdfMessage,
   conversionGate,
@@ -34,6 +34,10 @@ export const dynamic = "force-dynamic"
  */
 export const POST = handler<{ id: string; artifactId: string }>(async (_req, ctx) => {
   const { id, artifactId } = await ctx.params
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireProjectAccess(id, "write")
+  if (!access.ok) return access.response
 
   // Convertibility gate (the route's pinned §5.4 422s).
   const artifact = await db.artifact.findUnique({

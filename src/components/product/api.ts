@@ -149,9 +149,14 @@ export interface ProjectSummary {
 export interface Member {
   id: string
   projectId: string
+  /** Slice-10 (contract §1): linked User account id = real access grant;
+   *  null = display/pending roster row (NO project access). */
+  userId: string | null
   name: string
   email: string | null
   role: string
+  /** Session user id of the granter (Slice-10); null on legacy rows. */
+  addedBy?: string | null
   addedAt: string
 }
 
@@ -449,6 +454,28 @@ export interface EstimateCreateInput {
   taxPct: number
   roundingMode: RoundingMode
   roundingDecimals: number
+}
+
+// ---------------------------------------------------------------------------
+// Team roster / access grants (Slice-10 contract §5)
+// ---------------------------------------------------------------------------
+
+/** POST /api/projects/[id]/members — roster row or real access grant.
+ * An email matching a user account creates a linked GRANT at the chosen
+ * role (server-side: the account identity wins); no email keeps today's
+ * display-only roster row. The server is authoritative — the client only
+ * mirrors the gate. */
+export async function addMember(
+  projectId: string,
+  body: { name: string; role: string; email?: string },
+): Promise<{ member: Member }> {
+  return apiJson<{ member: Member }>(`/api/projects/${projectId}/members`, "POST", body)
+}
+
+/** DELETE /api/projects/[id]/members/[memberId] — remove a roster row /
+ * revoke a linked grant (last linked owner row is refused server-side). */
+export async function removeMember(projectId: string, memberId: string): Promise<{ removed: string }> {
+  return apiJson<{ removed: string }>(`/api/projects/${projectId}/members/${memberId}`, "DELETE")
 }
 
 export async function listProjectArtifacts(projectId: string) {

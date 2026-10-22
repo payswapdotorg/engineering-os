@@ -7,7 +7,7 @@ import { getSessionUser } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { newId } from "@/lib/ids"
 
-import { handler, isUniqueViolation, randomSuffix, slugify, stringEnum } from "../_lib/route-helpers"
+import { handler, ERR_SIGN_IN_REQUIRED, isUniqueViolation, randomSuffix, slugify, stringEnum } from "../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -19,8 +19,27 @@ const createSchema = z.object({
 
 /** GET /api/projects — list with counts + latest event date. */
 export const GET = handler(async () => {
+  // Slice 10 (contract §4): the wrapper guarantees a signed-in session —
+  // re-resolve defensively, then filter by REAL membership for non-admins
+  // (admin = superuser ⇒ today's full list; a non-admin sees ONLY projects
+  // with a linked TeamMember grant row, userId = session.id). Response
+  // shape/fields are unchanged — just filtered.
+  const session = await getSessionUser()
+  if (!session) return ERR_SIGN_IN_REQUIRED()
+
+  const memberProjectIds =
+    session.role === "admin"
+      ? null
+      : (
+          await db.teamMember.findMany({
+            where: { userId: session.id },
+            select: { projectId: true },
+          })
+        ).map((m) => m.projectId)
+
   const [projects, latestEvents] = await Promise.all([
     db.project.findMany({
+      where: memberProjectIds ? { id: { in: memberProjectIds } } : undefined,
       orderBy: { updatedAt: "desc" },
       include: { _count: { select: { artifacts: true, members: true } } },
     }),
@@ -75,12 +94,17 @@ export const POST = handler(async (req) => {
   // the team-member gate never locks out the creator. The session exists for
   // every signed-in POST; the "Local Operator" fallback covers background
   // contexts only (defensive — the gate makes those 401 before this point).
+  // Slice 10 (contract §1.3): the auto-owner row is now a REAL grant — linked
+  // to the creating account (userId) with the creator recorded as the
+  // granter (addedBy); null fallbacks keep the legacy background behavior.
   const session = await getSessionUser()
   const ownerMember = {
     id: newId("mem"),
     name: session?.name ?? "Local Operator",
     email: session?.email ?? null,
     role: "owner",
+    userId: session?.id ?? null,
+    addedBy: session?.id ?? null,
   }
 
   try {

@@ -1,12 +1,13 @@
 "use client"
 
 /**
- * Project-level dialogs: edit metadata (PATCH) and add member (local roster).
+ * Project-level dialogs: edit metadata (PATCH), add member (roster row or
+ * real access grant — Slice-10 contract §5) and remove member (revoke).
  */
 import { useState } from "react"
 import { toast } from "sonner"
 
-import { apiJson, type Member, type ProjectDetail } from "@/components/product/api"
+import { addMember, apiJson, removeMember, type Member, type ProjectDetail } from "@/components/product/api"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -140,6 +141,7 @@ export function AddMemberDialog({
   onAdded: () => void
 }) {
   const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
   const [role, setRole] = useState("editor")
   const [submitting, setSubmitting] = useState(false)
 
@@ -147,13 +149,18 @@ export function AddMemberDialog({
     if (name.trim().length === 0 || submitting) return
     setSubmitting(true)
     try {
-      const data = await apiJson<{ member: Member }>(`/api/projects/${projectId}/members`, "POST", {
+      const trimmedEmail = email.trim()
+      const data = await addMember(projectId, {
         name: name.trim(),
         role,
+        // Email only goes on the wire when non-empty — absent = today's
+        // display-only roster row (contract §5).
+        ...(trimmedEmail.length > 0 ? { email: trimmedEmail } : {}),
       })
       toast.success(`Member "${data.member.name}" added as ${data.member.role}`)
       onOpenChange(false)
       setName("")
+      setEmail("")
       setRole("editor")
       onAdded()
     } catch (err) {
@@ -169,8 +176,8 @@ export function AddMemberDialog({
         <DialogHeader>
           <DialogTitle>Add member</DialogTitle>
           <DialogDescription>
-            Local roster entry with a role (owner / editor / viewer). Sign-in shipped in Phase 6 —
-            roster changes are gated to the project owner or a global admin, enforced server-side.
+            Add a project member (owner / editor / viewer). An email matching a user account grants real,
+            role-scoped project access; without one this is a display-only roster row. Server-enforced.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -191,6 +198,21 @@ export function AddMemberDialog({
               required
               autoFocus
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="member-email">Email</Label>
+            <Input
+              id="member-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Optional"
+              maxLength={200}
+            />
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Optional — an email matching a user account grants real project access at the chosen
+              role; leave blank for a display-only roster row.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="member-role">Role</Label>
@@ -216,6 +238,71 @@ export function AddMemberDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function RemoveMemberDialog({
+  projectId,
+  member,
+  open,
+  onOpenChange,
+  onRemoved,
+}: {
+  projectId: string
+  member: Member | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onRemoved: () => void
+}) {
+  const [submitting, setSubmitting] = useState(false)
+
+  // Confirmation pattern of SupersedeEstimateDialog (the destructive-action
+  // idiom): the workspace owns the row selection; the server refusals (e.g.
+  // the last-owner 409) surface verbatim via toast and keep the dialog open.
+  const submit = async () => {
+    if (!member || submitting) return
+    setSubmitting(true)
+    try {
+      await removeMember(projectId, member.id)
+      toast.success(`Member "${member.name}" removed`)
+      onOpenChange(false)
+      onRemoved()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not remove the member")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Remove member</DialogTitle>
+          <DialogDescription>
+            {member?.userId ? (
+              <>
+                "{member.name}" holds a real access grant ({member.role}) — removing the row revokes
+                their access to this project immediately. The action is audited.
+              </>
+            ) : (
+              <>
+                "{member?.name ?? ""}" is a display-only roster row — removing it only changes the
+                roster. The action is audited.
+              </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button type="button" variant="destructive" onClick={() => void submit()} disabled={submitting}>
+            {submitting ? "Removing…" : "Remove member"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

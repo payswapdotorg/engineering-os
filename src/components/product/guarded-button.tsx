@@ -34,6 +34,10 @@ export const VIEWER_DISABLED_REASON = "viewer role is read-only"
 /** Verbatim from the contract §1.3 team-member 403 message. */
 export const TEAM_MANAGE_DISABLED_REASON = "only the project owner or an admin can manage team members"
 
+/** Verbatim from the Slice-10 contract §3 project-manage 403 message
+ * (project settings/identity — the ERR_PROJECT_MANAGE_ONLY mirror). */
+export const PROJECT_MANAGE_DISABLED_REASON = "only the project owner or an admin can manage this project"
+
 export type GuardedButtonProps = React.ComponentProps<typeof Button> & {
   /**
    * When non-null the button renders disabled with this exact tooltip text

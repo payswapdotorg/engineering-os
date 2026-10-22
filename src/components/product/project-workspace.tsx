@@ -8,12 +8,12 @@
  * straight into a tab — the page guard in src/app/projects/[id]/page.tsx
  * routes every tab id below, sim/controls/docs included.
  */
-import { Boxes, DraftingCompass, FileUp, GitBranch, Info, Plus, Ruler, UserPlus, Users } from "lucide-react"
+import { Boxes, DraftingCompass, FileUp, GitBranch, Info, Plus, Ruler, Trash2, UserPlus, Users } from "lucide-react"
 import Link from "next/link"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
-import { useApi, type ArtifactListItem, type AuditEventRow, type ProjectDetail } from "@/components/product/api"
+import { useApi, type ArtifactListItem, type AuditEventRow, type Member, type ProjectDetail } from "@/components/product/api"
 import { ApprovalBadge, DisciplineBadge, KindBadge, StalenessBadge } from "@/components/product/badges"
 import { ArtifactDetailDialog, RegisterArtifactDialog } from "@/components/product/artifact-dialogs"
 import { AgentsWorkspace } from "@/components/product/agents-workspace"
@@ -22,8 +22,8 @@ import { DocsWorkspace } from "@/components/product/docs-workspace"
 import { SimWorkspace } from "@/components/product/sim-workspace"
 import { EventFeed } from "@/components/product/event-feed"
 import { formatDate, humanBytes, relTime } from "@/components/product/format"
-import { GuardedButton, TEAM_MANAGE_DISABLED_REASON } from "@/components/product/guarded-button"
-import { AddMemberDialog, EditProjectDialog } from "@/components/product/project-dialogs"
+import { GuardedButton, PROJECT_MANAGE_DISABLED_REASON, TEAM_MANAGE_DISABLED_REASON } from "@/components/product/guarded-button"
+import { AddMemberDialog, EditProjectDialog, RemoveMemberDialog } from "@/components/product/project-dialogs"
 import { EmptyState, ErrorState, StatCard } from "@/components/product/parts"
 import { useSessionUser } from "@/components/product/session-user"
 import { StudioWorkspace } from "@/components/product/studio-workspace"
@@ -72,6 +72,7 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
   const [registerOpen, setRegisterOpen] = useState(false)
   const [memberOpen, setMemberOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<Member | null>(null)
   const [detailArtifactId, setDetailArtifactId] = useState<string | null>(null)
 
   const [search, setSearch] = useState("")
@@ -80,25 +81,48 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
 
   const project = workspace.data?.project ?? null
 
-  /** Team-member management gate (contract §1.3): the session user must be a
-   *  global admin or the project owner (the TeamMember row with role "owner").
-   *  The roster has no user link yet, so the owner is matched by email, falling
-   *  back to an exact name match (the seeded owner row carries no email — its
-   *  name is the operator). The server remains authoritative; this mirrors the
-   *  most defensible client-side computation with the verbatim refusal text. */
-  const isTeamManager = (() => {
+  /** Slice-10 owner-row match (contract §6 client mirror): the linked grant
+   *  first (userId === the session user's id — the exact server match), then
+   *  the pre-slice legacy fallback (email, then exact name) for owner rows
+   *  created before the userId link existed. The server is authoritative;
+   *  this mirror only drives the visible-disabled gates. */
+  const sessionOwnsProject = (() => {
     if (sessionUser === null || sessionUser === "loading") return false
-    if (sessionUser.role === "admin") return true
-    if (sessionUser.role === "viewer") return false
     if (!project) return false
     return project.members.some(
       (m) =>
         m.role === "owner" &&
-        ((m.email !== null && m.email.toLowerCase() === sessionUser.email.toLowerCase()) ||
+        (m.userId === sessionUser.id ||
+          (m.email !== null && m.email.toLowerCase() === sessionUser.email.toLowerCase()) ||
           m.name.trim().toLowerCase() === sessionUser.name.trim().toLowerCase()),
     )
   })()
+
+  /** Team-member management gate (contract §1.3): the session user must be a
+   *  global admin or the project owner (the TeamMember row with role "owner",
+   *  matched by the linked userId grant first, email/name fallback retained).
+   *  The server remains authoritative; this mirrors the most defensible
+   *  client-side computation with the verbatim refusal text. */
+  const isTeamManager = (() => {
+    if (sessionUser === null || sessionUser === "loading") return false
+    if (sessionUser.role === "admin") return true
+    if (sessionUser.role === "viewer") return false
+    return sessionOwnsProject
+  })()
   const teamManageReason = isTeamManager ? null : TEAM_MANAGE_DISABLED_REASON
+
+  /** Slice-10 project-manage gate (contract §6): project settings/identity is
+   *  owner/admin-only (the server's "manage" need — PATCH /api/projects/[id]).
+   *  Non-owner engineers see the Edit opener disabled with the verbatim
+   *  refusal copy; viewers keep today's viewer read-only disablement (applied
+   *  by GuardedButton itself — the server's global-viewer 403 outranks the
+   *  domain gates). */
+  const isProjectManager = (() => {
+    if (sessionUser === null || sessionUser === "loading") return false
+    if (sessionUser.role === "admin") return true
+    return sessionOwnsProject
+  })()
+  const projectManageReason = isProjectManager ? null : PROJECT_MANAGE_DISABLED_REASON
 
   const refreshAll = () => {
     void workspace.refresh()
@@ -182,7 +206,12 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
               {project.description ?? "No description yet."} · Created {formatDate(project.createdAt)}
             </p>
           </div>
-          <GuardedButton variant="outline" className="h-10" onClick={() => setEditOpen(true)}>
+          <GuardedButton
+            variant="outline"
+            className="h-10"
+            disabledReason={projectManageReason}
+            onClick={() => setEditOpen(true)}
+          >
             Edit project
           </GuardedButton>
         </div>
@@ -385,11 +414,12 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
         <TabsContent value="team" className="mt-4 flex flex-col gap-4">
           <Alert>
             <Info aria-hidden />
-            <AlertTitle>Project roster with roles</AlertTitle>
+            <AlertTitle>Project roster and access</AlertTitle>
             <AlertDescription>
-              Members are a project-scoped roster (owner / editor / viewer), not logged-in identities.
-              Sign-in shipped in Phase 6 — managing the roster requires the project owner or a global
-              admin, and the viewer role is read-only across the workspace (enforced server-side).
+              A member added by email with a matching account holds real, role-scoped project access (Slice
+              10: owner manages settings and team, editor works the project, viewer is read-only in-project);
+              rows added without an email are display-only roster entries. The server enforces every rule —
+              non-members cannot see this project at all.
             </AlertDescription>
           </Alert>
 
@@ -416,7 +446,9 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
                   <TableRow>
                     <TableHead>Member</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Access</TableHead>
                     <TableHead className="text-right">Added</TableHead>
+                    <TableHead className="w-12" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -433,8 +465,34 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
                       <TableCell>
                         <Badge variant="outline" className="text-muted-foreground">{member.role}</Badge>
                       </TableCell>
+                      <TableCell>
+                        {member.userId !== null ? (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            access · {member.role}
+                          </Badge>
+                        ) : (
+                          <span
+                            className="text-xs text-muted-foreground"
+                            title="Display-only roster row — no project access"
+                          >
+                            roster only
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right text-xs text-muted-foreground" title={member.addedAt}>
                         {formatDate(member.addedAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <GuardedButton
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          aria-label={`Remove ${member.name} from the roster`}
+                          disabledReason={teamManageReason}
+                          onClick={() => setRemoveTarget(member)}
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                        </GuardedButton>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -496,6 +554,15 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
         open={memberOpen}
         onOpenChange={setMemberOpen}
         onAdded={refreshAll}
+      />
+      <RemoveMemberDialog
+        projectId={projectId}
+        member={removeTarget}
+        open={removeTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setRemoveTarget(null)
+        }}
+        onRemoved={refreshAll}
       />
       <EditProjectDialog project={project} open={editOpen} onOpenChange={setEditOpen} onSaved={refreshAll} />
       {detailArtifactId ? (

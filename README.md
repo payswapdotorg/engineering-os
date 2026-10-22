@@ -74,7 +74,7 @@ The Takeoff workspace also has **Sheet Measure** (Slice 8, [contract](docs/00-ar
 | `prisma/` | TL | Database schema (Prisma; SQLite dev / PostgreSQL production target) |
 | `docs/` | TL + workers | Architecture, ADRs, engine inventory, schemas, QA, release docs |
 | `tests/fixtures/` | TL | Real representative engineering files for tests and verification |
-| `.github/workflows/` | TL | CI: lint, typecheck, unit tests, engine validation harness, five e2e acceptance suites, PostgreSQL portability gate, .deb packaging lifecycle |
+| `.github/workflows/` | TL | CI: lint, typecheck, unit tests, engine validation harness, six e2e acceptance suites, PostgreSQL portability gate, .deb packaging lifecycle |
 
 ## Documentation index
 
@@ -99,7 +99,7 @@ The Takeoff workspace also has **Sheet Measure** (Slice 8, [contract](docs/00-ar
 | 3 | Takeoff, estimating, construction controls (shared quantity ledger, BOQ, schedules) | 🚧 in progress — quantity ledger + estimating + REAL STEP/IFC quantity adapters shipped & verified (AC-P3-01…08), hardened with the benchmark validation harness, estimate supersede & BOQ CSV/JSON export (AC-P3-09…11); **calibrated PDF measurement shipped & browser-verified (Sheet Measure, AC-P8-02)**; schedules shipped via Phase-5 Project Controls/CPM; remaining honest gaps recorded in implementation-status #5 |
 | 4 | Collaboration & agent workflows (durable runtime, approvals, impact invalidation) | ✅ shipped & verified — durable workflow runtime, broker-supervised execution, approval gates, Agents workspace (AC-P4-01…10; fifth pass) |
 | 5 | Broader engineering packs (GIS, E/E, structural, CFD, systems, robotics) | 🚧 in progress — first extended-disciplines slice shipped & verified (FE-meshing via gmsh, power flow via pandapower, discrete-event sim via SimPy, doc conversion via LibreOffice, CPM platform core; AC-P5-01…10); the broader registry remains planned |
-| 6 | Hardening, packaging, release readiness | 🚧 in progress — auth + multi-user + demo accounts shipped & verified (sixth/seventh pass); **integrity slice 8**: dead revision-download route restored for real + gitignore root cause closed; packaging artifacts in-tree but the .deb build + CI run remain pending (honest note in implementation-status) |
+| 6 | Hardening, packaging, release readiness | 🚧 in progress — auth + multi-user + demo accounts shipped & verified (sixth/seventh pass); **integrity slice 8**: dead revision-download route restored for real + gitignore root cause closed; **release-truth pass (ninth)**: 5-job CI gate suite all-green on GitHub incl. the .deb packaging lifecycle; **isolation slice 10**: project-level read/write isolation shipped & verified (account-linked roster grants, 404-no-leak, admin superuser, Team access management — ADR-0007) |
 
 ## Verification discipline
 

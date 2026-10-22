@@ -1,7 +1,7 @@
 import { db } from "@/lib/db"
 import { jsonOk, ERR } from "@/lib/api-utils"
 
-import { handler } from "../../_lib/route-helpers"
+import { handler, requireEntityProject } from "../../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -29,6 +29,10 @@ export const GET = handler<{ id: string }>(async (_req, ctx) => {
     },
   })
   if (!artifact) return ERR.notFound("Artifact")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(artifact, "Artifact", "read")
+  if (!access.ok) return access.response
 
   return jsonOk({ artifact })
 })

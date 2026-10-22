@@ -4,7 +4,7 @@ import { db } from "@/lib/db"
 import { newId } from "@/lib/ids"
 import { LedgerError, estimateLineTotal } from "@/core"
 
-import { handler } from "../../../_lib/route-helpers"
+import { handler, requireEntityProject } from "../../../_lib/route-helpers"
 import { estimateRounding, serializeEstimate } from "../../../_lib/ledger-rows"
 import {
   buildLineBreakdown,
@@ -68,6 +68,10 @@ export const POST = handler<{ id: string }>(async (_req, ctx) => {
 
   const estimate = await db.estimate.findUnique({ where: { id }, include: { lines: true } })
   if (!estimate) return ERR.notFound("Estimate")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(estimate, "Estimate", "write")
+  if (!access.ok) return access.response
 
   if (estimate.status !== "approved") {
     return ERR.invalid(

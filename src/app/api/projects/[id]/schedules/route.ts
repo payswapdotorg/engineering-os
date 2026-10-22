@@ -5,7 +5,7 @@ import { newId } from "@/lib/ids"
 import { saveRevisionFile } from "@/lib/artifact-store"
 import { canonicalScheduleJson, parseSchedule } from "@/core/analysis-schemas"
 
-import { handler } from "../../../_lib/route-helpers"
+import { handler, requireProjectAccess } from "../../../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -28,6 +28,10 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
 
   const project = await db.project.findUnique({ where: { id }, select: { id: true } })
   if (!project) return ERR.notFound("Project")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireProjectAccess(id, "write")
+  if (!access.ok) return access.response
 
   let raw: unknown
   try {

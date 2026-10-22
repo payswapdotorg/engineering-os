@@ -21,7 +21,7 @@ import { getSessionUser } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { newId } from "@/lib/ids"
 
-import { handler } from "../../../_lib/route-helpers"
+import { handler, requireEntityProject } from "../../../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -126,6 +126,10 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
 
   const workflow = await db.workflow.findUnique({ where: { id } })
   if (!workflow) return ERR.notFound("Workflow")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(workflow, "Workflow", "write")
+  if (!access.ok) return access.response
 
   const parsed = await parseBody(req, transitionSchema)
   if (!parsed.ok) return parsed.response

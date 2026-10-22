@@ -1,7 +1,7 @@
 import { jsonOk, ERR } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 
-import { handler } from "../../../_lib/route-helpers"
+import { handler, requireEntityProject } from "../../../_lib/route-helpers"
 import { buildBoqCsv, type BoqLineInput } from "../../../_lib/boq-csv"
 import {
   estimateRounding,
@@ -37,6 +37,10 @@ export const GET = handler<{ id: string }>(async (req, ctx) => {
 
   const estimate = await findEstimateWithLines(id)
   if (!estimate) return ERR.notFound("Estimate")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(estimate, "Estimate", "read")
+  if (!access.ok) return access.response
 
   const format = new URL(req.url).searchParams.get("format")
   if (format === null || format === "") {

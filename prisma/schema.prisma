@@ -31,16 +31,25 @@ model Project {
   estimates   Estimate[]
 }
 
+// Slice 10 project isolation (contract §1 / ADR-0007): a TeamMember row with
+// a linked userId is a REAL access grant — the linked user's access to the
+// project is that row's role; a row with userId = null is a display/pending
+// roster row that grants NOTHING (Team UI only, no access).
 model TeamMember {
   id        String   @id
   projectId String
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String?               // NEW — linked User account = real access grant; null = display/pending row (NO access)
+  user      User?    @relation("ProjectMembership", fields: [userId], references: [id], onDelete: Cascade)
   name      String
   email     String?
   role      String   @default("editor") // owner | editor | viewer (src/core)
+  addedBy   String?               // NEW — session user id of the granter (null for legacy rows / auto owner row)
   addedAt   DateTime @default(now())
 
   @@unique([projectId, name])
+  @@unique([projectId, userId])   // NEW — one grant per user per project; SQLite & PostgreSQL both allow multiple NULL userIds (display rows coexist)
+  @@index([userId])               // NEW — membership lookups
 }
 
 model Artifact {
@@ -104,6 +113,7 @@ model User {
   title        String? // optional display title (demo personas carry one)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  teamMembers  TeamMember[] @relation("ProjectMembership") // Slice 10: the user's project access grants (contract §1)
 }
 
 model EngineProbeResult {

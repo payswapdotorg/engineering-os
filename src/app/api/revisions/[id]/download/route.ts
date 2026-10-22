@@ -2,7 +2,7 @@ import { readRevisionFile } from "@/lib/artifact-store"
 import { ERR } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 
-import { handler, slugify } from "@/app/api/_lib/route-helpers"
+import { handler, requireEntityProject, slugify } from "@/app/api/_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -68,6 +68,10 @@ export const GET = handler<{ id: string }>(async (_req, ctx) => {
     include: { artifact: { select: { id: true, name: true, kind: true, projectId: true } } },
   })
   if (!revision) return ERR.notFound("Revision")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject({ projectId: revision.artifact.projectId }, "Revision", "read")
+  if (!access.ok) return access.response
 
   // The regex-guarded reader — never construct store paths by hand.
   const bytes = await readRevisionFile(revision.storageKey)

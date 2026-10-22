@@ -2,7 +2,7 @@ import { recordEvent } from "@/lib/audit"
 import { jsonOk, ERR } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 
-import { handler } from "../../../../_lib/route-helpers"
+import { handler, requireEntityProject } from "../../../../_lib/route-helpers"
 import { serializeEstimate } from "../../../../_lib/ledger-rows"
 
 export const dynamic = "force-dynamic"
@@ -16,6 +16,10 @@ export const DELETE = handler<{ id: string; lineId: string }>(async (_req, ctx) 
     select: { id: true, projectId: true, status: true },
   })
   if (!estimate) return ERR.notFound("Estimate")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(estimate, "Estimate", "write")
+  if (!access.ok) return access.response
 
   // Approved (or superseded) estimates are immutable — removing a line would
   // silently change approved totals (honesty red line: approved rows are

@@ -4,7 +4,7 @@ import { readRevisionFile } from "@/lib/artifact-store"
 import { parseDesScenarioJsonText } from "@/core/analysis-schemas"
 import { db } from "@/lib/db"
 
-import { handler } from "../../../../../_lib/route-helpers"
+import { handler, requireProjectAccess } from "../../../../../_lib/route-helpers"
 import { DERIVE_SUMMARIES, buildDeriveResponse } from "../../../../../_lib/derive-outcome"
 
 export const dynamic = "force-dynamic"
@@ -29,6 +29,10 @@ export const dynamic = "force-dynamic"
  */
 export const POST = handler<{ id: string; artifactId: string }>(async (_req, ctx) => {
   const { id, artifactId } = await ctx.params
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireProjectAccess(id, "write")
+  if (!access.ok) return access.response
 
   // Content pre-validation (the route's pinned §3.3 422s).
   const artifact = await db.artifact.findUnique({

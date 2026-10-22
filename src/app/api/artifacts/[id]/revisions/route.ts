@@ -6,7 +6,7 @@ import { db } from "@/lib/db"
 import { newId } from "@/lib/ids"
 import { saveRevisionFile } from "@/lib/artifact-store"
 
-import { handler } from "../../../_lib/route-helpers"
+import { handler, requireEntityProject } from "../../../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -23,6 +23,10 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
 
   const artifact = await db.artifact.findUnique({ where: { id }, select: { id: true, projectId: true, name: true } })
   if (!artifact) return ERR.notFound("Artifact")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(artifact, "Artifact", "write")
+  if (!access.ok) return access.response
 
   let form: FormData
   try {

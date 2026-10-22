@@ -1,7 +1,7 @@
 import { jsonError, jsonOk, ERR } from "@/lib/api-utils"
 import { BrokerRefusalError, BrokerRequestError, runBrokerOperation } from "@/engines/broker"
 
-import { handler } from "../../../../../_lib/route-helpers"
+import { handler, requireProjectAccess } from "../../../../../_lib/route-helpers"
 import { DERIVE_SUMMARIES, buildDeriveResponse } from "../../../../../_lib/derive-outcome"
 
 export const dynamic = "force-dynamic"
@@ -23,6 +23,10 @@ export const dynamic = "force-dynamic"
  */
 export const POST = handler<{ id: string; artifactId: string }>(async (_req, ctx) => {
   const { id, artifactId } = await ctx.params
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireProjectAccess(id, "write")
+  if (!access.ok) return access.response
 
   try {
     const outcome = await runBrokerOperation(

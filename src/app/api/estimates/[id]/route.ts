@@ -1,7 +1,7 @@
 import { jsonOk, ERR } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 
-import { handler } from "../../_lib/route-helpers"
+import { handler, requireEntityProject } from "../../_lib/route-helpers"
 import { serializeEstimate } from "../../_lib/ledger-rows"
 
 export const dynamic = "force-dynamic"
@@ -12,6 +12,10 @@ export const GET = handler<{ id: string }>(async (_req, ctx) => {
 
   const estimate = await db.estimate.findUnique({ where: { id }, include: { lines: true } })
   if (!estimate) return ERR.notFound("Estimate")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(estimate, "Estimate", "read")
+  if (!access.ok) return access.response
 
   return jsonOk({ estimate: serializeEstimate(estimate, estimate.lines) })
 })

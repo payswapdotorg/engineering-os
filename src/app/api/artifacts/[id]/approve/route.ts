@@ -5,7 +5,7 @@ import { recordEvent } from "@/lib/audit"
 import { jsonOk, ERR, parseBody } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 
-import { handler } from "../../../_lib/route-helpers"
+import { handler, requireEntityProject } from "../../../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -22,6 +22,11 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
     include: { latestRevision: true },
   })
   if (!artifact) return ERR.notFound("Artifact")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(artifact, "Artifact", "write")
+  if (!access.ok) return access.response
+
   if (!artifact.latestRevision) {
     return ERR.badRequest("This artifact has no revisions to approve")
   }

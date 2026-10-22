@@ -4,7 +4,7 @@ import { recordEvent } from "@/lib/audit"
 import { jsonOk, ERR, parseBody } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 
-import { handler } from "../../_lib/route-helpers"
+import { handler, requireProjectAccess } from "../../_lib/route-helpers"
 
 export const dynamic = "force-dynamic"
 
@@ -34,6 +34,11 @@ export const GET = handler<{ id: string }>(async (_req, ctx) => {
   })
   if (!project) return ERR.notFound("Project")
 
+  // Slice 10 (contract §4): read = any member — non-members get the SAME 404
+  // as a missing project (404-no-leak); project viewers may read.
+  const access = await requireProjectAccess(id, "read")
+  if (!access.ok) return access.response
+
   const [events, revisionCount] = await Promise.all([
     db.auditEvent.findMany({
       where: { projectId: id },
@@ -56,6 +61,12 @@ export const PATCH = handler<{ id: string }>(async (req, ctx) => {
 
   const existing = await db.project.findUnique({ where: { id }, select: { id: true } })
   if (!existing) return ERR.notFound("Project")
+
+  // Slice 10 (contract §4): PATCH is manage-gated — only the project owner or
+  // an admin may manage a project (tightens the pre-slice any-engineer write;
+  // non-members get the same 404 as a missing project, editors get 403).
+  const access = await requireProjectAccess(id, "manage")
+  if (!access.ok) return access.response
 
   const parsed = await parseBody(req, patchSchema)
   if (!parsed.ok) return parsed.response

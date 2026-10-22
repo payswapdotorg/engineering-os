@@ -2,7 +2,7 @@ import { jsonError, jsonOk, ERR } from "@/lib/api-utils"
 import { readRevisionFile } from "@/lib/artifact-store"
 import { db } from "@/lib/db"
 
-import { handler } from "../../../_lib/route-helpers"
+import { handler, requireEntityProject } from "../../../_lib/route-helpers"
 import { computeStaleSource, extractGeneratedBy, notMeshMessage } from "../../../_lib/mesh-meta"
 
 export const dynamic = "force-dynamic"
@@ -27,6 +27,11 @@ export const GET = handler<{ id: string }>(async (_req, ctx) => {
     include: { latestRevision: true },
   })
   if (!artifact) return ERR.notFound("Artifact")
+
+  // Slice 10: project isolation (contract §4)
+  const access = await requireEntityProject(artifact, "Artifact", "read")
+  if (!access.ok) return access.response
+
   if (artifact.kind !== "mesh") {
     return jsonError(422, "unsupported", notMeshMessage(artifact.name, artifact.kind))
   }

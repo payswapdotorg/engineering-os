@@ -128,6 +128,10 @@ single authority; routes AND the executor both call it — no ad-hoc transitions
    *(Amendment 2026-10-22, release-truth pass: this section originally pinned the approver
    to `local-operator`; the shipped Phase-6 transition route attributes approval to the
    authenticated user. History preserved per the doc convention.)*
+   *(Amendment 2026-10-22, isolation slice 10: the approver must additionally be a project
+   member with write access — non-members 404 before any state logic, project-viewers 403,
+   owner/editor humans may approve; the global admin remains the pinned superuser. See
+   `project-isolation-contract.md` §4 and ADR-0007.)*
 2. When `workflow.createdBy` starts with `agent:`, a human approving is by construction a
    distinct identity. When the creator is human (`local-operator`), self-approval is the
    existing Phase-1..3 semantics (humans approve their own submissions) and stays allowed.
