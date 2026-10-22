@@ -289,27 +289,35 @@ jobs:
 
       - name: Assert installed file layout
         run: |
-          test -x /opt/engineering-os/server.js
-          test -x /opt/engineering-os/bin/preflight.sh
-          test -x /opt/engineering-os/bin/orphan-sweep.sh
-          test -f /opt/engineering-os/prisma/schema.prisma
-          test -f /opt/engineering-os/share/engineering-os-seed.db
-          test -d /opt/engineering-os/src/engines/adapters
-          test -f /lib/systemd/system/eos.service
-          test -f /lib/systemd/system/eos-orphan-sweep.service
-          test -f /lib/systemd/system/eos-orphan-sweep.timer
-          test -f /usr/share/applications/eos.desktop
-          test -f /usr/share/icons/hicolor/scalable/apps/eos.svg
-          getent passwd eos >/dev/null
-          test -f /var/lib/engineering-os/custom.db
-          test -f /etc/eos/eos.env
+          set -u
+          dump_debug() {
+            echo "--- dpkg -s engineering-os ---"; dpkg -s engineering-os | head -20 || true
+            echo "--- /etc/eos ---"; sudo ls -la /etc/eos/ || true
+            echo "--- /var/lib/engineering-os ---"; sudo ls -la /var/lib/engineering-os/ || true
+            echo "--- installed files (dpkg -L, first 40) ---"; dpkg -L engineering-os | sort | head -40 || true
+          }
+          check() { "$@" || { echo "ASSERT FAILED: $*"; dump_debug; exit 1; }; }
+          check test -x /opt/engineering-os/server.js
+          check test -x /opt/engineering-os/bin/preflight.sh
+          check test -x /opt/engineering-os/bin/orphan-sweep.sh
+          check test -f /opt/engineering-os/prisma/schema.prisma
+          check test -f /opt/engineering-os/share/engineering-os-seed.db
+          check test -d /opt/engineering-os/src/engines/adapters
+          check test -f /lib/systemd/system/eos.service
+          check test -f /lib/systemd/system/eos-orphan-sweep.service
+          check test -f /lib/systemd/system/eos-orphan-sweep.timer
+          check test -f /usr/share/applications/eos.desktop
+          check test -f /usr/share/icons/hicolor/scalable/apps/eos.svg
+          check getent passwd eos
+          check test -f /var/lib/engineering-os/custom.db
+          check test -f /etc/eos/eos.env
           # /etc/eos/eos.env is root:eos 0640 BY DESIGN (it holds the session
           # secret — non-root must NOT read it). The assert therefore reads it
           # with sudo; a non-sudo grep would fail on permissions, which is the
           # product working as intended, not a packaging defect.
-          sudo grep -q '^NEXTAUTH_SECRET=.' /etc/eos/eos.env
-          dpkg -s engineering-os | grep -q '^Depends: nodejs (>= 18)$'
-          dpkg -s engineering-os | grep -q '^Status: install ok installed$'
+          check sudo grep -q '^NEXTAUTH_SECRET=.' /etc/eos/eos.env
+          check sh -c "dpkg -s engineering-os | grep -q '^Depends: nodejs (>= 18)\$'"
+          check sh -c "dpkg -s engineering-os | grep -q '^Status: install ok installed\$'"
 
       - name: Remove package (prerm + postrm, clean removal)
         run: sudo dpkg -r engineering-os
