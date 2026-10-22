@@ -1079,3 +1079,33 @@ export async function fetchRevisionText(revisionId: string): Promise<string> {
   }
   return res.text()
 }
+
+/**
+ * GET /api/revisions/[id]/download — binary variant of fetchRevisionText (the
+ * exportEstimateBoqCsv idiom) for the Sheet Measure tab's pdf.js render: the
+ * success response is raw bytes, not the {data} envelope, so failures surface
+ * with the server message verbatim (401 session expiry / 404 unknown revision
+ * are NEVER swallowed into a silent blank canvas). Callers hand the blob to
+ * pdf.js via arrayBuffer().
+ */
+export async function downloadRevisionBytes(revisionId: string): Promise<Blob> {
+  const res = await fetch(`/api/revisions/${revisionId}/download`, { cache: "no-store" })
+  if (!res.ok) {
+    let body: unknown = null
+    try {
+      body = await res.json()
+    } catch {
+      // fall through to the throw below (non-JSON body, e.g. an HTML 404)
+    }
+    const err =
+      body && typeof body === "object" && "error" in body
+        ? (body as { error?: { code?: string; message?: string } }).error
+        : undefined
+    throw new ApiError(
+      err?.message ?? `Request failed (${res.status})`,
+      err?.code ?? "http_error",
+      res.status,
+    )
+  }
+  return res.blob()
+}

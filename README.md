@@ -5,14 +5,14 @@
 Engineering OS does not rewrite CAD, BIM or solver engines. It integrates existing open-source engines (FreeCAD, LibreCAD, Bonsai/IfcOpenShell, That Open Engine, QGIS, KiCad, ngspice, OpenFOAM, OpenModelica, and more) through a **registered adapter layer**, and connects them with:
 
 - a common **project & artifact graph** (versioned artifacts, typed relationships, change impact),
-- a **shared quantity ledger and estimating model** (drawing-derived and model-derived quantities, kept distinct),
+- a **shared quantity ledger and estimating model** (drawing-derived and model-derived quantities, kept distinct) with **Sheet Measure** — a calibrated PDF takeoff surface (pdf.js render, 2-point scale calibration, length/area/count → real drawing-measured ledger rows),
 - a **Design Studio with a real 3D model viewer** (STEP/IFC tessellated by registered geometry engines into derived mesh artifacts that go stale with their source),
 - a **durable workflow and agent runtime** (broker-supervised tool execution, approval gates, audit events),
 - one coherent **product UI** with nine engineering workspaces.
 
 ## Status — read this first
 
-This project is in **Phase 2 (CAD/BIM workflows) with Phase 3 (takeoff & estimating) hardened** of a six-phase build plan. The single source of truth for what actually works, what is verified, and what is not, is:
+This project has shipped Phases 0–6 to **verified** state (per-phase evidence in the acceptance catalogue) and is now in **post-Phase-6 slice mode**: the latest slice (8) restored the revision-download route after a gitignore-swallowed-file regression and completed Journey D with **Sheet Measure** (calibrated PDF takeoff). The single source of truth for what actually works, what is verified, and what is not, is:
 
 - [docs/07-release/implementation-status.md](docs/07-release/implementation-status.md) — capability-by-capability status with evidence
 - [docs/06-qa/acceptance-catalogue.md](docs/06-qa/acceptance-catalogue.md) — acceptance items and their current state
@@ -59,6 +59,8 @@ Dev mode runs from the repo with `.env` (gitignored; template `.env.example`): `
 
 The sign-in screen also offers **demo accounts** (post-Phase-6 slice, [contract §1.8](docs/00-architecture/phase-6-hardening-contract.md)): one click provisions three clearly-labelled users — admin *Ama Boateng*, engineer *Kwame Mensah*, viewer *Zara Ahmed* — sharing the public password `demo1234`, each with a one-click **quick login** button. They are real accounts through the real credentials flow (never shortcut sessions), they never consume first-run setup, and removing them is an admin action in the user menu. Perfect for exploring role-based access without touching the operator account.
 
+The Takeoff workspace also has **Sheet Measure** (Slice 8, [contract](docs/00-architecture/integrity-measure-contract.md)): pick a PDF drawing sheet, calibrate once against a known distance, then measure lengths, areas and counts — every measurement lands in the Quantity Ledger as a real, draft, drawing-measured row with its full calibration record. The e2e takeoff regression pins the download round-trip and grew to 31 PASS.
+
 ## Repository map
 
 | Path | Owner | Contents |
@@ -94,10 +96,10 @@ The sign-in screen also offers **demo accounts** (post-Phase-6 slice, [contract 
 | 0 | Source-verified audit, architecture, ADRs, capability matrix | ✅ complete |
 | 1 | Working product foundation: projects, artifacts, revisions, engine discovery, Ubuntu dev install | ✅ complete (verified — AC-P1-01…09) |
 | 2 | CAD/BIM workflows (FreeCAD, LibreCAD, Bonsai/IfcOpenShell, model viewer) | 🚧 in progress — 3D model viewer shipped & verified on REAL tessellation adapters (Design Studio, mesh artifacts, staleness, AC-P2-01…07); native editor adapters (FreeCAD/Bonsai) honestly planned (see engine-inventory investigation) |
-| 3 | Takeoff, estimating, construction controls (shared quantity ledger, BOQ, schedules) | 🚧 in progress — quantity ledger + estimating + REAL STEP/IFC quantity adapters shipped & verified (AC-P3-01…08), hardened with the benchmark validation harness, estimate supersede & BOQ CSV/JSON export (AC-P3-09…11); PDF measurement tools & schedules pending |
-| 4 | Collaboration & agent workflows (durable runtime, approvals, impact invalidation) | planned |
-| 5 | Broader engineering packs (GIS, E/E, structural, CFD, systems, robotics) | planned |
-| 6 | Hardening, packaging, release readiness | planned |
+| 3 | Takeoff, estimating, construction controls (shared quantity ledger, BOQ, schedules) | 🚧 in progress — quantity ledger + estimating + REAL STEP/IFC quantity adapters shipped & verified (AC-P3-01…08), hardened with the benchmark validation harness, estimate supersede & BOQ CSV/JSON export (AC-P3-09…11); **calibrated PDF measurement shipped & browser-verified (Sheet Measure, AC-P8-02)**; schedules shipped via Phase-5 Project Controls/CPM; remaining honest gaps recorded in implementation-status #5 |
+| 4 | Collaboration & agent workflows (durable runtime, approvals, impact invalidation) | ✅ shipped & verified — durable workflow runtime, broker-supervised execution, approval gates, Agents workspace (AC-P4-01…10; fifth pass) |
+| 5 | Broader engineering packs (GIS, E/E, structural, CFD, systems, robotics) | 🚧 in progress — first extended-disciplines slice shipped & verified (FE-meshing via gmsh, power flow via pandapower, discrete-event sim via SimPy, doc conversion via LibreOffice, CPM platform core; AC-P5-01…10); the broader registry remains planned |
+| 6 | Hardening, packaging, release readiness | 🚧 in progress — auth + multi-user + demo accounts shipped & verified (sixth/seventh pass); **integrity slice 8**: dead revision-download route restored for real + gitignore root cause closed; packaging artifacts in-tree but the .deb build + CI run remain pending (honest note in implementation-status) |
 
 ## Verification discipline
 

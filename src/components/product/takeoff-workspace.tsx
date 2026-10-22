@@ -1,17 +1,20 @@
 "use client"
 
 /**
- * Takeoff & Estimating workspace (W1 lane, Phase 3 vertical slice).
+ * Takeoff & Estimating workspace (W1 lane, Phase 3 vertical slice; Sheet
+ * Measure tab added in Slice 8 / lane 8-b).
  *
- * Three inner tabs over the pinned API contracts: Quantity Ledger, Assemblies
- * & Rates, Estimates. Honesty rules this UI follows:
+ * Four inner tabs over the pinned API contracts: Quantity Ledger, Assemblies
+ * & Rates, Estimates, Sheet Measure. Honesty rules this UI follows:
  *  - drawing-measured and model-derived quantities are visually distinct
  *    (amber vs emerald) and are never merged or re-labeled;
  *  - estimate math NEVER happens client-side — line totals and totals come
  *    from the server (deterministic, src/core/ledger.ts) and are refetched
  *    after every mutation; there are no optimistic updates anywhere;
  *  - server 422 messages (transition guards, approve blockers, missing rates)
- *    surface verbatim in toasts.
+ *    surface verbatim in toasts;
+ *  - Sheet Measure rows are real drawing-measured records from the calibrated
+ *    pdf.js surface (sheet-measure.tsx) — the same ledger, the same gates.
  */
 import { Boxes, ChevronDown, ClipboardList, Download, Info, Layers, Plus, Ruler, Sigma, Trash2 } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -45,6 +48,7 @@ import {
   SupersedeEstimateDialog,
   type ArtifactSourceState,
 } from "@/components/product/takeoff-dialogs"
+import { SheetMeasure } from "@/components/product/sheet-measure"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -160,7 +164,7 @@ export function TakeoffWorkspace({
   const artifacts = useApi<{ artifacts: ArtifactListItem[] }>(`/api/projects/${projectId}/artifacts`)
   const notifyMutated = onMutated ?? noop
 
-  const [tab, setTab] = useState<"ledger" | "assemblies" | "estimates">("ledger")
+  const [tab, setTab] = useState<"ledger" | "assemblies" | "estimates" | "sheet">("ledger")
 
   const [recordOpen, setRecordOpen] = useState(false)
   const [deriveOpen, setDeriveOpen] = useState(false)
@@ -302,10 +306,14 @@ export function TakeoffWorkspace({
       </header>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-        <TabsList aria-label="Takeoff & Estimating sections">
+        {/* The 4 inner tabs overflow at 390px without horizontal scroll —
+            mirrors project-workspace's TabsList pattern (max-w-full +
+            overflow-x-auto): the strip scrolls, the page never does. */}
+        <TabsList aria-label="Takeoff & Estimating sections" className="eos-scroll max-w-full overflow-x-auto">
           <TabsTrigger value="ledger">Quantity Ledger</TabsTrigger>
           <TabsTrigger value="assemblies">Assemblies &amp; Rates</TabsTrigger>
           <TabsTrigger value="estimates">Estimates</TabsTrigger>
+          <TabsTrigger value="sheet">Sheet Measure</TabsTrigger>
         </TabsList>
 
         {/* ---------------- Quantity Ledger ---------------- */}
@@ -933,6 +941,17 @@ export function TakeoffWorkspace({
               </CardContent>
             </Card>
           ) : null}
+        </TabsContent>
+
+        {/* ---------------- Sheet Measure (Lane 8-b, contract §3) ---------------- */}
+        <TabsContent value="sheet" className="mt-4 flex flex-col gap-4">
+          {/* onSaved mirrors RecordQuantityDialog.onCreated: 201 → the ledger
+              list refetches (nothing optimistic anywhere). */}
+          <SheetMeasure
+            projectId={projectId}
+            artifacts={artifactSource}
+            onSaved={() => void quantities.refresh()}
+          />
         </TabsContent>
       </Tabs>
 

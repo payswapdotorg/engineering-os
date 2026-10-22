@@ -16,7 +16,10 @@ dev.log
 server.log
 worklog.md
 tool-results/
-download/
+# anchored: the sandbox's top-level downloads dir only — an unanchored `download/`
+# silently swallowed src/app/api/revisions/[id]/download/ (root cause of the
+# lost revision-download route, Slice 8 recon; never again)
+/download/
 replay-stack/
 mini-services/
 examples/

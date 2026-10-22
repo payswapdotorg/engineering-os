@@ -1,0 +1,52 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1191 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 967 >>
+stream
+% EOS demo sheet A-102 - floor plan @ 1:100 (pinned geometry, contract 2.2)
+% border rectangle (paper frame): 24 24 1143 794
+24 24 1143 794 re S
+% title: Helvetica 14, WinAnsiEncoding (\227 = em dash U+2014, WinAnsi 0x97)
+BT /F1 14 Tf 40 790 Td (EOS DEMO SHEET A-102 \227 FLOOR PLAN @ 1:100) Tj ET
+% scale bar: 100 paper-mm = 10.000 m real @ 1:100 (drawn span 343.4646 - 60 = 283.4646 pt)
+60 120 m 343.4646 120 l S
+% end ticks (12 pt tall) and mid tick at 5 m
+60 114 m 60 126 l S
+343.4646 114 m 343.4646 126 l S
+201.7323 114 m 201.7323 126 l S
+% tick labels 0 / 5 / 10 m: Helvetica 8 at baseline y=100
+BT /F1 8 Tf 57.5 100 Td (0) Tj ET
+BT /F1 8 Tf 199.5 100 Td (5) Tj ET
+BT /F1 8 Tf 334 100 Td (10 m) Tj ET
+% room outline: 80 x 50 paper-mm -> 8.000 x 5.000 m real @ 1:100
+% (perimeter 26.000 m, area 40.000 m2 at 1:100)
+500 400 226.7717 141.7323 re S
+% interior wall: 30 paper-mm -> 3.000 m real (anchored on the room bottom edge)
+613.3858 400 m 613.3858 485.0394 l S
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000248 00000 n 
+0000001266 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1363
+%%EOF

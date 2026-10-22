@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # scripts/e2e-takeoff.sh — Engineering OS golden-path regression (Phase-3 record:
-# 26 PASS + the Phase-2 step-11 mesh derive → 27 PASS). Rebuilt from the
+# 26 PASS + the Phase-2 step-11 mesh derive → 27 PASS; Slice-8 contract §1
+# download-route round-trip +4 → 31 PASS). Rebuilt from the
 # acceptance-catalogue evidence (AC-P3-01…08) + implementation-status records.
 #
 # Rebuilds the demo dataset through the REAL API against the live dev server:
@@ -124,6 +125,38 @@ upload "/api/projects/$PID/artifacts" "$FIXTURES/bracket.step" model "bracket.st
 BRACKET_EMPTY_ID=$(j "$BODY" '.data.artifact.id')
 assert_eq "honest-failure STEP stub bracket.step registered (201, kind model)" \
   "201|model" "$STATUS|$(j "$BODY" '.data.artifact.kind')"
+
+# ===========================================================================
+# 5b. Slice-8 (contract §1): the lane-8-c PDF fixture becomes a NEW revision
+# of the SVG sheet artifact above, then the restored download route must
+# serve those exact bytes back (4 assertions; PASS count 27 → 31).
+# ===========================================================================
+if [[ ! -f "$FIXTURES/sheet-a102-plan.pdf" ]]; then
+  echo "FATAL: $FIXTURES/sheet-a102-plan.pdf is missing (lane 8-c fixture) — the download assertions cannot run; fix the fixture, never skip silently" >&2
+  exit 1
+fi
+SHEET_ID="$SVG_ID"
+upload "/api/artifacts/$SHEET_ID/revisions" "$FIXTURES/sheet-a102-plan.pdf" drawing
+PDF_REV=$(j "$BODY" '.data.revision.id')
+PDF_HASH=$(j "$BODY" '.data.revision.contentHash')
+PDF_LOCAL_SHA=$(sha256sum "$FIXTURES/sheet-a102-plan.pdf" | cut -d' ' -f1)
+assert_eq "sheet-a102-plan.pdf uploaded as the sheet's 2nd revision: 201 + contentHash == local sha256 (byte-exact upload)" \
+  "201|2|$PDF_LOCAL_SHA" \
+  "$STATUS|$(j "$BODY" '.data.revision.revNumber')|$(j "$BODY" '.data.revision.contentHash')"
+
+DL_STATUS=$(curl -sS -m 180 -o "$WORK/dl.pdf" -D "$WORK/dl.headers" -w '%{http_code}' ${EOS_AUTH:-} "$BASE/api/revisions/$PDF_REV/download") || DL_STATUS="000"
+assert_eq "GET /api/revisions/<pdfRevId>/download → 200 with real PDF bytes (body starts %PDF-, never an error page)" \
+  "200|%PDF-" "$DL_STATUS|$(head -c 5 "$WORK/dl.pdf")"
+
+DL_SHA=$(awk 'tolower($1)=="x-eos-sha256:"{gsub(/\r/,""); print $2}' "$WORK/dl.headers")
+assert_eq "download integrity: X-Eos-Sha256 header == uploaded contentHash AND sha256(downloaded bytes) == it (byte-exact round-trip)" \
+  "$PDF_HASH|$PDF_HASH" "$DL_SHA|$(sha256sum "$WORK/dl.pdf" | cut -d' ' -f1)"
+
+UNAUTH_STATUS=$(curl -sS -m 30 -o "$WORK/dl-unauth.body" -w '%{http_code}' "$BASE/api/revisions/$PDF_REV/download") || UNAUTH_STATUS="000"
+UNAUTH_BODY=$(cat "$WORK/dl-unauth.body")
+assert_eq "unauthenticated download on the same URL → 401 envelope verbatim (session required)" \
+  "401|unauthorized|sign in required" \
+  "$UNAUTH_STATUS|$(j "$UNAUTH_BODY" '.error.code')|$(j "$UNAUTH_BODY" '.error.message')"
 
 # ===========================================================================
 # 6-7. AC-P3-01 drawing-measured ledger row + sheetRef enforcement
