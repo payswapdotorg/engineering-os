@@ -29,6 +29,7 @@ model Project {
   assemblies  TradeAssembly[]
   rates       Rate[]
   estimates   Estimate[]
+  plans       AgentPlan[] // Slice 11: LLM planning ledger (agent-planning-contract §2)
 }
 
 // Slice 10 project isolation (contract §1 / ADR-0007): a TeamMember row with
@@ -141,6 +142,7 @@ model Workflow {
   updatedAt         DateTime  @updatedAt
   stepRuns          WorkflowStepRun[]
   events            WorkflowEvent[]
+  acceptedByPlans   AgentPlan[] @relation("PlanAcceptedWorkflow") // Slice 11: plans whose acceptance created this draft
 
   @@index([projectId, state])
 }
@@ -307,4 +309,37 @@ model WorkflowEvent {
   createdAt  DateTime @default(now())
 
   @@unique([workflowId, seq])
+}
+
+// ---------------------------------------------------------------------------
+// Slice 11 LLM planning layer (agent-planning-contract.md §2, ADR-0008).
+// AgentPlan is the persistent planning ledger: EVERY planner attempt —
+// proposed, accepted, rejected or failed — is a reviewable row. The LLM's raw
+// response is stored VERBATIM in evidence (honest evidence, like stdout
+// tails); status enums as plain String validated at the boundary (zod +
+// src/core/planner.ts). createdById/decidedById are session user ids stored as
+// plain strings (AuditEvent precedent — no FK).
+// ---------------------------------------------------------------------------
+
+model AgentPlan {
+  id            String     @id @default(cuid())
+  projectId     String
+  project       Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  intent        String // the human's request, VERBATIM (10..2000 chars enforced at the boundary)
+  status        String     @default("proposed") // proposed|accepted|rejected|failed (src/core/planner.ts)
+  revisesPlanId String? // prior plan this proposal revises (same project, any status)
+  revises       AgentPlan? @relation("PlanRevisions", fields: [revisesPlanId], references: [id], onDelete: SetNull)
+  revisedBy     AgentPlan[] @relation("PlanRevisions")
+  plan          String? // JSON {rationale, assumptions, definition} — CANONICAL post-validation; null when failed
+  evidence      String? // JSON {rawResponse?, durationMs?, attempts?} — the LLM's raw text VERBATIM
+  failure       String? // JSON {stage: "llm"|"validation", error, at} — verbatim reason when status failed
+  createdById   String? // session user id of the human who asked
+  decidedById   String? // session user id of the acceptor/rejector
+  decidedAt     DateTime?
+  workflowId    String? // draft workflow created on accept (SetNull: plans outlive their workflow)
+  workflow      Workflow?  @relation("PlanAcceptedWorkflow", fields: [workflowId], references: [id], onDelete: SetNull)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([projectId, status])
 }

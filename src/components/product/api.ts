@@ -1136,3 +1136,95 @@ export async function downloadRevisionBytes(revisionId: string): Promise<Blob> {
   }
   return res.blob()
 }
+
+// ---------------------------------------------------------------------------
+// Slice 11 — LLM planning layer (agent-planning-contract §5)
+// ---------------------------------------------------------------------------
+// Mirrors docs/00-architecture/agent-planning-contract.md §5.1–5.4 exactly
+// (routes owned by the 11-c lane, the pure core src/core/planner.ts by 11-b).
+// This file owns the client-side shape of the wire, so the four plan statuses
+// are PINNED HERE — deliberately not imported from the core: the wire is the
+// UI's boundary and a dev server can run a stale core mid-flight (the same
+// local-wire-types convention every section above follows).
+// ---------------------------------------------------------------------------
+
+/**
+ * The four plan statuses, pinned from the contract §5.4 wire shape
+ * ("proposed|accepted|rejected|failed" — the §2.1 status machine; every
+ * status is terminal per row, re-planning creates a NEW row).
+ */
+export const PLAN_STATUSES_WIRE = ["proposed", "accepted", "rejected", "failed"] as const
+
+export type PlanStatus = (typeof PLAN_STATUSES_WIRE)[number]
+
+/** GET /api/projects/[id]/plans row + plan detail — contract §5.4 (frozen). */
+export interface PlanRow {
+  id: string
+  projectId: string
+  /** the human's request, VERBATIM (10..2000 chars enforced at the boundary) */
+  intent: string
+  status: PlanStatus
+  /** prior plan this proposal revises (same project, any status); null = fresh */
+  revisesPlanId: string | null
+  /** planner's stated reasoning; null when failed */
+  rationale: string | null
+  /** planner's assumptions (each needs human verification before accepting) */
+  assumptions: string[] | null
+  /** CANONICAL post-validation workflow definition; null when failed */
+  definition: { steps: Array<Record<string, unknown>> } | null
+  /** summarizePlanSteps lines (REAL artifact names); null when failed */
+  stepSummary: string[] | null
+  /** the LLM's raw text VERBATIM + call metadata (honest evidence) */
+  evidence: { rawResponse?: string; durationMs?: number; attempts?: number } | null
+  /** verbatim reason when status failed; null otherwise */
+  failure: { stage: "llm" | "validation"; error: string; at: string } | null
+  /** session user id of the human who asked (string, AuditEvent precedent) */
+  createdById: string | null
+  /** session user ids of the acceptor/rejector + when (set on decision) */
+  decidedById: string | null
+  decidedAt: string | null
+  /** draft workflow created on accept (SetNull — plans outlive workflows) */
+  workflowId: string | null
+  createdAt: string
+}
+
+/** GET /api/projects/[id]/plans — member read; newest first, cap 50 (§5.2). */
+export async function listProjectPlans(projectId: string): Promise<{ plans: PlanRow[] }> {
+  return apiGet<{ plans: PlanRow[] }>(`/api/projects/${projectId}/plans`)
+}
+
+/**
+ * POST /api/projects/[id]/plans — the synchronous LLM round trip (§5.1; one
+ * request, 60s ceiling worst case). 201 `{plan}` in EVERY persisted case: a
+ * failed LLM/validation run persists as an honest `failed` row — the row IS
+ * the outcome, never a silent error. 422s (intent length, cross-project
+ * revisesPlanId) and 403/404 surface verbatim via the shared unwrap idiom.
+ * The body carries {intent, revisesPlanId} only — typed revision guidance
+ * has NO wire field, so callers compose it INTO the intent as a labeled line
+ * (the row's intent column stays the verbatim human request).
+ */
+export async function createProjectPlan(
+  projectId: string,
+  intent: string,
+  revisesPlanId?: string,
+): Promise<{ plan: PlanRow }> {
+  return apiJson<{ plan: PlanRow }>(`/api/projects/${projectId}/plans`, "POST", {
+    intent,
+    revisesPlanId,
+  })
+}
+
+/**
+ * POST /api/plans/[id]/decision — the HUMAN decision (§5.3; the route accepts
+ * no actor: acceptance is the signed-in member's action). 409
+ * `this plan is already <status>` and 422 (accept re-validates against the
+ * LIVE project artifacts; the plan STAYS proposed) surface verbatim.
+ * `accept` → 200 `{plan, workflow}` (the created DRAFT, createdBy
+ * agent:planner-v1); `reject` → 200 `{plan}` with no workflow.
+ */
+export async function decidePlan(
+  planId: string,
+  action: "accept" | "reject",
+): Promise<{ plan: PlanRow; workflow?: WorkflowRow }> {
+  return apiJson<{ plan: PlanRow; workflow?: WorkflowRow }>(`/api/plans/${planId}/decision`, "POST", { action })
+}
