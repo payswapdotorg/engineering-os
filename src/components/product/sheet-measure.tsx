@@ -3,7 +3,29 @@
 /**
  * Sheet Measure — calibrated PDF measurement surface (Lane 8-b, Slice 8,
  * contract §3 of docs/00-architecture/integrity-measure-contract.md; the
- * Journey D completion piece).
+ * Journey D completion piece) + Slice 13 additions (limitation #5):
+ *
+ *  - PERSISTENT SHEET MARKUPS: every saved measurement also persists its
+ *    on-sheet geometry (POST /api/projects/<id>/markups, the ledger row link
+ *    carried as quantityId), and the overlay re-renders all saved markups
+ *    from GET …/markups?revisionId=… on every visit — a reviewer can see
+ *    WHERE each amber ledger number came from. Deleting a markup never
+ *    touches its ledger row (separate lifecycles, the route's scope note).
+ *  - DURABLE CALIBRATION: applying a calibration persists it as a
+ *    kind="calibration" markup (one per revision — a new calibration
+ *    replaces the previous row); loading a sheet with a saved calibration
+ *    RESTORES it automatically (toast says so). Global viewers keep the
+ *    calibration in-session only (server refuses writes; nothing pretends
+ *    otherwise).
+ *  - SYMBOL AUTO-COUNT (the "autocount" tool): pick a box around ONE symbol
+ *    instance → the page is rendered offscreen at a FIXED 2× scale
+ *    (zoom-independent, like the click math) → deterministic NCC template
+ *    matching (src/core/symbol-match.ts, threshold ≥ 0.85 default) → the
+ *    hits are drawn as boxes → "Accept N" produces the same save panel as a
+ *    manual count, with quantityMethod "eos-symbol-template/1 (NCC ≥ T)" and
+ *    a kind="symbol-hits" markup carrying every hit box. Honest limits:
+ *    matches instances the SAME rendered size as the picked template; a
+ *    rotated page (/Rotate ≠ 0) inherits the Slice-8 click-mapping caveat.
  *
  * Honesty rules this component follows (mirrors takeoff-workspace.tsx):
  *  - every measurement is REAL: bytes come from GET /api/revisions/<id>/download
@@ -18,11 +40,15 @@
  *    calibrated scale record, quantityMethod "eos-pdf-measure/1
  *    (browser-calibrated)"; server 422s surface verbatim in toasts;
  *  - nothing optimistic: 201 → toast + caller-side ledger refetch (the
- *    RecordQuantityDialog onCreated pattern);
+ *    RecordQuantityDialog onCreated pattern); the markup POST happens AFTER
+ *    the ledger 201 and a failure is reported honestly (row saved, geometry
+ *    not persisted) — the ledger row is never lost or duplicated to mask it;
  *  - switching pages clears the in-progress measurement with an honest inline
- *    notice — saved rows are already in the ledger and never lost;
- *  - the viewer role can measure but Save is visible-but-disabled with the
- *    pinned tooltip "viewer role is read-only" (GuardedButton).
+ *    notice — saved rows are already in the ledger AND their markups reload;
+ *  - the viewer role can measure/scan but Save and markup-delete are
+ *    visible-but-disabled with the pinned tooltip "viewer role is read-only"
+ *    (GuardedButton); a project-viewer's write attempts surface the server's
+ *    verbatim 403.
  *
  * pdf.js provenance: dependency pdfjs-dist@4.10.38 (exact pin, package.json);
  * the worker is a vendored copy of node_modules/pdfjs-dist/build/pdf.worker.min.mjs
@@ -42,7 +68,9 @@ import {
   MousePointerClick,
   PencilRuler,
   Ruler,
+  ScanSearch,
   Shapes,
+  Trash2,
   TriangleAlert,
   ZoomIn,
   ZoomOut,
@@ -53,12 +81,17 @@ import { toast } from "sonner"
 import type { PDFDocumentProxy } from "pdfjs-dist"
 
 import {
+  createMarkup,
   createQuantity,
+  deleteMarkup,
   downloadRevisionBytes,
+  listMarkups,
   type ArtifactListItem,
   type QuantityCreateInput,
+  type SheetMarkupRow,
 } from "@/components/product/api"
 import { GuardedButton } from "@/components/product/guarded-button"
+import { useSessionUser } from "@/components/product/session-user"
 import { ErrorState, InfoNote, RowSkeleton } from "@/components/product/parts"
 import type { ArtifactSourceState } from "@/components/product/takeoff-dialogs"
 import {
@@ -71,6 +104,13 @@ import {
   toLedgerQuantity,
   type Pt,
 } from "@/core/measure"
+import {
+  DEFAULT_SCAN_OPTIONS,
+  SymbolMatchError,
+  extractTemplate,
+  nccScan,
+  toGray,
+} from "@/core/symbol-match"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -104,18 +144,43 @@ const PDF_WORKER_SRC = "/vendor/pdf.worker.min.mjs"
 const NO_PDF_SHEETS_COPY =
   "No PDF drawing sheets in this project yet — upload one from Artifacts"
 
-type MeasureTool = "calibrate" | "length" | "area" | "count"
+type MeasureTool = "calibrate" | "length" | "area" | "count" | "autocount"
 type CalibUnit = "m" | "mm" | "ft"
 
-/** A finished measurement awaiting the save panel (contract §3.3). */
+/** A finished measurement awaiting the save panel (contract §3.3; Slice 13
+ *  adds the symbol-template provenance so auto-counts are distinguishable
+ *  from manual counts in the ledger's quantityMethod). */
 interface FinishedMeasurement {
-  tool: Exclude<MeasureTool, "calibrate">
+  tool: Exclude<MeasureTool, "calibrate" | "autocount">
   /** honest raw measured number in core units (mm / mm²) before ledger mapping */
   rawMm: number
   /** toLedgerQuantity() output — value is NOT rounded for storage */
   ledger: { value: number; unit: "m" | "m²" | "each"; display: string }
   count: number
+  /** manual = picked by hand; template = NCC symbol auto-count (Slice 13) */
+  provenance: "manual" | "template"
+  /** template provenance only: the scan context for the save panel's copy */
+  templateInfo?: { threshold: number; templateWpt: number; templateHpt: number }
 }
+
+/** One accepted symbol-scan hit, already mapped back to PDF-point space. */
+interface SymbolHit {
+  tl: Pt
+  br: Pt
+  score: number
+}
+
+/** Saved-markup overlay palette (emerald = persisted; amber = in-progress). */
+const SAVED_STROKE = "#047857" // emerald-700
+const SAVED_GUIDE = "#059669" // emerald-600
+const SAVED_FILL = "rgba(5, 150, 105, 0.10)"
+
+/** Auto-count scans at a FIXED 2× page scale regardless of the user's zoom —
+ *  results are zoom-independent (mirrors the click-math rule). The fixture's
+ *  10 pt symbols rasterize to ≈20 px here, comfortably above the 2 px core
+ *  floor; the exhaustive stride-1 scan (DEFAULT_SCAN_OPTIONS) takes ~1–3 s
+ *  on an A3 sheet at 2× — the button shows its busy state while it runs. */
+const SCAN_SCALE = 2
 
 /** Calibration result kept in state (contract §3.2). */
 interface Calibration {
@@ -133,6 +198,11 @@ function clampScale(v: number): number {
 /** 3 significant figures, trailing zeros stripped (contract §3.2). */
 function sig3(v: number): string {
   return String(Number(v.toPrecision(3)))
+}
+
+/** Saved-markup chip value display (3 decimals, honest). */
+function trim3(v: number): string {
+  return String(Number(v.toFixed(3)))
 }
 
 function isPdfRenderCancel(err: unknown): boolean {
@@ -205,6 +275,24 @@ export function SheetMeasure({
   const [createdBy, setCreatedBy] = useState("local-operator")
   const [saving, setSaving] = useState(false)
 
+  // -- Slice 13: persistent markups + symbol auto-count state ------------------
+
+  const sessionUser = useSessionUser()
+  const isGlobalViewer = sessionUser !== "loading" && sessionUser !== null && sessionUser.role === "viewer"
+
+  const [markups, setMarkups] = useState<SheetMarkupRow[]>([])
+  const [markupsPhase, setMarkupsPhase] = useState<"idle" | "loading" | "ready" | "error">("idle")
+  const [markupsError, setMarkupsError] = useState<string | null>(null)
+  const [deletingMarkupId, setDeletingMarkupId] = useState<string | null>(null)
+  /** nonce bumped after create/delete so the overlay + list refetch (nothing optimistic) */
+  const [markupsNonce, setMarkupsNonce] = useState(0)
+
+  const [autoPicks, setAutoPicks] = useState<Pt[]>([])
+  const [autoThreshold, setAutoThreshold] = useState(DEFAULT_SCAN_OPTIONS.minScore)
+  const [autoHits, setAutoHits] = useState<SymbolHit[] | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
+
   // Derived picker data — only drawing artifacts whose latest revision is a
   // real PDF (the serialized ArtifactListItem carries latestRevision.mimeType).
   const pdfSheets = useMemo(
@@ -235,6 +323,9 @@ export function SheetMeasure({
     setPoints([])
     setCursorPt(null)
     setLabel("")
+    // A discarded template count also clears the scan it came from.
+    setAutoHits(null)
+    setScanError(null)
   }, [])
 
   /** Reset the whole measuring session for a (new) sheet. */
@@ -252,6 +343,9 @@ export function SheetMeasure({
     setTool("calibrate")
     setZoom(1)
     setPageNumber(1)
+    setAutoPicks([])
+    setAutoHits(null)
+    setScanError(null)
   }, [])
 
   const onSheetChange = (nextId: string) => {
@@ -261,10 +355,9 @@ export function SheetMeasure({
 
   const changeTool = (next: MeasureTool) => {
     if (next === tool) return
-    if (
-      next !== "calibrate" &&
-      calib === null
-    ) {
+    // Auto-count needs NO calibration (a count is scale-free — the same rule
+    // the core's count mapping encodes); length/area/count stay gated.
+    if (next !== "calibrate" && next !== "autocount" && calib === null) {
       // Defensive: the toggles are disabled while uncalibrated, but the
       // attempt still explains itself (contract §3.2 — no dead buttons).
       setNotice("Measure tools need a calibration first — set one with the Calibrate tool.")
@@ -275,6 +368,11 @@ export function SheetMeasure({
         "Tool switched — the in-progress measurement was cleared. Saved rows are untouched.",
       )
     }
+    if (autoPicks.length > 0 || autoHits !== null) {
+      setAutoPicks([])
+      setAutoHits(null)
+      setScanError(null)
+    }
     setTool(next)
     setCursorPt(null)
   }
@@ -282,12 +380,19 @@ export function SheetMeasure({
   const goToPage = (next: number) => {
     if (next === pageNumber || next < 1 || next > pageCount) return
     // Contract §3.2: page switch clears the in-progress measurement with an
-    // honest notice — saved rows live in the ledger already.
+    // honest notice — saved rows live in the ledger already, and their
+    // markups reload with the page's overlay (Slice 13).
     if (points.length > 0 || calibPicks.length > 0 || finished !== null) {
       clearInProgress(
         `Switched to page ${next} — the in-progress measurement was cleared. Saved rows are never lost.`,
       )
       setFinished(null)
+    }
+    if (autoPicks.length > 0 || autoHits !== null) {
+      setAutoPicks([])
+      setAutoHits(null)
+      setScanError(null)
+      setNotice(`Switched to page ${next} — the auto-count template and hits were cleared (the scan is per-page).`)
     }
     setPageNumber(next)
   }
@@ -345,6 +450,57 @@ export function SheetMeasure({
       if (localDoc) void localDoc.destroy()
     }
   }, [revisionId, retryNonce])
+
+  // -- Slice 13: saved markups for this revision (fetch on sheet/nonce) --------
+
+  useEffect(() => {
+    if (revisionId === null) {
+      setMarkups([])
+      setMarkupsPhase("idle")
+      setMarkupsError(null)
+      return
+    }
+    let cancelled = false
+    setMarkupsPhase("loading")
+    setMarkupsError(null)
+    void (async () => {
+      try {
+        const data = await listMarkups(projectId, revisionId)
+        if (cancelled) return
+        setMarkups(data.markups)
+        setMarkupsPhase("ready")
+      } catch (err) {
+        if (cancelled) return
+        setMarkupsError(errorMessage(err, "Could not load the saved markups"))
+        setMarkupsPhase("error")
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, revisionId, markupsNonce])
+
+  // Calibration restore: when a sheet's saved markups arrive and no live
+  // calibration exists, the latest persisted calibration row comes back —
+  // the sheet's scale record is DURABLE (Slice 13). Global viewers restore it
+  // too (markups are readable); they only cannot persist new ones.
+  const restoredRevisionRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (markupsPhase !== "ready" || revisionId === null || calib !== null) return
+    if (restoredRevisionRef.current === revisionId) return
+    const calibRow = [...markups].reverse().find((m) => m.kind === "calibration")
+    if (!calibRow || !(calibRow.value > 0)) return
+    restoredRevisionRef.current = revisionId
+    const mmPerPt = calibRow.value
+    const scaleRecord = calibRow.scale ?? `restored from markup ${calibRow.id}`
+    setCalib({
+      mmPerPt,
+      scaleRecord,
+      summary: `${mmPerPt.toFixed(2)} mm/pt · 1:${sig3(mmPerPt / PT_MM)} · restored`,
+    })
+    setTool((t) => (t === "calibrate" ? "length" : t))
+    toast.success(`Calibration restored from a saved markup — ${mmPerPt.toFixed(2)} mm/pt`)
+  }, [markupsPhase, markups, revisionId, calib])
 
   // -- container width (fit-width base scale) ---------------------------------
 
@@ -467,6 +623,126 @@ export function SheetMeasure({
       ctx.setLineDash([])
     }
 
+    // -- Slice 13: the SAVED layer (emerald — persisted markups of THIS page) --
+    const drawSavedChip = (anchor: Pt, text: string) => {
+      const [ax, ay] = toPx(anchor)
+      ctx.font = "600 11px ui-monospace, monospace"
+      const w = ctx.measureText(text).width + 10
+      const x = Math.min(Math.max(2, ax + 8), overlay.width / dpr - w - 2)
+      const y = Math.max(14, ay - 10)
+      ctx.beginPath()
+      ctx.roundRect(x, y - 11, w, 16, 3)
+      ctx.fillStyle = "rgba(255, 255, 255, 0.92)"
+      ctx.fill()
+      ctx.strokeStyle = SAVED_GUIDE
+      ctx.lineWidth = 1
+      ctx.stroke()
+      ctx.fillStyle = SAVED_STROKE
+      ctx.fillText(text, x + 5, y)
+    }
+
+    const savedForPage = markups.filter((m) => m.page === pageNumber)
+    for (const m of savedForPage) {
+      if (m.points.length === 0) continue
+      if (m.kind === "calibration") {
+        // dashed emerald span — the persisted scale picks
+        const [x1, y1] = toPx(m.points[0])
+        const [x2, y2] = toPx(m.points[1])
+        ctx.beginPath()
+        ctx.moveTo(x1, y1)
+        ctx.lineTo(x2, y2)
+        ctx.lineWidth = 1.5
+        ctx.strokeStyle = SAVED_GUIDE
+        ctx.setLineDash([3, 5])
+        ctx.stroke()
+        ctx.setLineDash([])
+        drawSavedChip(m.points[0], "calibration")
+      } else if (m.kind === "length") {
+        ctx.beginPath()
+        const [x0, y0] = toPx(m.points[0])
+        ctx.moveTo(x0, y0)
+        for (let i = 1; i < m.points.length; i += 1) {
+          const [x, y] = toPx(m.points[i])
+          ctx.lineTo(x, y)
+        }
+        ctx.lineWidth = 2
+        ctx.strokeStyle = SAVED_STROKE
+        ctx.stroke()
+        drawSavedChip(m.points[0], `${trim3(m.value)} ${m.unit}`)
+      } else if (m.kind === "area") {
+        ctx.beginPath()
+        const [x0, y0] = toPx(m.points[0])
+        ctx.moveTo(x0, y0)
+        for (let i = 1; i < m.points.length; i += 1) {
+          const [x, y] = toPx(m.points[i])
+          ctx.lineTo(x, y)
+        }
+        ctx.closePath()
+        ctx.fillStyle = SAVED_FILL
+        ctx.fill()
+        ctx.lineWidth = 2
+        ctx.strokeStyle = SAVED_STROKE
+        ctx.stroke()
+        drawSavedChip(m.points[0], `${trim3(m.value)} ${m.unit}`)
+      } else if (m.kind === "count") {
+        for (const p of m.points) {
+          const [x, y] = toPx(p)
+          ctx.beginPath()
+          ctx.arc(x, y, 4, 0, Math.PI * 2)
+          ctx.fillStyle = SAVED_GUIDE
+          ctx.fill()
+          ctx.lineWidth = 1.5
+          ctx.strokeStyle = SAVED_STROKE
+          ctx.stroke()
+        }
+        drawSavedChip(m.points[0], `${m.value} ${m.unit}`)
+      } else if (m.kind === "symbol-hits") {
+        // [tl, br] pairs — a box per accepted template hit
+        for (let i = 0; i + 1 < m.points.length; i += 2) {
+          const [x1, y1] = toPx(m.points[i])
+          const [x2, y2] = toPx(m.points[i + 1])
+          ctx.beginPath()
+          ctx.rect(x1, y1, x2 - x1, y2 - y1)
+          ctx.lineWidth = 1.5
+          ctx.strokeStyle = SAVED_STROKE
+          ctx.stroke()
+        }
+        if (m.points.length >= 2) drawSavedChip(m.points[0], `${m.value} ${m.unit}`)
+      }
+    }
+
+    // -- Slice 13: the auto-count layer (template box + unaccepted hits) -------
+    if (tool === "autocount") {
+      if (autoPicks.length === 2) {
+        const [x1, y1] = toPx(autoPicks[0])
+        const [x2, y2] = toPx(autoPicks[1])
+        ctx.beginPath()
+        ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1))
+        ctx.lineWidth = 2
+        ctx.strokeStyle = SAVED_GUIDE
+        ctx.setLineDash([6, 4])
+        ctx.stroke()
+        ctx.setLineDash([])
+      } else if (autoPicks.length === 1) {
+        const [x, y] = toPx(autoPicks[0])
+        ctx.beginPath()
+        ctx.arc(x, y, 4, 0, Math.PI * 2)
+        ctx.fillStyle = SAVED_GUIDE
+        ctx.fill()
+      }
+      if (autoHits !== null) {
+        for (const h of autoHits) {
+          const [x1, y1] = toPx(h.tl)
+          const [x2, y2] = toPx(h.br)
+          ctx.beginPath()
+          ctx.rect(x1, y1, x2 - x1, y2 - y1)
+          ctx.lineWidth = 1.5
+          ctx.strokeStyle = SAVED_STROKE
+          ctx.stroke()
+        }
+      }
+    }
+
     // Calibration picks (crosshairs + dashed span).
     if (tool === "calibrate") {
       for (const p of calibPicks) drawDot(p)
@@ -495,11 +771,122 @@ export function SheetMeasure({
         drawLine(points[points.length - 1], cursorPt, true)
       }
     }
-  }, [tool, calibPicks, points, cursorPt, finished, renderScale, pageDims])
+  }, [tool, calibPicks, points, cursorPt, finished, renderScale, pageDims, markups, pageNumber, autoPicks, autoHits])
 
   useEffect(() => {
     drawOverlay()
   }, [drawOverlay])
+
+  // -- Slice 13: symbol auto-count (template pick → offscreen 2× render → NCC) --
+
+  /** Clears the template box + hits with an honest inline notice. */
+  const clearAuto = useCallback((reason: string | null) => {
+    if (reason !== null) setNotice(reason)
+    setAutoPicks([])
+    setAutoHits(null)
+    setScanError(null)
+  }, [])
+
+  /**
+   * Runs the deterministic NCC scan: renders the CURRENT page offscreen at
+   * the FIXED SCAN_SCALE (2× — independent of zoom, like the click math),
+   * crops the template around the picked box, scans, and maps the accepted
+   * hit boxes back to PDF-point space. Errors from the core
+   * (SymbolMatchError: flat template, bad options) surface inline verbatim.
+   */
+  const runAutoCount = useCallback(async () => {
+    const doc = pdfDocRef.current
+    if (doc === null || pageDims === null || scanning) return
+    if (autoPicks.length !== 2) {
+      setScanError("Pick two opposite corners of a box around ONE symbol instance first.")
+      return
+    }
+    const threshold = Math.min(0.99, Math.max(0.5, autoThreshold))
+    if (threshold !== autoThreshold) setAutoThreshold(threshold)
+    setScanning(true)
+    setScanError(null)
+    try {
+      const page = await doc.getPage(pageNumber)
+      const viewport = page.getViewport({ scale: SCAN_SCALE })
+      const off = document.createElement("canvas")
+      off.width = Math.max(1, Math.floor(viewport.width))
+      off.height = Math.max(1, Math.floor(viewport.height))
+      const ctx = off.getContext("2d", { willReadFrequently: true })
+      if (ctx === null) throw new Error("Canvas 2D context unavailable in this browser")
+      // pdf.js leaves unpainted regions transparent; the core's luminance
+      // expects paper-white, so paint the page background first.
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, off.width, off.height)
+      await page.render({ canvasContext: ctx, viewport }).promise
+      const img = ctx.getImageData(0, 0, off.width, off.height)
+      const gray = toGray(img.data, off.width, off.height)
+
+      // Template rect: PDF-pt box → raster px (y flipped), rounded to ints —
+      // extractTemplate validates the bounds again with a specific message.
+      const minX = Math.min(autoPicks[0].x, autoPicks[1].x)
+      const maxX = Math.max(autoPicks[0].x, autoPicks[1].x)
+      const minY = Math.min(autoPicks[0].y, autoPicks[1].y)
+      const maxY = Math.max(autoPicks[0].y, autoPicks[1].y)
+      const rect = {
+        x: Math.round(minX * SCAN_SCALE),
+        y: Math.round((pageDims.hPt - maxY) * SCAN_SCALE),
+        width: Math.max(2, Math.round((maxX - minX) * SCAN_SCALE)),
+        height: Math.max(2, Math.round((maxY - minY) * SCAN_SCALE)),
+      }
+      const template = extractTemplate(gray, rect)
+      const boxes = nccScan(gray, template, { minScore: threshold })
+
+      // Raster px → PDF pt (y flip back). tl/br in PDF space for the markup.
+      const hits: SymbolHit[] = boxes.map((b) => ({
+        tl: { x: b.x / SCAN_SCALE, y: pageDims.hPt - b.y / SCAN_SCALE },
+        br: {
+          x: (b.x + b.width) / SCAN_SCALE,
+          y: pageDims.hPt - (b.y + b.height) / SCAN_SCALE,
+        },
+        score: b.score,
+      }))
+      setAutoHits(hits)
+      if (hits.length === 0) {
+        setScanError(
+          `No matches at NCC ≥ ${threshold} — pick a tighter box around ONE symbol instance (blank margin included helps), or lower the threshold.`,
+        )
+      } else {
+        toast.success(
+          `${hits.length} symbol${hits.length === 1 ? "" : "s"} matched at NCC ≥ ${threshold} — review the boxes, then Accept.`,
+        )
+      }
+    } catch (err) {
+      if (err instanceof SymbolMatchError) {
+        setScanError(err.message)
+      } else {
+        setScanError(errorMessage(err, "The symbol scan failed"))
+      }
+    } finally {
+      setScanning(false)
+    }
+  }, [autoPicks, autoThreshold, pageNumber, pageDims, scanning])
+
+  /** Accept the reviewed hits as the finished count measurement (save panel). */
+  const acceptAutoHits = useCallback(() => {
+    if (autoHits === null || autoHits.length === 0 || finished !== null) return
+    const n = autoHits.length
+    const minX = Math.min(autoPicks[0].x, autoPicks[1].x)
+    const maxX = Math.max(autoPicks[0].x, autoPicks[1].x)
+    const minY = Math.min(autoPicks[0].y, autoPicks[1].y)
+    const maxY = Math.max(autoPicks[0].y, autoPicks[1].y)
+    setFinished({
+      tool: "count",
+      rawMm: n,
+      ledger: toLedgerQuantity(n, "count", n),
+      count: n,
+      provenance: "template",
+      templateInfo: {
+        threshold: Math.min(0.99, Math.max(0.5, autoThreshold)),
+        templateWpt: maxX - minX,
+        templateHpt: maxY - minY,
+      },
+    })
+  }, [autoHits, autoPicks, autoThreshold, finished])
 
   // -- pointer handlers --------------------------------------------------------
 
@@ -533,6 +920,27 @@ export function SheetMeasure({
         return
       }
       setCalibPicks((prev) => [...prev, pt])
+      return
+    }
+
+    if (tool === "autocount") {
+      if (finished !== null) return
+      setScanError(null)
+      // Double-click echo: a click within the dedup radius of the last pick
+      // is the second click of a dblclick — ignore it so the box survives.
+      if (
+        autoPicks.length > 0 &&
+        distance(pt, autoPicks[autoPicks.length - 1]) <= DBLCLICK_DEDUP_PT
+      ) {
+        return
+      }
+      if (autoPicks.length >= 2) {
+        // Re-pick from scratch — a third click starts a fresh template box.
+        setAutoPicks([pt])
+        setAutoHits(null)
+        return
+      }
+      setAutoPicks((prev) => [...prev, pt])
       return
     }
 
@@ -570,6 +978,7 @@ export function SheetMeasure({
             rawMm,
             ledger: toLedgerQuantity(rawMm, "length"),
             count: pts.length,
+            provenance: "manual",
           })
         } else if (tool === "area") {
           if (pts.length < 3) {
@@ -582,6 +991,7 @@ export function SheetMeasure({
             rawMm,
             ledger: toLedgerQuantity(rawMm, "area"),
             count: pts.length,
+            provenance: "manual",
           })
         } else if (tool === "count") {
           if (pts.length < 1) {
@@ -593,6 +1003,7 @@ export function SheetMeasure({
             rawMm: pts.length,
             ledger: toLedgerQuantity(pts.length, "count", pts.length),
             count: pts.length,
+            provenance: "manual",
           })
         }
         setCursorPt(null)
@@ -609,7 +1020,7 @@ export function SheetMeasure({
   )
 
   const handleDoubleClick = () => {
-    if (tool === "calibrate" || finished !== null) return
+    if (tool === "calibrate" || tool === "autocount" || finished !== null) return
     // The second click of a double-click re-adds the last point — dedup it
     // so double-click means "finish here", not "finish with a duplicate".
     let pts = points
@@ -628,12 +1039,21 @@ export function SheetMeasure({
       e.preventDefault()
       if (finished !== null) return
       if (tool === "calibrate") return
+      if (tool === "autocount") {
+        // Keyboard path for the scan: box complete → Enter scans.
+        if (autoPicks.length === 2) void runAutoCount()
+        return
+      }
       finishMeasurement(points)
     } else if (e.key === "Escape") {
       e.preventDefault()
       if (finished !== null) {
         discardFinished()
         setNotice("Measurement discarded — it was not saved to the ledger.")
+        return
+      }
+      if (tool === "autocount" && (autoPicks.length > 0 || autoHits !== null)) {
+        clearAuto("Auto-count cancelled — the template box and hits were cleared.")
         return
       }
       if (points.length > 0 || calibPicks.length > 0) {
@@ -648,6 +1068,48 @@ export function SheetMeasure({
     () => (calibPicks.length === 2 ? distance(calibPicks[0], calibPicks[1]) : null),
     [calibPicks],
   )
+
+  /**
+   * Slice 13: persists the applied calibration as a kind="calibration"
+   * markup — ONE per revision: a previous calibration row is deleted first
+   * (the invariant "one durable scale record per sheet", enforced here at
+   * the only writer). Global viewers skip persistence (the server would
+   * 403): their calibration stays in-session and the toast says so. A
+   * persistence failure NEVER blocks the live calibration — it is reported
+   * honestly and the session continues.
+   */
+  const persistCalibration = (picks: [Pt, Pt], mmPerPt: number, scaleRecord: string, by: string) => {
+    if (revisionId === null || isGlobalViewer) {
+      if (isGlobalViewer) {
+        toast.info("Calibration applied for this session — viewers cannot persist it (read-only role).")
+      }
+      return
+    }
+    void (async () => {
+      try {
+        const previous = markups.find((m) => m.kind === "calibration")
+        if (previous !== undefined) {
+          await deleteMarkup(projectId, previous.id)
+        }
+        await createMarkup(projectId, {
+          revisionId,
+          page: pageNumber,
+          kind: "calibration",
+          points: picks,
+          value: mmPerPt,
+          unit: "mm/pt",
+          scale: scaleRecord,
+          label: scaleRecord,
+          createdBy: by.trim().length > 0 ? by.trim() : "local-operator",
+        })
+        setMarkupsNonce((n) => n + 1)
+      } catch (err) {
+        toast.error(
+          `Calibration applied, but persisting it failed: ${errorMessage(err, "unknown error")} — it stays for this session only.`,
+        )
+      }
+    })()
+  }
 
   const applyCalibration = () => {
     if (calibPicks.length !== 2 || calibPickDistance === null) {
@@ -670,11 +1132,14 @@ export function SheetMeasure({
       const scaleRecord = `calibrated 2-pt, ${parsed} ${calibUnit} ↔ ${calibPickDistance.toFixed(2)} pt — ${mmPerPt.toFixed(2)} mm/pt`
       const summary = `${mmPerPt.toFixed(2)} mm/pt · 1:${sig3(mmPerPt / PT_MM)}`
       setCalib({ mmPerPt, scaleRecord, summary })
+      const picks: [Pt, Pt] = [calibPicks[0], calibPicks[1]]
+      const by = createdBy
       setCalibPicks([])
       setCalibInput("")
       setCalibError(null)
       setTool("length")
       toast.success(`Sheet calibrated — ${summary}`)
+      persistCalibration(picks, mmPerPt, scaleRecord, by)
     } catch (err) {
       setCalibError(err instanceof MeasureError ? err.message : errorMessage(err, "Calibration failed"))
     }
@@ -694,6 +1159,16 @@ export function SheetMeasure({
   const liveReadout = useMemo<
     { value: number; unit: string; display: string } | { error: string } | null
   >(() => {
+    // Auto-count is scale-free: its readout is the hit tally, no calib needed.
+    // A zero-hit scan is NOT a count of 0 (the core refuses count < 1 — an
+    // honest rule); the panel's inline scanError explains it instead.
+    if (tool === "autocount") {
+      if (finished !== null) return null
+      if (autoHits !== null && autoHits.length > 0) {
+        return toLedgerQuantity(autoHits.length, "count", autoHits.length)
+      }
+      return null
+    }
     if (calib === null || finished !== null) return null
     try {
       if (tool === "length" && points.length >= 2) {
@@ -710,12 +1185,16 @@ export function SheetMeasure({
       if (err instanceof MeasureError) return { error: err.message }
       throw err
     }
-  }, [tool, points, calib, finished])
+  }, [tool, points, calib, finished, autoHits])
 
   // -- save panel (POST /api/projects/<id>/quantities) ---------------------------
 
   const saveToLedger = async () => {
-    if (saving || finished === null || selected === null || revisionId === null || calib === null) return
+    if (saving || finished === null || selected === null || revisionId === null) return
+    // Manual measurements are produced by calibration-gated tools, so calib
+    // is non-null there; a TEMPLATE count is scale-free and may be saved
+    // uncalibrated (scale omitted — honest, not guessed).
+    if (finished.provenance === "manual" && calib === null) return
     if (rulesetId.trim() === "" || rulesetVersion.trim() === "") {
       // Mirrored verbatim from RecordQuantityDialog's pre-flight.
       toast.error("rulesetId and rulesetVersion must be non-empty")
@@ -724,7 +1203,9 @@ export function SheetMeasure({
     setSaving(true)
     try {
       // EXACTLY the contract §3.3 body: drawing-measured row pointing at the
-      // rendered revision, with the browser-calibrated scale record.
+      // rendered revision, with the browser-calibrated scale record. Slice 13:
+      // a template count carries its own quantityMethod so auto-counts are
+      // distinguishable from manual counts in the ledger.
       const input: QuantityCreateInput = {
         sourceArtifactRevisionId: revisionId,
         quantityType: finished.tool,
@@ -732,8 +1213,11 @@ export function SheetMeasure({
         unit: finished.ledger.unit,
         method: "drawing-measured",
         sheetRef: `${selected.name} — p${pageNumber}`,
-        scale: calib.scaleRecord,
-        quantityMethod: "eos-pdf-measure/1 (browser-calibrated)",
+        scale: calib !== null ? calib.scaleRecord : undefined,
+        quantityMethod:
+          finished.provenance === "template"
+            ? `eos-symbol-template/1 (NCC ≥ ${finished.templateInfo?.threshold ?? "0.85"})`
+            : "eos-pdf-measure/1 (browser-calibrated)",
         rulesetId: rulesetId.trim(),
         rulesetVersion: rulesetVersion.trim(),
         createdBy: createdBy.trim().length > 0 ? createdBy.trim() : "local-operator",
@@ -747,8 +1231,40 @@ export function SheetMeasure({
       toast.success(
         `Quantity recorded — ${data.quantity.quantityType} ${data.quantity.value} ${data.quantity.unit} (draft, unverified)`,
       )
+
+      // -- Slice 13: persist the markup (the row's provenance geometry) --------
+      // Runs AFTER the 201; a failure is reported honestly — the ledger row
+      // is safe and never duplicated to mask a markup failure.
+      if (!isGlobalViewer) {
+        const geometry: Pt[] =
+          finished.provenance === "template"
+            ? (autoHits ?? []).flatMap((h) => [h.tl, h.br])
+            : points
+        try {
+          await createMarkup(projectId, {
+            revisionId,
+            page: pageNumber,
+            kind: finished.provenance === "template" ? "symbol-hits" : finished.tool,
+            points: geometry,
+            label: trimmedLabel.length > 0 ? trimmedLabel : undefined,
+            value: finished.ledger.value,
+            unit: finished.ledger.unit,
+            scale: calib !== null ? calib.scaleRecord : undefined,
+            quantityId: data.quantity.id,
+            createdBy: createdBy.trim().length > 0 ? createdBy.trim() : "local-operator",
+          })
+          setMarkupsNonce((n) => n + 1)
+        } catch (markupErr) {
+          toast.error(
+            `Ledger row saved, but the markup could not be persisted: ${errorMessage(markupErr, "unknown error")} — the row is safe in the ledger; the on-sheet geometry was not saved.`,
+          )
+        }
+      }
+
       setFinished(null)
       setPoints([])
+      setAutoHits(null)
+      setScanError(null)
       setLabel("")
       // 201 → refetch the ledger (nothing optimistic anywhere).
       onSaved()
@@ -760,6 +1276,21 @@ export function SheetMeasure({
     }
   }
 
+  /** Slice 13: deletes one saved markup (never its ledger row) + refetch. */
+  const removeMarkup = async (markupId: string) => {
+    if (deletingMarkupId !== null) return
+    setDeletingMarkupId(markupId)
+    try {
+      await deleteMarkup(projectId, markupId)
+      setMarkupsNonce((n) => n + 1)
+      toast.success("Markup removed — its ledger row is untouched (the ledger has its own lifecycle).")
+    } catch (err) {
+      toast.error(errorMessage(err, "Could not remove the markup"))
+    } finally {
+      setDeletingMarkupId(null)
+    }
+  }
+
   // -- a11y description for the interactive canvas -------------------------------
 
   const canvasAria = useMemo(() => {
@@ -767,15 +1298,20 @@ export function SheetMeasure({
     parts.push(`PDF sheet ${selected?.name ?? ""}, page ${pageNumber} of ${pageCount}.`)
     if (tool === "calibrate") {
       parts.push(`Calibrate tool active, ${calibPicks.length} of 2 scale picks set.`)
+    } else if (tool === "autocount") {
+      parts.push(
+        `Symbol auto-count active, ${autoPicks.length} of 2 template corners set${autoHits !== null ? `, ${autoHits.length} hits` : ""}.`,
+      )
     } else {
       parts.push(`${tool} tool active, ${points.length} points.`)
     }
     if (liveReadout !== null && "display" in liveReadout) {
       parts.push(`Running value ${liveReadout.display}.`)
     }
-    if (tool !== "calibrate") parts.push("Press Enter to finish, Escape to cancel.")
+    if (tool === "autocount") parts.push("Press Enter to scan, Escape to cancel.")
+    else if (tool !== "calibrate") parts.push("Press Enter to finish, Escape to cancel.")
     return parts.join(" ")
-  }, [selected, pageNumber, pageCount, tool, calibPicks.length, points.length, liveReadout])
+  }, [selected, pageNumber, pageCount, tool, calibPicks.length, points.length, liveReadout, autoPicks.length, autoHits])
 
   // ---------------------------------------------------------------------------
   // Render
@@ -790,7 +1326,9 @@ export function SheetMeasure({
         ? "Click along the line to measure. Double-click or press Enter to finish, Esc to cancel."
         : tool === "area"
           ? "Click the boundary corners in order (≥3 points). Double-click or press Enter to finish, Esc to cancel."
-          : "Click each item to count it. Press Enter or double-click to finish the tally, Esc to cancel."
+          : tool === "autocount"
+            ? "Click two opposite corners of a box around ONE symbol instance (include some blank margin), then Scan this page."
+            : "Click each item to count it. Press Enter or double-click to finish the tally, Esc to cancel."
 
   return (
     <section aria-label="Sheet Measure" className="flex flex-col gap-4">
@@ -802,7 +1340,11 @@ export function SheetMeasure({
           Measure real lengths, areas and counts directly on a PDF drawing sheet. Calibrate once
           against a known distance (e.g. a scale bar): every click is converted to PDF-point space
           before any math, so zooming cannot change a measured value. Saved rows land in the
-          Quantity Ledger as draft, unverified, drawing-measured records — the amber ones.
+          Quantity Ledger as draft, unverified, drawing-measured records — the amber ones — and
+          (Slice 13) their on-sheet geometry persists as emerald markups: reopening the sheet
+          shows WHERE each number came from, and the calibration restores itself. The Auto-count
+          tool scans the page for copies of a picked symbol (deterministic template matching,
+          threshold ≥ 0.85) so fixture counts don't need hand-clicking.
         </InfoNote>
       </header>
 
@@ -845,6 +1387,10 @@ export function SheetMeasure({
               type="single"
               variant="outline"
               value={tool}
+              // 390px (Slice-13 journey): five tool buttons + page/zoom controls
+              // cannot fit one row — the GROUP wraps (the project-workspace
+              // pattern; no hidden controls, touch targets keep their size).
+              className="flex-wrap"
               onValueChange={(v) => {
                 if (v !== "") changeTool(v as MeasureTool)
               }}
@@ -884,6 +1430,14 @@ export function SheetMeasure({
                 className="h-9 px-3 data-[state=on]:border-amber-300 data-[state=on]:bg-amber-100 data-[state=on]:text-amber-900 dark:data-[state=on]:border-amber-700 dark:data-[state=on]:bg-amber-900 dark:data-[state=on]:text-amber-200"
               >
                 <MousePointerClick className="size-4" aria-hidden /> Count
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="autocount"
+                aria-label="Auto-count tool: pick one symbol instance, scan the page for copies"
+                title="Symbol auto-count — pick a box around ONE instance, scan the page (no calibration needed: a count is scale-free)"
+                className="h-9 px-3 data-[state=on]:border-emerald-300 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-900 dark:data-[state=on]:border-emerald-700 dark:data-[state=on]:bg-emerald-900 dark:data-[state=on]:text-emerald-200"
+              >
+                <ScanSearch className="size-4" aria-hidden /> Auto-count
               </ToggleGroupItem>
             </ToggleGroup>
 
@@ -1081,6 +1635,73 @@ export function SheetMeasure({
             </form>
           ) : null}
 
+          {/* -- Auto-count control panel (Slice 13) ---------------------------- */}
+          {tool === "autocount" ? (
+            <div className="flex flex-col gap-3 rounded-lg border border-emerald-300 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="w-28">
+                  <Label htmlFor="sm-auto-threshold" className="text-xs text-emerald-900 dark:text-emerald-200">
+                    NCC threshold
+                  </Label>
+                  <Input
+                    id="sm-auto-threshold"
+                    type="number"
+                    step="0.01"
+                    min="0.5"
+                    max="0.99"
+                    inputMode="decimal"
+                    value={autoThreshold}
+                    disabled={scanning || finished !== null}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      if (Number.isFinite(v)) setAutoThreshold(v)
+                    }}
+                    aria-label="Minimum NCC correlation score for a symbol match (0.5 to 0.99)"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  className="h-10"
+                  disabled={scanning || autoPicks.length !== 2 || finished !== null}
+                  onClick={() => void runAutoCount()}
+                >
+                  <ScanSearch className="size-4" aria-hidden />
+                  {scanning ? "Scanning…" : autoHits !== null ? "Rescan page" : "Scan this page"}
+                </Button>
+                {autoHits !== null && autoHits.length > 0 && finished === null ? (
+                  <Button type="button" variant="outline" className="h-10" onClick={acceptAutoHits}>
+                    Accept {autoHits.length} hit{autoHits.length === 1 ? "" : "s"} as count
+                  </Button>
+                ) : null}
+                {autoPicks.length > 0 || autoHits !== null ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-10 text-muted-foreground"
+                    disabled={scanning || finished !== null}
+                    onClick={() => clearAuto("Auto-count cleared — pick a new template box to scan again.")}
+                  >
+                    Clear
+                  </Button>
+                ) : null}
+              </div>
+              <p className="text-xs text-emerald-900 dark:text-emerald-200">
+                {autoPicks.length < 2
+                  ? `Template box: ${autoPicks.length} of 2 corners picked — draw it around ONE symbol instance, including a little blank margin.`
+                  : autoHits === null
+                    ? "Template box ready — Scan renders the page at a fixed 2× scale (independent of your zoom) and matches every instance above the threshold."
+                    : autoHits.length === 0
+                      ? "Scan complete — no matches. Check the message below the toolbar."
+                      : `Scan complete — ${autoHits.length} instance${autoHits.length === 1 ? "" : "s"} boxed in emerald. Review them on the sheet, then Accept (or adjust the threshold and Rescan).`}
+              </p>
+              {scanError !== null ? (
+                <p role="alert" className="text-xs font-medium text-emerald-900 dark:text-emerald-200">
+                  {scanError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* -- Live readout ---------------------------------------------------- */}
           <div
             role="status"
@@ -1160,8 +1781,78 @@ export function SheetMeasure({
             </div>
           )}
 
+          {/* -- Saved markups on this sheet (Slice 13) ------------------------- */}
+          {revisionId !== null ? (
+            <div className="flex flex-col gap-2 rounded-lg border p-3 sm:p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-sm font-semibold tracking-tight">Saved markups on this sheet</h4>
+                <Badge variant="outline" className="font-mono">
+                  {markups.length} total
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  the emerald overlay — every drawing-measured number's on-sheet evidence; deleting a
+                  markup never touches its ledger row
+                </span>
+              </div>
+              {markupsPhase === "loading" ? (
+                <div className="rounded-lg border p-4">
+                  <RowSkeleton cols={3} />
+                </div>
+              ) : markupsPhase === "error" ? (
+                <ErrorState message={markupsError ?? "Could not load the saved markups"} onRetry={() => setMarkupsNonce((n) => n + 1)} />
+              ) : markups.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No markups yet on this sheet — calibrate or save a measurement and its geometry
+                  (plus the calibration record) persists here for every reviewer.
+                </p>
+              ) : (
+                <ul className="eos-scroll max-h-96 divide-y overflow-y-auto rounded-lg border" aria-label="Saved markups list">
+                  {markups.map((m) => (
+                    <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
+                      <Badge
+                        className={
+                          m.kind === "calibration"
+                            ? "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                            : "border-emerald-200 bg-transparent text-emerald-700 dark:border-emerald-800 dark:text-emerald-300"
+                        }
+                        title={m.scale ?? undefined}
+                      >
+                        {m.kind}
+                      </Badge>
+                      <span className="font-mono text-xs text-muted-foreground">p{m.page}</span>
+                      <span className="min-w-0 max-w-56 truncate text-sm" title={m.label ?? undefined}>
+                        {m.label ?? <span className="text-muted-foreground">unlabeled</span>}
+                      </span>
+                      <span className="font-mono text-sm tabular-nums">
+                        {trim3(m.value)} {m.unit}
+                      </span>
+                      {m.quantityId !== null ? (
+                        <Badge variant="outline" className="text-xs" title={`ledger row ${m.quantityId}`}>
+                          → ledger
+                        </Badge>
+                      ) : null}
+                      <span className="ml-auto text-xs text-muted-foreground" title={m.createdAt}>
+                        {m.createdBy}
+                      </span>
+                      <GuardedButton
+                        type="button"
+                        variant="ghost"
+                        className="size-8 p-0 text-muted-foreground hover:text-destructive"
+                        disabled={deletingMarkupId !== null}
+                        aria-label={`Delete ${m.kind} markup on page ${m.page}`}
+                        onClick={() => void removeMarkup(m.id)}
+                      >
+                        <Trash2 className="size-4" aria-hidden />
+                      </GuardedButton>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
+
           {/* -- Save panel (finished measurement) ------------------------------- */}
-          {finished !== null && calib !== null && selected !== null ? (
+          {finished !== null && selected !== null ? (
             <form
               className="flex flex-col gap-3 rounded-lg border p-3 sm:p-4"
               onSubmit={(e) => {
@@ -1177,12 +1868,31 @@ export function SheetMeasure({
                 <span className="font-mono text-sm tabular-nums" title={`raw measured value: ${finished.rawMm}`}>
                   {finished.ledger.display}
                 </span>
+                {finished.provenance === "template" ? (
+                  <Badge
+                    className="border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                    title="Counted by the deterministic NCC template scan, not by hand"
+                  >
+                    symbol auto-count · NCC ≥ {finished.templateInfo?.threshold ?? "0.85"}
+                  </Badge>
+                ) : null}
               </div>
               <InfoNote>
                 Posts a draft, unverified ledger row pinned to revision r{selected.latestRevision?.revNumber} of{" "}
                 {selected.name} — sheet <span className="font-mono">{`${selected.name} — p${pageNumber}`}</span>, scale{" "}
-                <span className="font-mono">{calib.scaleRecord}</span>. The measured value is read-only: it is the
-                honest number from the canvas, never re-typed.
+                <span className="font-mono">
+                  {calib !== null
+                    ? calib.scaleRecord
+                    : "none — a symbol count is scale-free, so none was needed"}
+                </span>. The measured value is read-only: it is the honest number from the
+                canvas, never re-typed. {finished.provenance === "template" ? "Every accepted hit box persists as a symbol-hits markup — the count's evidence stays on the sheet. " : "Its on-sheet geometry persists as an emerald markup. "}
+                The quantityMethod will read{" "}
+                <span className="font-mono">
+                  {finished.provenance === "template"
+                    ? `eos-symbol-template/1 (NCC ≥ ${finished.templateInfo?.threshold ?? "0.85"})`
+                    : "eos-pdf-measure/1 (browser-calibrated)"}
+                </span>
+                .
               </InfoNote>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">

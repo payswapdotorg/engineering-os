@@ -7,7 +7,7 @@
 # flow via a local second/third-jar helper (_iso_signin; password demo1234 —
 # src/lib/demo-accounts.ts).
 #
-# Against the live dev server it verifies (49 PASS expected):
+# Against the live dev server it verifies (53 PASS expected):
 #   fixture  demo roster provisioned via POST /api/auth/demo-accounts
 #           (idempotent: 201 created / 200 already present — never a 4xx);
 #           both personas signed in via the real credentials flow; the three
@@ -26,6 +26,9 @@
 #   AC-I3   read isolation: non-member 404s (never 403) on project /
 #           quantities / artifact / revision-download, all with the pinned
 #           not_found envelopes; member reads stay 200 with byte round-trip
+#   AC-I3b  (Slice 13) the SAME isolation on the sheet-markups seam:
+#           non-member GET → the project 404; global-viewer POST → the
+#           wrapper's uniform 403 (AC-I8 layering); owner read → 200 + geometry
 #   AC-I4   events: Zara's global feed carries ONLY Alpha (+ null-projectId
 #           system) events, non-vacuously; ?projectId=Beta → 404 for Zara,
 #           200 for Kwame; the hidden Beta events provably exist (Kwame sees
@@ -367,6 +370,44 @@ AUTH_ARGS="$KWAME_AUTH"
 http GET "/api/revisions/$BETA_SVG_REV/download"
 assert_eq "AC-I3: Kwame downloads the SAME revision → 200 with the exact uploaded SVG bytes (member read round-trip)" \
   "200|<?xml" "$STATUS|$(head -c 5 "$WORK/http.body")"
+
+# ===========================================================================
+# AC-I3b — Slice 13: the SAME isolation on the sheet-markups seam (the
+# provenance-geometry API). Fixture: Kwame (Beta owner) persists one markup
+# on Beta's drawing revision through the REAL API, then the two viewers'
+# perspectives are pinned. Layering matches AC-I8: Zara is a GLOBAL viewer,
+# so her write POST hits the wrapper's uniform 403 first (documented
+# layering — identical for hidden/missing, no leak).
+# ===========================================================================
+AUTH_ARGS="$KWAME_AUTH"
+cat > "$WORK/iso-beta-markup.json" <<EOF
+{
+  "revisionId": "$BETA_SVG_REV",
+  "page": 1,
+  "kind": "length",
+  "points": [ { "x": 10, "y": 10 }, { "x": 90, "y": 10 } ],
+  "label": "iso probe span",
+  "value": 2.5,
+  "unit": "m",
+  "createdBy": "kwame-demo"
+}
+EOF
+jpost "/api/projects/$BETA_ID/markups" "$WORK/iso-beta-markup.json"
+ISO_MKP_ID=$(j "$BODY" '.data.markup.id')
+assert_eq "AC-I3b: Kwame (Beta owner) persists a markup on Beta's revision → 201 (the isolation fixture row)" \
+  "201|length|2.5|m" "$STATUS|$(j "$BODY" '.data.markup.kind')|$(j "$BODY" '.data.markup.value')|$(j "$BODY" '.data.markup.unit')"
+AUTH_ARGS="$ZARA_AUTH"
+http GET "/api/projects/$BETA_ID/markups"
+assert_eq "AC-I3b: Zara (non-member) GETs Beta markups → the SAME project 404 envelope (hidden ≡ missing; not one geometry point leaks)" \
+  "404|not_found|Project not found" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+http POST "/api/projects/$BETA_ID/markups" -H 'Content-Type: application/json' --data-binary @"$WORK/iso-beta-markup.json"
+assert_eq "AC-I3b: Zara (global viewer) POSTs a Beta markup → the wrapper's uniform global-viewer 403 (documented layering, AC-I8's rule)" \
+  "403|forbidden|viewer role is read-only" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+AUTH_ARGS="$KWAME_AUTH"
+http GET "/api/projects/$BETA_ID/markups?revisionId=$BETA_SVG_REV"
+assert_eq "AC-I3b: Kwame reads Beta markups back → 200 with the row and parsed geometry (member read unaffected)" \
+  "200|1|$ISO_MKP_ID|90" \
+  "$STATUS|$(j "$BODY" '.data.markups | length')|$(j "$BODY" '.data.markups[0].id')|$(j "$BODY" '.data.markups[0].points[1].x')"
 
 # ===========================================================================
 # AC-I4 — events feed isolation (Zara's feed BEFORE her revoke — order matters)

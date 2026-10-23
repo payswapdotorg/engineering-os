@@ -321,6 +321,59 @@ export interface QuantityCreateInput {
   createdBy: string
 }
 
+// ---------------------------------------------------------------------------
+// Persistent sheet markups (Slice 13, limitation #5) — the provenance
+// geometry of drawing-measured quantities + durable calibration records.
+// ---------------------------------------------------------------------------
+
+/** GET /api/projects/[id]/markups row (points parsed by the server). */
+export interface SheetMarkupRow {
+  id: string
+  revisionId: string
+  page: number
+  kind: "length" | "area" | "count" | "symbol-hits" | "calibration"
+  points: Array<{ x: number; y: number }>
+  label: string | null
+  value: number
+  unit: string
+  scale: string | null
+  quantityId: string | null
+  createdBy: string
+  createdAt: string
+}
+
+/** POST /api/projects/[id]/markups body (validated server-side by
+ *  src/core/markup.ts — per-kind point counts, closed unit vocabulary,
+ *  strict value/geometry consistency). */
+export interface SheetMarkupCreateInput {
+  revisionId: string
+  page: number
+  kind: SheetMarkupRow["kind"]
+  points: Array<{ x: number; y: number }>
+  label?: string
+  value: number
+  unit: string
+  scale?: string
+  quantityId?: string
+  createdBy: string
+}
+
+export async function listMarkups(projectId: string, revisionId?: string, page?: number) {
+  const params = new URLSearchParams()
+  if (revisionId !== undefined) params.set("revisionId", revisionId)
+  if (page !== undefined) params.set("page", String(page))
+  const query = params.size > 0 ? `?${params.toString()}` : ""
+  return apiGet<{ markups: SheetMarkupRow[] }>(`/api/projects/${projectId}/markups${query}`)
+}
+
+export async function createMarkup(projectId: string, input: SheetMarkupCreateInput) {
+  return apiJson<{ markup: SheetMarkupRow }>(`/api/projects/${projectId}/markups`, "POST", input)
+}
+
+export async function deleteMarkup(projectId: string, markupId: string) {
+  return apiJson<{ removed: string }>(`/api/projects/${projectId}/markups/${markupId}`, "DELETE")
+}
+
 export interface AssemblyComponentRow {
   id: string
   kind: EstimateComponentKind

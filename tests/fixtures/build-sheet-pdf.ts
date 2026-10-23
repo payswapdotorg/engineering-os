@@ -22,20 +22,28 @@
  *  Re-running the generator reproduces the committed fixture byte-for-byte;
  *  the lane verification re-checks this with sha256.
  *
- * PINNED GEOMETRY (contract §2.2 — "MUST be exact"):
- *  - one page, MediaBox `0 0 1191 842` (A3 landscape, 420 x 297 mm paper;
- *    exact 1190.55 x 841.89 rounded to whole points per the contract);
- *  - stroke-only ops: border rectangle; title text "EOS DEMO SHEET A-102 —
- *    FLOOR PLAN @ 1:100" (Helvetica, WinAnsiEncoding; the em dash is the
- *    WinAnsi byte 0x97, written as the octal escape \227);
- *  - SCALE BAR: one horizontal line spanning exactly 100 paper-mm
- *    (= 10.000 m real @ 1:100) with end ticks + a mid tick and 0 / 5 / 10 m
- *    tick labels;
+ * PINNED GEOMETRY (contract §2.2 — "MUST be exact"; Slice 13 addendum for
+ * page 2 marked [S13]):
+ *  - TWO pages, both MediaBox `0 0 1191 842` (A3 landscape, 420 x 297 mm
+ *    paper; exact 1190.55 x 841.89 rounded to whole points per the contract);
+ *  - page 1 (unchanged from Slice 8): stroke-only ops: border rectangle;
+ *    title text "EOS DEMO SHEET A-102 — FLOOR PLAN @ 1:100" (Helvetica,
+ *    WinAnsiEncoding; the em dash is the WinAnsi byte 0x97, written as the
+ *    octal escape \227);
+ *  - SCALE BAR (BOTH pages): one horizontal line spanning exactly 100
+ *    paper-mm (= 10.000 m real @ 1:100) with end ticks + a mid tick and
+ *    0 / 5 / 10 m tick labels — page 2 is self-contained for calibration;
  *  - ROOM outline rectangle 80 x 50 paper-mm (→ real 8.000 x 5.000 m:
- *    perimeter 26.000 m, area 40.000 m² @ 1:100);
+ *    perimeter 26.000 m, area 40.000 m² @ 1:100) — page 1;
  *  - INTERIOR WALL segment 30 paper-mm (→ 3.000 m real), anchored on the
  *    room's bottom edge. Lines only — no arcs; every drawn value is
- *    hand-verifiable.
+ *    hand-verifiable;
+ *  - [S13] page 2 "LIGHTING LAYOUT": SIX identical socket symbols — a
+ *    10 x 10 pt stroked outer square with a concentric 4 x 4 pt filled
+ *    inner square — at pinned centers (205,505) (325,505) (445,505)
+ *    (205,355) (325,355) (445,355), the auto-count fixture (symbol-hits
+ *    takeoff, limitation #5). Pure re/f ops: deterministic, hand-verifiable,
+ *    and each instance rasterizes identically.
  *
  * EXACT vs DRAWN precision (documented honestly): the named constants below
  * are the FULL-PRECISION doubles of paper-mm x 72/25.4, because the pinned
@@ -115,6 +123,29 @@ const ROOM_Y0_PT = 400
 /** Interior wall rises from the room's bottom edge, 40 paper-mm in from the left. */
 const WALL_X_PT = ROOM_X0_PT + 40 * MM_PT // 500 + 113.38582677165354 = 613.3858267716535
 
+// ---------------------------------------------------------------------------
+// [S13] Page 2 — the symbol field (auto-count fixture, limitation #5)
+// ---------------------------------------------------------------------------
+
+/** Socket symbol: outer square 10 pt (stroked), concentric inner square 4 pt
+ *  (filled) — the SAME double-square topology the symbol-match unit tests
+ *  pin. Centers are pinned; squares are derived from them. */
+const SYMBOL_OUTER_PT = 10
+const SYMBOL_INNER_PT = 4
+/** Pinned symbol centers (PDF pt, y-up): 3 x 2 grid, 120 pt pitch in x,
+ *  150 pt in y — clear of the border, title, and scale bar. */
+const SYMBOL_CENTERS: [number, number][] = [
+  [205, 505],
+  [325, 505],
+  [445, 505],
+  [205, 355],
+  [325, 355],
+  [445, 355],
+]
+
+/** Page-2 title (fits the 14 pt Helvetica at x=40, y=790). */
+const P2_TITLE = "EOS DEMO SHEET A-102 P2 \\227 LIGHTING LAYOUT @ 1:100"
+
 /**
  * The full-precision truth about this sheet, exported so harnesses (and the
  * TL's journey) measure against the same numbers the stream is drawn from.
@@ -138,6 +169,25 @@ export const SHEET_GEOMETRY: SheetGeometry = {
     b: { x: WALL_X_PT, y: ROOM_Y0_PT + WALL_LEN_PT },
   },
   paperMm: { scaleBar: 100, roomWidth: 80, roomHeight: 50, wall: 30, realScale: 100 },
+}
+
+/** [S13] The page-2 symbol field's pinned truth (auto-count fixture). */
+export interface SheetSymbolField {
+  /** symbol CENTERS in PDF-page space, draw order (the fixture's 6 instances) */
+  centers: SheetPt[]
+  /** outer stroked square side (pt) */
+  outerPt: number
+  /** inner filled square side (pt) */
+  innerPt: number
+  /** the page the field lives on (2-based 1-indexed: page 2) */
+  page: number
+}
+
+export const SHEET_SYMBOLS: SheetSymbolField = {
+  centers: SYMBOL_CENTERS.map(([x, y]) => ({ x, y })),
+  outerPt: SYMBOL_OUTER_PT,
+  innerPt: SYMBOL_INNER_PT,
+  page: 2,
 }
 
 // ---------------------------------------------------------------------------
@@ -184,16 +234,21 @@ function ascii(s: string): Uint8Array {
 // Content stream — stroke-only ops + text (the pinned drawing)
 // ---------------------------------------------------------------------------
 
-/** The page content stream: line/path ops and text showing, ASCII only. */
-function buildContentStream(): string {
-  const barX1 = BAR_X0_PT + BAR_LEN_PT // 343.46456692913387 → prints 343.4646
-  const midTickX = BAR_X0_PT + BAR_LEN_PT / 2 // 201.73228346456693 → prints 201.7323
-  const lines: string[] = [
-    "% EOS demo sheet A-102 - floor plan @ 1:100 (pinned geometry, contract 2.2)",
+/** Shared sheet furniture. Split so page 1 can reproduce the Slice-8 op
+ *  order BYTE-EXACTLY (border → title → scale bar): border first, then the
+ *  scale bar + tick labels (BOTH pages — page 2 is self-contained for
+ *  calibration). */
+function borderOps(): string[] {
+  return [
     "% border rectangle (paper frame): 24 24 1143 794",
     `${fmt(BORDER_X0_PT)} ${fmt(BORDER_Y0_PT)} ${fmt(PAGE_W_PT - 2 * BORDER_X0_PT)} ${fmt(PAGE_H_PT - 2 * BORDER_Y0_PT)} re S`,
-    "% title: Helvetica 14, WinAnsiEncoding (\\227 = em dash U+2014, WinAnsi 0x97)",
-    `BT /F1 14 Tf ${fmt(TITLE_X_PT)} ${fmt(TITLE_Y_PT)} Td (EOS DEMO SHEET A-102 \\227 FLOOR PLAN @ 1:100) Tj ET`,
+  ]
+}
+
+function scaleBarOps(): string[] {
+  const barX1 = BAR_X0_PT + BAR_LEN_PT // 343.46456692913387 → prints 343.4646
+  const midTickX = BAR_X0_PT + BAR_LEN_PT / 2 // 201.73228346456693 → prints 201.7323
+  return [
     "% scale bar: 100 paper-mm = 10.000 m real @ 1:100 (drawn span 343.4646 - 60 = 283.4646 pt)",
     `${fmt(BAR_X0_PT)} ${fmt(BAR_Y_PT)} m ${fmt(barX1)} ${fmt(BAR_Y_PT)} l S`,
     "% end ticks (12 pt tall) and mid tick at 5 m",
@@ -204,6 +259,17 @@ function buildContentStream(): string {
     `BT /F1 8 Tf ${fmt(LABEL_0_X_PT)} ${fmt(LABEL_Y_PT)} Td (0) Tj ET`,
     `BT /F1 8 Tf ${fmt(LABEL_5_X_PT)} ${fmt(LABEL_Y_PT)} Td (5) Tj ET`,
     `BT /F1 8 Tf ${fmt(LABEL_10_X_PT)} ${fmt(LABEL_Y_PT)} Td (10 m) Tj ET`,
+  ]
+}
+
+/** The page-1 content stream: furniture + title + room + wall (Slice 8, unchanged). */
+function buildContentStream(): string {
+  const lines: string[] = [
+    "% EOS demo sheet A-102 - floor plan @ 1:100 (pinned geometry, contract 2.2)",
+    ...borderOps(),
+    "% title: Helvetica 14, WinAnsiEncoding (\\227 = em dash U+2014, WinAnsi 0x97)",
+    `BT /F1 14 Tf ${fmt(TITLE_X_PT)} ${fmt(TITLE_Y_PT)} Td (EOS DEMO SHEET A-102 \\227 FLOOR PLAN @ 1:100) Tj ET`,
+    ...scaleBarOps(),
     "% room outline: 80 x 50 paper-mm -> 8.000 x 5.000 m real @ 1:100",
     "% (perimeter 26.000 m, area 40.000 m2 at 1:100)",
     `${fmt(ROOM_X0_PT)} ${fmt(ROOM_Y0_PT)} ${fmt(ROOM_W_PT)} ${fmt(ROOM_H_PT)} re S`,
@@ -213,35 +279,61 @@ function buildContentStream(): string {
   return lines.join("\n")
 }
 
+/** [S13] The page-2 content stream: furniture + P2 title + the 6 socket
+ *  symbols (auto-count fixture). Each symbol: 10 pt outer square `re S`,
+ *  concentric 4 pt inner square `re f`, derived from the pinned centers. */
+function buildSymbolPageContentStream(): string {
+  const lines: string[] = [
+    "% EOS demo sheet A-102 p2 - lighting layout @ 1:100 (Slice 13 auto-count fixture)",
+    ...borderOps(),
+    `BT /F1 14 Tf ${fmt(TITLE_X_PT)} ${fmt(TITLE_Y_PT)} Td (${P2_TITLE}) Tj ET`,
+    ...scaleBarOps(),
+    "% six identical socket symbols: 10 pt stroked outer square + 4 pt filled inner",
+    "% square, at the pinned centers (205/325/445 x 505/355) - the auto-count fixture",
+  ]
+  for (const [cx, cy] of SYMBOL_CENTERS) {
+    lines.push(
+      `% socket symbol at (${fmt(cx)}, ${fmt(cy)})`,
+      `${fmt(cx - SYMBOL_OUTER_PT / 2)} ${fmt(cy - SYMBOL_OUTER_PT / 2)} ${fmt(SYMBOL_OUTER_PT)} ${fmt(SYMBOL_OUTER_PT)} re S`,
+      `${fmt(cx - SYMBOL_INNER_PT / 2)} ${fmt(cy - SYMBOL_INNER_PT / 2)} ${fmt(SYMBOL_INNER_PT)} ${fmt(SYMBOL_INNER_PT)} re f`,
+    )
+  }
+  return lines.join("\n")
+}
+
 // ---------------------------------------------------------------------------
 // PDF 1.4 assembly — objects, xref, trailer (offsets counted in bytes)
 // ---------------------------------------------------------------------------
 
 /**
  * Builds the committed fixture `tests/fixtures/sheet-a102-plan.pdf` as a real,
- * valid, vector PDF 1.4 that pdf.js parses and renders: correct xref offsets,
- * an exact /Length on the uncompressed content stream, /Resources with a
- * /Font (Helvetica, WinAnsiEncoding) for the text ops.
+ * valid, TWO-PAGE vector PDF 1.4 that pdf.js parses and renders: correct xref
+ * offsets, exact /Length on the uncompressed content streams, /Resources with
+ * a /Font (Helvetica, WinAnsiEncoding) for the text ops.
  *
  * Object layout (fixed order, fixed numbering — part of the determinism):
  *   1 0 obj  Catalog          → /Pages 2 0 R
- *   2 0 obj  Pages            → /Kids [3 0 R] /Count 1
- *   3 0 obj  Page             → /MediaBox [0 0 1191 842] /Resources /Contents
- *   4 0 obj  Content stream   → /Length <exact byte count> (uncompressed)
+ *   2 0 obj  Pages            → /Kids [3 0 R 6 0 R] /Count 2
+ *   3 0 obj  Page 1           → /MediaBox [0 0 1191 842] /Resources /Contents
+ *   4 0 obj  Content stream 1 → /Length <exact byte count> (uncompressed)
  *   5 0 obj  Font             → Type1 Helvetica WinAnsiEncoding
+ *   6 0 obj  Page 2           → /MediaBox [0 0 1191 842] /Resources /Contents
+ *   7 0 obj  Content stream 2 → /Length <exact byte count> (uncompressed)
  * No /Info dictionary on purpose — it would only invite timestamps; the file
  * carries no date, so regeneration is byte-identical.
  */
 export function buildSheetPdf(): Uint8Array {
-  const content = buildContentStream()
-  const contentBytes = ascii(content)
+  const content1 = ascii(buildContentStream())
+  const content2 = ascii(buildSymbolPageContentStream())
 
   const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 2 >>",
     `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmt(PAGE_W_PT)} ${fmt(PAGE_H_PT)}] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>`,
-    `<< /Length ${contentBytes.length} >>\nstream\n${content}\nendstream`,
+    `<< /Length ${content1.length} >>\nstream\n${buildContentStream()}\nendstream`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmt(PAGE_W_PT)} ${fmt(PAGE_H_PT)}] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>`,
+    `<< /Length ${content2.length} >>\nstream\n${buildSymbolPageContentStream()}\nendstream`,
   ]
 
   const chunks: Uint8Array[] = []

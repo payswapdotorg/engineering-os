@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # scripts/e2e-takeoff.sh — Engineering OS golden-path regression (Phase-3 record:
 # 26 PASS + the Phase-2 step-11 mesh derive → 27 PASS; Slice-8 contract §1
-# download-route round-trip +4 → 31 PASS). Rebuilt from the
-# acceptance-catalogue evidence (AC-P3-01…08) + implementation-status records.
+# download-route round-trip +4 → 31 PASS; Slice-13 persistent sheet markups
+# API +11 → 42 PASS). Rebuilt from the acceptance-catalogue evidence
+# (AC-P3-01…08) + implementation-status records.
 #
 # Rebuilds the demo dataset through the REAL API against the live dev server:
 # project "Harbour View Extension", 4 fixtures, 14 ledger rows, 1 approved GHS
@@ -197,6 +198,136 @@ jpost "/api/projects/$PID/quantities" "$WORK/qty-nosheet.json"
 assert_eq "missing sheetRef refused 422 with the exact core zod message (verbatim)" \
   'invalid QuantityRecord: sheetRef: drawing-measured quantities require a non-empty sheetRef (drawing sheet / measurement region)' \
   "$(j "$BODY" '.error.message')"
+
+# ===========================================================================
+# 6b-13. Slice 13 — persistent sheet markups (limitation #5): the provenance
+# geometry of drawing-measured rows, behind the same wrapper as the ledger.
+# ===========================================================================
+cat > "$WORK/mkp-length.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "length",
+  "points": [ { "x": 60, "y": 120 }, { "x": 343.4646, "y": 120 } ],
+  "label": "scale bar span",
+  "value": 8.0,
+  "unit": "m",
+  "scale": "calibrated 2-pt, 10 m ↔ 283.46 pt — 8.80 mm/pt",
+  "quantityId": "$Q1",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/mkp-length.json"
+MKP_ID=$(j "$BODY" '.data.markup.id')
+assert_eq "length markup persisted (201) linked to its ledger row, geometry parsed back" \
+  "201|length|8|m|$Q1|2|local-operator" \
+  "$STATUS|$(j "$BODY" '.data.markup.kind')|$(j "$BODY" '.data.markup.value')|$(j "$BODY" '.data.markup.unit')|$(j "$BODY" '.data.markup.quantityId')|$(j "$BODY" '.data.markup.points | length')|$(j "$BODY" '.data.markup.createdBy')"
+
+http GET "/api/events?projectId=$PID&limit=200"
+assert_eq "markup.created audit event recorded in the project feed (mutations are auditable)" \
+  "1" "$(j "$BODY" '[.data.events[] | select(.action == "markup.created")] | length')"
+
+http GET "/api/projects/$PID/markups?revisionId=$SVG_REV"
+assert_eq "GET markups by revision: the row is listed with its geometry and the ledger link" \
+  "200|1|$MKP_ID|343.4646|1" \
+  "$STATUS|$(j "$BODY" '.data.markups | length')|$(j "$BODY" '.data.markups[0].id')|$(j "$BODY" '.data.markups[0].points[1].x')|$(j "$BODY" '[.data.markups[] | select(.quantityId != null)] | length')"
+
+cat > "$WORK/mkp-badkind.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "volume",
+  "points": [ { "x": 1, "y": 1 }, { "x": 2, "y": 2 } ],
+  "value": 1,
+  "unit": "m",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/mkp-badkind.json"
+assert_eq "unknown kind refused 422 with the closed vocabulary in the message (verbatim)" \
+  'kind: kind must be one of: length, area, count, symbol-hits, calibration' \
+  "$(j "$BODY" '.error.message')"
+
+cat > "$WORK/mkp-foreignrev.json" <<EOF
+{
+  "revisionId": "rev_does_not_exist",
+  "page": 1,
+  "kind": "length",
+  "points": [ { "x": 1, "y": 1 }, { "x": 2, "y": 2 } ],
+  "value": 1,
+  "unit": "m",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/mkp-foreignrev.json"
+assert_eq "markup on a foreign/unknown revision refused 422 (ledger-row rule, verbatim)" \
+  'revisionId: must reference an artifact revision of this project (got rev_does_not_exist)' \
+  "$(j "$BODY" '.error.message')"
+
+cat > "$WORK/mkp-foreignqty.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "length",
+  "points": [ { "x": 1, "y": 1 }, { "x": 2, "y": 2 } ],
+  "value": 1,
+  "unit": "m",
+  "quantityId": "qty_does_not_exist",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/mkp-foreignqty.json"
+assert_eq "markup with a foreign quantityId refused 422 — a dangling ledger link is a lie, never accepted" \
+  'quantityId: must reference a quantity record of this project (got qty_does_not_exist)' \
+  "$(j "$BODY" '.error.message')"
+
+cat > "$WORK/mkp-countbad.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "count",
+  "points": [ { "x": 1, "y": 1 }, { "x": 2, "y": 2 } ],
+  "value": 3,
+  "unit": "each",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/mkp-countbad.json"
+assert_eq "count markup value/geometry mismatch refused 422 (stored counts can never disagree with their points)" \
+  "invalid SheetMarkup: a count markup's value must equal its clicked points (2), got 3" \
+  "$(j "$BODY" '.error.message')"
+
+cat > "$WORK/mkp-calib.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "calibration",
+  "points": [ { "x": 60, "y": 120 }, { "x": 343.4646, "y": 120 } ],
+  "label": "scale bar 10 m",
+  "value": 8.8,
+  "unit": "mm/pt",
+  "scale": "calibrated 2-pt, 10 m ↔ 283.46 pt — 8.80 mm/pt",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/mkp-calib.json"
+assert_eq "calibration markup persisted (201, unit mm/pt, NEVER carries a quantityId)" \
+  "201|calibration|8.8|mm/pt|null" \
+  "$STATUS|$(j "$BODY" '.data.markup.kind')|$(j "$BODY" '.data.markup.value')|$(j "$BODY" '.data.markup.unit')|$(j "$BODY" '.data.markup.quantityId')"
+
+UNAUTH_MKP_STATUS=$(curl -sS -m 30 -o "$WORK/mkp-unauth.body" -w '%{http_code}' "$BASE/api/projects/$PID/markups") || UNAUTH_MKP_STATUS="000"
+UNAUTH_MKP_BODY=$(cat "$WORK/mkp-unauth.body")
+assert_eq "unauthenticated markups GET → 401 envelope verbatim (session required, wrapper gate)" \
+  "401|unauthorized|sign in required" \
+  "$UNAUTH_MKP_STATUS|$(j "$UNAUTH_MKP_BODY" '.error.code')|$(j "$UNAUTH_MKP_BODY" '.error.message')"
+
+http DELETE "/api/projects/$PID/markups/$MKP_ID"
+assert_eq "markup deleted → 200 {removed: id} (geometry only — the ledger row keeps its own lifecycle)" \
+  "200|$MKP_ID" "$STATUS|$(j "$BODY" '.data.removed')"
+http GET "/api/projects/$PID/markups?revisionId=$SVG_REV"
+assert_eq "after the delete, only the calibration markup remains (1 row, no quantityId)" \
+  "200|1|calibration|null" \
+  "$STATUS|$(j "$BODY" '.data.markups | length')|$(j "$BODY" '.data.markups[0].kind')|$(j "$BODY" '.data.markups[0].quantityId')"
 
 # ===========================================================================
 # 8-11. AC-P3-02 model-derived quantities (REAL adapters) + analytic hand-checks
