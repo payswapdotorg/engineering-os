@@ -13,6 +13,17 @@ export const dynamic = "force-dynamic"
 // PUBLIC (contract §1.3): the health endpoint stays reachable without a
 // session — watchdogs, CI and the first-run frontend poll it.
 
+/** Live datasource provider, derived from the DATABASE_URL Prisma itself
+ * resolves (the dev-server launcher exports .env at exec time — Phase-6
+ * rationale). The footer shows this string, so it must report the backend
+ * the queries are ACTUALLY hitting, never a hardcoded claim. */
+function liveDbProvider(): string {
+  const url = process.env.DATABASE_URL ?? ""
+  if (url.startsWith("file:")) return "sqlite (dev)"
+  if (/^postgres(ql)?:\/\//.test(url)) return "postgresql"
+  return url ? "unknown" : "unset"
+}
+
 /** Version from package.json (fs read) with an honest fallback. */
 async function readVersion(): Promise<string> {
   try {
@@ -38,7 +49,7 @@ export const GET = handler(
       version,
       storageMode: "local content-addressed store",
       storageRoot: getStorageRoot(),
-      dbProvider: "sqlite (dev)",
+      dbProvider: liveDbProvider(),
       engines: { total: engineRegistry.length, installed },
       counts: { projects, artifacts, revisions },
     })

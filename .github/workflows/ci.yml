@@ -256,14 +256,114 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # Slice 12 (ADR-0003; closes known-limitation #2's open half): the product
+  # RUNTIME on a REAL PostgreSQL. The db-portability job below proves the
+  # schema/deployment path; this job proves the other half — dev-server
+  # sessions, NextAuth, the real engines and ALL SEVEN e2e suites against a
+  # live postgres:16 service, through scripts/postgres-runtime-drill.sh —
+  # the SAME artifact as the local drill (parity by shared script, not by
+  # paraphrase). The script's provider gate refuses to run the battery
+  # unless /api/status honestly reports dbProvider "postgresql", so a
+  # sqlite-backed server can never produce false drill PASSes. p7's live-LLM
+  # Part B self-skips on runners (engine-harness skip precedent) — the suite
+  # enforces its own Part-A floor, so no count is pinned here.
+  postgres-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      # Job-level: `prisma validate` (inside the drill script) must resolve
+      # env("DATABASE_URL"); CI has no .env file.
+      DATABASE_URL: postgresql://eos:eos@localhost:5432/eos_ci
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: eos
+          POSTGRES_PASSWORD: eos
+          POSTGRES_DB: eos_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Same venv cache as the e2e job (shared key: the pin file hash).
+      - name: Engine venv cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/eos-engines
+          key: eos-engines-venv-${{ runner.os }}-${{ hashFiles('tests/validation/engines-requirements.txt') }}-v1
+
+      - name: Install engineering engines (the harness-validated set)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy' 2>/dev/null; then
+            echo "engine venv restored from cache — skipping pip"
+          else
+            rm -rf /tmp/eos-engines
+            python3 -m venv /tmp/eos-engines
+            /tmp/eos-engines/bin/pip install --quiet --upgrade pip
+            /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
+          fi
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy; print("engines importable")'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare environment (.env with the PostgreSQL runtime URL)
+        run: |
+          set -euo pipefail
+          SECRET="$(openssl rand -base64 32)"
+          cat > .env <<EOF
+          DATABASE_URL=postgresql://eos:eos@localhost:5432/eos_ci
+          EOS_PYTHON=/tmp/eos-engines/bin/python
+          NEXTAUTH_SECRET=${SECRET}
+          NEXTAUTH_URL=http://localhost:3000
+          EOF
+
+      - name: PostgreSQL runtime drill (init path + client regen + provider gate + all seven suites)
+        run: |
+          set -o pipefail
+          bash scripts/postgres-runtime-drill.sh --url "$DATABASE_URL" --start-server 2>&1 | tee /tmp/drill-run.log
+
+      - name: Assert the drill summary honestly reports every suite green
+        run: |
+          set -euo pipefail
+          for s in takeoff p2 p3 p4 p5 p6 p7; do
+            grep -E "^$s=[0-9]+ PASS / 0 FAIL" /tmp/drill-run.log \
+              || { echo "suite $s missing or not green in the drill summary:"; tail -40 /tmp/drill-run.log; exit 1; }
+          done
+          grep -q "ALL SUITES GREEN — the product runtime is verified on real PostgreSQL" /tmp/drill-run.log
+
+      - name: Upload server + suite logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-runtime-logs
+          path: |
+            dev.log
+            /tmp/drill-*.log
+          if-no-files-found: warn
+          retention-days: 7
+
   # PostgreSQL portability gate (release-truth pass, 2026-10-22, ADR-0003
   # addendum): the production deployment path is exercised against a LIVE
   # postgres:16 service on every push — schema regeneration + drift check,
   # prisma validate, the production init SQL (migrate diff from empty)
   # applied with db execute, db push confirming sync, and a live-vs-model
   # diff that must contain no DDL. Honest scope: this validates the schema,
-  # SQL and deployment procedure on real PostgreSQL; product runtime suites
-  # still run on the SQLite dev backend.
+  # SQL and deployment procedure on real PostgreSQL; the product-RUNTIME
+  # drill now lives in the postgres-runtime job above (Slice 12).
   db-portability:
     runs-on: ubuntu-latest
     timeout-minutes: 15

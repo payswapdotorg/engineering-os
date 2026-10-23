@@ -44,4 +44,6 @@ public/panoramas/
 # --- secrets & local configuration ---
 .env
 .env*.local
+# scripts/postgres-runtime-drill.sh's sqlite .env backup (carries NEXTAUTH_SECRET)
+.env.drill-sqlite-backup
 .DS_Store
