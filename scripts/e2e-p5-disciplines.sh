@@ -199,9 +199,25 @@ http POST "/api/projects/$PROBE_ID/artifacts/$FODT_ID/convert-document" -H 'Cont
 PDF_ID=$(j "$BODY" '.data.pdf.artifactId')
 PDF_HASH1=$(j "$BODY" '.data.pdf.contentHash')
 PDF_SIZE=$(j "$BODY" '.data.pdf.sizeBytes')
-assert_eq "fodt → PDF by REAL headless LibreOffice (kind pdf, engine 25.2.3.2, multi-KB bytes)" \
-  "201|pdf|libreoffice|25.2.3.2|convert-document.ts" \
-  "$STATUS|$(j "$BODY" '.data.pdf.kind')|$(j "$BODY" '.data.pdf.engineKey')|$(j "$BODY" '.data.pdf.engineVersion')|$(j "$BODY" '.data.pdf.adapterScript')"
+# LibreOffice is the ONE engine that comes from the host/runner's package
+# manager (apt on CI = 24.2.7.x; the dev host = 25.2.3.2) — unlike the venv
+# engines, its version is ENVIRONMENTAL, so this assertion pins the CONTRACT
+# (real LO-attributed conversion: kind pdf, engineKey libreoffice, a
+# version-shaped engineVersion, the registered adapter) instead of the dev
+# host's literal. Every reproducible engine keeps its exact pin elsewhere.
+PDF_VERSION=$(j "$BODY" '.data.pdf.engineVersion')
+if [ "$STATUS" = "201" ] \
+  && [ "$(j "$BODY" '.data.pdf.kind')" = "pdf" ] \
+  && [ "$(j "$BODY" '.data.pdf.engineKey')" = "libreoffice" ] \
+  && [ -n "$PDF_VERSION" ] \
+  && printf '%s' "$PDF_VERSION" | grep -Eq '^[0-9]+(\.[0-9]+)+' \
+  && [ "$(j "$BODY" '.data.pdf.adapterScript')" = "convert-document.ts" ]; then
+  ok "fodt → PDF by REAL headless LibreOffice (kind pdf, engineKey libreoffice, version $PDF_VERSION — environmental, contract-pinned; adapter convert-document.ts)"
+else
+  bad "fodt → PDF by REAL headless LibreOffice (kind pdf, engineKey libreoffice, version-shaped engineVersion, adapter convert-document.ts)" \
+    "$STATUS|$(j "$BODY" '.data.pdf.kind')|$(j "$BODY" '.data.pdf.engineKey')|$PDF_VERSION|$(j "$BODY" '.data.pdf.adapterScript')" \
+    "201|pdf|libreoffice|<version-shaped>|convert-document.ts"
+fi
 if [ "$PDF_SIZE" -gt 1000 ] 2>/dev/null; then ok "PDF size > 1000 bytes (real Writer render)"; else bad "PDF size > 1000 bytes" "$PDF_SIZE" "> 1000"; fi
 http GET "/api/projects/$PROBE_ID/artifacts"
 PDF_REV=$(printf '%s' "$BODY" | /usr/bin/jq -r "[.data.artifacts[] | select(.id == \"$PDF_ID\")][0].latestRevisionId")
