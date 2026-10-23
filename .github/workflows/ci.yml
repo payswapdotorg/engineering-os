@@ -110,6 +110,18 @@ jobs:
   # dev server on a real database through the real NextAuth sign-in flow, with
   # the real engineering engines installed — the same evidence standard as the
   # local acceptance record.
+  #
+  # TWO gate fixes from the Slice-10 CI iteration (run 39877259925 forensics —
+  # honest history, the ninth pass's "all-green" e2e job was green-but-broken):
+  #  1. `set -o pipefail` in EVERY step — the runner's default shell is
+  #     bash -e WITHOUT pipefail, so `bash suite | tee` returned TEE's exit code
+  #     and suite failures were invisible (p3/p4/p5 crashed mid-run at their
+  #     demo-dataset regression markers and the steps stayed green).
+  #  2. `--keep-name "Harbour View Extension"` on every pre-clean except
+  #     takeoff's — the plain --all pre-clean silently deleted the canonical
+  #     demo dataset that three suites' regression markers assert against
+  #     (p3 block 14, p4 #49, p5 #46-47). Takeoff rebuilds the dataset each
+  #     run; the later suites keep it alive and clean only their own probes.
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 55
@@ -169,32 +181,38 @@ jobs:
 
       - name: e2e-takeoff (31 PASS expected)
         run: |
+          set -o pipefail
           bun scripts/dev-db-cleanup.ts --all
           bash scripts/e2e-takeoff.sh 2>&1 | tee /tmp/e2e-takeoff.log
 
       - name: e2e-p2-modelviewer (67 PASS expected)
         run: |
-          bun scripts/dev-db-cleanup.ts --all
+          set -o pipefail
+          bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
           bash scripts/e2e-p2-modelviewer.sh 2>&1 | tee /tmp/e2e-p2.log
 
       - name: e2e-p3-hardening (40 PASS expected)
         run: |
-          bun scripts/dev-db-cleanup.ts --all
+          set -o pipefail
+          bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
           bash scripts/e2e-p3-hardening.sh 2>&1 | tee /tmp/e2e-p3.log
 
       - name: e2e-p4-workflows (49 PASS expected)
         run: |
-          bun scripts/dev-db-cleanup.ts --all
+          set -o pipefail
+          bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
           bash scripts/e2e-p4-workflows.sh 2>&1 | tee /tmp/e2e-p4.log
 
       - name: e2e-p5-disciplines (47 PASS expected)
         run: |
-          bun scripts/dev-db-cleanup.ts --all
+          set -o pipefail
+          bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
           bash scripts/e2e-p5-disciplines.sh 2>&1 | tee /tmp/e2e-p5.log
 
       - name: e2e-p6-isolation (49 PASS expected)
         run: |
-          bun scripts/dev-db-cleanup.ts --all
+          set -o pipefail
+          bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
           bash scripts/e2e-p6-isolation.sh 2>&1 | tee /tmp/e2e-p6.log
 
       - name: Upload server + suite logs on failure

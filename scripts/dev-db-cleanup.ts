@@ -22,6 +22,14 @@
  *   bun scripts/dev-db-cleanup.ts                    # dry run: list what could be removed
  *   bun scripts/dev-db-cleanup.ts --all              # delete EVERY project row + storage dir,
  *                                                    #   then sweep leftover top-level store dirs
+ *   bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
+ *                                                    # --all EXCEPT projects whose name contains a
+ *                                                    #   keep-substring (repeatable) — the CI e2e
+ *                                                    #   steps keep the canonical demo dataset alive
+ *                                                    #   between suites with this flag (Slice-10 CI
+ *                                                    #   fix: the plain --all pre-clean had silently
+ *                                                    #   destroyed the dataset three suites' regression
+ *                                                    #   markers assert against)
  *   bun scripts/dev-db-cleanup.ts --project <id>     # delete one project (by id)
  *   bun scripts/dev-db-cleanup.ts --name <substr>    # delete projects whose name contains <substr>
  *
@@ -57,6 +65,14 @@ async function main(): Promise<void> {
   const projectIdx = args.indexOf("--project")
   const nameIdx = args.indexOf("--name")
 
+  // --keep-name <substr> (repeatable): projects whose name contains any of
+  // these are EXCLUDED from --all and --name sweeps. Without a destructive
+  // mode it has no effect.
+  const keepNames: string[] = []
+  for (let i = 0; i < args.length - 1; i++) {
+    if (args[i] === "--keep-name" && args[i + 1]) keepNames.push(args[i + 1])
+  }
+
   if (!all && projectIdx === -1 && nameIdx === -1) {
     const projects = (await db.project.findMany({
       orderBy: { createdAt: "asc" },
@@ -70,12 +86,17 @@ async function main(): Promise<void> {
     return
   }
 
+  const kept = (p: ProjectRow) => keepNames.some((k) => p.name.includes(k))
+
   let targets: ProjectRow[]
+  let keptIds: string[] = []
   if (all) {
-    targets = (await db.project.findMany({
+    const every = (await db.project.findMany({
       orderBy: { createdAt: "asc" },
       select: { id: true, name: true },
     })) as ProjectRow[]
+    keptIds = every.filter((p) => kept(p)).map((p) => p.id)
+    targets = every.filter((p) => !kept(p))
   } else if (projectIdx !== -1) {
     const id = args[projectIdx + 1]
     if (!id) throw new Error("--project requires an id argument")
@@ -85,11 +106,16 @@ async function main(): Promise<void> {
   } else {
     const substr = args[nameIdx + 1]
     if (!substr) throw new Error("--name requires a substring argument")
-    targets = (await db.project.findMany({
+    const matching = (await db.project.findMany({
       where: { name: { contains: substr } },
       orderBy: { createdAt: "asc" },
       select: { id: true, name: true },
     })) as ProjectRow[]
+    targets = matching.filter((p) => !kept(p))
+  }
+
+  if (keepNames.length > 0) {
+    console.log(`dev-db-cleanup: keeping projects matching ${JSON.stringify(keepNames)} (${keptIds.length} row(s) kept)`)
   }
 
   console.log(`dev-db-cleanup: removing ${targets.length} project row(s) + storage dir(s):`)
@@ -100,16 +126,18 @@ async function main(): Promise<void> {
   }
 
   if (all) {
-    // With --all no project rows remain, so any top-level store dir that is
-    // still there belongs to an already-deleted project — sweep it so the
-    // store ends up exactly consistent with the (empty) DB.
+    // With --all (+keeps) the only surviving project rows are the kept ones,
+    // so a top-level store dir that is still there belongs EITHER to an
+    // already-deleted project (sweep it — the store must match the DB) OR to a
+    // kept project (leave it — its row survives --keep-name by design).
     const root = storageRoot()
     if (existsSync(root)) {
       for (const entry of readdirSync(root, { withFileTypes: true })) {
         if (!entry.isDirectory()) continue
+        if (keptIds.includes(entry.name)) continue
         const dir = path.join(root, entry.name)
         rmSync(dir, { recursive: true, force: true })
-        console.log(`  removed leftover storage dir ${dir} (no project row)`)
+        console.log(`  removed leftover storage dir ${dir} (no surviving project row)`)
       }
     }
   }
