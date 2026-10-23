@@ -52,7 +52,7 @@ jobs:
   # case was skipped or the harness did not run.
   engines:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -60,26 +60,32 @@ jobs:
         with:
           bun-version: latest
 
-      # Wheel cache (Slice 10): the pin file is the cache key — a cold run
-      # rebuilt the whole OCCT/IfcOpenShell wheel set and blew the job's own
-      # 30-min timeout on a slow PyPI night (run 39873759828, engines job
-      # cancelled at 30m20s mid-install). Cache + the 45-min ceiling keep
-      # the gate reproducible without weakening it (cache misses just cost
-      # time, never correctness).
-      - name: Engine wheel cache
+      # Engine venv cache (Slice 10, round 3): the pin file is the cache key.
+      # Rounds 1-2 history: a cold run rebuilt the whole OCCT/IfcOpenShell set
+      # and blew the job's 30-min ceiling (run 39873759828); the wheel-cache
+      # layer still left a 30+ min venv build on slow PyPI nights (run
+      # 39878513900's e2e install). A restored VENV skips pip entirely; a
+      # restored-but-broken venv (image python drift) self-heals via the cold
+      # path — the import gate below is the arbiter, never a silent pass.
+      - name: Engine venv cache
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
-          key: eos-engines-wheels-${{ runner.os }}-${{ hashFiles('tests/validation/engines-requirements.txt') }}
+          path: /tmp/eos-engines
+          key: eos-engines-venv-${{ runner.os }}-${{ hashFiles('tests/validation/engines-requirements.txt') }}-v1
 
       - name: Install engineering engines (the harness-validated set)
         run: |
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0
-          python3 -m venv /tmp/eos-engines
-          /tmp/eos-engines/bin/pip install --quiet --upgrade pip
-          /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy' 2>/dev/null; then
+            echo "engine venv restored from cache — skipping pip"
+          else
+            rm -rf /tmp/eos-engines
+            python3 -m venv /tmp/eos-engines
+            /tmp/eos-engines/bin/pip install --quiet --upgrade pip
+            /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
+          fi
           /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy; print("engines importable")'
           soffice --version
 
@@ -124,7 +130,7 @@ jobs:
   #     run; the later suites keep it alive and clean only their own probes.
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
 
@@ -132,20 +138,32 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Engine wheel cache
+      # Engine venv cache (Slice 10, round 3): the pin file is the cache key.
+      # Rounds 1-2 history: a cold run rebuilt the whole OCCT/IfcOpenShell set
+      # and blew the job's 30-min ceiling (run 39873759828); the wheel-cache
+      # layer still left a 30+ min venv build on slow PyPI nights (run
+      # 39878513900's e2e install). A restored VENV skips pip entirely; a
+      # restored-but-broken venv (image python drift) self-heals via the cold
+      # path — the import gate below is the arbiter, never a silent pass.
+      - name: Engine venv cache
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
-          key: eos-engines-wheels-${{ runner.os }}-${{ hashFiles('tests/validation/engines-requirements.txt') }}
+          path: /tmp/eos-engines
+          key: eos-engines-venv-${{ runner.os }}-${{ hashFiles('tests/validation/engines-requirements.txt') }}-v1
 
       - name: Install engineering engines (the harness-validated set)
         run: |
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0
-          python3 -m venv /tmp/eos-engines
-          /tmp/eos-engines/bin/pip install --quiet --upgrade pip
-          /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy' 2>/dev/null; then
+            echo "engine venv restored from cache — skipping pip"
+          else
+            rm -rf /tmp/eos-engines
+            python3 -m venv /tmp/eos-engines
+            /tmp/eos-engines/bin/pip install --quiet --upgrade pip
+            /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
+          fi
           /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy; print("engines importable")'
 
       - name: Install dependencies
