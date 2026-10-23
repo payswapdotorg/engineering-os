@@ -52,13 +52,25 @@ jobs:
   # case was skipped or the harness did not run.
   engines:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      # Wheel cache (Slice 10): the pin file is the cache key — a cold run
+      # rebuilt the whole OCCT/IfcOpenShell wheel set and blew the job's own
+      # 30-min timeout on a slow PyPI night (run 39873759828, engines job
+      # cancelled at 30m20s mid-install). Cache + the 45-min ceiling keep
+      # the gate reproducible without weakening it (cache misses just cost
+      # time, never correctness).
+      - name: Engine wheel cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: eos-engines-wheels-${{ runner.os }}-${{ hashFiles('tests/validation/engines-requirements.txt') }}
 
       - name: Install engineering engines (the harness-validated set)
         run: |
@@ -67,7 +79,7 @@ jobs:
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0
           python3 -m venv /tmp/eos-engines
           /tmp/eos-engines/bin/pip install --quiet --upgrade pip
-          /tmp/eos-engines/bin/pip install --quiet cadquery ifcopenshell gmsh pandapower simpy
+          /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
           /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy; print("engines importable")'
           soffice --version
 
@@ -93,19 +105,26 @@ jobs:
           print(f"engine harness: {s['pass']}/{s['total']} passed, 0 failed, 0 skipped")
           PY
 
-  # End-to-end acceptance gate (release-truth pass, 2026-10-22): the five
-  # golden-path shell suites run against a real dev server on a real database
-  # through the real NextAuth sign-in flow, with the real engineering engines
-  # installed — the same evidence standard as the local acceptance record.
+  # End-to-end acceptance gate (release-truth pass 2026-10-22; six suites since
+  # the isolation slice 10): the golden-path shell suites run against a real
+  # dev server on a real database through the real NextAuth sign-in flow, with
+  # the real engineering engines installed — the same evidence standard as the
+  # local acceptance record.
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Engine wheel cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: eos-engines-wheels-${{ runner.os }}-${{ hashFiles('tests/validation/engines-requirements.txt') }}
 
       - name: Install engineering engines (the harness-validated set)
         run: |
@@ -114,7 +133,7 @@ jobs:
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0
           python3 -m venv /tmp/eos-engines
           /tmp/eos-engines/bin/pip install --quiet --upgrade pip
-          /tmp/eos-engines/bin/pip install --quiet cadquery ifcopenshell gmsh pandapower simpy
+          /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
           /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy; print("engines importable")'
 
       - name: Install dependencies

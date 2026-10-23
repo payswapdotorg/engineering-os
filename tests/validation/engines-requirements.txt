@@ -1,0 +1,10 @@
+# Engineering OS — CI engine pin set (Slice 10 hardening, 2026-10-22).
+# The engines CI job installs EXACTLY this set into a fresh venv; the file is
+# the cache key, so a wheel cache hit only happens when the pin set is
+# unchanged. Versions = the harness-validated set from the dev host (see
+# docs/02-engines/engine-inventory.md and the validation-report evidence).
+cadquery==2.6.1
+ifcopenshell==0.9.0.post1
+gmsh==4.15.2
+pandapower==3.5.6
+simpy==4.1.2
