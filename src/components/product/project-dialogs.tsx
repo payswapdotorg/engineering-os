@@ -177,7 +177,8 @@ export function AddMemberDialog({
           <DialogTitle>Add member</DialogTitle>
           <DialogDescription>
             Add a project member (owner / editor / viewer). An email matching a user account grants real,
-            role-scoped project access; without one this is a display-only roster row. Server-enforced.
+            role-scoped project access; an email with no account yet is a pending invitation that
+            activates automatically when that person signs up (Slice 14). Server-enforced.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -211,7 +212,8 @@ export function AddMemberDialog({
             />
             <p className="text-xs leading-relaxed text-muted-foreground">
               Optional — an email matching a user account grants real project access at the chosen
-              role; leave blank for a display-only roster row.
+              role; an email with no account yet becomes a pending invitation (it activates when
+              that person signs up); leave blank for a display-only roster row.
             </p>
           </div>
           <div className="space-y-2">

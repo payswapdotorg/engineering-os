@@ -359,6 +359,155 @@ function SignInForm({ recheck }: { recheck: () => void }) {
 }
 
 // ---------------------------------------------------------------------------
+// Sign-up (Slice 14 — general accounts; the Slice-10 §9 remainder closed).
+// PUBLIC POST /api/auth/signup creates a real engineer account AND activates
+// every pending invitation row issued to this email (the row links to the
+// new account — a real grant at the invited role). Auto-sign-in runs the
+// REAL credentials flow, exactly like first-run setup.
+// ---------------------------------------------------------------------------
+
+function SignupForm({ onAccountExists }: { onAccountExists: () => void }) {
+  const router = useRouter()
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; email?: string; password?: string }>({})
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  /** Mirrors the server's own 422 checks (same shapes as setup). */
+  const validate = () => {
+    const errors: { name?: string; email?: string; password?: string } = {}
+    if (name.trim().length === 0) errors.name = "name is required"
+    if (email.trim().length === 0 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = "a valid email is required"
+    }
+    if (password.length < 8) errors.password = "password must be at least 8 characters"
+    return errors
+  }
+
+  const submit = async () => {
+    if (submitting) return
+    const errors = validate()
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) return
+    setSubmitting(true)
+    setServerError(null)
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
+      })
+      if (!res.ok) {
+        // 422s and the 409 duplicate-email refusal surface VERBATIM.
+        setServerError(await refusalMessage(res, `Sign-up failed (${res.status})`))
+        return
+      }
+      const body = (await res.json()) as { data?: { activatedInvites?: unknown[] } }
+      const activated = Array.isArray(body.data?.activatedInvites) ? body.data.activatedInvites.length : 0
+
+      // Created — sign in through the real credentials flow (setup's path).
+      const result = await signIn("credentials", { redirect: false, email: email.trim(), password })
+      if (result && !result.ok) {
+        // Honest recovery: the account exists now; let the human sign in.
+        toast.info("Account created — sign in below")
+        onAccountExists()
+        return
+      }
+      toast.success(
+        activated > 0
+          ? `Account created — ${activated} project invitation${activated === 1 ? "" : "s"} activated`
+          : "Account created",
+      )
+      router.refresh()
+    } catch (err) {
+      setServerError(err instanceof Error ? err.message : "Sign-up failed — please try again")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form
+      className="space-y-4"
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault()
+        void submit()
+      }}
+    >
+      <div className="space-y-2">
+        <Label htmlFor="signup-name">Name</Label>
+        <Input
+          id="signup-name"
+          name="name"
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Abi Okafor"
+          maxLength={120}
+          required
+          autoFocus
+          aria-invalid={fieldErrors.name !== undefined}
+          aria-describedby={fieldErrors.name !== undefined ? "signup-name-error" : undefined}
+        />
+        {fieldErrors.name !== undefined ? <FieldError id="signup-name-error" message={fieldErrors.name} /> : null}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="signup-email">Email</Label>
+        <Input
+          id="signup-email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          maxLength={254}
+          required
+          aria-invalid={fieldErrors.email !== undefined}
+          aria-describedby={fieldErrors.email !== undefined ? "signup-email-error" : undefined}
+        />
+        {fieldErrors.email !== undefined ? <FieldError id="signup-email-error" message={fieldErrors.email} /> : null}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="signup-password">Password</Label>
+        <Input
+          id="signup-password"
+          name="password"
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="At least 8 characters"
+          minLength={8}
+          required
+          aria-invalid={fieldErrors.password !== undefined}
+          aria-describedby={fieldErrors.password !== undefined ? "signup-password-error" : undefined}
+        />
+        {fieldErrors.password !== undefined ? (
+          <FieldError id="signup-password-error" message={fieldErrors.password} />
+        ) : null}
+      </div>
+      {serverError !== null ? (
+        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {serverError}
+        </p>
+      ) : null}
+      <Button type="submit" className="h-10 w-full" disabled={submitting}>
+        {submitting ? <Loader2 className="animate-spin" aria-hidden /> : <UserPlus aria-hidden />}
+        {submitting ? "Creating account…" : "Create account"}
+      </Button>
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        A new account starts empty: you see only your own projects, plus any project an owner has
+        invited this email to (pending invitations activate automatically at sign-up).
+      </p>
+    </form>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Demo accounts (post-Phase-6 slice, contract §1.8) — provisionable personas
 // with one-click quick sign-in. Every quick sign-in runs the REAL credentials
 // flow with the shared public password — no shortcut session, ever.
@@ -563,6 +712,10 @@ function DemoAccountsPanel() {
 
 export function AuthSurface() {
   const [mode, setMode] = useState<AuthMode>("checking")
+  // Slice-14 sign-up view — a local toggle INSIDE the sign-in mode (signup is
+  // only meaningful once an operator exists; first-run setup stays its own
+  // mode). "unavailable" keeps whichever view the human had.
+  const [view, setView] = useState<"signin" | "signup">("signin")
   // Remembers that the "first run?" affordance asked for a re-check, so a
   // definitive not-needed answer can reply honestly instead of silently
   // re-rendering the same form.
@@ -656,14 +809,36 @@ export function AuthSurface() {
               ) : (
                 <>
                   <div>
-                    <h1 className="text-lg font-semibold tracking-tight">Sign in</h1>
+                    <h1 className="text-lg font-semibold tracking-tight">
+                      {view === "signup" ? "Create an account" : "Sign in"}
+                    </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {mode === "unavailable"
-                        ? "The setup service is not answering yet — the sign-in form stays available and the check keeps retrying."
-                        : "Sign in to open your local engineering workspace."}
+                      {view === "signup"
+                        ? "General sign-up (Slice 14): a real account — pending project invitations to this email activate automatically."
+                        : mode === "unavailable"
+                          ? "The setup service is not answering yet — the sign-in form stays available and the check keeps retrying."
+                          : "Sign in to open your local engineering workspace."}
                     </p>
                   </div>
-                  <SignInForm recheck={recheckSetup} />
+                  {view === "signup" ? (
+                    <SignupForm
+                      onAccountExists={() => {
+                        setView("signin")
+                      }}
+                    />
+                  ) : (
+                    <SignInForm recheck={recheckSetup} />
+                  )}
+                  <p className="text-center text-xs text-muted-foreground">
+                    {view === "signup" ? "Already have an account? " : "New here? "}
+                    <button
+                      type="button"
+                      className="font-medium underline underline-offset-2 hover:text-foreground"
+                      onClick={() => setView(view === "signup" ? "signin" : "signup")}
+                    >
+                      {view === "signup" ? "Sign in" : "Create an account"}
+                    </button>
+                  </p>
                 </>
               )}
             </CardContent>

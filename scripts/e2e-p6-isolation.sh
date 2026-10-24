@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # scripts/e2e-p6-isolation.sh — Slice-10 project-level read isolation acceptance
-# script (AC-I1…I10, docs/00-architecture/project-isolation-contract.md §7).
+# script (AC-I1…I10 + Slice-13 AC-I3b + Slice-14 AC-SU-01…03 / AC-RP-01…02,
+# docs/00-architecture/project-isolation-contract.md §7).
 # The SIXTH e2e suite: sources scripts/e2e-signin.sh (operator/admin session)
 # like the five before it, then additionally signs in the two demo personas
 # (Kwame engineer, Zara viewer) through the SAME real NextAuth credentials
 # flow via a local second/third-jar helper (_iso_signin; password demo1234 —
 # src/lib/demo-accounts.ts).
 #
-# Against the live dev server it verifies (53 PASS expected):
+# Against the live dev server it verifies (80 PASS expected):
 #   fixture  demo roster provisioned via POST /api/auth/demo-accounts
 #           (idempotent: 201 created / 200 already present — never a 4xx);
 #           both personas signed in via the real credentials flow; the three
@@ -53,6 +54,27 @@
 #           string — parsed with fromjson, contract §5)
 #   AC-I10  regression: the operator (superuser) still reaches every fixture
 #           route (Gamma project 200 + Gamma events 200)
+#   AC-SU-01  (Slice 14) general signup core: POST /api/auth/signup is PUBLIC;
+#           201 creates an engineer account; duplicate email → 409 verbatim;
+#           short password / bad email → 422; the account signs in through
+#           the REAL credentials flow
+#   AC-SU-02  (Slice 14) invitation SELF-ACTIVATION — the Slice-10 §9 closure:
+#           a pending invitation row (email, no account) links to the new
+#           account at signup; the signup response carries the activation;
+#           the new user's list is EXACTLY the invited project; non-member
+#           routes stay 404-no-leak; the roster row shows the linked userId;
+#           the audit trail carries member.activated {via:signup}
+#   AC-SU-03  (Slice 14) zero-invitation signup isolation floor: a fresh
+#           account with no invitations sees EXACTLY [] and 404s every
+#           project route (isolation bounds what a signup can learn)
+#   AC-RP-01  (Slice 14) member role PATCH: member-but-not-manager → 403
+#           member-management verbatim; non-member engineer → 404 Project
+#           (no-leak); global viewer → the wrapper's uniform 403; manager
+#           PATCHes a real role change → 200 + audit member.roleChanged;
+#           idempotent same-role PATCH → 200 no-op; PROMOTION works; demoting
+#           the only linked owner → 409 verbatim; unknown row → 404 Member
+#           not found; invalid role → 422
+#   AC-RP-02  (Slice 14) the roleChanged audit detail carries {from, to}
 #
 # Runs LAST of the six scripts (after e2e-p5). Creates and removes its OWN
 # fixtures through the REAL API + the established dev-db-cleanup path; the
@@ -192,6 +214,11 @@ _iso_signin() { # email password → sets ISO_JAR / ISO_UID / ISO_ROLE (globals)
 for NAME in "Iso Alpha Contract" "Iso Beta Works" "Iso Gamma Study"; do
   (cd "$REPO" && bun scripts/dev-db-cleanup.ts --name "$NAME" >/dev/null 2>&1) || true
 done
+# Slice-14 pre-clean: signup test users from a prior FAILED run. dev-db-cleanup
+# NEVER touches users (contract §1.5), so the suite owns its fixture accounts —
+# deleting the user cascades their TeamMember rows (onDelete: Cascade). Without
+# this, a re-run would hit the 409 duplicate-email refusal with a stale password.
+(cd "$REPO" && bun -e 'const {db} = await import("./src/lib/db"); await db.user.deleteMany({where: {email: {in: ["abi.signup@eos.test", "kojo.signup@eos.test"]}}}); await db.$disconnect();' >/dev/null 2>&1) || true
 
 # ===========================================================================
 # Fixtures — everything through the REAL API (operator = admin session from
@@ -558,7 +585,183 @@ assert_eq "AC-I10: regression — the operator reaches Gamma fully (GET project 
   "200|200" "$I10_PROJECT_STATUS|$STATUS"
 
 # ===========================================================================
-# Cleanup: remove the three fixture projects (KEPT on failure for forensics)
+# AC-I11 — general signup core (Slice 14: POST /api/auth/signup, PUBLIC)
+# ===========================================================================
+# The operator plants a PENDING invitation on Alpha first (unknown email —
+# the self-activation carrier for AC-I12).
+AUTH_ARGS="${EOS_AUTH:-}"
+cat > "$WORK/m-abi.json" <<'EOF'
+{ "name": "Abi Okafor", "role": "editor", "email": "abi.signup@eos.test" }
+EOF
+jpost "/api/projects/$ALPHA_ID/members" "$WORK/m-abi.json"
+ABI_ROW_ID=$(j "$BODY" '.data.member.id')
+assert_status_in "AC-SU-01: pending invitation POST (Abi, unknown email) → 201/200 (display-only row — grants nothing YET)" 201 200
+
+# PUBLIC signup — no session carried (AUTH_ARGS cleared for the call).
+AUTH_ARGS=""
+cat > "$WORK/signup-abi.json" <<'EOF'
+{ "name": "Abi Okafor", "email": "abi.signup@eos.test", "password": "abi-pass-1234" }
+EOF
+jpost /api/auth/signup "$WORK/signup-abi.json"
+ABI_ID=$(j "$BODY" '.data.user.id')
+assert_eq "AC-SU-01: public signup → 201, engineer account, AND the pending Alpha invitation ACTIVATES in the same call (the §9 self-activation closure)" \
+  "201|engineer|1|$ALPHA_ID|$ABI_ROW_ID|editor" \
+  "$STATUS|$(j "$BODY" '.data.user.role')|$(j "$BODY" '.data.activatedInvites | length')|$(j "$BODY" '.data.activatedInvites[0].projectId')|$(j "$BODY" '.data.activatedInvites[0].memberId')|$(j "$BODY" '.data.activatedInvites[0].role')"
+
+jpost /api/auth/signup "$WORK/signup-abi.json"
+assert_eq "AC-SU-01: duplicate signup → 409 verbatim (honest state conflict, not a 422)" \
+  "409|conflict|an account with this email already exists" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+cat > "$WORK/signup-short.json" <<'EOF'
+{ "name": "Short Pw", "email": "short.pw@eos.test", "password": "short" }
+EOF
+jpost /api/auth/signup "$WORK/signup-short.json"
+assert_eq "AC-SU-01: short password → 422 verbatim (field-prefixed zod message)" \
+  "422|password: password must be at least 8 characters" "$STATUS|$(j "$BODY" '.error.message')"
+
+cat > "$WORK/signup-badmail.json" <<'EOF'
+{ "name": "Bad Mail", "email": "not-an-email", "password": "valid-pass-123" }
+EOF
+jpost /api/auth/signup "$WORK/signup-badmail.json"
+assert_eq "AC-SU-01: invalid email → 422 verbatim" \
+  "422|email: email must be a valid email address" "$STATUS|$(j "$BODY" '.error.message')"
+
+_iso_signin "abi.signup@eos.test" "abi-pass-1234"
+ABI_AUTH="-b $ISO_JAR -c $ISO_JAR"
+assert_eq "AC-SU-01: the new account signs in through the REAL credentials flow — session role engineer (the schema-default global role)" \
+  "engineer" "$ISO_ROLE"
+
+# ===========================================================================
+# AC-I12 — invitation self-activation END-TO-END (the new user's perspective)
+# ===========================================================================
+AUTH_ARGS="$ABI_AUTH"
+http GET /api/projects
+assert_eq "AC-SU-02: Abi's project list is EXACTLY {Alpha} (her one activated invitation — the canonical dataset and the other fixtures are invisible)" \
+  "true" "$(j "$BODY" "([.data.projects[].id] | sort) == ([\"$ALPHA_ID\"] | sort)")"
+http GET "/api/projects/$ALPHA_ID"
+assert_eq "AC-SU-02: Abi READS Alpha → 200 (the activated invitation is a real editor grant, not a display row)" \
+  "200|$ALPHA_ID" "$STATUS|$(j "$BODY" '.data.project.id')"
+http GET "/api/projects/$BETA_ID"
+assert_eq "AC-SU-02: Abi GETs Beta (never invited) → 404 Project not found — the no-leak envelope holds for a brand-new account" \
+  "404|not_found|Project not found" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+AUTH_ARGS="${EOS_AUTH:-}"
+http GET "/api/projects/$ALPHA_ID/members"
+assert_eq "AC-SU-02: the roster row is now a REAL grant — userId == Abi's account id, role editor (activated at signup, owner never re-added her)" \
+  "$ABI_ID|editor" "$(j "$BODY" "[.data.members[] | select(.email == \"abi.signup@eos.test\")][0] | \"\\(.userId)|\\(.role)\"")"
+http GET "/api/events?projectId=$ALPHA_ID&limit=200"
+assert_eq "AC-SU-02: Alpha's audit feed carries member.activated with detail {via:signup, userId:Abi} (actor = the self-activating user)" \
+  "true" "$(j "$BODY" "[.data.events[] | select(.action == \"member.activated\" and .detail != null) | .detail | fromjson | select(.via == \"signup\" and .userId == \"$ABI_ID\")] | length > 0")"
+
+# ===========================================================================
+# AC-I13 — zero-invitation signup isolation floor
+# ===========================================================================
+AUTH_ARGS=""
+cat > "$WORK/signup-kojo.json" <<'EOF'
+{ "name": "Kojo Danquah", "email": "kojo.signup@eos.test", "password": "kojo-pass-1234" }
+EOF
+jpost /api/auth/signup "$WORK/signup-kojo.json"
+KOJO_ID=$(j "$BODY" '.data.user.id')
+assert_eq "AC-SU-03: a signup with ZERO pending invitations → 201, engineer, activatedInvites exactly [] (nothing granted by existing)" \
+  "201|engineer|0" "$STATUS|$(j "$BODY" '.data.user.role')|$(j "$BODY" '.data.activatedInvites | length')"
+
+_iso_signin "kojo.signup@eos.test" "kojo-pass-1234"
+KOJO_AUTH="-b $ISO_JAR -c $ISO_JAR"
+assert_eq "AC-SU-03: Kojo signs in through the REAL credentials flow — engineer" "engineer" "$ISO_ROLE"
+
+AUTH_ARGS="$KOJO_AUTH"
+http GET /api/projects
+assert_eq "AC-SU-03: Kojo's project list is EXACTLY [] — a fresh account sees nothing (isolation bounds what a signup learns)" \
+  "0" "$(j "$BODY" '.data.projects | length')"
+http GET "/api/projects/$ALPHA_ID"
+assert_eq "AC-SU-03: Kojo GETs Alpha → 404 Project not found (no-leak for an account with zero invitations)" \
+  "404|not_found|Project not found" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# ===========================================================================
+# AC-I14 — member role PATCH (Slice 14: role change is ONE call, not
+# revoke + re-grant). Gate order pinned per the members-route contract.
+# ===========================================================================
+# (a) member-but-not-manager: Kwame is a Gamma VIEWER (member read passes;
+#     the manage gate fires — the ERR_MEMBER_MANAGEMENT envelope).
+AUTH_ARGS="$KWAME_AUTH"
+http GET "/api/projects/$GAMMA_ID/members"
+KWAME_GAMMA_ROW=$(j "$BODY" "[.data.members[] | select(.userId == \"$KWAME_ID\")][0].id")
+cat > "$WORK/role-editor.json" <<'EOF'
+{ "role": "editor" }
+EOF
+http PATCH "/api/projects/$GAMMA_ID/members/$KWAME_GAMMA_ROW" -H 'Content-Type: application/json' --data-binary @"$WORK/role-editor.json"
+assert_eq "AC-RP-01: Kwame (Gamma viewer — a member, NOT a manager) PATCHes a role → 403 member-management verbatim (isolation read passes; the manage gate fires)" \
+  "403|forbidden|only the project owner or an admin can manage team members" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# (b) non-member engineer: Kojo PATCHes an Alpha member → the PROJECT 404.
+AUTH_ARGS="$KOJO_AUTH"
+http PATCH "/api/projects/$ALPHA_ID/members/$ABI_ROW_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/role-editor.json"
+assert_eq "AC-RP-01: Kojo (non-member ENGINEER) PATCHes an Alpha member → 404 Project not found (no-leak — never a 403 that confirms it exists)" \
+  "404|not_found|Project not found" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# (c) global viewer: Zara PATCHes → the wrapper's uniform global-viewer 403
+#     fires FIRST (documented layering, AC-I8's rule — identical for every
+#     viewer POST/PATCH, hidden or not).
+AUTH_ARGS="$ZARA_AUTH"
+http PATCH "/api/projects/$ALPHA_ID/members/$ABI_ROW_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/role-editor.json"
+assert_eq "AC-RP-01: Zara (GLOBAL viewer) PATCHes a member role → the wrapper's uniform 403 (layering, AC-I8's rule)" \
+  "403|forbidden|viewer role is read-only" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# (d) manager path: the operator PATCHes Abi's Alpha role editor→viewer.
+AUTH_ARGS="${EOS_AUTH:-}"
+cat > "$WORK/role-viewer.json" <<'EOF'
+{ "role": "viewer" }
+EOF
+http PATCH "/api/projects/$ALPHA_ID/members/$ABI_ROW_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/role-viewer.json"
+assert_eq "AC-RP-01: the operator (admin) PATCHes Abi's role editor→viewer → 200 with the updated member (one call — no revoke + re-grant)" \
+  "200|viewer|$ABI_ROW_ID" "$STATUS|$(j "$BODY" '.data.member.role')|$(j "$BODY" '.data.member.id')"
+
+http PATCH "/api/projects/$ALPHA_ID/members/$ABI_ROW_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/role-editor.json"
+assert_eq "AC-RP-01: and back viewer→editor → 200 (a second real change; the restore keeps the end state canonical)" \
+  "200|editor" "$STATUS|$(j "$BODY" '.data.member.role')"
+
+http PATCH "/api/projects/$ALPHA_ID/members/$ABI_ROW_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/role-editor.json"
+assert_eq "AC-RP-01: idempotent same-role PATCH (editor→editor) → 200 no-op (NOT an error — nothing changed)" \
+  "200|editor" "$STATUS|$(j "$BODY" '.data.member.role')"
+
+# (e) PROMOTION is a plain role change: Kwame's Gamma row viewer→editor.
+http PATCH "/api/projects/$GAMMA_ID/members/$KWAME_GAMMA_ROW" -H 'Content-Type: application/json' --data-binary @"$WORK/role-editor.json"
+assert_eq "AC-RP-01: PROMOTION works — the operator PATCHes Kwame's Gamma row viewer→editor → 200 (the last-owner guard only refuses DEMOTION of the last owner)" \
+  "200|editor" "$STATUS|$(j "$BODY" '.data.member.role')"
+
+# (f) last-owner demote guard: Beta's only LINKED owner row (Kwame's).
+http PATCH "/api/projects/$BETA_ID/members/$BETA_OWNER_ROW_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/role-editor.json"
+assert_eq "AC-RP-01: demoting Beta's only LINKED owner → 409 verbatim (a project can never be stranded without an owner)" \
+  "409|conflict|cannot demote the only owner of the project" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# (g) unknown memberId → the SAME 404 as a foreign row (learns nothing).
+http PATCH "/api/projects/$ALPHA_ID/members/mem_nonexistent_row" -H 'Content-Type: application/json' --data-binary @"$WORK/role-viewer.json"
+assert_eq "AC-RP-01: unknown memberId → 404 Member not found (same envelope as a row of another project)" \
+  "404|not_found|Member not found" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# (h) invalid role value → 422 (stringEnum refusal).
+cat > "$WORK/role-bogus.json" <<'EOF'
+{ "role": "prime-minister" }
+EOF
+http PATCH "/api/projects/$ALPHA_ID/members/$ABI_ROW_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/role-bogus.json"
+assert_eq "AC-RP-01: invalid role value → 422 (the TEAM_ROLES vocabulary is closed — stringEnum refusal verbatim)" \
+  "422|role: role must be one of: owner, editor, viewer" "$STATUS|$(j "$BODY" '.error.message')"
+
+# ===========================================================================
+# AC-I15 — the roleChanged audit detail carries {from, to}
+# ===========================================================================
+http GET "/api/events?projectId=$ALPHA_ID&limit=200"
+assert_eq "AC-RP-02: Alpha's feed carries member.roleChanged with detail {from:editor, to:viewer, name:Abi} (fromjson — the append-only trail records CHANGES only)" \
+  "true" "$(j "$BODY" "[.data.events[] | select(.action == \"member.roleChanged\" and .detail != null) | .detail | fromjson | select(.from == \"editor\" and .to == \"viewer\" and .name == \"Abi Okafor\")] | length > 0")"
+http GET "/api/events?projectId=$GAMMA_ID&limit=200"
+assert_eq "AC-RP-02: Gamma's feed carries the PROMOTION record {from:viewer, to:editor}" \
+  "true" "$(j "$BODY" "[.data.events[] | select(.action == \"member.roleChanged\" and .detail != null) | .detail | fromjson | select(.from == \"viewer\" and .to == \"editor\")] | length > 0")"
+
+# ===========================================================================
+# Cleanup: remove the three fixture projects + the two Slice-14 signup
+# fixture accounts (KEPT on failure for forensics). The user deletion
+# cascades any remaining TeamMember rows; the projects go first so their
+# event history (incl. the member.activated/roleChanged audit) goes with them.
 # ===========================================================================
 if [[ "$FAIL" -eq 0 ]]; then
   for PID in "$ALPHA_ID" "$BETA_ID" "$GAMMA_ID"; do
@@ -566,6 +769,9 @@ if [[ "$FAIL" -eq 0 ]]; then
       && printf 'fixture %s removed — dev DB is back to its pre-suite state\n' "$PID" \
       || printf 'WARNING: fixture removal FAILED for %s (dev-db-cleanup exited non-zero)\n' "$PID"
   done
+  (cd "$REPO" && bun -e 'const {db} = await import("./src/lib/db"); const r = await db.user.deleteMany({where: {email: {in: ["abi.signup@eos.test", "kojo.signup@eos.test"]}}}); await db.$disconnect(); console.log(`signup fixtures removed: ${r.count}`);' >/dev/null) \
+    && printf 'signup fixture accounts removed — dev DB user table is back to operator + demo personas\n' \
+    || printf 'WARNING: signup fixture account removal FAILED (non-zero bun -e exit)\n'
 fi
 
 printf '\n== e2e-p6-isolation.sh: %d PASS / %d FAIL ==\n' "$PASS" "$FAIL"

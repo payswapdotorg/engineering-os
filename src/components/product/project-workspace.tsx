@@ -13,7 +13,7 @@ import Link from "next/link"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
-import { useApi, type ArtifactListItem, type AuditEventRow, type Member, type ProjectDetail } from "@/components/product/api"
+import { updateMemberRole, useApi, type ArtifactListItem, type AuditEventRow, type Member, type ProjectDetail } from "@/components/product/api"
 import { ApprovalBadge, DisciplineBadge, KindBadge, StalenessBadge } from "@/components/product/badges"
 import { ArtifactDetailDialog, RegisterArtifactDialog } from "@/components/product/artifact-dialogs"
 import { AgentsWorkspace } from "@/components/product/agents-workspace"
@@ -45,6 +45,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ARTIFACT_KINDS } from "@/lib/artifact-meta"
+import { TEAM_ROLES } from "@/core"
 import { disciplineLabel } from "@/lib/disciplines"
 import { initialsOf } from "@/components/product/format"
 
@@ -74,6 +75,10 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
   const [editOpen, setEditOpen] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null)
   const [detailArtifactId, setDetailArtifactId] = useState<string | null>(null)
+  /** Slice-14 role PATCH in flight — the row's Select disables while the
+   *  server answer is pending (no optimistic UI: a refused change — e.g. the
+   *  409 last-owner demote — snaps back to the server truth on refresh). */
+  const [rolePendingId, setRolePendingId] = useState<string | null>(null)
 
   const [search, setSearch] = useState("")
   const [kindFilter, setKindFilter] = useState("all")
@@ -127,6 +132,25 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
   const refreshAll = () => {
     void workspace.refresh()
     void activity.refresh()
+  }
+
+  /** Slice-14 role change through the REAL PATCH route. Never optimistic:
+   *  the row's Select stays on the SERVER role until the refresh lands, so
+   *  a refused change (409 last-owner demote — verbatim in the toast) snaps
+   *  back visibly. */
+  const changeMemberRole = async (member: Member, role: string) => {
+    if (role === member.role || rolePendingId !== null) return
+    setRolePendingId(member.id)
+    try {
+      const data = await updateMemberRole(projectId, member.id, role)
+      toast.success(`"${data.member.name}" is now ${data.member.role}`)
+    } catch (err) {
+      // Server refusal VERBATIM (ApiError carries the pinned envelope text).
+      toast.error(err instanceof Error ? err.message : "role change failed")
+    } finally {
+      setRolePendingId(null)
+      refreshAll()
+    }
   }
 
   const openRegisterFromOverview = () => {
@@ -418,8 +442,9 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
             <AlertDescription>
               A member added by email with a matching account holds real, role-scoped project access (Slice
               10: owner manages settings and team, editor works the project, viewer is read-only in-project);
-              rows added without an email are display-only roster entries. The server enforces every rule —
-              non-members cannot see this project at all.
+              an email with no account yet is a pending invitation — it activates automatically when that
+              person signs up (Slice 14). Rows added without an email are display-only roster entries. The
+              server enforces every rule — non-members cannot see this project at all.
             </AlertDescription>
           </Alert>
 
@@ -463,7 +488,32 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-muted-foreground">{member.role}</Badge>
+                        {isTeamManager ? (
+                          <Select
+                            value={member.role}
+                            onValueChange={(role) => {
+                              void changeMemberRole(member, role)
+                            }}
+                            disabled={rolePendingId === member.id}
+                          >
+                            <SelectTrigger
+                              size="default"
+                              className="h-8 w-28"
+                              aria-label={`Change ${member.name}'s project role`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {TEAM_ROLES.map((r) => (
+                                <SelectItem key={r} value={r}>
+                                  {r}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">{member.role}</Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         {member.userId !== null ? (

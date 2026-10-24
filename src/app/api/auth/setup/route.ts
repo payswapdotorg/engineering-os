@@ -1,9 +1,11 @@
 /**
  * First-run operator setup (contract §1.2) — PUBLIC route (pre-auth by
  * definition): GET reports whether bootstrap is still possible; POST creates
- * the FIRST user (role "admin") and is refused afterwards. This is the only
- * user-creation path in the product — honest limitation: it is first-run
- * only, so operator recovery is a DB operation, never an API loop.
+ * the FIRST user (role "admin") and is refused afterwards. Honest boundary:
+ * this is the ADMIN bootstrap only — general signup (Slice 14,
+ * /api/auth/signup) creates engineer accounts, and demo provisioning creates
+ * clearly-labelled personas; operator recovery beyond first run is a DB
+ * operation, never an API loop.
  */
 import { z } from "zod"
 

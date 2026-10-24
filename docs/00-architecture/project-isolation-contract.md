@@ -195,7 +195,7 @@ Flow (after project-exists 404):
 2. **Manage gate (EXISTING, pinned envelope unchanged):** admin bypass OR owner row (`userId = session.id` first; legacy fallback `email === session.email OR name === session.name` retained for pre-slice rows — documented) ⇒ else `ERR_MEMBER_MANAGEMENT()` 403 verbatim `only the project owner or an admin can manage team members`.
 3. If `email` present: look up `db.user.findUnique({ where: { email } })`.
    - Account exists ⇒ row is a GRANT: `userId = account.id`, **`name = account.name`** (the account identity wins — a roster row can never spoof a display name over a real user), `email = account.email`. If a grant for that user already exists ⇒ `ERR.conflict(\`"${account.name}" already has access to this project\`)` 409 verbatim.
-   - No account ⇒ row is a PENDING invitation: `userId = null`, name/email as supplied. Honest semantics: **a pending row grants nothing**; the general signup flow is out of scope (§9) — the row stays display-only until an account with that email exists AND an owner re-adds/links it.
+   - No account ⇒ row is a PENDING invitation: `userId = null`, name/email as supplied. Honest semantics: **a pending row grants nothing**; ~~the general signup flow is out of scope (§9) — the row stays display-only until an account with that email exists AND an owner re-adds/links it~~ **CLOSED in Slice 14**: `POST /api/auth/signup` activates every matching pending row AT SIGNUP (one per project, earliest by addedAt — the pure planner in `src/lib/signup.ts`), linking `userId` without any owner action; the audit records `member.activated {via:"signup"}` with the self-activating user as actor.
    - No `email` ⇒ today's display-only row (unchanged behavior).
 4. Duplicate-name conflict (existing 409 verbatim) stays first-in-line among roster checks.
 5. `addedBy = session.id` on every new row. Audit `member.added` gains `detail: { name, role, email?, linked: boolean, userId? }`.
@@ -249,7 +249,7 @@ E2E (`scripts/e2e-p6-isolation.sh` — the SIXTH suite; sources `scripts/e2e-sig
 
 ## §9 Out of scope (recorded honestly)
 
-- General account signup (no signup flow exists; first-run setup + demo provisioning only) ⇒ pending rows cannot self-activate.
-- Member role PATCH (re-grant at a new role is the path; recorded).
+- ~~General account signup (no signup flow exists; first-run setup + demo provisioning only) ⇒ pending rows cannot self-activate.~~ **CLOSED in Slice 14 / fourteenth pass**: `POST /api/auth/signup` (public) creates engineer accounts AND activates every matching pending invitation in the same call (AC-SU-01…03; honest bounds recorded as implementation-status limitation #19 — open signup, no email verification).
+- ~~Member role PATCH (re-grant at a new role is the path; recorded).~~ **CLOSED in Slice 14 / fourteenth pass**: `PATCH /api/projects/[id]/members/[memberId]` behind the full manage gate with a last-owner demote guard (AC-RP-01…02).
 - Per-field / per-artifact ACLs; cross-project link grants beyond the existing 400 refusal.
-- LLM planning layer (forward-queue item #2 — next contract), native editors, pg runtime drill, persistent sheet markups.
+- LLM planning layer (forward-queue item #2 — next contract; SHIPPED as Slice 11 / ADR-0008), native editors, pg runtime drill (SHIPPED as Slice 12), persistent sheet markups (SHIPPED as Slice 13).

@@ -531,6 +531,19 @@ export async function removeMember(projectId: string, memberId: string): Promise
   return apiJson<{ removed: string }>(`/api/projects/${projectId}/members/${memberId}`, "DELETE")
 }
 
+/** PATCH /api/projects/[id]/members/[memberId] — change a member's ROLE
+ * (Slice 14: role changes are one call now, not revoke + re-grant). The
+ * server's verbatim refusals surface (409 last-owner demote); the caller
+ * re-fetches the roster before releasing the row so a refused change snaps
+ * back visibly. */
+export async function updateMemberRole(
+  projectId: string,
+  memberId: string,
+  role: string,
+): Promise<{ member: Member }> {
+  return apiJson<{ member: Member }>(`/api/projects/${projectId}/members/${memberId}`, "PATCH", { role })
+}
+
 export async function listProjectArtifacts(projectId: string) {
   return apiGet<{ artifacts: ArtifactListItem[] }>(`/api/projects/${projectId}/artifacts`)
 }
