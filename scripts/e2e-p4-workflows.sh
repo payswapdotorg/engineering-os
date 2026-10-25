@@ -109,9 +109,10 @@ jq -n --arg id "$SOLIDS_ID" '{name: "bad-op probe", definition: {steps: [
 ]}}' > "$WORK/wf-badop.json"
 jpost "/api/projects/$PROBE_ID/workflows" "$WORK/wf-badop.json"
 # AC-P5-07 note (2026-10-22): the operation vocabulary grew with the Phase-5
-# broker ops (contract §4) — the pinned message lists all eight.
+# broker ops (contract §4); Slice 15 (2026-10-25) added the vector-takeoff
+# ops — the pinned message lists all ten.
 assert_eq "unknown operation → 422 with the joined verbatim message" \
-  'invalid workflow definition: steps.0.operation: operation must be one of: derive_quantities, derive_mesh, build_report, fe_mesh, run_powerflow, run_des, convert_document, analyze_schedule' \
+  'invalid workflow definition: steps.0.operation: operation must be one of: derive_quantities, derive_mesh, build_report, fe_mesh, run_powerflow, run_des, convert_document, analyze_schedule, takeoff_sheet, takeoff_drawing' \
   "$(j "$BODY" '.error.message')"
 
 jq -n --arg id "$SOLIDS_ID" '{name: "dup-ids probe", definition: {steps: [
