@@ -44,9 +44,12 @@ import {
   buildReportDocument,
   feMeshBrokerParameters,
   femeshUnsupportedMessage,
+  isParametricModelSignal,
   notAnalysisFormatMessage,
   notJsonDocumentMessage,
+  parametricUnsupportedMessage,
   platformCoreOutcome,
+  rebuildParametricBrokerValues,
   reportMatchesInputs,
   reportStats,
   runBrokerOperation,
@@ -775,5 +778,63 @@ describe("validateScheduleDocument — the §3.1 structural defense (pure, W2-f)
     expect(
       validateScheduleDocument({ activities: Array.from({ length: 65 }, (_, i) => ({ id: `a${i}`, name: "x", durationDays: 1, predecessorIds: [] })) }),
     ).toEqual({ ok: false, error: "invalid schedule: activities: must be an array of 1..64 activities" })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Parametric rebuild — the Slice-16 pure surfaces (roadmap-gap-audit item 2)
+// ---------------------------------------------------------------------------
+
+describe("rebuild_parametric — pure parameter/signal surfaces (Slice 16)", () => {
+  test("rebuildParametricBrokerValues — absent → defaults-flow {}; object passes through; non-object → the pinned 422", () => {
+    expect(rebuildParametricBrokerValues({})).toEqual({ ok: true, value: {} })
+    expect(rebuildParametricBrokerValues({ values: undefined })).toEqual({ ok: true, value: {} })
+    expect(rebuildParametricBrokerValues({ values: { width: 120 } })).toEqual({
+      ok: true,
+      value: { width: 120 },
+    })
+    expect(rebuildParametricBrokerValues({ values: null })).toEqual({
+      ok: false,
+      message: "rebuild_parametric parameters.values must be a JSON object of parameter edits when provided",
+    })
+    expect(rebuildParametricBrokerValues({ values: [1, 2] })).toEqual({
+      ok: false,
+      message: "rebuild_parametric parameters.values must be a JSON object of parameter edits when provided",
+    })
+    expect(rebuildParametricBrokerValues({ values: "wide" })).toEqual({
+      ok: false,
+      message: "rebuild_parametric parameters.values must be a JSON object of parameter edits when provided",
+    })
+  })
+
+  test("isParametricModelSignal — .py name or python MIME, multi-signal like derive-kind", () => {
+    expect(isParametricModelSignal("bracket.py", null)).toBe(true)
+    expect(isParametricModelSignal("BRACKET.PY", null)).toBe(true)
+    expect(isParametricModelSignal("notes.md", "text/x-python")).toBe(true)
+    expect(isParametricModelSignal("notes.md", "application/x-python")).toBe(true)
+    expect(isParametricModelSignal("bracket.step", "application/step")).toBe(false)
+    expect(isParametricModelSignal("py.txt", "text/plain")).toBe(false)
+    expect(isParametricModelSignal("model.ifc", null)).toBe(false)
+  })
+
+  test("parametricUnsupportedMessage — the non-py 422, verbatim", () => {
+    expect(parametricUnsupportedMessage("site-plan.pdf")).toBe(
+      'rebuild_parametric requires a parametric model script (.py) — "site-plan.pdf" carries no python-script signal (.py name or text/x-python MIME)',
+    )
+  })
+
+  test("runBrokerOperation rebuild_parametric without inputs.artifactId → pinned refusal", async () => {
+    let caught: unknown
+    try {
+      await runBrokerOperation("rebuild_parametric", ctx, {}, {})
+    } catch (err) {
+      caught = err
+    }
+    expect(caught).toBeInstanceOf(BrokerRefusalError)
+    const refusal = caught as BrokerRefusalError
+    expect(refusal.code).toBe("unsupported")
+    expect(refusal.message).toBe(
+      "rebuild_parametric requires inputs.artifactId (one parametric model script artifact id)",
+    )
   })
 })

@@ -327,17 +327,33 @@ export interface QuantityCreateInput {
 // ---------------------------------------------------------------------------
 
 /** GET /api/projects/[id]/markups row (points parsed by the server). */
+
+/** The Slice 16-B text-hits transcript (kind "text-hits" payload). */
+export interface MarkupTranscriptPayload {
+  words: Array<{
+    text: string
+    conf: number
+    boxIndex: number
+    normalized?: { raw: string; normalized: string; rule: "diameter-glyph" }
+  }>
+  engine: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+}
+
 export interface SheetMarkupRow {
   id: string
   revisionId: string
   page: number
-  kind: "length" | "area" | "count" | "symbol-hits" | "calibration"
+  kind: "length" | "area" | "count" | "symbol-hits" | "text-hits" | "calibration"
   points: Array<{ x: number; y: number }>
   label: string | null
   value: number
   unit: string
   scale: string | null
   quantityId: string | null
+  payload?: MarkupTranscriptPayload
   createdBy: string
   createdAt: string
 }
@@ -355,6 +371,7 @@ export interface SheetMarkupCreateInput {
   unit: string
   scale?: string
   quantityId?: string
+  payload?: MarkupTranscriptPayload
   createdBy: string
 }
 
@@ -372,6 +389,43 @@ export async function createMarkup(projectId: string, input: SheetMarkupCreateIn
 
 export async function deleteMarkup(projectId: string, markupId: string) {
   return apiJson<{ removed: string }>(`/api/projects/${projectId}/markups/${markupId}`, "DELETE")
+}
+
+// --- sheet-text OCR (Slice 16-B — region reads through the broker) -----------
+
+/** POST /api/projects/[id]/artifacts/[aid]/ocr — 200 {words, engine envelope}.
+ * The client renders the picked region at a FIXED 4× page scale; tesseract
+ * reads it; raw transcript + conf + boxes + the Ø normalization (raw kept). */
+export interface SheetOcrWord {
+  text: string
+  conf: number
+  box: { x: number; y: number; width: number; height: number }
+  normalized?: { raw: string; normalized: string; rule: "diameter-glyph" }
+}
+
+export interface SheetOcrRunResult {
+  engineKey: "tesseract"
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  tessdataDir: string | null
+  psm: number
+  words: SheetOcrWord[]
+  sourceArtifactId: string
+  sourceRevisionId: string
+}
+
+export async function runSheetOcr(
+  projectId: string,
+  artifactId: string,
+  imageBase64: string,
+  psm?: number,
+) {
+  return apiJson<SheetOcrRunResult>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/ocr`,
+    "POST",
+    psm !== undefined ? { imageBase64, psm } : { imageBase64 },
+  )
 }
 
 export interface AssemblyComponentRow {
@@ -1096,6 +1150,67 @@ export async function runFeMesh(projectId: string, artifactId: string) {
     `/api/projects/${projectId}/artifacts/${artifactId}/fe-mesh`,
     "POST",
     {},
+  )
+}
+
+// --- parametric rebuild (Slice 16 — the Studio parameter form + rebuild) ------
+
+/** One numeric parameter spec from a model's PARAM_SCHEMA (values-only editing). */
+export interface ParametricParamSpec {
+  type: "number"
+  minimum?: number
+  maximum?: number
+  default?: number
+  unit?: string
+  label?: string
+}
+
+/** GET /api/projects/[id]/artifacts/[aid]/parametric — the form source. */
+export interface ParametricSchemaGetResult {
+  schema: { type: "object"; properties: Record<string, ParametricParamSpec>; required?: string[] }
+  defaults: Record<string, number>
+  modelScriptHash: string
+  engineKey: "cadquery"
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  sourceArtifactId: string
+  sourceRevisionId: string
+}
+
+/** 201 {model} — the rebuilt STEP artifact + re-imported properties. */
+export interface RebuildParametricResult {
+  model: DeriveRunResult & {
+    kind: "model"
+    mimeType: "application/step"
+    paramsUsed: Record<string, number>
+    volumeMm3: number
+    areaMm2: number
+    bboxMm: number[]
+    centerOfMassMm: number[]
+    checks: { volumeRelErr: number; passed: boolean }
+    staleMarked: Array<{ artifactId: string; name: string; relation: string; path: string[] }>
+  }
+}
+
+export async function getParametricSchema(projectId: string, artifactId: string) {
+  return apiGet<ParametricSchemaGetResult>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/parametric`,
+  )
+}
+
+/** POST …/parametric {values?} — rebuild; absent values = the authored defaults.
+ * Values transport cleared inputs as null / unparseable as NaN VERBATIM — the
+ * server's type refusal is the authority, the client never repairs them. */
+export async function rebuildParametric(
+  projectId: string,
+  artifactId: string,
+  values: Record<string, number | null> = {},
+) {
+  return apiJson<RebuildParametricResult>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/parametric`,
+    "POST",
+    { values },
   )
 }
 

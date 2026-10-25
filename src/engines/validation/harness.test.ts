@@ -142,7 +142,35 @@ describe("validation corpus manifest (integrity — engine independent)", () => 
     // (one pins array per parameter set) — same derivation discipline, nested
     // one level deeper.
     const TAKEOFF_ADAPTERS = new Set(["sheet", "dxf", "parametric"])
+    // 16-B OCR kind: the pins are the ordered expectedWords rows (each carries
+    // the raw transcript + conf floor + the Ø-rule form); the ground truth is
+    // the case-level narrative string, like takeoff/parametric.
+    const OCR_ADAPTERS = new Set(["ocr"])
     for (const c of manifest) {
+      if (OCR_ADAPTERS.has(c.adapter)) {
+        const block = (c as unknown as Record<string, unknown>).ocr as
+          | { expect?: string; runs?: Array<{ expectedWords?: Array<{ text: string }>; errorContains?: string }> }
+          | undefined
+        expect(typeof block).toBe("object")
+        if (c.expect === "error") {
+          expect((block?.runs ?? []).length).toBeGreaterThan(0)
+          for (const run of block?.runs ?? []) {
+            expect(typeof run.errorContains).toBe("string")
+            expect((run.errorContains ?? "").length).toBeGreaterThan(0)
+          }
+          expect(c.groundTruth).toBeUndefined()
+          continue
+        }
+        expect(typeof c.ocrGroundTruth).toBe("string")
+        expect((c.ocrGroundTruth ?? "").length).toBeGreaterThan(0)
+        for (const run of block?.runs ?? []) {
+          expect((run.expectedWords ?? []).length).toBeGreaterThan(0)
+          for (const w of run.expectedWords ?? []) {
+            expect(w.text.length).toBeGreaterThan(0)
+          }
+        }
+        continue
+      }
       if (TAKEOFF_ADAPTERS.has(c.adapter)) {
         const block = (c as unknown as Record<string, unknown>)[c.adapter] as
           | { errorContains?: string; runs?: Array<{ pins?: Array<{ derivation: string }>; errorContains?: string }> }
@@ -300,6 +328,7 @@ function syntheticReport(): HarnessReport {
         sheet: { available: false, reason: "synthetic: engine absent" },
         dxf: { available: false, reason: "synthetic: engine absent" },
         parametric: { available: false, reason: "synthetic: engine absent" },
+        ocr: { available: false, reason: "synthetic: engine absent" },
       },
     },
     engineVersions: { cadquery: "synthetic", ifcopenshell: null },

@@ -53,8 +53,8 @@ const expectMarkupError = (input: Partial<SheetMarkupInput>, messagePart: string
 }
 
 describe("MARKUP_KINDS + per-kind vocabulary", () => {
-  test("closed kind list is exactly the five frozen kinds", () => {
-    expect([...MARKUP_KINDS]).toEqual(["length", "area", "count", "symbol-hits", "calibration"])
+  test("closed kind list is exactly the six frozen kinds (Slice 16-B adds text-hits)", () => {
+    expect([...MARKUP_KINDS]).toEqual(["length", "area", "count", "symbol-hits", "text-hits", "calibration"])
   })
 
   test("kind→unit mapping is the closed ledger vocabulary", () => {
@@ -200,7 +200,7 @@ describe("makeSheetMarkup — shape validation (MarkupError, honest messages)", 
   test("unknown kind is refused with the closed vocabulary in the message", () => {
     expectMarkupError(
       { kind: "volume" as never },
-      "kind must be one of: length, area, count, symbol-hits, calibration",
+      "kind must be one of: length, area, count, symbol-hits, text-hits, calibration",
     )
   })
 
@@ -331,5 +331,74 @@ describe("makeSheetMarkup — per-kind semantics", () => {
       { kind: "calibration", unit: "mm/pt", value: 0, points: [{ x: 1, y: 1 }, { x: 2, y: 2 }] },
       "value (mm/pt factor) must be a finite number > 0 (got 0)",
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Slice 16-B — text-hits (accepted OCR word boxes)
+// ---------------------------------------------------------------------------
+
+describe("text-hits markups (Slice 16-B sheet-text OCR)", () => {
+  const wordBoxes = [
+    { x: 100, y: 500 },
+    { x: 140, y: 480 },
+    { x: 200, y: 500 },
+    { x: 260, y: 480 },
+  ] // two [tl, br] pairs, image order
+
+  test("a valid text-hits markup: unit each, value === pair count", () => {
+    const record = make({
+      kind: "text-hits",
+      unit: "each",
+      value: 2,
+      points: wordBoxes,
+      quantityId: undefined,
+      scale: undefined,
+      label: "OCR transcript (2 words)",
+    })
+    expect(record.kind).toBe("text-hits")
+    expect(record.unit).toBe("each")
+    expect(record.value).toBe(2)
+    expect(record.points).toEqual(wordBoxes)
+  })
+
+  test("an odd point count refuses (pairs only)", () => {
+    expectMarkupError(
+      {
+        kind: "text-hits",
+        unit: "each",
+        value: 1,
+        points: wordBoxes.slice(0, 3),
+      },
+      "text-hits markups store [topLeft, bottomRight] pairs per accepted OCR word, so the points count must be even (got 3)",
+    )
+  })
+
+  test("value must equal the word-box count (the strict consistency rule)", () => {
+    expectMarkupError(
+      {
+        kind: "text-hits",
+        unit: "each",
+        value: 3,
+        points: wordBoxes,
+      },
+      "a text-hits markup's value must equal its hit-box count (2), got 3",
+    )
+  })
+
+  test("unit must be each (closed vocabulary)", () => {
+    expectMarkupError(
+      {
+        kind: "text-hits",
+        unit: "m",
+        value: 2,
+        points: wordBoxes,
+      },
+      'unit for a text-hits markup must be "each" (got "m")',
+    )
+  })
+
+  test("requiredPointsFor: min 2, no exact count (N pairs)", () => {
+    expect(requiredPointsFor("text-hits")).toEqual({ min: 2, exact: null })
   })
 })

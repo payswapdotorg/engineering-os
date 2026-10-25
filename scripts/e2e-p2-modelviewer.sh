@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # scripts/e2e-p2-modelviewer.sh — Design Studio model-viewer regression (Phase-2
-# record: 67 PASS / 0 FAIL). Rebuilt from AC-P2-01…07 evidence in
+# record: 86 PASS / 0 FAIL). Rebuilt from AC-P2-01…08 evidence in
 # docs/06-qa/acceptance-catalogue.md: real STEP/IFC tessellation round-trips,
 # the elementRef cross-reference contract with the quantity ledger,
 # byte-determinism on re-derive, the Journey-G staleness ride + regenerate,
 # honest 422 gates with zero side effects, the pinned eos-mesh/1 GET payload,
-# and the harness `validation` registry evidence.
+# and the harness `validation` registry evidence. AC-P2-08 (Slice 16) adds the
+# parametric-rebuild EDITING journey: schema form source, defaults + edited
+# rebuilds with analytic volume gates, the staleness ride on the rebuilt
+# model's mesh, the derived_from graph link, the verbatim refusal matrix,
+# audit trail, and the 401 gate.
 #
 # Creates a throwaway probe project ("AC-P2 modelviewer probe") and removes it
 # at the end (bun scripts/dev-db-cleanup.ts --project …; KEPT on failure for
@@ -325,6 +329,123 @@ assert_eq "cadquery entry: state tested + validation {harness, cases 5, lastRun,
 assert_eq "ifcopenshell entry: state tested + validation {harness, cases 6, lastRun, result pass} + mesh blocks (5 cases, pass)" \
   "tested|tests/validation/corpus-manifest.json|6|pass|5|pass" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "ifcopenshell")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "ifcopenshell")][0].validation.harness')|$(j "$BODY" '[.data.registry[] | select(.key == "ifcopenshell")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "ifcopenshell")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "ifcopenshell")][0].validation.mesh.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "ifcopenshell")][0].validation.mesh.result')"
+
+# ===========================================================================
+# 68-87. AC-P2-08 parametric rebuild — the Phase-2 EDITING journey (Slice 16,
+# roadmap-gap-audit item 2): script → schema form → real cadquery rebuild →
+# STEP model artifact → staleness ride on its downstream mesh.
+# ===========================================================================
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/parametric-bracket.py" calculation "parametric-bracket.py"
+PY_ID=$(j "$BODY" '.data.artifact.id')
+PY_SHA=$(sha256sum "$FIXTURES/parametric-bracket.py" | cut -d' ' -f1)
+assert_eq "parametric-bracket.py registered (201, kind calculation, contentHash == local sha256)" \
+  "201|calculation|$PY_SHA" "$STATUS|$(j "$BODY" '.data.artifact.kind')|$(j "$BODY" '.data.artifact.latestRevision.contentHash')"
+
+http GET "/api/projects/$PROBE_ID/artifacts/$PY_ID/parametric"
+SCHEMA="$BODY"
+assert_eq "GET parametric schema: 200, five declared params, authored defaults, cadquery envelope" \
+  "200|depth,height,holeDia,thickness,width|80|50|8|60|10|cadquery|parametric_rebuild.py" \
+  "$STATUS|$(j "$SCHEMA" '.data.schema.properties | keys | join(",")')|$(j "$SCHEMA" '.data.defaults.width')|$(j "$SCHEMA" '.data.defaults.depth')|$(j "$SCHEMA" '.data.defaults.thickness')|$(j "$SCHEMA" '.data.defaults.height')|$(j "$SCHEMA" '.data.defaults.holeDia')|$(j "$SCHEMA" '.data.engineKey')|$(j "$SCHEMA" '.data.adapterScript')"
+assert_eq "schema carries the model-script identity + per-param range/label/unit (the form source)" \
+  "$PY_SHA|20|300|mm|Overall width (X)" \
+  "$(j "$SCHEMA" '.data.modelScriptHash')|$(j "$SCHEMA" '.data.schema.properties.width.minimum')|$(j "$SCHEMA" '.data.schema.properties.width.maximum')|$(j "$SCHEMA" '.data.schema.properties.width.unit')|$(j "$SCHEMA" '.data.schema.properties.width.label')"
+
+http POST "/api/projects/$PROBE_ID/artifacts/$PY_ID/parametric" -H 'Content-Type: application/json' --data-binary '{}'
+REBUILD1="$BODY"
+MODEL_ID=$(j "$REBUILD1" '.data.model.artifactId')
+VOL_OK=$(python3 -c 'import sys, json
+m = json.loads(sys.argv[1])["data"]["model"]
+analytic = 80*50*8 + 80*8*(60-8) - 3.141592653589793*10**2/4*8
+sys.exit(0 if abs(m["volumeMm3"] - analytic) <= 1e-9 * analytic and m["checks"]["passed"] is True else 1)' "$REBUILD1" && echo ok || echo bad)
+assert_eq "rebuild at authored defaults: 201, kind model, rev 1, analytic-gated volume (64651.68… mm³ rel ≤1e-9)" \
+  "201|model|1|application/step|$MODEL_ID|$PY_ID|ok|false" \
+  "$STATUS|$(j "$REBUILD1" '.data.model.kind')|$(j "$REBUILD1" '.data.model.revisionNumber')|$(j "$REBUILD1" '.data.model.mimeType')|$( [[ -n "$MODEL_ID" && "$MODEL_ID" != "null" ]] && echo "$MODEL_ID" || echo missing)|$(j "$REBUILD1" '.data.model.derivedFromArtifactId')|$VOL_OK|$(j "$REBUILD1" '.data.model.staleSource')"
+assert_eq "defaults rebuild: paramsUsed == authored defaults + bbox 80·50·60 mm (exact integers)" \
+  "80|50|8|60|10|80|50|60" \
+  "$(j "$REBUILD1" '.data.model.paramsUsed.width')|$(j "$REBUILD1" '.data.model.paramsUsed.depth')|$(j "$REBUILD1" '.data.model.paramsUsed.thickness')|$(j "$REBUILD1" '.data.model.paramsUsed.height')|$(j "$REBUILD1" '.data.model.paramsUsed.holeDia')|$(j "$REBUILD1" '.data.model.bboxMm[0] | floor')|$(j "$REBUILD1" '.data.model.bboxMm[1] | floor')|$(j "$REBUILD1" '.data.model.bboxMm[2] | floor')"
+
+cat > "$WORK/edited.json" <<'EOF'
+{ "values": { "width": 120, "depth": 60, "thickness": 10, "height": 80, "holeDia": 16 } }
+EOF
+http POST "/api/projects/$PROBE_ID/artifacts/$PY_ID/parametric" -H 'Content-Type: application/json' --data-binary @"$WORK/edited.json"
+REBUILD2="$BODY"
+VOL2_OK=$(python3 -c 'import sys, json
+m = json.loads(sys.argv[1])["data"]["model"]
+analytic = 120*60*10 + 120*10*(80-10) - 3.141592653589793*16**2/4*10
+sys.exit(0 if abs(m["volumeMm3"] - analytic) <= 1e-9 * analytic else 1)' "$REBUILD2" && echo ok || echo bad)
+assert_eq "rebuild at EDITED params (the 16-R3 RUN B set): 201, SAME model artifact rev 2 (find-or-create appends), analytic volume 153989.38… mm³" \
+  "201|$MODEL_ID|2|ok|120" \
+  "$STATUS|$(j "$REBUILD2" '.data.model.artifactId')|$(j "$REBUILD2" '.data.model.revisionNumber')|$VOL2_OK|$(j "$REBUILD2" '.data.model.paramsUsed.width')"
+
+# The staleness ride: mesh the rebuilt model, then rebuild again → mesh goes stale.
+http POST "/api/projects/$PROBE_ID/artifacts/$MODEL_ID/derive-mesh"
+PMESH="$BODY"
+PMESH_ID=$(j "$PMESH" '.data.mesh.artifactId')
+assert_eq "derive-mesh on the REBUILT model (mime application/step): 201, real cadquery tessellation" \
+  "201|set" "$STATUS|$( [[ -n "$PMESH_ID" && "$PMESH_ID" != "null" ]] && echo set || echo missing)"
+
+cat > "$WORK/wide.json" <<'EOF'
+{ "values": { "width": 100 } }
+EOF
+http POST "/api/projects/$PROBE_ID/artifacts/$PY_ID/parametric" -H 'Content-Type: application/json' --data-binary @"$WORK/wide.json"
+REBUILD3="$BODY"
+assert_eq "third rebuild (width 100): 201 rev 3 + the staleness cascade marks the downstream mesh (evidence rows)" \
+  "201|3|1|$PMESH_ID" \
+  "$STATUS|$(j "$REBUILD3" '.data.model.revisionNumber')|$(j "$REBUILD3" '.data.model.staleMarked | length')|$(j "$REBUILD3" '.data.model.staleMarked[0].artifactId')"
+
+http GET "/api/artifacts/$PMESH_ID/mesh"
+assert_eq "the mesh now reads STALE against the rebuilt model's newer revision (the Journey-G ride)" \
+  "true|stale" "$(j "$BODY" '.data.meta.staleSource')|$(j "$BODY" '.data.meta.staleness')"
+
+http GET "/api/artifacts/$MODEL_ID"
+assert_eq "the rebuilt model's derived_from link points at the parametric script (graph truth)" \
+  "derived_from|$PY_ID" \
+  "$(j "$BODY" '.data.artifact.linksFrom[0].relationType')|$(j "$BODY" '.data.artifact.linksFrom[0].toArtifactId')"
+
+# --- the honest refusal matrix (verbatim 422s) --------------------------------
+http POST "/api/projects/$PROBE_ID/artifacts/$SOLIDS_ID/parametric" -H 'Content-Type: application/json' --data-binary '{}'
+assert_eq "non-py artifact refused (422 unsupported, verbatim)" \
+  "422|rebuild_parametric requires a parametric model script (.py) — \"two-solids.step\" carries no python-script signal (.py name or text/x-python MIME)" \
+  "$STATUS|$(j "$BODY" '.error.message')"
+
+http GET "/api/projects/$PROBE_ID/artifacts/$SOLIDS_ID/parametric"
+assert_eq "GET schema on a non-py artifact refused identically (the read side gates too)" \
+  "422|rebuild_parametric requires a parametric model script (.py) — \"two-solids.step\" carries no python-script signal (.py name or text/x-python MIME)" \
+  "$STATUS|$(j "$BODY" '.error.message')"
+
+echo '{ "values": { "bogus": 1 } }' > "$WORK/badkey.json"
+http POST "/api/projects/$PROBE_ID/artifacts/$PY_ID/parametric" -H 'Content-Type: application/json' --data-binary @"$WORK/badkey.json"
+assert_eq "unknown parameter key refused (422, the mirror's verbatim message — BEFORE any engine spawn)" \
+  "422|unknown parameter(s) rejected: ['bogus']" "$STATUS|$(j "$BODY" '.error.message')"
+
+echo '{ "values": { "width": 10 } }' > "$WORK/badrange.json"
+http POST "/api/projects/$PROBE_ID/artifacts/$PY_ID/parametric" -H 'Content-Type: application/json' --data-binary @"$WORK/badrange.json"
+assert_eq "out-of-range value refused (422 verbatim, schema minimum 20)" \
+  "422|parameter 'width' = 10 below minimum 20" "$STATUS|$(j "$BODY" '.error.message')"
+
+echo '{ "values": { "height": 60, "holeDia": 55 } }' > "$WORK/badgeom.json"
+http POST "/api/projects/$PROBE_ID/artifacts/$PY_ID/parametric" -H 'Content-Type: application/json' --data-binary @"$WORK/badgeom.json"
+assert_eq "model-authored geometry contradiction refused VERBATIM by the adapter (422 engine_unavailable)" \
+  "422|hole does not fit inside the vertical leg — raise height or shrink holeDia" "$STATUS|$(j "$BODY" '.error.message')"
+
+echo '{ "values": { "width": null } }' > "$WORK/nullval.json"
+http POST "/api/projects/$PROBE_ID/artifacts/$PY_ID/parametric" -H 'Content-Type: application/json' --data-binary @"$WORK/nullval.json"
+assert_eq "cleared (null) input refused with the adapter-parity type message (422)" \
+  "422|parameter 'width' must be a number, got NoneType" "$STATUS|$(j "$BODY" '.error.message')"
+
+echo '{ "values": "wide" }' > "$WORK/badvals.json"
+http POST "/api/projects/$PROBE_ID/artifacts/$PY_ID/parametric" -H 'Content-Type: application/json' --data-binary @"$WORK/badvals.json"
+assert_eq "values-not-an-object refused (422 verbatim)" \
+  "422|rebuild_parametric parameters.values must be a JSON object of parameter edits when provided" "$STATUS|$(j "$BODY" '.error.message')"
+
+# --- audit trail + the 401 gate ----------------------------------------------
+http GET "/api/events?projectId=$PROBE_ID&limit=200"
+assert_eq "parametric.rebuilt audit events (3 rebuilds, one per parameter set incl. the edited width=120) with params + volume in detail" \
+  "3|1|1" \
+  "$(j "$BODY" '[.data.events[] | select(.action == "parametric.rebuilt")] | length')|$(j "$BODY" '[.data.events[] | select(.action == "parametric.rebuilt" and (.detail | fromjson | .paramsUsed.width == 120))] | length')|$(j "$BODY" '[.data.events[] | select(.action == "parametric.rebuilt" and (.detail | fromjson | .paramsUsed.width == 100))] | length')"
+
+STATUS=$(curl -sS -m 60 -o "$WORK/http.body" -w '%{http_code}' -X POST "$BASE/api/projects/$PROBE_ID/artifacts/$PY_ID/parametric" -H 'Content-Type: application/json' --data-binary '{}')
+assert_eq "unauthenticated rebuild refused (401 envelope)" "401" "$STATUS"
 
 echo
 echo "== e2e-p2-modelviewer.sh: $PASS PASS / $FAIL FAIL =="

@@ -369,13 +369,14 @@ model SheetMarkup {
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   revisionId  String // the artifact revision the geometry is drawn on (immutable, like ledger rows)
   page        Int // 1-based PDF page number
-  kind        String // length|area|count|symbol-hits|calibration (src/core/markup.ts)
+  kind        String // length|area|count|symbol-hits|text-hits|calibration (src/core/markup.ts)
   points      String // JSON [{x,y},…] in PDF-point space (src/core/markup.ts semantics per kind)
   label       String?
-  value       Float // the measured result in `unit` (count: === clicked points; symbol-hits: === hit pairs)
+  value       Float // the measured result in `unit` (count: === clicked points; symbol-hits/text-hits: === hit pairs)
   unit        String // m|m²|each|mm/pt — the closed kind→unit vocabulary (src/core/markup.ts)
   scale       String? // the calibration scale record the measurement was taken under (verbatim)
   quantityId  String? // → QuantityRecord.id when the markup produced a ledger row (null for calibration)
+  payload     String? // Slice 16-B: kind "text-hits" transcript JSON {words:[{text,normalized?,conf,boxIndex}],engine,engineVersion,adapterScript,adapterHash} — null for every other kind
   createdBy   String   @default("local-operator")
   createdAt   DateTime @default(now())
 

@@ -31,6 +31,11 @@ import { WORKFLOW_STATES, isWorkflowState, type WorkflowState } from "./index"
  * fe_mesh / run_powerflow / run_des / convert_document (engine ops) and
  * analyze_schedule (platform core — engineKey honestly ABSENT in its
  * execution records). All five take exactly one input artifact.
+ *
+ * Slice 15 added the takeoff pair; Slice 16 adds `rebuild_parametric` (the
+ * roadmap-gap-audit item-2 integration — parametric authoring as a durable,
+ * cross-session-capable workflow step; parameters.values carries the edits,
+ * absent = the authored defaults).
  */
 export const BROKER_OPERATIONS = [
   "derive_quantities",
@@ -43,6 +48,7 @@ export const BROKER_OPERATIONS = [
   "analyze_schedule",
   "takeoff_sheet",
   "takeoff_drawing",
+  "rebuild_parametric",
 ] as const
 export type BrokerOperation = (typeof BROKER_OPERATIONS)[number]
 

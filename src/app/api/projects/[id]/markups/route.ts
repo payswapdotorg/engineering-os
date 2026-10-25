@@ -17,7 +17,9 @@ import { handler, requireProjectAccess, stringEnum } from "../../../_lib/route-h
 export const dynamic = "force-dynamic"
 
 /**
- * Slice 13 — persistent sheet markups (limitation #5).
+ * Slice 13 — persistent sheet markups (limitation #5). Slice 16-B extends
+ * the kind vocabulary with "text-hits" (accepted OCR word boxes) whose
+ * transcript rides the new nullable `payload` column.
  *
  * GET  /api/projects/[id]/markups            → all markups of the project
  * GET  …/markups?revisionId=<rid>            → filtered to one revision
@@ -36,6 +38,10 @@ export const dynamic = "force-dynamic"
  *  - domain semantics (kind vocabulary, per-kind point counts, the strict
  *    value/geometry consistency, unit mapping) are enforced ONCE in
  *    src/core/markup.ts — a MarkupError message returns verbatim as 422;
+ *  - a `payload` is accepted ONLY for kind "text-hits" (the OCR transcript)
+ *    and shape-validated: words[] with boxIndex < hit-pair count, conf ≥ 0,
+ *    raw text always present, the engine envelope; every other kind
+ *    carrying a payload is a 422 (never silently dropped);
  *  - mutations emit audit events (markup.created), reads do not.
  */
 
@@ -54,10 +60,34 @@ const createMarkupSchema = z.object({
   unit: z.string().trim().min(1, "unit is required"),
   scale: z.string().optional(),
   quantityId: z.string().optional(),
+  payload: z.unknown().optional(),
   createdBy: z.string().trim().min(1, "createdBy is required"),
 })
 
-/** Serializes a stored row: `points` JSON parsed, everything else verbatim. */
+/** The Slice 16-B text-hits transcript payload (shape-validated at the route;
+ * the pure core keeps points/value semantics — the transcript is provenance). */
+const transcriptWordSchema = z.object({
+  text: z.string().min(1, "payload.words[].text must be a non-empty string"),
+  conf: z.number({ message: "payload.words[].conf must be a number" }).min(0).max(100),
+  boxIndex: z.number({ message: "payload.words[].boxIndex must be a number" }).int().min(0),
+  normalized: z
+    .object({
+      raw: z.string().min(1),
+      normalized: z.string().min(1),
+      rule: z.literal("diameter-glyph"),
+    })
+    .optional(),
+})
+
+const transcriptPayloadSchema = z.object({
+  words: z.array(transcriptWordSchema, { message: "payload.words must be an array" }).min(1),
+  engine: z.string().min(1, "payload.engine is required (which engine read the words)"),
+  engineVersion: z.string().min(1, "payload.engineVersion is required"),
+  adapterScript: z.string().min(1, "payload.adapterScript is required"),
+  adapterHash: z.string().min(1, "payload.adapterHash is required"),
+})
+
+/** Serializes a stored row: `points`/`payload` JSON parsed, everything else verbatim. */
 function serializeMarkup(row: {
   id: string
   revisionId: string
@@ -69,6 +99,7 @@ function serializeMarkup(row: {
   unit: string
   scale: string | null
   quantityId: string | null
+  payload: string | null
   createdBy: string
   createdAt: Date
 }) {
@@ -82,6 +113,14 @@ function serializeMarkup(row: {
     // but a read must never crash the route on corrupt bytes either.
     points = []
   }
+  let payload: unknown = null
+  if (row.payload !== null) {
+    try {
+      payload = JSON.parse(row.payload)
+    } catch {
+      payload = null // same never-crash rule
+    }
+  }
   return {
     id: row.id,
     revisionId: row.revisionId,
@@ -93,6 +132,7 @@ function serializeMarkup(row: {
     unit: row.unit,
     scale: row.scale,
     quantityId: row.quantityId,
+    ...(payload !== null ? { payload } : {}),
     createdBy: row.createdBy,
     createdAt: row.createdAt.toISOString(),
   }
@@ -177,6 +217,35 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
     }
   }
 
+  // Slice 16-B: the transcript payload is text-hits-ONLY, shape-validated,
+  // with every word's boxIndex inside the markup's own hit-pair boxes — the
+  // transcript and the geometry can never disagree in storage.
+  let payloadJson: string | null = null
+  if (input.payload !== undefined) {
+    if (input.kind !== "text-hits") {
+      return ERR.invalid(`payload: is only accepted for kind "text-hits" markups (kind ${input.kind} carries none)`,)
+    }
+    const payload = transcriptPayloadSchema.safeParse(input.payload)
+    if (!payload.success) {
+      const issues = payload.error.issues
+        .map((issue) => {
+          const at = issue.path.length > 0 ? `${issue.path.join(".")}: ` : ""
+          return `${at}${issue.message}`
+        })
+        .join("; ")
+      return ERR.invalid(`payload: ${issues}`)
+    }
+    const pairCount = Math.floor(input.points.length / 2)
+    for (const word of payload.data.words) {
+      if (word.boxIndex >= pairCount) {
+        return ERR.invalid(
+          `payload.words[].boxIndex: ${word.boxIndex} is outside the markup's ${pairCount} word boxes — the transcript and the geometry disagree`,
+        )
+      }
+    }
+    payloadJson = JSON.stringify(payload.data)
+  }
+
   let record
   try {
     record = makeSheetMarkup({
@@ -211,6 +280,7 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
       unit: record.unit,
       scale: record.scale,
       quantityId: record.quantityId,
+      payload: payloadJson,
       createdBy: record.createdBy,
     },
   })

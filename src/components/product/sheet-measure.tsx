@@ -69,6 +69,7 @@ import {
   PencilRuler,
   Ruler,
   ScanSearch,
+  ScanText,
   Shapes,
   Trash2,
   TriangleAlert,
@@ -86,9 +87,11 @@ import {
   deleteMarkup,
   downloadRevisionBytes,
   listMarkups,
+  runSheetOcr,
   type ArtifactListItem,
   type QuantityCreateInput,
   type SheetMarkupRow,
+  type SheetOcrWord,
 } from "@/components/product/api"
 import { GuardedButton } from "@/components/product/guarded-button"
 import { useSessionUser } from "@/components/product/session-user"
@@ -144,14 +147,15 @@ const PDF_WORKER_SRC = "/vendor/pdf.worker.min.mjs"
 const NO_PDF_SHEETS_COPY =
   "No PDF drawing sheets in this project yet — upload one from Artifacts"
 
-type MeasureTool = "calibrate" | "length" | "area" | "count" | "autocount"
+type MeasureTool = "calibrate" | "length" | "area" | "count" | "autocount" | "ocr"
 type CalibUnit = "m" | "mm" | "ft"
 
 /** A finished measurement awaiting the save panel (contract §3.3; Slice 13
  *  adds the symbol-template provenance so auto-counts are distinguishable
- *  from manual counts in the ledger's quantityMethod). */
+ *  from manual counts in the ledger's quantityMethod; Slice 16-B's OCR tool
+ *  never produces one — its accept path persists a text-hits markup only). */
 interface FinishedMeasurement {
-  tool: Exclude<MeasureTool, "calibrate" | "autocount">
+  tool: Exclude<MeasureTool, "calibrate" | "autocount" | "ocr">
   /** honest raw measured number in core units (mm / mm²) before ledger mapping */
   rawMm: number
   /** toLedgerQuantity() output — value is NOT rounded for storage */
@@ -170,6 +174,13 @@ interface SymbolHit {
   score: number
 }
 
+/** Slice 16-B: one OCR word, its raster box mapped back to PDF-point space. */
+interface OcrWordHit {
+  word: SheetOcrWord
+  tl: Pt
+  br: Pt
+}
+
 /** Saved-markup overlay palette (emerald = persisted; amber = in-progress). */
 const SAVED_STROKE = "#047857" // emerald-700
 const SAVED_GUIDE = "#059669" // emerald-600
@@ -181,6 +192,11 @@ const SAVED_FILL = "rgba(5, 150, 105, 0.10)"
  *  floor; the exhaustive stride-1 scan (DEFAULT_SCAN_OPTIONS) takes ~1–3 s
  *  on an A3 sheet at 2× — the button shows its busy state while it runs. */
 const SCAN_SCALE = 2
+
+/** OCR region reads render at a FIXED 4× page scale (16-R2: the standard;
+ *  2× was measured marginal) — zoom-independent like SCAN_SCALE and the
+ *  click math. */
+const OCR_SCALE = 4
 
 /** Calibration result kept in state (contract §3.2). */
 interface Calibration {
@@ -293,6 +309,18 @@ export function SheetMeasure({
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
 
+  // -- Slice 16-B: sheet-text OCR (region picks → fixed 4× render → tesseract) --
+  const [ocrPicks, setOcrPicks] = useState<Pt[]>([])
+  const [ocrWords, setOcrWords] = useState<OcrWordHit[] | null>(null)
+  const [ocrEnvelope, setOcrEnvelope] = useState<{
+    engine: string
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+  } | null>(null)
+  const [ocrReading, setOcrReading] = useState(false)
+  const [ocrError, setOcrError] = useState<string | null>(null)
+
   // Derived picker data — only drawing artifacts whose latest revision is a
   // real PDF (the serialized ArtifactListItem carries latestRevision.mimeType).
   const pdfSheets = useMemo(
@@ -346,6 +374,9 @@ export function SheetMeasure({
     setAutoPicks([])
     setAutoHits(null)
     setScanError(null)
+    setOcrPicks([])
+    setOcrWords(null)
+    setOcrError(null)
   }, [])
 
   const onSheetChange = (nextId: string) => {
@@ -355,9 +386,10 @@ export function SheetMeasure({
 
   const changeTool = (next: MeasureTool) => {
     if (next === tool) return
-    // Auto-count needs NO calibration (a count is scale-free — the same rule
-    // the core's count mapping encodes); length/area/count stay gated.
-    if (next !== "calibrate" && next !== "autocount" && calib === null) {
+    // Auto-count and OCR need NO calibration (a count is scale-free; reading
+    // text is scale-free — the same rule the core's count mapping encodes);
+    // length/area/count stay gated.
+    if (next !== "calibrate" && next !== "autocount" && next !== "ocr" && calib === null) {
       // Defensive: the toggles are disabled while uncalibrated, but the
       // attempt still explains itself (contract §3.2 — no dead buttons).
       setNotice("Measure tools need a calibration first — set one with the Calibrate tool.")
@@ -372,6 +404,11 @@ export function SheetMeasure({
       setAutoPicks([])
       setAutoHits(null)
       setScanError(null)
+    }
+    if (ocrPicks.length > 0 || ocrWords !== null) {
+      setOcrPicks([])
+      setOcrWords(null)
+      setOcrError(null)
     }
     setTool(next)
     setCursorPt(null)
@@ -708,6 +745,18 @@ export function SheetMeasure({
           ctx.stroke()
         }
         if (m.points.length >= 2) drawSavedChip(m.points[0], `${m.value} ${m.unit}`)
+      } else if (m.kind === "text-hits") {
+        // Slice 16-B: [tl, br] pairs — a box per accepted OCR word
+        for (let i = 0; i + 1 < m.points.length; i += 2) {
+          const [x1, y1] = toPx(m.points[i])
+          const [x2, y2] = toPx(m.points[i + 1])
+          ctx.beginPath()
+          ctx.rect(x1, y1, x2 - x1, y2 - y1)
+          ctx.lineWidth = 1.5
+          ctx.strokeStyle = SAVED_STROKE
+          ctx.stroke()
+        }
+        if (m.points.length >= 2) drawSavedChip(m.points[0], `text ×${m.value}`)
       }
     }
 
@@ -732,6 +781,38 @@ export function SheetMeasure({
       }
       if (autoHits !== null) {
         for (const h of autoHits) {
+          const [x1, y1] = toPx(h.tl)
+          const [x2, y2] = toPx(h.br)
+          ctx.beginPath()
+          ctx.rect(x1, y1, x2 - x1, y2 - y1)
+          ctx.lineWidth = 1.5
+          ctx.strokeStyle = SAVED_STROKE
+          ctx.stroke()
+        }
+      }
+    }
+
+    // -- Slice 16-B: the OCR layer (region box + unaccepted word boxes) -------
+    if (tool === "ocr") {
+      if (ocrPicks.length === 2) {
+        const [x1, y1] = toPx(ocrPicks[0])
+        const [x2, y2] = toPx(ocrPicks[1])
+        ctx.beginPath()
+        ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1))
+        ctx.lineWidth = 2
+        ctx.strokeStyle = SAVED_GUIDE
+        ctx.setLineDash([6, 4])
+        ctx.stroke()
+        ctx.setLineDash([])
+      } else if (ocrPicks.length === 1) {
+        const [x, y] = toPx(ocrPicks[0])
+        ctx.beginPath()
+        ctx.arc(x, y, 4, 0, Math.PI * 2)
+        ctx.fillStyle = SAVED_GUIDE
+        ctx.fill()
+      }
+      if (ocrWords !== null) {
+        for (const h of ocrWords) {
           const [x1, y1] = toPx(h.tl)
           const [x2, y2] = toPx(h.br)
           ctx.beginPath()
@@ -888,6 +969,158 @@ export function SheetMeasure({
     })
   }, [autoHits, autoPicks, autoThreshold, finished])
 
+  // -- Slice 16-B: the OCR region read + accept -------------------------------
+
+  /** OCR reads a FIXED 4× page render of the picked region (zoom-independent,
+   *  the auto-count SCAN_SCALE precedent; 16-R2 measured 4× as the standard,
+   *  2× marginal). Word boxes map back to PDF-point space for the accept. */
+  const runOcrRead = useCallback(async () => {
+    const doc = pdfDocRef.current
+    if (doc === null || pageDims === null || ocrReading) return
+    if (ocrPicks.length !== 2) {
+      setOcrError("Pick two opposite corners of the text region first.")
+      return
+    }
+    setOcrReading(true)
+    setOcrError(null)
+    try {
+      const page = await doc.getPage(pageNumber)
+      const viewport = page.getViewport({ scale: OCR_SCALE })
+      const off = document.createElement("canvas")
+      off.width = Math.max(1, Math.floor(viewport.width))
+      off.height = Math.max(1, Math.floor(viewport.height))
+      const ctx = off.getContext("2d")
+      if (ctx === null) throw new Error("Canvas 2D context unavailable in this browser")
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, off.width, off.height)
+      await page.render({ canvasContext: ctx, viewport }).promise
+
+      const minX = Math.min(ocrPicks[0].x, ocrPicks[1].x)
+      const maxX = Math.max(ocrPicks[0].x, ocrPicks[1].x)
+      const minY = Math.min(ocrPicks[0].y, ocrPicks[1].y)
+      const maxY = Math.max(ocrPicks[0].y, ocrPicks[1].y)
+      const ox = Math.round(minX * OCR_SCALE)
+      const oy = Math.round((pageDims.hPt - maxY) * OCR_SCALE)
+      const ow = Math.max(8, Math.round((maxX - minX) * OCR_SCALE))
+      const oh = Math.max(8, Math.round((maxY - minY) * OCR_SCALE))
+      if (ox < 0 || oy < 0 || ox + ow > off.width || oy + oh > off.height) {
+        throw new Error("The picked region falls outside the page — re-pick inside the sheet.")
+      }
+      const crop = document.createElement("canvas")
+      crop.width = ow
+      crop.height = oh
+      const cctx = crop.getContext("2d")
+      if (cctx === null) throw new Error("Canvas 2D context unavailable in this browser")
+      cctx.drawImage(off, ox, oy, ow, oh, 0, 0, ow, oh)
+      const dataUrl = crop.toDataURL("image/png")
+      const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1)
+
+      const result = await runSheetOcr(projectId, sheetArtifactId, base64)
+      // Crop-raster px → PDF pt (y flip back through the crop origin).
+      const words: OcrWordHit[] = result.words.map((w) => ({
+        word: w,
+        tl: { x: minX + w.box.x / OCR_SCALE, y: pageDims.hPt - (oy + w.box.y) / OCR_SCALE },
+        br: {
+          x: minX + (w.box.x + w.box.width) / OCR_SCALE,
+          y: pageDims.hPt - (oy + w.box.y + w.box.height) / OCR_SCALE,
+        },
+      }))
+      setOcrWords(words)
+      setOcrEnvelope({
+        engine: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+      })
+      if (words.length === 0) {
+        setOcrError("No text read in this region — pick a tighter box around the callouts or title text.")
+      } else {
+        toast.success(
+          `${words.length} word${words.length === 1 ? "" : "s"} read — review the transcript, then Accept to keep it on the sheet.`,
+        )
+      }
+    } catch (err) {
+      setOcrWords(null)
+      setOcrError(errorMessage(err, "The text read failed"))
+    } finally {
+      setOcrReading(false)
+    }
+  }, [ocrPicks, ocrReading, pageDims, pageNumber, pdfDocRef, projectId, sheetArtifactId])
+
+  /** Accept the reviewed transcript as a kind "text-hits" markup (the
+   *  auto-count accept precedent, but NO ledger row — text is evidence, not a
+   *  quantity; the transcript rides the markup's payload with raw preserved). */
+  const acceptOcrWords = useCallback(async () => {
+    if (ocrWords === null || ocrWords.length === 0 || ocrEnvelope === null) return
+    if (revisionId === null || selected === null) return
+    setSaving(true)
+    try {
+      const points: Array<{ x: number; y: number }> = []
+      for (const hit of ocrWords) {
+        points.push(hit.tl, hit.br)
+      }
+      await createMarkup(projectId, {
+        revisionId,
+        page: pageNumber,
+        kind: "text-hits",
+        points,
+        label: `OCR transcript (${ocrWords.length} word${ocrWords.length === 1 ? "" : "s"})`,
+        value: ocrWords.length,
+        unit: "each",
+        payload: {
+          words: ocrWords.map((hit, i) => ({
+            text: hit.word.text,
+            conf: hit.word.conf,
+            boxIndex: i,
+            ...(hit.word.normalized !== undefined ? { normalized: hit.word.normalized } : {}),
+          })),
+          engine: ocrEnvelope.engine,
+          engineVersion: ocrEnvelope.engineVersion,
+          adapterScript: ocrEnvelope.adapterScript,
+          adapterHash: ocrEnvelope.adapterHash,
+        },
+        createdBy: createdBy.trim().length > 0 ? createdBy.trim() : "local-operator",
+      })
+      toast.success(`Transcript kept — ${ocrWords.length} word${ocrWords.length === 1 ? "" : "s"} saved on the sheet.`)
+      setOcrPicks([])
+      setOcrWords(null)
+      setOcrEnvelope(null)
+      setMarkupsNonce((n) => n + 1)
+      onSaved()
+    } catch (err) {
+      toast.error(errorMessage(err, "The transcript was not saved"))
+    } finally {
+      setSaving(false)
+    }
+  }, [createdBy, ocrEnvelope, ocrWords, onSaved, pageNumber, projectId, revisionId, selected])
+
+  /** The dimension cross-check (16-R2): a numeric callout word vs the SAVED
+   *  length markups of this revision — a compare badge, never an auto-fill.
+   *  Saved lengths are metres; callouts on metric sheets are mm, so the badge
+   *  compares mm↔mm and reports the delta honestly. Pure; null when the word
+   *  is not a bare number. */
+  const ocrCrossCheck = useCallback(
+    (hit: OcrWordHit): { savedMm: number; deltaPct: number } | "no-match" | null => {
+      const numeric = /^(\d+(?:\.\d+)?)$/.exec(
+        hit.word.normalized !== undefined ? hit.word.normalized.normalized : hit.word.text,
+      )
+      if (numeric === null) return null
+      const calloutMm = Number(numeric[1])
+      const savedLengths = markups.filter((m) => m.kind === "length" && m.page === pageNumber)
+      let best: { savedMm: number; deltaPct: number } | null = null
+      for (const m of savedLengths) {
+        const savedMm = m.value * 1000 // stored metres
+        const deltaPct = Math.abs(calloutMm - savedMm) / Math.max(calloutMm, savedMm)
+        if (deltaPct <= 0.005 && (best === null || deltaPct < best.deltaPct)) {
+          best = { savedMm, deltaPct }
+        }
+      }
+      if (best !== null) return best
+      return savedLengths.length > 0 ? "no-match" : null
+    },
+    [markups, pageNumber],
+  )
+
   // -- pointer handlers --------------------------------------------------------
 
   /** Canvas CSS px → PDF points: divide by the render scale BEFORE any math
@@ -941,6 +1174,26 @@ export function SheetMeasure({
         return
       }
       setAutoPicks((prev) => [...prev, pt])
+      return
+    }
+
+    if (tool === "ocr") {
+      if (finished !== null) return
+      setOcrError(null)
+      // Same dblclick-echo dedup as auto-count.
+      if (
+        ocrPicks.length > 0 &&
+        distance(pt, ocrPicks[ocrPicks.length - 1]) <= DBLCLICK_DEDUP_PT
+      ) {
+        return
+      }
+      if (ocrPicks.length >= 2) {
+        // Re-pick from scratch — a third click starts a fresh region.
+        setOcrPicks([pt])
+        setOcrWords(null)
+        return
+      }
+      setOcrPicks((prev) => [...prev, pt])
       return
     }
 
@@ -1044,6 +1297,11 @@ export function SheetMeasure({
         if (autoPicks.length === 2) void runAutoCount()
         return
       }
+      if (tool === "ocr") {
+        // Keyboard path for the read: region complete → Enter reads.
+        if (ocrPicks.length === 2) void runOcrRead()
+        return
+      }
       finishMeasurement(points)
     } else if (e.key === "Escape") {
       e.preventDefault()
@@ -1054,6 +1312,14 @@ export function SheetMeasure({
       }
       if (tool === "autocount" && (autoPicks.length > 0 || autoHits !== null)) {
         clearAuto("Auto-count cancelled — the template box and hits were cleared.")
+        return
+      }
+      if (tool === "ocr" && (ocrPicks.length > 0 || ocrWords !== null)) {
+        setOcrPicks([])
+        setOcrWords(null)
+        setOcrEnvelope(null)
+        setOcrError(null)
+        setNotice("Text read cancelled — the region and transcript were cleared.")
         return
       }
       if (points.length > 0 || calibPicks.length > 0) {
@@ -1328,7 +1594,9 @@ export function SheetMeasure({
           ? "Click the boundary corners in order (≥3 points). Double-click or press Enter to finish, Esc to cancel."
           : tool === "autocount"
             ? "Click two opposite corners of a box around ONE symbol instance (include some blank margin), then Scan this page."
-            : "Click each item to count it. Press Enter or double-click to finish the tally, Esc to cancel."
+            : tool === "ocr"
+              ? "Click two opposite corners around the text to read (callouts, titles, notes), then Read text. Press Enter to read, Esc to cancel."
+              : "Click each item to count it. Press Enter or double-click to finish the tally, Esc to cancel."
 
   return (
     <section aria-label="Sheet Measure" className="flex flex-col gap-4">
@@ -1438,6 +1706,14 @@ export function SheetMeasure({
                 className="h-9 px-3 data-[state=on]:border-emerald-300 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-900 dark:data-[state=on]:border-emerald-700 dark:data-[state=on]:bg-emerald-900 dark:data-[state=on]:text-emerald-200"
               >
                 <ScanSearch className="size-4" aria-hidden /> Auto-count
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="ocr"
+                aria-label="Read text tool: pick a region, read its text with the OCR engine"
+                title="Read text (OCR) — pick two corners around the callouts or title, read at fixed 4× (no calibration needed: text is scale-free)"
+                className="h-9 px-3 data-[state=on]:border-emerald-300 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-900 dark:data-[state=on]:border-emerald-700 dark:data-[state=on]:bg-emerald-900 dark:data-[state=on]:text-emerald-200"
+              >
+                <ScanText className="size-4" aria-hidden /> Read text
               </ToggleGroupItem>
             </ToggleGroup>
 
@@ -1702,6 +1978,115 @@ export function SheetMeasure({
             </div>
           ) : null}
 
+          {/* -- Slice 16-B: the OCR panel (region picks → read → review → accept) -- */}
+          {tool === "ocr" ? (
+            <div className="flex flex-col gap-3 rounded-lg border border-emerald-300 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  className="h-10"
+                  disabled={ocrReading || ocrPicks.length !== 2}
+                  onClick={() => void runOcrRead()}
+                >
+                  <ScanText className="size-4" aria-hidden />
+                  {ocrReading ? "Reading…" : ocrWords !== null ? "Read again" : "Read text"}
+                </Button>
+                {ocrWords !== null && ocrWords.length > 0 ? (
+                  <GuardedButton
+                    type="button"
+                    className="h-10"
+                    disabled={saving}
+                    onClick={() => void acceptOcrWords()}
+                  >
+                    Accept {ocrWords.length} word{ocrWords.length === 1 ? "" : "s"} as transcript
+                  </GuardedButton>
+                ) : null}
+                {ocrPicks.length > 0 || ocrWords !== null ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-10 text-muted-foreground"
+                    disabled={ocrReading || saving}
+                    onClick={() => {
+                      setOcrPicks([])
+                      setOcrWords(null)
+                      setOcrEnvelope(null)
+                      setOcrError(null)
+                    }}
+                  >
+                    Clear
+                  </Button>
+                ) : null}
+                {ocrEnvelope !== null ? (
+                  <span className="ml-auto font-mono text-[11px] text-emerald-900/70 dark:text-emerald-200/70">
+                    {ocrEnvelope.engine} {ocrEnvelope.engineVersion} · adapter{" "}
+                    {ocrEnvelope.adapterHash.slice(0, 8)}…
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-xs text-emerald-900 dark:text-emerald-200">
+                {ocrPicks.length < 2
+                  ? `Region: ${ocrPicks.length} of 2 corners picked — draw it around the callouts or title text.`
+                  : ocrWords === null
+                    ? "Region ready — Read renders it at a fixed 4× scale (independent of your zoom) and runs the OCR engine on it. No calibration needed: text is scale-free."
+                    : ocrWords.length === 0
+                      ? "Read complete — no words. Check the message below the toolbar."
+                      : `Read complete — ${ocrWords.length} word${ocrWords.length === 1 ? "" : "s"} boxed in emerald. Review the transcript below, then Accept to keep it on the sheet (a text-hits markup; it never writes a ledger row).`}
+              </p>
+              {ocrWords !== null && ocrWords.length > 0 ? (
+                <ul className="eos-scroll max-h-48 overflow-y-auto rounded-md border border-emerald-200 bg-white/70 dark:border-emerald-800 dark:bg-emerald-950/60" aria-label="OCR transcript">
+                  {ocrWords.map((hit, i) => {
+                    const cross = ocrCrossCheck(hit)
+                    return (
+                      <li
+                        key={`${i}-${hit.word.text}`}
+                        className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-emerald-100 px-3 py-1.5 text-xs last:border-0 dark:border-emerald-900"
+                      >
+                        <span className="w-8 shrink-0 font-mono text-[10px] text-emerald-900/50 dark:text-emerald-200/50">
+                          {i + 1}
+                        </span>
+                        <span className="font-mono font-semibold text-emerald-900 dark:text-emerald-100">
+                          {hit.word.text}
+                        </span>
+                        {hit.word.normalized !== undefined ? (
+                          <span
+                            className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-[10px] text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200"
+                            title={`tesseract never reads the Ø glyph natively — "${hit.word.normalized.raw}" is the raw transcript, preserved verbatim; the normalization maps it to the diameter callout form (rule: ${hit.word.normalized.rule})`}
+                          >
+                            → {hit.word.normalized.normalized}
+                          </span>
+                        ) : null}
+                        <span className="font-mono text-[10px] text-emerald-900/60 dark:text-emerald-200/60">
+                          conf {hit.word.conf.toFixed(1)}%
+                        </span>
+                        {cross !== null && cross !== "no-match" ? (
+                          <span
+                            className="ml-auto rounded bg-emerald-600 px-1.5 py-0.5 font-mono text-[10px] text-white"
+                            title="The dimension cross-check compares this callout against the SAVED length markups of this revision — a compare badge, never an auto-fill"
+                          >
+                            ↔ matches saved {cross.savedMm.toFixed(0)} mm (Δ {(cross.deltaPct * 100).toFixed(2)}%)
+                          </span>
+                        ) : cross === "no-match" ? (
+                          <span
+                            className="ml-auto rounded bg-amber-500/90 px-1.5 py-0.5 font-mono text-[10px] text-white"
+                            title="Saved length markups exist for this revision but none is within 0.5% of this callout number"
+                          >
+                            no saved length within 0.5%
+                          </span>
+                        ) : null}
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : null}
+              {ocrError !== null ? (
+                <p role="alert" className="text-xs font-medium text-emerald-900 dark:text-emerald-200">
+                  {ocrError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* -- Live readout ---------------------------------------------------- */}
           <div
             role="status"
@@ -1826,6 +2211,15 @@ export function SheetMeasure({
                       <span className="font-mono text-sm tabular-nums">
                         {trim3(m.value)} {m.unit}
                       </span>
+                      {m.kind === "text-hits" && m.payload !== undefined ? (
+                        <span
+                          className="min-w-0 max-w-72 truncate font-mono text-[11px] text-emerald-700 dark:text-emerald-300"
+                          title={m.payload.words.map((w) => w.normalized?.normalized ?? w.text).join(" · ")}
+                        >
+                          “{m.payload.words.map((w) => w.normalized?.normalized ?? w.text).join(" ")}” ·{" "}
+                          {m.payload.engine}
+                        </span>
+                      ) : null}
                       {m.quantityId !== null ? (
                         <Badge variant="outline" className="text-xs" title={`ledger row ${m.quantityId}`}>
                           → ledger

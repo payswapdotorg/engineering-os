@@ -58,6 +58,10 @@ const MIME_BY_EXT: Record<string, string> = {
   stl: "model/stl",
   obj: "text/plain",
   ifc: "application/x-step", // IFC is ISO 10303-21, same mime family as STEP
+  // python scripts — text/x-python (the Slice-16 parametric-model signal: the
+  // broker's isParametricModelSignal matches this MIME, so the signal survives
+  // the UI's extension-stripped display name)
+  py: "text/x-python",
   dwg: "image/vnd.dwg",
   dxf: "image/vnd.dxf",
   zip: "application/zip",

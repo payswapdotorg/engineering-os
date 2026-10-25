@@ -77,7 +77,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0
+          sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
           if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else
@@ -155,7 +155,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0
+          sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
           if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else
@@ -197,13 +197,13 @@ jobs:
           done
           echo "dev server did not come up"; tail -60 dev.log; exit 1
 
-      - name: "e2e-takeoff (51 PASS expected — Slice 15 vector takeoff +9, AC-VT-01…08)"
+      - name: "e2e-takeoff (62 PASS expected — Slice 15 vector takeoff +11, AC-VT-01…09)"
         run: |
           set -o pipefail
           bun scripts/dev-db-cleanup.ts --all
           bash scripts/e2e-takeoff.sh 2>&1 | tee /tmp/e2e-takeoff.log
 
-      - name: e2e-p2-modelviewer (67 PASS expected)
+      - name: e2e-p2-modelviewer (86 PASS expected)
         run: |
           set -o pipefail
           bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
@@ -306,7 +306,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0
+          sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
           if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else

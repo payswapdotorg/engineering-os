@@ -1,10 +1,10 @@
-import { IMPACT_RELATIONS, nextStaleness, type StalenessState } from "@/core"
 import { detectArtifactKind } from "@/lib/artifact-meta"
 import { recordEvent } from "@/lib/audit"
 import { jsonOk, ERR } from "@/lib/api-utils"
 import { db } from "@/lib/db"
 import { newId } from "@/lib/ids"
 import { saveRevisionFile } from "@/lib/artifact-store"
+import { markDownstreamStale } from "@/lib/staleness-cascade"
 
 import { handler, requireEntityProject } from "../../../_lib/route-helpers"
 
@@ -77,47 +77,9 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
   })
 
   // --- Staleness cascade (Journey G seed) -------------------------------------
-  const impactLinks = await db.artifactLink.findMany({
-    where: { toArtifactId: id, relationType: { in: [...IMPACT_RELATIONS] } },
-    include: { fromArtifact: { include: { latestRevision: true } } },
-  })
-
-  const staleMarked: Array<{ artifactId: string; name: string; relation: string; path: string[] }> = []
-  const seenSources = new Set<string>()
-
-  for (const link of impactLinks) {
-    const source = link.fromArtifact
-    if (seenSources.has(source.id)) continue
-    seenSources.add(source.id)
-
-    const latest = source.latestRevision
-    if (!latest) continue
-
-    const next = nextStaleness(latest.staleness as StalenessState, "source-changed")
-    if (next === null) continue
-
-    await db.artifactRevision.update({ where: { id: latest.id }, data: { staleness: next } })
-
-    await recordEvent({
-      projectId: source.projectId,
-      action: "artifact.staled",
-      entityType: "artifact",
-      entityId: source.id,
-      detail: {
-        staleArtifactId: source.id,
-        because: artifact.id,
-        relation: link.relationType,
-        path: [artifact.id, source.id],
-      },
-    })
-
-    staleMarked.push({
-      artifactId: source.id,
-      name: source.name,
-      relation: link.relationType,
-      path: [artifact.id, source.id],
-    })
-  }
+  // The shared cascade (src/lib/staleness-cascade.ts — Slice 16 extraction,
+  // byte-identical semantics; the parametric-rebuild core rides the same path).
+  const staleMarked = await markDownstreamStale(artifact.projectId, id)
 
   await recordEvent({
     projectId: artifact.projectId,

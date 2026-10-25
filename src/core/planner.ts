@@ -314,6 +314,7 @@ const OPERATION_LABELS: Record<PlannerOperation, string> = {
   analyze_schedule: "Analyze schedule",
   takeoff_sheet: "Vector-takeoff a PDF sheet",
   takeoff_drawing: "Vector-takeoff a DXF drawing",
+  rebuild_parametric: "Parametric rebuild (model)",
 }
 
 /**

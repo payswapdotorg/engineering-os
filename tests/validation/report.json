@@ -1,8 +1,8 @@
 {
-  "ranAt": "2026-10-25T09:14:19.805Z",
+  "ranAt": "2026-10-25T11:34:52.839Z",
   "pythonBin": "/home/z/.venv/bin/python3",
   "manifestPath": "tests/validation/corpus-manifest.json",
-  "caseCount": 29,
+  "caseCount": 30,
   "environment": {
     "engineAvailability": {
       "step": {
@@ -34,6 +34,9 @@
       },
       "parametric": {
         "available": true
+      },
+      "ocr": {
+        "available": true
       }
     }
   },
@@ -45,7 +48,8 @@
     "simpy": "4.1.2",
     "libreoffice": "25.2.3.2",
     "pdfplumber": "0.11.10",
-    "ezdxf": "1.4.5"
+    "ezdxf": "1.4.5",
+    "tesseract": "5.5.0"
   },
   "adapterHashes": {
     "step_quantities.py": "950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d",
@@ -58,7 +62,8 @@
     "convert-document.ts": "4b1bb3d10fdcaa3f85ebb654a652092acb3ac5a59812f1f0fd9c5074b15540d0",
     "sheet_takeoff.py": "bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff",
     "dxf_takeoff.py": "07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329",
-    "parametric_rebuild.py": "e6234ff781bf356bc94a1bb18383fd97c00c7cc606d1da74fc51ddfd3aee97aa"
+    "parametric_rebuild.py": "7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9",
+    "sheet_ocr.ts": "b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45"
   },
   "cases": [
     {
@@ -3381,7 +3386,7 @@
           "engineKey": "cadquery",
           "engineVersion": "2.6.1",
           "adapterScript": "parametric_rebuild.py",
-          "adapterHash": "e6234ff781bf356bc94a1bb18383fd97c00c7cc606d1da74fc51ddfd3aee97aa"
+          "adapterHash": "7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9"
         }
       }
     },
@@ -3526,7 +3531,7 @@
           "engineKey": "cadquery",
           "engineVersion": "2.6.1",
           "adapterScript": "parametric_rebuild.py",
-          "adapterHash": "e6234ff781bf356bc94a1bb18383fd97c00c7cc606d1da74fc51ddfd3aee97aa"
+          "adapterHash": "7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9"
         }
       }
     },
@@ -3671,7 +3676,7 @@
           "engineKey": "cadquery",
           "engineVersion": "2.6.1",
           "adapterScript": "parametric_rebuild.py",
-          "adapterHash": "e6234ff781bf356bc94a1bb18383fd97c00c7cc606d1da74fc51ddfd3aee97aa"
+          "adapterHash": "7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9"
         }
       }
     },
@@ -3696,14 +3701,159 @@
         "problems": [],
         "errorObserved": "parameter 'width' = 10 below minimum 20 | unknown parameter(s) rejected: ['bogus'] | hole does not fit inside the vertical leg — raise height or shrink holeDia"
       }
+    },
+    {
+      "caseId": "sheet-ocr-callout",
+      "adapter": "ocr",
+      "fixture": "ocr-callout.png",
+      "fixturePath": "tests/fixtures/ocr-callout.png",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "ocr",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
+          {
+            "field": "tessdata sha256",
+            "ref": "tests/fixtures/tessdata/eng.traineddata",
+            "expected": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2",
+            "observed": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2",
+            "unit": null,
+            "bound": "exact",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "matched",
+            "derivation": "the vendored eng model — byte-identical reads in CI (16-R2)"
+          },
+          {
+            "field": "word",
+            "ref": "word 1",
+            "expected": "LOADING (conf ≥ 90)",
+            "observed": "LOADING (conf 96.2)",
+            "unit": null,
+            "bound": "min 90",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "matched",
+            "derivation": "the live tesseract read of the committed fixture with the vendored model"
+          },
+          {
+            "field": "word",
+            "ref": "word 2",
+            "expected": "BAY (conf ≥ 90)",
+            "observed": "BAY (conf 96.5)",
+            "unit": null,
+            "bound": "min 90",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "matched",
+            "derivation": "the live tesseract read of the committed fixture with the vendored model"
+          },
+          {
+            "field": "word",
+            "ref": "word 3",
+            "expected": "PLAN (conf ≥ 90)",
+            "observed": "PLAN (conf 97.0)",
+            "unit": null,
+            "bound": "min 90",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "matched",
+            "derivation": "the live tesseract read of the committed fixture with the vendored model"
+          },
+          {
+            "field": "word",
+            "ref": "word 4",
+            "expected": "2400 (conf ≥ 90)",
+            "observed": "2400 (conf 97.0)",
+            "unit": null,
+            "bound": "min 90",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "matched",
+            "derivation": "the live tesseract read of the committed fixture with the vendored model"
+          },
+          {
+            "field": "word",
+            "ref": "Ø-rule row 5",
+            "expected": "@400 → Ø400 (conf ≥ 40)",
+            "observed": "@400 → Ø400 (conf 55.0)",
+            "unit": null,
+            "bound": "min 40",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "matched",
+            "derivation": "the live tesseract read of the committed fixture with the vendored model"
+          },
+          {
+            "field": "word",
+            "ref": "word 6",
+            "expected": "1200 (conf ≥ 90)",
+            "observed": "1200 (conf 96.0)",
+            "unit": null,
+            "bound": "min 90",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "matched",
+            "derivation": "the live tesseract read of the committed fixture with the vendored model"
+          },
+          {
+            "field": "word",
+            "ref": "word 7",
+            "expected": "GHS (conf ≥ 85)",
+            "observed": "GHS (conf 90.3)",
+            "unit": null,
+            "bound": "min 85",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "matched",
+            "derivation": "the live tesseract read of the committed fixture with the vendored model"
+          },
+          {
+            "field": "word",
+            "ref": "word 8",
+            "expected": "225.00 (conf ≥ 90)",
+            "observed": "225.00 (conf 96.7)",
+            "unit": null,
+            "bound": "min 90",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "matched",
+            "derivation": "the live tesseract read of the committed fixture with the vendored model"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "tesseract",
+          "engineVersion": "5.5.0",
+          "adapterScript": "sheet_ocr.ts",
+          "adapterHash": "b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45"
+        }
+      }
     }
   ],
   "summary": {
-    "total": 29,
-    "pass": 29,
+    "total": 30,
+    "pass": 30,
     "fail": 0,
     "skip": 0,
-    "ran": 29,
+    "ran": 30,
     "notRun": false
   }
 }

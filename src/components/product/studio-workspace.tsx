@@ -13,6 +13,18 @@
  *  - mesh present → viewer + Regenerate; staleSource → amber banner with the
  *    pinned message + Regenerate.
  *
+ * Slice 16 (the Phase-2 EDITING journey — roadmap-gap-audit item 2): the
+ * PARAMETRIC section above the viewer — a registered .py parametric-model
+ * artifact (kind `calculation`) renders its declared PARAM_SCHEMA as a
+ * values-only form (label/unit/min-max/default per parameter; editing the
+ * SCRIPT itself stays an ordinary new artifact revision — never an IDE in
+ * the browser), and "Rebuild model" runs the real cadquery adapter through
+ * the broker: the rebuilt STEP lands on a find-or-create kind-`model` artifact
+ * derived_from the script (sequential revisions), downstream meshes go stale
+ * (the cascade, surfaced in the result), and the rebuilt model immediately
+ * appears in the "Model to view" picker above — script → rebuilt model → 3D
+ * view is one honest chain with no mock geometry anywhere.
+ *
  * Honesty rules this workspace follows:
  *  - meshes are DERIVED artifacts (kind "mesh", derived_from the source); the
  *    source → mesh mapping is resolved through the real artifact links, not
@@ -32,7 +44,9 @@ import {
   DraftingCompass,
   Info,
   Loader2,
+  PencilRuler,
   RefreshCw,
+  RotateCcw,
   TriangleAlert,
 } from "lucide-react"
 import { Component, useEffect, useMemo, useState, type ReactNode } from "react"
@@ -41,9 +55,13 @@ import { toast } from "sonner"
 import {
   deriveModelMesh,
   getArtifactDetail,
+  getParametricSchema,
+  rebuildParametric,
   useApi,
   type ArtifactListItem,
   type MeshGetResult,
+  type ParametricSchemaGetResult,
+  type RebuildParametricResult,
 } from "@/components/product/api"
 import { EmptyState, ErrorState, InfoNote } from "@/components/product/parts"
 import { GuardedButton } from "@/components/product/guarded-button"
@@ -52,6 +70,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -116,6 +136,311 @@ function webglSupported(): boolean {
 }
 
 const noop = () => {}
+
+// ---------------------------------------------------------------------------
+// Parametric rebuild (Slice 16 — the Phase-2 editing journey)
+// ---------------------------------------------------------------------------
+
+/** A .py artifact with a latest revision (the parametric-model signal — the
+ * same detection the route core uses: name or MIME, never the kind guess). */
+function parametricSignal(a: ArtifactListItem): boolean {
+  if (a.latestRevision === null) return false
+  const name = a.name.toLowerCase()
+  const mime = a.latestRevision.mimeType ?? ""
+  return name.endsWith(".py") || mime === "text/x-python" || mime === "application/x-python"
+}
+
+/** Form state: raw input strings ("" = cleared — sent as null, the server's
+ * verbatim type refusal is the honest answer, never a silent default). */
+function ParametricSection({
+  projectId,
+  rows,
+  onRebuilt,
+}: {
+  projectId: string
+  rows: ArtifactListItem[]
+  onRebuilt: () => void
+}) {
+  const models = useMemo(() => rows.filter(parametricSignal), [rows])
+
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  useEffect(() => {
+    if (models.length === 0) {
+      setSelectedId(null)
+      return
+    }
+    if (selectedId === null || !models.some((m) => m.id === selectedId)) {
+      setSelectedId(models[0].id)
+    }
+  }, [models, selectedId])
+
+  // The schema fetch is per-model and MANUAL-flow (not useApi) so a rebuild
+  // never re-runs it and a refused selection keeps the honest error inline.
+  const [schema, setSchema] = useState<ParametricSchemaGetResult | null>(null)
+  const [schemaLoading, setSchemaLoading] = useState(false)
+  const [schemaError, setSchemaError] = useState<string | null>(null)
+
+  const [values, setValues] = useState<Record<string, string>>({})
+  const [rebuilding, setRebuilding] = useState(false)
+  const [result, setResult] = useState<RebuildParametricResult["model"] | null>(null)
+
+  useEffect(() => {
+    if (selectedId === null) return
+    let cancelled = false
+    setSchema(null)
+    setSchemaError(null)
+    setResult(null)
+    setSchemaLoading(true)
+    void (async () => {
+      try {
+        const s = await getParametricSchema(projectId, selectedId)
+        if (cancelled) return
+        setSchema(s)
+        // Seed the form from the authored defaults (values-only editing).
+        const seeded: Record<string, string> = {}
+        for (const [key, spec] of Object.entries(s.schema.properties)) {
+          seeded[key] = String(s.defaults[key] ?? spec.default ?? "")
+        }
+        setValues(seeded)
+      } catch (err) {
+        if (!cancelled) {
+          setSchemaError(err instanceof Error ? err.message : "Could not read the model schema")
+        }
+      } finally {
+        if (!cancelled) setSchemaLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, selectedId])
+
+  if (models.length === 0) return null
+
+  const selected = models.find((m) => m.id === selectedId) ?? null
+
+  const resetToDefaults = () => {
+    if (!schema) return
+    const seeded: Record<string, string> = {}
+    for (const [key, spec] of Object.entries(schema.schema.properties)) {
+      seeded[key] = String(schema.defaults[key] ?? spec.default ?? "")
+    }
+    setValues(seeded)
+  }
+
+  const rebuild = async () => {
+    if (rebuilding || selectedId === null) return
+    setRebuilding(true)
+    try {
+      // Raw input strings → numbers | null (cleared inputs surface the
+      // server's verbatim type refusal — the client never guesses).
+      const payload: Record<string, number | null> = {}
+      for (const [key, raw] of Object.entries(values)) {
+        const trimmed = raw.trim()
+        if (trimmed === "") {
+          payload[key] = null
+        } else {
+          const parsed = Number(trimmed)
+          payload[key] = Number.isFinite(parsed) ? parsed : Number.NaN
+        }
+      }
+      const response = await rebuildParametric(projectId, selectedId, payload)
+      setResult(response.model)
+      toast.success(
+        `Model rebuilt — r${response.model.revisionNumber}, volume ${response.model.volumeMm3.toLocaleString("en-US", { maximumFractionDigits: 2 })} mm³`,
+      )
+      onRebuilt() // the rebuilt model appears in the "Model to view" picker + Artifacts tab
+    } catch (err) {
+      // 422s (range / unknown key / geometry contradiction / ground-truth
+      // disagreement) surface verbatim — the takeoff idiom.
+      toast.error(err instanceof Error ? err.message : "Rebuild failed")
+    } finally {
+      setRebuilding(false)
+    }
+  }
+
+  return (
+    <section aria-label="Parametric models" className="flex flex-col gap-3">
+      <Card className="min-w-0">
+        <CardContent className="flex flex-col gap-4 p-4 sm:p-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+              <PencilRuler className="size-4 text-muted-foreground" aria-hidden /> Parametric models
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              A registered <span className="font-mono">.py</span> parametric-model script declares its own
+              parameters (label, unit, min/max, authored defaults). Values-only editing here rebuilds
+              the real geometry through cadquery; editing the script itself is an ordinary new
+              revision of the model artifact.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Select
+              value={selectedId ?? ""}
+              onValueChange={(v) => {
+                setSelectedId(v)
+                setResult(null)
+              }}
+            >
+              <SelectTrigger size="default" className="h-11 w-full min-w-0 sm:w-96" aria-label="Parametric model">
+                <SelectValue placeholder="Pick a parametric model…" />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((m) => (
+                  <SelectItem key={m.id} value={m.id} className="py-2.5">
+                    <span className="min-w-0 truncate">{m.name}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      r{m.latestRevision?.revNumber ?? "—"}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {schema ? (
+              <Button
+                variant="ghost"
+                className="h-11 shrink-0"
+                onClick={resetToDefaults}
+                aria-label="Reset parameter values to the authored defaults"
+              >
+                <RotateCcw aria-hidden /> Defaults
+              </Button>
+            ) : null}
+          </div>
+
+          {selected === null ? null : schemaLoading ? (
+            <div className="flex flex-col gap-3">
+              <Skeleton className="h-11 w-full sm:w-96" />
+              <Skeleton className="h-11 w-full sm:w-96" />
+              <Skeleton className="h-11 w-full sm:w-96" />
+            </div>
+          ) : schemaError ? (
+            <ErrorState message={schemaError} onRetry={() => setSelectedId(selected.id)} />
+          ) : schema ? (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(schema.schema.properties).map(([key, spec]) => (
+                  <div key={key} className="flex min-w-0 flex-col gap-1.5">
+                    <Label htmlFor={`param-${key}`} className="flex items-baseline justify-between gap-2">
+                      <span className="min-w-0 truncate">{spec.label ?? key}</span>
+                      <span className="shrink-0 font-mono text-[11px] font-normal text-muted-foreground">
+                        {key}
+                        {spec.unit ? ` · ${spec.unit}` : ""}
+                      </span>
+                    </Label>
+                    <Input
+                      id={`param-${key}`}
+                      type="number"
+                      inputMode="decimal"
+                      className="h-11"
+                      value={values[key] ?? ""}
+                      min={spec.minimum}
+                      max={spec.maximum}
+                      step="any"
+                      onChange={(e) => setValues((prev) => ({ ...prev, [key]: e.target.value }))}
+                      aria-label={`${spec.label ?? key} parameter`}
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      {typeof spec.minimum === "number" || typeof spec.maximum === "number"
+                        ? `range ${spec.minimum ?? "−∞"}…${spec.maximum ?? "∞"}`
+                        : "no declared range"}
+                      {typeof spec.default === "number" ? ` · authored default ${spec.default}` : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <GuardedButton className="h-11" disabled={rebuilding} onClick={() => void rebuild()}>
+                  {rebuilding ? <Loader2 className="animate-spin" aria-hidden /> : <PencilRuler aria-hidden />}
+                  {rebuilding ? "Rebuilding…" : "Rebuild model"}
+                </GuardedButton>
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  {schema.engineKey} {schema.engineVersion} · adapter {shortHash(schema.adapterHash)} ·
+                  model {shortHash(schema.modelScriptHash)}
+                </span>
+              </div>
+
+              {result ? (
+                <div
+                  role="status"
+                  className="flex flex-col gap-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm"
+                >
+                  <p className="font-medium">
+                    Rebuilt —{" "}
+                    <span className="font-mono">
+                      {result.name} r{result.revisionNumber}
+                    </span>{" "}
+                    <Badge variant="outline" className="ml-1 font-mono text-[11px] uppercase">
+                      {result.kind}
+                    </Badge>
+                  </p>
+                  <dl className="grid grid-cols-1 gap-x-6 gap-y-1 font-mono text-xs text-muted-foreground sm:grid-cols-2">
+                    <div className="flex justify-between gap-4">
+                      <dt>volume</dt>
+                      <dd>
+                        {result.volumeMm3.toLocaleString("en-US", { maximumFractionDigits: 4 })} mm³
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt>surface area</dt>
+                      <dd>
+                        {result.areaMm2.toLocaleString("en-US", { maximumFractionDigits: 4 })} mm²
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt>bbox (x·y·z)</dt>
+                      <dd>
+                        {result.bboxMm.map((n) => n.toFixed(1)).join(" · ")} mm
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt>ground-truth gate</dt>
+                      <dd>
+                        rel {result.checks.volumeRelErr.toExponential(2)} ·{" "}
+                        {result.checks.passed ? "passed" : "FAILED"}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt>content</dt>
+                      <dd title={result.contentHash ?? ""}>
+                        {shortHash(result.contentHash ?? "")} · {humanBytes(result.sizeBytes ?? 0)}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt>params used</dt>
+                      <dd className="min-w-0 truncate" title={JSON.stringify(result.paramsUsed)}>
+                        {Object.entries(result.paramsUsed)
+                          .map(([k, v]) => `${k}=${v}`)
+                          .join(" · ")}
+                      </dd>
+                    </div>
+                  </dl>
+                  {result.staleMarked.length > 0 ? (
+                    <p className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
+                      <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                      <span>
+                        {result.staleMarked.length} downstream artifact
+                        {result.staleMarked.length === 1 ? "" : "s"} marked stale:{" "}
+                        {result.staleMarked.map((s) => s.name).join(", ")} — regenerate them from the
+                        picker above.
+                      </span>
+                    </p>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground">
+                    The rebuilt STEP is a real model artifact — pick it under “Model to view” above to
+                    generate its 3D view.
+                  </p>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
+    </section>
+  )
+}
 
 export function StudioWorkspace({
   projectId,
@@ -305,6 +630,18 @@ export function StudioWorkspace({
           </AlertDescription>
         </Alert>
       </header>
+
+      {/* Slice 16 — the editing journey: hidden entirely when the project has
+          no .py parametric models (no dead UI for other project shapes). */}
+      <ParametricSection
+        projectId={projectId}
+        rows={rows}
+        onRebuilt={() => {
+          void artifacts.refresh() // the rebuilt model joins the derivable picker
+          void meshData.refresh() // the selected model's mesh may now be STALE (the cascade) — re-read its meta so the banner shows honestly
+          notifyMutated() // + the project-level caches (Artifacts tab, feed)
+        }}
+      />
 
       {artifacts.error ? (
         <ErrorState message={artifacts.error} onRetry={() => void artifacts.refresh()} />

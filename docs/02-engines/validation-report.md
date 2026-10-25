@@ -29,7 +29,7 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-25T09:14:19.805Z`
+- Ran at (UTC): `2026-10-25T11:34:52.839Z`
 - Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python3`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
@@ -42,7 +42,8 @@
 - Engine availability probe — pdfplumber (vector sheet takeoff): available
 - Engine availability probe — ezdxf (DXF takeoff): available
 - Engine availability probe — cadquery (parametric rebuild): available
-- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5
+- Engine availability probe — tesseract (sheet-text OCR): available
+- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5 · tesseract 5.5.0
 - Adapter `step_quantities.py` sha256: `950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d`
 - Adapter `ifc_quantities.py` sha256: `68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78`
 - Adapter `step_mesh.py` sha256: `e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c`
@@ -53,8 +54,9 @@
 - Adapter `convert-document.ts` sha256: `4b1bb3d10fdcaa3f85ebb654a652092acb3ac5a59812f1f0fd9c5074b15540d0`
 - Adapter `sheet_takeoff.py` sha256: `bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff`
 - Adapter `dxf_takeoff.py` sha256: `07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329`
-- Adapter `parametric_rebuild.py` sha256: `e6234ff781bf356bc94a1bb18383fd97c00c7cc606d1da74fc51ddfd3aee97aa`
-- Corpus: `tests/validation/corpus-manifest.json` — 29 cases
+- Adapter `parametric_rebuild.py` sha256: `7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9`
+- Adapter `sheet_ocr.ts` sha256: `b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45`
+- Corpus: `tests/validation/corpus-manifest.json` — 30 cases
 
 ## Tolerance policy (pinned)
 
@@ -64,7 +66,7 @@
 | `analytic` | \|obs − exp\| ≤ 1e-9 · max(1, \|exp\|) | exact-engine value vs closed form; also used for the PLANAR mesh case, where the divergence-theorem volume / triangle-sum area are mathematically exact (only IEEE rounding remains) |
 | `mesh` | \|obs − exp\| ≤ 1e-2 · \|exp\| | pinned 1% engineering tolerance for triangulated CURVED surfaces (ifcopenshell PyPI wheel has no OCCT backend, `has_occ=False`); the observed relative error is recorded below — the limitation is quantified, not hidden |
 
-## Results — 29 cases: 29 pass / 0 fail / 0 skip
+## Results — 30 cases: 30 pass / 0 fail / 0 skip
 
 | Case | Adapter | Fixture | Expect | Status | Determinism | Quantities (obs / pinned) | Max observed rel error | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -97,6 +99,7 @@
 | `parametric-defaults` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 9 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ · max pin rel error 7.530e-16 |
 | `parametric-edited` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 9 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ · max pin rel error 8.017e-16 |
 | `parametric-refusals` | parametric | `parametric-bracket.py` | error | pass | — | — | — | parametric: threw honest error: `parameter 'width' = 10 below minimum 20 \| unknown parameter(s) rejected: ['bogus'] \| hole does not fit inside the vertic` · threw honest error: `` |
+| `sheet-ocr-callout` | ocr | `ocr-callout.png` | success | pass | — | — / — | — | ocr: 9 pin(s) · tesseract 5.5.0 · doc byte-determinism ✅ |
 
 ## Mesh tessellation validation (W2-d — the eos-mesh/1 bridge)
 
@@ -192,6 +195,7 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 | `parametric-defaults` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 9 | pass |
 | `parametric-edited` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 9 | pass |
 | `parametric-refusals` | parametric | `parametric-bracket.py` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `sheet-ocr-callout` | ocr | `ocr-callout.png` | success | tesseract 5.5.0 | ✅ true | 9 | pass |
 
 ### Discipline pin comparisons (observed vs hand-derived)
 
@@ -328,6 +332,15 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `parametric-edited` paramChecksRelErr: observed **1.3229926133139096e-15** vs pinned 0 [bound abs:1e-9] · the adapter's own analytic gate: |re-imported - analytic| / analytic must be <= 1e-9 (16-R3 measured 1.3230e-15)
 - `parametric-edited` paramChecksPassed: observed **true** vs pinned true [bound structural] · the STEP is emitted ONLY because the analytic gate passed — the gate result itself is pinned
 - `parametric-refusals` (parametric) threw the honest error: `parameter 'width' = 10 below minimum 20 | unknown parameter(s) rejected: ['bogus'] | hole does not fit inside the vertical leg — raise height or shrink holeDia`
+- `sheet-ocr-callout` tessdata sha256 @ tests/fixtures/tessdata/eng.traineddata: observed **"7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"** vs pinned "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2" [bound exact] · the vendored eng model — byte-identical reads in CI (16-R2)
+- `sheet-ocr-callout` word @ word 1: observed **"LOADING (conf 96.2)"** vs pinned "LOADING (conf ≥ 90)" [bound min 90] · the live tesseract read of the committed fixture with the vendored model
+- `sheet-ocr-callout` word @ word 2: observed **"BAY (conf 96.5)"** vs pinned "BAY (conf ≥ 90)" [bound min 90] · the live tesseract read of the committed fixture with the vendored model
+- `sheet-ocr-callout` word @ word 3: observed **"PLAN (conf 97.0)"** vs pinned "PLAN (conf ≥ 90)" [bound min 90] · the live tesseract read of the committed fixture with the vendored model
+- `sheet-ocr-callout` word @ word 4: observed **"2400 (conf 97.0)"** vs pinned "2400 (conf ≥ 90)" [bound min 90] · the live tesseract read of the committed fixture with the vendored model
+- `sheet-ocr-callout` word @ Ø-rule row 5: observed **"@400 → Ø400 (conf 55.0)"** vs pinned "@400 → Ø400 (conf ≥ 40)" [bound min 40] · the live tesseract read of the committed fixture with the vendored model
+- `sheet-ocr-callout` word @ word 6: observed **"1200 (conf 96.0)"** vs pinned "1200 (conf ≥ 90)" [bound min 90] · the live tesseract read of the committed fixture with the vendored model
+- `sheet-ocr-callout` word @ word 7: observed **"GHS (conf 90.3)"** vs pinned "GHS (conf ≥ 85)" [bound min 85] · the live tesseract read of the committed fixture with the vendored model
+- `sheet-ocr-callout` word @ word 8: observed **"225.00 (conf 96.7)"** vs pinned "225.00 (conf ≥ 90)" [bound min 90] · the live tesseract read of the committed fixture with the vendored model
 
 ## Regenerate
 

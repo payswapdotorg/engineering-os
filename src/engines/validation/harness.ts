@@ -81,6 +81,11 @@ import { convertDocumentToFile, type ConversionResult } from "../adapters/conver
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "../adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "../adapters/dxf_takeoff"
 import {
+  normalizeDiameterToken,
+  sheetOcrFromPng,
+  type SheetOcrResult,
+} from "../adapters/sheet_ocr"
+import {
   parametricRebuildFromStorage,
   parametricSchemaFromStorage,
   type ParametricBuildResult,
@@ -109,6 +114,7 @@ export type AdapterKind =
   | "sheet"
   | "dxf"
   | "parametric"
+  | "ocr"
 export type ToleranceKind = "exact" | "analytic" | "mesh"
 export type QuantityType = DerivedQuantity["quantityType"]
 
@@ -173,6 +179,12 @@ export interface CorpusCase {
   /** 16-P: the case-level analytic narrative for parametric success cases
    * (a string, like the 16-V takeoffGroundTruth — the pins carry the numbers). */
   parametricGroundTruth?: string
+  /** 16-B: the per-adapter expectation block for the OCR kind — `ocr` for
+   * adapter "ocr" (tesseract sheet-text region reads). */
+  ocr?: OcrExpectation
+  /** 16-B: the case-level narrative for OCR success cases (a string — the
+   * expectedWords pins carry the transcript + conf floors + the Ø rule). */
+  ocrGroundTruth?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -280,6 +292,44 @@ export interface ParametricExpectation {
 }
 
 // ---------------------------------------------------------------------------
+// 16-B OCR expectations (Slice 16-B sheet-text OCR — tesseract region reads
+// over the COMMITTED PNG fixture with the VENDORED sha-pinned eng model; every
+// success run executes TWICE and the word list (text+conf+boxes) must be
+// identical — tesseract is deterministic for identical input+model+psm)
+// ---------------------------------------------------------------------------
+
+/** One pinned expected word (the RAW transcript text — tesseract verbatim). */
+export interface OcrExpectedWord {
+  /** the exact raw text tesseract must emit (ordered list, set-equal + order) */
+  text: string
+  /** conf floor 0..100 (default 0 — pin what the research observed, live) */
+  confFloor?: number
+  /** when set: the Ø diameter rule must fire on THIS word and produce exactly
+   *  this normalized form (the raw above is preserved verbatim either way) */
+  normalized?: string
+}
+
+export interface OcrRun {
+  /** psm 0..13 (default 6 — the uniform-block region read) */
+  parameters?: { psm?: number }
+  /** success runs: the ordered expected word list (non-empty, validated) */
+  expectedWords?: OcrExpectedWord[]
+  /** error runs only: this run's pinned refusal substring */
+  errorContains?: string
+}
+
+export interface OcrExpectation {
+  expect: "success" | "error"
+  /** one row per parameter set (non-empty, validated) */
+  runs?: OcrRun[]
+  /** honest routing/limitation note, rendered into the case notes */
+  note?: string
+}
+
+/** 16-B: the OCR case kind. */
+export type OcrAdapter = "ocr"
+
+// ---------------------------------------------------------------------------
 // Mesh expectations (W2-d — Contract C; shapes additive to the W2-c manifest)
 // ---------------------------------------------------------------------------
 
@@ -378,7 +428,7 @@ export interface DisciplineComparison {
 }
 
 export interface DisciplineCaseResult {
-  adapter: DisciplineAdapter | TakeoffAdapter | ParametricAdapter
+  adapter: DisciplineAdapter | TakeoffAdapter | ParametricAdapter | OcrAdapter
   expect: "success" | "error"
   status: "pass" | "fail"
   /** engine provenance — null for the cpm platform core (the honest record) */
@@ -458,7 +508,7 @@ const PYTHON_BIN = process.env.EOS_PYTHON ?? "/home/z/.venv/bin/python3"
 /** The LibreOffice binary (same override the conversion bridge honours). */
 const LIBREOFFICE_BIN = process.env.EOS_LIBREOFFICE ?? "/usr/bin/libreoffice"
 
-/** Python engines per adapter kind (cpm/libreoffice are probed differently). */
+/** Python engines per adapter kind (cpm/libreoffice/ocr are probed differently). */
 const PYTHON_ENGINE_MODULES: Record<
   "step" | "ifc" | "femesh" | "powerflow" | "des" | "sheet" | "dxf" | "parametric",
   string
@@ -473,6 +523,15 @@ const PYTHON_ENGINE_MODULES: Record<
   parametric: "cadquery",
 }
 
+/** The tesseract binary (same override the OCR bridge honours). */
+const TESSERACT_BIN = process.env.EOS_TESSERACT ?? "/usr/bin/tesseract"
+
+/** The VENDORED sha-pinned eng model the harness always reads with (16-R2:
+ * byte-identical CI models; the product path prefers this dir too — see
+ * src/engines/adapters/sheet_ocr.ts). */
+export const VENDORED_TESSDATA_DIR = path.join(REPO_ROOT, "tests", "fixtures", "tessdata")
+export const VENDORED_ENG_SHA256 = "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+
 /** Human labels for the availability line in the evidence doc. */
 export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   step: "cadquery (STEP quantities)",
@@ -485,6 +544,7 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   sheet: "pdfplumber (vector sheet takeoff)",
   dxf: "ezdxf (DXF takeoff)",
   parametric: "cadquery (parametric rebuild)",
+  ocr: "tesseract (sheet-text OCR)",
 }
 
 /**
@@ -508,6 +568,21 @@ export function probeEngine(kind: AdapterKind): { available: boolean; reason?: s
     }
     if (res.status !== 0) {
       return { available: false, reason: `libreoffice --version exited with code ${res.status} at ${LIBREOFFICE_BIN}` }
+    }
+    return { available: true }
+  }
+  if (kind === "ocr") {
+    // 16-B: the tesseract binary + the VENDORED sha-pinned model (the harness
+    // always reads with the vendored dir, so its absence is an honest skip).
+    const res = spawnSync(TESSERACT_BIN, ["--version"], { timeout: 60_000 })
+    if (res.error) {
+      return { available: false, reason: `tesseract is not runnable at ${TESSERACT_BIN} (${res.error.message})` }
+    }
+    if (res.status !== 0) {
+      return { available: false, reason: `tesseract --version exited with code ${res.status} at ${TESSERACT_BIN}` }
+    }
+    if (!existsSync(path.join(VENDORED_TESSDATA_DIR, "eng.traineddata"))) {
+      return { available: false, reason: `the vendored eng.traineddata is missing at ${VENDORED_TESSDATA_DIR} (harness reads are model-pinned)` }
     }
     return { available: true }
   }
@@ -960,6 +1035,90 @@ function parseParametricExpectation(
   return block
 }
 
+/** 16-B: strict validation of an OCR expectation block. Success runs pin the
+ * ORDERED expected word list (raw transcript text + conf floors + the Ø-rule
+ * rows); error runs pin their refusal substring per run. */
+function parseOcrExpectation(
+  caseId: string,
+  blockName: string,
+  raw: unknown,
+): OcrExpectation {
+  if (!isPlainObject(raw)) {
+    throw new Error(`manifest case ${caseId}: the ${blockName} block must be an object`)
+  }
+  const { expect, runs, note } = raw
+  if (expect !== "success" && expect !== "error") {
+    throw new Error(`manifest case ${caseId}: ${blockName}.expect must be "success"|"error"`)
+  }
+  const block: OcrExpectation = { expect }
+  if (note !== undefined && (typeof note !== "string" || note.length === 0)) {
+    throw new Error(`manifest case ${caseId}: ${blockName}.note must be a non-empty string when provided`)
+  }
+  if (typeof note === "string") block.note = note
+  if (!Array.isArray(runs) || runs.length === 0) {
+    throw new Error(
+      `manifest case ${caseId}: ${blockName} cases must pin a non-empty runs array (one row per parameter set)`,
+    )
+  }
+  block.runs = runs.map((r: unknown, j: number) => {
+    if (!isPlainObject(r)) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}] is not an object`)
+    }
+    const run: OcrRun = {}
+    if (r.parameters !== undefined) {
+      if (!isPlainObject(r.parameters)) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].parameters must be an object`)
+      }
+      const psm = (r.parameters as { psm?: unknown }).psm
+      if (psm !== undefined && (typeof psm !== "number" || !Number.isInteger(psm) || psm < 0 || psm > 13)) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].parameters.psm must be an integer 0..13`)
+      }
+      run.parameters = (r.parameters as { psm?: number })
+    }
+    if (expect === "error") {
+      if (typeof r.errorContains !== "string" || r.errorContains.length === 0) {
+        throw new Error(
+          `manifest case ${caseId}: ${blockName}.runs[${j}] error runs must pin their own errorContains`,
+        )
+      }
+      run.errorContains = r.errorContains
+      return run
+    }
+    const words = r.expectedWords
+    if (!Array.isArray(words) || words.length === 0) {
+      throw new Error(
+        `manifest case ${caseId}: ${blockName}.runs[${j}] must pin a non-empty expectedWords array (the ordered raw transcript)`,
+      )
+    }
+    run.expectedWords = words.map((w: unknown, k: number) => {
+      if (!isPlainObject(w)) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].expectedWords[${k}] is not an object`)
+      }
+      if (typeof w.text !== "string" || w.text.length === 0) {
+        throw new Error(
+          `manifest case ${caseId}: ${blockName}.runs[${j}].expectedWords[${k}].text must be a non-empty string (the RAW transcript pin)`,
+        )
+      }
+      const word: OcrExpectedWord = { text: w.text }
+      if (w.confFloor !== undefined && (typeof w.confFloor !== "number" || w.confFloor < 0 || w.confFloor > 100)) {
+        throw new Error(
+          `manifest case ${caseId}: ${blockName}.runs[${j}].expectedWords[${k}].confFloor must be a number 0..100 when provided`,
+        )
+      }
+      if (typeof w.confFloor === "number") word.confFloor = w.confFloor
+      if (w.normalized !== undefined && (typeof w.normalized !== "string" || w.normalized.length === 0)) {
+        throw new Error(
+          `manifest case ${caseId}: ${blockName}.runs[${j}].expectedWords[${k}].normalized must be a non-empty string when provided (the Ø-rule pin)`,
+        )
+      }
+      if (typeof w.normalized === "string") word.normalized = w.normalized
+      return word
+    })
+    return run
+  })
+  return block
+}
+
 function parseManifest(raw: unknown): CorpusCase[] {
   if (!Array.isArray(raw) || raw.length === 0) {
     throw new Error(`corpus manifest must be a non-empty JSON array (got ${typeof raw})`)
@@ -971,7 +1130,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
     if (!isPlainObject(c)) {
       throw new Error(`manifest case [${i}] is not an object`)
     }
-    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, cpm, libreoffice, sheet, dxf, parametric } =
+    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, cpm, libreoffice, sheet, dxf, parametric, ocr } =
       c
     if (typeof caseId !== "string" || caseId.length === 0) {
       throw new Error(`manifest case [${i}] has no caseId`)
@@ -989,10 +1148,11 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "libreoffice" ||
       adapter === "sheet" ||
       adapter === "dxf" ||
-      adapter === "parametric"
+      adapter === "parametric" ||
+      adapter === "ocr"
     if (!isModelAdapter && !isDisciplineAdapter) {
       throw new Error(
-        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric" (got ${JSON.stringify(adapter)})`,
+        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr" (got ${JSON.stringify(adapter)})`,
       )
     }
     if (typeof fixture !== "string" || fixture.length === 0) {
@@ -1059,6 +1219,32 @@ function parseManifest(raw: unknown): CorpusCase[] {
           )
         }
         parsed.parametricGroundTruth = groundTruth
+      }
+      cases.push(parsed)
+      continue
+    }
+    if (adapter === "ocr") {
+      // 16-B: exactly ONE ocr block, named after the adapter kind
+      if (ocr === undefined) {
+        throw new Error(`manifest case ${caseId}: adapter "ocr" requires an "ocr" expectation block`)
+      }
+      const block = parseOcrExpectation(caseId, "ocr", ocr)
+      if (block.expect !== expect) {
+        throw new Error(
+          `manifest case ${caseId}: expect ${JSON.stringify(expect)} disagrees with the ocr block's expect`,
+        )
+      }
+      if (expect === "error") {
+        parsed.errorContains = block.runs?.find((r) => r.errorContains !== undefined)?.errorContains
+      }
+      parsed.ocr = block
+      if (expect === "success") {
+        if (typeof groundTruth !== "string" || groundTruth.length === 0) {
+          throw new Error(
+            `manifest case ${caseId}: ocr success cases must carry a non-empty groundTruth string (the narrative behind the expectedWords pins)`,
+          )
+        }
+        parsed.ocrGroundTruth = groundTruth
       }
       cases.push(parsed)
       continue
@@ -1926,7 +2112,7 @@ async function runDisciplineChecks(
   fixturePath: string,
   report: Pick<HarnessReport, "engineVersions" | "adapterHashes">,
 ): Promise<DisciplineCaseResult> {
-  const adapter = c.adapter as DisciplineAdapter | ParametricAdapter
+  const adapter = c.adapter as DisciplineAdapter | ParametricAdapter | OcrAdapter
 
   // 16-V: the vector-takeoff kinds run their own sub-expectation machinery
   // (runs[] parameter sets, per-run double-execution byte-identity, item/text
@@ -1942,6 +2128,14 @@ async function runDisciplineChecks(
   // discipline dispatch below.
   if (adapter === "parametric") {
     return runParametricChecks(c, fixturePath, report)
+  }
+
+  // 16-B: the sheet-text OCR kind runs its own sub-expectation machinery
+  // (the vendored sha-pinned model, runs[] parameter sets, per-run
+  // double-execution word-list identity, ordered expectedWords pins with
+  // conf floors + the Ø-rule rows) — hand off BEFORE the Phase-5 dispatch.
+  if (adapter === "ocr") {
+    return runOcrChecks(c, fixturePath, report)
   }
 
   const block = c[adapter] as DisciplineExpectation
@@ -2672,6 +2866,189 @@ async function runParametricChecks(
 }
 
 // ---------------------------------------------------------------------------
+// 16-B: the OCR sub-expectation machinery (tesseract region reads over the
+// COMMITTED PNG fixture with the VENDORED sha-pinned eng model)
+// ---------------------------------------------------------------------------
+
+async function runOcrChecks(
+  c: CorpusCase,
+  fixturePath: string,
+  report: Pick<HarnessReport, "engineVersions" | "adapterHashes">,
+): Promise<DisciplineCaseResult> {
+  const block = c.ocr as OcrExpectation
+  const r: DisciplineCaseResult = {
+    adapter: "ocr",
+    expect: block.expect,
+    status: "fail",
+    determinism: null,
+    comparisons: [],
+    problems: [],
+  }
+  const pngBytes = readFileSync(fixturePath)
+
+  // The model pin: the vendored eng.traineddata sha256 must equal the pinned
+  // value — byte-identical CI models (16-R2), recorded as a comparison row.
+  const modelSha = createHash("sha256")
+    .update(readFileSync(path.join(VENDORED_TESSDATA_DIR, "eng.traineddata")))
+    .digest("hex")
+  r.comparisons.push({
+    field: "tessdata sha256",
+    ref: "tests/fixtures/tessdata/eng.traineddata",
+    expected: VENDORED_ENG_SHA256,
+    observed: modelSha,
+    unit: null,
+    bound: "exact",
+    absDiff: null,
+    observedRelError: null,
+    ok: modelSha === VENDORED_ENG_SHA256,
+    problem: modelSha === VENDORED_ENG_SHA256 ? "matched" : "value",
+    derivation: "the vendored eng model — byte-identical reads in CI (16-R2)",
+  })
+  if (modelSha !== VENDORED_ENG_SHA256) {
+    r.problems.push(
+      `the vendored eng.traineddata sha256 is ${modelSha}, not the pinned ${VENDORED_ENG_SHA256} — the model drifted`,
+    )
+  }
+
+  if (block.expect === "error") {
+    const observed: string[] = []
+    for (const [runIndex, run] of (block.runs ?? []).entries()) {
+      let caught: unknown
+      try {
+        await sheetOcrFromPng(pngBytes, {
+          ...(run.parameters?.psm !== undefined ? { psm: run.parameters.psm } : {}),
+          tessdataDir: VENDORED_TESSDATA_DIR,
+        })
+      } catch (err) {
+        caught = err
+      }
+      if (caught === undefined) {
+        r.problems.push(
+          `run ${runIndex} (parameters ${JSON.stringify(run.parameters ?? {})}): expected the OCR bridge to throw an EngineUnavailableError containing ${JSON.stringify(run.errorContains)}, but the read succeeded`,
+        )
+        continue
+      }
+      if (!(caught instanceof EngineUnavailableError)) {
+        r.problems.push(
+          `run ${runIndex}: expected an EngineUnavailableError containing ${JSON.stringify(run.errorContains)}, got ${typeof caught === "object" && caught !== null ? (caught as Error).constructor.name : typeof caught}: ${String(caught)}`,
+        )
+        continue
+      }
+      observed.push(caught.message)
+      if (!caught.message.includes(run.errorContains ?? "")) {
+        r.problems.push(
+          `run ${runIndex} refusal message does not contain the pinned substring ${JSON.stringify(run.errorContains)}: ${caught.message}`,
+        )
+      }
+    }
+    if (observed.length > 0) r.errorObserved = observed.join(" | ")
+    r.errorContains = block.runs?.find((x) => x.errorContains !== undefined)?.errorContains
+    r.status = r.problems.length === 0 ? "pass" : "fail"
+    return r
+  }
+
+  // expect === "success": every run executes TWICE — the full word list
+  // (text+conf+boxes, serialized) must be IDENTICAL (tesseract is
+  // deterministic for identical input+model+psm — pinned, not assumed).
+  let determinismAll = true
+  let engineRecorded = false
+  for (const [runIndex, run] of (block.runs ?? []).entries()) {
+    const options = {
+      ...(run.parameters?.psm !== undefined ? { psm: run.parameters.psm } : {}),
+      tessdataDir: VENDORED_TESSDATA_DIR,
+    }
+    let first: SheetOcrResult
+    let second: SheetOcrResult
+    try {
+      first = await sheetOcrFromPng(pngBytes, options)
+      second = await sheetOcrFromPng(pngBytes, options)
+    } catch (err) {
+      r.problems.push(
+        `run ${runIndex} (parameters ${JSON.stringify(run.parameters ?? {})}): expected a successful OCR read but the bridge threw: ${err instanceof EngineUnavailableError ? err.message : String(err)}`,
+      )
+      r.status = "fail"
+      return r
+    }
+    if (!engineRecorded) {
+      engineRecorded = true
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+    }
+    const runDeterministic = JSON.stringify(first.words) === JSON.stringify(second.words)
+    if (!runDeterministic) {
+      determinismAll = false
+      r.problems.push(
+        `run ${runIndex}: two consecutive reads produced different word lists — tesseract is not deterministic for this input+model+psm`,
+      )
+    }
+    // The ordered expectedWords pins: exact raw text, conf ≥ floor, and the
+    // Ø-rule rows must fire with exactly the pinned normalized form.
+    const expected = run.expectedWords ?? []
+    const observedTexts = first.words.map((w) => w.text)
+    if (observedTexts.length !== expected.length) {
+      r.problems.push(
+        `run ${runIndex}: expected exactly ${expected.length} words (${expected.map((w) => w.text).join(", ")}) but the read produced ${observedTexts.length} (${observedTexts.join(", ")})`,
+      )
+    }
+    for (let k = 0; k < Math.min(expected.length, observedTexts.length); k++) {
+      const pin = expected[k]
+      const word = first.words[k]
+      const okText = word.text === pin.text
+      const confFloor = pin.confFloor ?? 0
+      const okConf = word.conf >= confFloor
+      let okNormalized = true
+      let normalizedObserved: string | null = null
+      if (pin.normalized !== undefined) {
+        const norm = normalizeDiameterToken(word.text)
+        normalizedObserved = norm !== null ? norm.normalized : null
+        okNormalized = norm !== null && norm.normalized === pin.normalized && norm.raw === word.text
+      }
+      r.comparisons.push({
+        field: "word",
+        ref: pin.normalized !== undefined ? `Ø-rule row ${k + 1}` : `word ${k + 1}`,
+        expected: pin.normalized !== undefined ? `${pin.text} → ${pin.normalized} (conf ≥ ${confFloor})` : `${pin.text} (conf ≥ ${confFloor})`,
+        observed:
+          pin.normalized !== undefined
+            ? `${word.text}${normalizedObserved !== null ? ` → ${normalizedObserved}` : ""} (conf ${word.conf.toFixed(1)})`
+            : `${word.text} (conf ${word.conf.toFixed(1)})`,
+        unit: null,
+        bound: confFloor > 0 ? `min ${confFloor}` : "exact",
+        absDiff: null,
+        observedRelError: null,
+        ok: okText && okConf && okNormalized,
+        problem: okText && okConf && okNormalized ? "matched" : "value",
+        derivation: "the live tesseract read of the committed fixture with the vendored model",
+      })
+      if (!okText) {
+        r.problems.push(
+          `run ${runIndex} word ${k + 1}: expected raw text ${JSON.stringify(pin.text)} but tesseract emitted ${JSON.stringify(word.text)}`,
+        )
+      }
+      if (!okConf) {
+        r.problems.push(
+          `run ${runIndex} word ${k + 1} (${word.text}): conf ${word.conf.toFixed(1)} is below the pinned floor ${confFloor}`,
+        )
+      }
+      if (!okNormalized && pin.normalized !== undefined) {
+        r.problems.push(
+          `run ${runIndex} word ${k + 1} (${word.text}): the Ø rule must produce ${JSON.stringify(pin.normalized)} (raw preserved) but produced ${JSON.stringify(normalizedObserved)}`,
+        )
+      }
+    }
+  }
+  r.determinism = determinismAll
+  pushDisciplineProblems(r)
+  r.status = r.problems.length === 0 ? "pass" : "fail"
+  return r
+}
+
+// ---------------------------------------------------------------------------
 // The harness
 // ---------------------------------------------------------------------------
 
@@ -2700,6 +3077,7 @@ export async function runHarness(): Promise<HarnessReport> {
         sheet: probeEngine("sheet"),
         dxf: probeEngine("dxf"),
         parametric: probeEngine("parametric"),
+        ocr: probeEngine("ocr"),
       },
     },
     engineVersions: {

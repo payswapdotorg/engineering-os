@@ -248,7 +248,7 @@ cat > "$WORK/mkp-badkind.json" <<EOF
 EOF
 jpost "/api/projects/$PID/markups" "$WORK/mkp-badkind.json"
 assert_eq "unknown kind refused 422 with the closed vocabulary in the message (verbatim)" \
-  'kind: kind must be one of: length, area, count, symbol-hits, calibration' \
+  'kind: kind must be one of: length, area, count, symbol-hits, text-hits, calibration' \
   "$(j "$BODY" '.error.message')"
 
 cat > "$WORK/mkp-foreignrev.json" <<EOF
@@ -664,6 +664,127 @@ else
   bad "AC-VT-08: audit trail + unauth gate" "dxfEvents=$VT_EV_DXF sheetEvents=$VT_EV_SHEET unauth=$VT_UNAUTH" "≥2|≥2|401"
 fi
 
+# ===========================================================================
+# AC-VT-09 (Slice 16-B): sheet-text OCR — region reads through the broker
+# (tesseract), the Ø normalization with raw preserved, the text-hits markup
+# accept lifecycle, and the honest refusal matrix.
+# ===========================================================================
+OCR_B64=$(base64 -w0 "$FIXTURES/ocr-callout.png")
+cat > "$WORK/ocr.json" <<EOF
+{ "imageBase64": "$OCR_B64" }
+EOF
+http POST "/api/projects/$PID/artifacts/$SHEET_ID/ocr" -H 'Content-Type: application/json' --data-binary @"$WORK/ocr.json"
+OCR_RUN="$BODY"
+OCR_OK=$(python3 -c 'import sys, json
+r = json.loads(sys.argv[1])["data"]
+words = {w["text"]: w for w in r["words"]}
+checks = [
+    r["engineKey"] == "tesseract",
+    len(r["words"]) == 8,
+    "LOADING" in words and words["LOADING"]["conf"] >= 90,
+    "2400" in words and words["2400"]["conf"] >= 90,
+    "@400" in words,
+    words["@400"]["normalized"]["normalized"] == "Ø400",
+    words["@400"]["normalized"]["raw"] == "@400",
+    words["@400"]["normalized"]["rule"] == "diameter-glyph",
+    "1200" in words and words["1200"]["conf"] >= 90,
+    all(isinstance(w["box"]["width"], int) and w["box"]["width"] > 0 for w in r["words"]),
+]
+sys.exit(0 if all(checks) else 1)' "$OCR_RUN" && echo ok || echo bad)
+assert_eq "AC-VT-09a: OCR region read on the sheet revision: 200, tesseract envelope, 8 words, @400→Ø400 with raw preserved" \
+  "200|ok|$SHEET_ID" \
+  "$STATUS|$OCR_OK|$(j "$OCR_RUN" '.data.sourceArtifactId')"
+
+SVG_REV_LATEST=$(j "$OCR_RUN" '.data.sourceRevisionId')
+assert_eq "AC-VT-09b: the read pins the revision it ran against (sourceRevisionId = the sheet's latest)" \
+  "set" "$( [[ -n "$SVG_REV_LATEST" && "$SVG_REV_LATEST" != "null" ]] && echo set || echo missing)"
+
+http POST "/api/projects/$PID/artifacts/$(j "$VT_DXF_BODY" '.data.artifact.id')/ocr" -H 'Content-Type: application/json' --data-binary @"$WORK/ocr.json"
+DXF_NAME=$(j "$VT_DXF_BODY" '.data.artifact.name')
+assert_eq "AC-VT-09c: non-PDF artifact refused (422, the takeoff_sheet signal — verbatim)" \
+  "422|takeoff_sheet requires a PDF sheet revision — \"$DXF_NAME\" carries no PDF signal (.pdf name or application/pdf MIME)" \
+  "$STATUS|$(j "$BODY" '.error.message')"
+
+http POST "/api/projects/$PID/artifacts/$SHEET_ID/ocr" -H 'Content-Type: application/json' --data-binary '{}'
+assert_eq "AC-VT-09d: missing imageBase64 refused (422 verbatim)" \
+  "422|sheet_ocr requires parameters.imageBase64 (the base64 PNG of the picked region, rendered by Sheet Measure)" \
+  "$STATUS|$(j "$BODY" '.error.message')"
+
+echo '{ "imageBase64": "aGVsbG8gd29ybGQ=" }' > "$WORK/ocr-notpng.json"
+http POST "/api/projects/$PID/artifacts/$SHEET_ID/ocr" -H 'Content-Type: application/json' --data-binary @"$WORK/ocr-notpng.json"
+assert_eq "AC-VT-09e: base64 that is not a PNG refused (422 verbatim)" \
+  "422|sheet_ocr parameters.imageBase64 does not decode to a PNG (magic bytes missing) — Sheet Measure renders PNG regions" \
+  "$STATUS|$(j "$BODY" '.error.message')"
+
+# The accept lifecycle: transcript → kind "text-hits" markup with the payload.
+OCR_WORDS_JSON=$(python3 -c 'import sys, json
+r = json.loads(sys.argv[1])["data"]
+print(json.dumps([{"text": w["text"], "conf": w["conf"], "normalized": w.get("normalized")} for w in r["words"]]))' "$OCR_RUN")
+OCR_BOXES_JSON=$(python3 -c 'import sys, json
+r = json.loads(sys.argv[1])["data"]
+# word raster boxes → synthetic PDF-pt boxes (the e2e pins the CONTRACT, not
+# geometry: tl/br pairs per word, in image order — the browser journey covers
+# the real mapping)
+pts = []
+for i in range(len(r["words"])):
+    pts.append({"x": float(i), "y": 700.0})
+    pts.append({"x": float(i) + 10.0, "y": 680.0})
+print(json.dumps(pts))' "$OCR_RUN")
+cat > "$WORK/ocr-accept.json" <<EOF
+{
+  "revisionId": "$SVG_REV_LATEST",
+  "page": 1,
+  "kind": "text-hits",
+  "points": $OCR_BOXES_JSON,
+  "label": "e2e OCR transcript",
+  "value": 8,
+  "unit": "each",
+  "payload": {
+    "words": $(python3 -c 'import sys, json
+words = json.loads(sys.argv[1])
+print(json.dumps([{"text": w["text"], "conf": w["conf"], "boxIndex": i, **({"normalized": w["normalized"]} if w["normalized"] else {})} for i, w in enumerate(words)]))' "$OCR_WORDS_JSON"),
+    "engine": "tesseract",
+    "engineVersion": "5.5.0",
+    "adapterScript": "sheet_ocr.ts",
+    "adapterHash": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "createdBy": "e2e-operator"
+}
+EOF
+http POST "/api/projects/$PID/markups" -H 'Content-Type: application/json' --data-binary @"$WORK/ocr-accept.json"
+OCR_MKP_ID=$(j "$BODY" '.data.markup.id')
+assert_eq "AC-VT-09f: transcript accepted — kind text-hits, 201, 16 points (8 word boxes), payload stored" \
+  "201|text-hits|8|16|each|tesseract" \
+  "$STATUS|$(j "$BODY" '.data.markup.kind')|$(j "$BODY" '.data.markup.value')|$(j "$BODY" '.data.markup.points | length')|$(j "$BODY" '.data.markup.unit')|$(j "$BODY" '.data.markup.payload.engine')"
+
+http GET "/api/projects/$PID/markups?revisionId=$SVG_REV_LATEST"
+assert_eq "AC-VT-09g: GET back — the transcript round-trips with the Ø row + raw preserved" \
+  "$OCR_MKP_ID|@400|Ø400|diameter-glyph" \
+  "$(j "$BODY" '[.data.markups[] | select(.id == "'"$OCR_MKP_ID"'")][0].id')|$(j "$BODY" '[.data.markups[] | select(.id == "'"$OCR_MKP_ID"'")][0].payload.words[4].text')|$(j "$BODY" '[.data.markups[] | select(.id == "'"$OCR_MKP_ID"'")][0].payload.words[4].normalized.normalized')|$(j "$BODY" '[.data.markups[] | select(.id == "'"$OCR_MKP_ID"'")][0].payload.words[4].normalized.rule')"
+
+echo '{ "revisionId": "'"$SVG_REV_LATEST"'", "page": 1, "kind": "text-hits", "points": [{"x":1,"y":1},{"x":2,"y":2}], "value": 2, "unit": "each", "payload": { "words": [{"text":"x","conf":99,"boxIndex":5}], "engine":"tesseract","engineVersion":"5.5.0","adapterScript":"sheet_ocr.ts","adapterHash":"0000000000000000000000000000000000000000000000000000000000000000" }, "createdBy": "e2e-operator" }' > "$WORK/ocr-badbox.json"
+http POST "/api/projects/$PID/markups" -H 'Content-Type: application/json' --data-binary @"$WORK/ocr-badbox.json"
+assert_eq "AC-VT-09h: a transcript word pointing outside the markup's boxes refused (422 — transcript/geometry can never disagree)" \
+  "422|payload.words[].boxIndex: 5 is outside the markup's 1 word boxes — the transcript and the geometry disagree" \
+  "$STATUS|$(j "$BODY" '.error.message')"
+
+echo '{ "revisionId": "'"$SVG_REV_LATEST"'", "page": 1, "kind": "text-hits", "points": [{"x":1,"y":1},{"x":2,"y":2}], "value": 7, "unit": "each", "createdBy": "e2e-operator" }' > "$WORK/ocr-badcount.json"
+http POST "/api/projects/$PID/markups" -H 'Content-Type: application/json' --data-binary @"$WORK/ocr-badcount.json"
+assert_eq "AC-VT-09i: value ≠ word-box count refused (422, the strict consistency rule)" \
+  "422|invalid SheetMarkup: a text-hits markup's value must equal its hit-box count (1), got 7" \
+  "$STATUS|$(j "$BODY" '.error.message')"
+
+http GET "/api/events?projectId=$PID&limit=200"
+OCR_EV=$(j "$BODY" '[.data.events[] | select(.action == "markup.created") | (.detail | fromjson | .kind == "text-hits")] | map(select(. == true)) | length')
+assert_eq "AC-VT-09j: the accept is audited (markup.created with kind text-hits in detail)" \
+  "1" "$OCR_EV"
+
+STATUS=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST "$BASE/api/projects/$PID/artifacts/$SHEET_ID/ocr" -H 'Content-Type: application/json' --data-binary @"$WORK/ocr.json") || STATUS="000"
+assert_eq "AC-VT-09k: unauthenticated OCR read refused (401 envelope)" "401" "$STATUS"
+
+# The e2e transcript markup is cleaned with the rest of the probe dataset at
+# the suite end (dev-db-cleanup); the LEDGER rows are untouched by it (a
+# text-hits markup writes NO ledger row — text is evidence, not a quantity).
 echo
 echo "== e2e-takeoff.sh: $PASS PASS / $FAIL FAIL =="
 if [[ "$FAIL" -ne 0 ]]; then exit 1; fi

@@ -44,6 +44,19 @@ import { runDesFromFile, type DesJob, type DesResource } from "@/engines/adapter
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "@/engines/adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "@/engines/adapters/dxf_takeoff"
 import {
+  parametricRebuildFromStorage,
+  parametricSchemaFromStorage,
+  resolveParametricParams,
+  type ParametricBuildResult,
+  type ParametricSchemaResult,
+} from "@/engines/adapters/parametric_rebuild"
+import {
+  normalizeDiameterToken,
+  sheetOcrFromPng,
+  type SheetOcrResult,
+} from "@/engines/adapters/sheet_ocr"
+import { markDownstreamStale, type StaleMarkedRow } from "@/lib/staleness-cascade"
+import {
   alreadyPdfMessage,
   conversionExtensionKind,
   convertDocumentToFile,
@@ -86,6 +99,7 @@ export type BrokerOperation =
   | "analyze_schedule"
   | "takeoff_sheet"
   | "takeoff_drawing"
+  | "rebuild_parametric"
 
 export interface BrokerContext {
   projectId: string
@@ -1288,8 +1302,8 @@ export function platformCoreOutcome(
 interface DerivedPersistSpec {
   /** log label for the honest orphan-log line */
   opLabel: string
-  kind: "fe-mesh" | "analysis" | "pdf"
-  /** stored-content discriminator (the JSON `format` field); null = binary (pdf) */
+  kind: "fe-mesh" | "analysis" | "pdf" | "model"
+  /** stored-content discriminator (the JSON `format` field); null = binary (pdf, STEP) */
   format: string | null
   name: string
   description: string
@@ -2047,6 +2061,402 @@ export async function brokerTakeoffDrawingCore(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Parametric rebuild (Slice 16 — the roadmap-gap-audit item-2 integration; the
+// 16-P adapter landed smoke-verified in Slice 15 and these cores wire it to
+// the broker/route/UI). Two cores over ONE adapter (ADR-0005: the broker is
+// the only engine path):
+//   - brokerParametricSchemaCore — the READ side (the Studio form source): a
+//     live adapter schema-mode run; no persistence, no audit event (the mesh
+//     GET precedent — reads don't write trails).
+//   - brokerRebuildParametricCore — the AUTHORING side: schema run → pure
+//     mirror validation (pinned 422s BEFORE any build spawn) → build run →
+//     analytic ground-truth gate → STEP persisted on a find-or-create kind-
+//     "model" artifact derived_from the script artifact (sequential revisions
+//     per rebuild) → downstream staleness cascade (meshes of the rebuilt
+//     model go stale — the shared revisions-route semantics) → ONE
+//     `parametric.rebuilt` audit event carrying the parameters used.
+// ---------------------------------------------------------------------------
+
+/** The parameter-edits carrier: `parameters.values` (absent → all defaults). */
+export function rebuildParametricBrokerValues(
+  parameters: Record<string, unknown>,
+): { ok: true; value: Record<string, unknown> } | { ok: false; message: string } {
+  const raw = parameters.values
+  if (raw === undefined) return { ok: true, value: {} }
+  if (!isPlainObject(raw)) {
+    return { ok: false, message: "rebuild_parametric parameters.values must be a JSON object of parameter edits when provided" }
+  }
+  return { ok: true, value: raw }
+}
+
+/** Multi-signal detection for a parametric-model script (the derive-kind pattern). */
+export function isParametricModelSignal(name: string, mimeType: string | null | undefined): boolean {
+  const lower = name.toLowerCase()
+  return lower.endsWith(".py") || mimeType === "text/x-python" || mimeType === "application/x-python"
+}
+
+export function parametricUnsupportedMessage(artifactName: string): string {
+  return `rebuild_parametric requires a parametric model script (.py) — "${artifactName}" carries no python-script signal (.py name or text/x-python MIME)`
+}
+
+/** Shared route-core gates: project → artifact-in-project → revision → signal.
+ * Throws the pinned BrokerRequestError/BrokerRefusalError on any refusal. */
+async function parametricSourceOrRefusal(
+  projectId: string,
+  artifactId: string,
+): Promise<{
+  artifact: { id: string; name: string }
+  revision: { id: string; storageKey: string; mimeType: string | null }
+}> {
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", "This artifact has no revisions to rebuild from")
+  }
+  if (!isParametricModelSignal(artifact.name, artifact.latestRevision.mimeType)) {
+    throw new BrokerRefusalError("unsupported", parametricUnsupportedMessage(artifact.name))
+  }
+  return {
+    artifact: { id: artifact.id, name: artifact.name },
+    revision: {
+      id: artifact.latestRevision.id,
+      storageKey: artifact.latestRevision.storageKey,
+      mimeType: artifact.latestRevision.mimeType,
+    },
+  }
+}
+
+/** Pinned GET result — the Studio parameter-form source. */
+export interface BrokerParametricSchemaResult {
+  schema: ParametricSchemaResult["schema"]
+  defaults: Record<string, number>
+  modelScriptHash: string
+  engineKey: "cadquery"
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  sourceArtifactId: string
+  sourceRevisionId: string
+}
+
+/** The read side: a live adapter schema-mode run (no persistence, no audit). */
+export async function brokerParametricSchemaCore(
+  projectId: string,
+  artifactId: string,
+): Promise<BrokerParametricSchemaResult> {
+  const source = await parametricSourceOrRefusal(projectId, artifactId)
+
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+  let schema: ParametricSchemaResult
+  try {
+    schema = await parametricSchemaFromStorage(absPath)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+  return {
+    schema: schema.schema,
+    defaults: schema.defaults,
+    modelScriptHash: schema.modelScriptHash,
+    engineKey: schema.engineKey,
+    engineVersion: schema.engineVersion,
+    adapterScript: schema.adapterScript,
+    adapterHash: schema.adapterHash,
+    sourceArtifactId: source.artifact.id,
+    sourceRevisionId: source.revision.id,
+  }
+}
+
+/** Pinned 201 `rebuild_parametric` response object (the femesh shape, STEP fields). */
+export interface BrokerRebuildParametricResult {
+  model: {
+    artifactId: string
+    name: string
+    kind: "model"
+    revisionNumber: number
+    contentHash: string
+    sizeBytes: number
+    mimeType: "application/step"
+    paramsUsed: Record<string, number>
+    volumeMm3: number
+    areaMm2: number
+    bboxMm: number[]
+    centerOfMassMm: number[]
+    checks: { volumeRelErr: number; passed: boolean }
+    engineKey: "cadquery"
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+    derivedFromArtifactId: string
+    derivedFromRevisionId: string
+    sourceLatestRevisionId: string
+    staleSource: false
+    staleMarked: StaleMarkedRow[]
+  }
+  outputArtifactRevisionId: string
+  engineKey: "cadquery"
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  durationMs: number
+}
+
+export async function brokerRebuildParametricCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerRebuildParametricResult> {
+  const startedAt = Date.now()
+  const values = rebuildParametricBrokerValues(parameters)
+  if (!values.ok) throw new BrokerRefusalError("unsupported", values.message)
+
+  const source = await parametricSourceOrRefusal(projectId, artifactId)
+
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+
+  // Step 1 — the schema (live adapter run; also the honest gate for a
+  // well-formed parametric model: a plain .py without PARAM_SCHEMA refuses).
+  let schema: ParametricSchemaResult
+  try {
+    schema = await parametricSchemaFromStorage(absPath)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+
+  // Step 2 — the pure mirror pre-validation: schema violations get the pinned
+  // 422 BEFORE any build spawn (the adapter re-checks with identical messages).
+  const resolved = resolveParametricParams(schema.schema, values.value)
+  if (!resolved.ok) throw new BrokerRefusalError("unsupported", resolved.message)
+
+  // Step 3 — the real build (cadquery; analytic ground-truth gate inside the
+  // adapter; the adapter's verbatim refusal surfaces as engine_unavailable).
+  let built: ParametricBuildResult
+  try {
+    built = await parametricRebuildFromStorage(absPath, resolved.value)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+
+  // Step 4 — persist the STEP on the find-or-create kind-"model" artifact
+  // derived_from the script artifact (binary content — format discriminator
+  // null, the pdf precedent; sequential revisions per rebuild).
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "rebuild_parametric",
+    kind: "model",
+    format: null,
+    name: `${source.artifact.name} — rebuilt model`,
+    description: `Parametric rebuild by ${built.engineKey} from ${source.artifact.name} (analytic ground-truth gate ${built.checks.volumeRelErr.toExponential(2)} rel)`,
+    bytes: built.stepBytes,
+    mimeType: "application/step",
+    contentAuthor: `adapter:${built.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${built.engineKey}`,
+      action: "parametric.rebuilt",
+      detail: {
+        engineKey: built.engineKey,
+        engineVersion: built.engineVersion,
+        adapterScript: built.adapterScript,
+        adapterHash: built.adapterHash,
+        modelScriptHash: built.modelScriptHash,
+        paramsUsed: built.paramsUsed,
+        volumeMm3: built.volumeMm3,
+        volumeRelErr: built.checks.volumeRelErr,
+        bboxMm: built.bboxMm,
+      },
+    },
+  })
+
+  // Step 5 — the staleness cascade: the rebuilt model artifact just gained a
+  // revision, so its downstream (meshes, analyses) goes stale — the shared
+  // revisions-route semantics (Slice 16 extraction), evidence rows returned.
+  const staleMarked = await markDownstreamStale(projectId, stored.artifactId)
+
+  return {
+    model: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "model",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      mimeType: "application/step",
+      paramsUsed: built.paramsUsed,
+      volumeMm3: built.volumeMm3,
+      areaMm2: built.areaMm2,
+      bboxMm: built.bboxMm,
+      centerOfMassMm: built.centerOfMassMm,
+      checks: built.checks,
+      engineKey: built.engineKey,
+      engineVersion: built.engineVersion,
+      adapterScript: built.adapterScript,
+      adapterHash: built.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+      staleMarked,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: built.engineKey,
+    engineVersion: built.engineVersion,
+    adapterScript: built.adapterScript,
+    adapterHash: built.adapterHash,
+    durationMs: Date.now() - startedAt,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sheet-text OCR (Slice 16-B — roadmap-gap-audit item 3, the 16-R2 research):
+// a READ-side core (no persistence, no audit — the schema-read precedent):
+// the Sheet Measure client renders the operator's picked region at a fixed 4×
+// and POSTs the PNG; this core gates the source as a PDF sheet revision (the
+// takeoff_sheet signal), decodes the base64, runs the real tesseract bridge,
+// and returns the words (raw transcript + the documented Ø normalization, raw
+// always preserved). The ACCEPT of a transcript as a kind-"text-hits" markup
+// goes through the EXISTING markups contract — OCR itself writes nothing.
+// ---------------------------------------------------------------------------
+
+/** Decode + gate the `imageBase64` parameter. Pinned 422s; no partial reads. */
+function ocrImageBytes(parameters: Record<string, unknown>): Buffer {
+  const raw = parameters.imageBase64
+  if (typeof raw !== "string" || raw.trim().length === 0) {
+    throw new BrokerRefusalError(
+      "unsupported",
+      "sheet_ocr requires parameters.imageBase64 (the base64 PNG of the picked region, rendered by Sheet Measure)",
+    )
+  }
+  let bytes: Buffer
+  try {
+    bytes = Buffer.from(raw, "base64")
+  } catch {
+    throw new BrokerRefusalError("unsupported", "sheet_ocr parameters.imageBase64 is not valid base64")
+  }
+  // PNG magic checked by the adapter too — the broker gives the friendlier,
+  // earlier refusal (base64 that decodes but is not a PNG).
+  if (bytes.length < 8 || bytes[0] !== 0x89 || bytes[1] !== 0x50 || bytes[2] !== 0x4e || bytes[3] !== 0x47) {
+    throw new BrokerRefusalError(
+      "unsupported",
+      "sheet_ocr parameters.imageBase64 does not decode to a PNG (magic bytes missing) — Sheet Measure renders PNG regions",
+    )
+  }
+  const MAX_OCR_PNG_BYTES = 12 * 1024 * 1024
+  if (bytes.length > MAX_OCR_PNG_BYTES) {
+    throw new BrokerRefusalError(
+      "unsupported",
+      `sheet_ocr region image is ${Math.round(bytes.length / 1024 / 1024)} MB — pick a smaller region (the cap is 12 MB)`,
+    )
+  }
+  return bytes
+}
+
+/** Pinned OCR read result (the words carry the raw transcript; Ø normalized). */
+export interface BrokerSheetOcrResult {
+  engineKey: "tesseract"
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  tessdataDir: string | null
+  psm: number
+  words: Array<{
+    text: string
+    conf: number
+    /** raster box in the region image, px, y-down (provenance) */
+    box: { x: number; y: number; width: number; height: number }
+    /** the Ø normalization when the rule fires — raw ALWAYS preserved above */
+    normalized?: { raw: string; normalized: string; rule: "diameter-glyph" }
+  }>
+  sourceArtifactId: string
+  sourceRevisionId: string
+}
+
+export async function brokerSheetOcrCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+): Promise<BrokerSheetOcrResult> {
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", "This artifact has no revisions to read text from")
+  }
+  if (
+    !isPdfSignal(artifact.name, artifact.latestRevision.mimeType) &&
+    !isPdfSignal(artifact.latestRevision.storageKey, artifact.latestRevision.mimeType)
+  ) {
+    throw new BrokerRefusalError(
+      "unsupported",
+      takeoffSheetUnsupportedMessage(artifact.name),
+    )
+  }
+
+  const bytes = ocrImageBytes(parameters)
+
+  let psm: number | undefined
+  if (parameters.psm !== undefined) {
+    if (typeof parameters.psm !== "number" || !Number.isInteger(parameters.psm) || parameters.psm < 0 || parameters.psm > 13) {
+      throw new BrokerRefusalError("unsupported", "sheet_ocr parameters.psm must be an integer 0..13 when provided")
+    }
+    psm = parameters.psm
+  }
+
+  let result: SheetOcrResult
+  try {
+    result = await sheetOcrFromPng(bytes, psm !== undefined ? { psm } : {})
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+
+  return {
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    tessdataDir: result.tessdataDir,
+    psm: result.psm,
+    words: result.words.map((w) => {
+      const normalized = normalizeDiameterToken(w.text)
+      return {
+        text: w.text,
+        conf: w.conf,
+        box: { x: w.x, y: w.y, width: w.width, height: w.height },
+        ...(normalized !== null ? { normalized } : {}),
+      }
+    }),
+    sourceArtifactId: artifactId,
+    sourceRevisionId: artifact.latestRevision.id,
+  }
+}
+
 /** Pinned 201 `powerflow` response object (exact key order — mirror of the mesh 201). */
 export interface BrokerPowerflowResponse {
   artifactId: string
@@ -2734,6 +3144,32 @@ export async function runBrokerOperation(
           contentHash: core.takeoff.contentHash,
           layerCount: core.takeoff.layerCount,
           entityCount: core.takeoff.entityCount,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "rebuild_parametric": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError(
+          "unsupported",
+          "rebuild_parametric requires inputs.artifactId (one parametric model script artifact id)",
+        )
+      }
+      const core = await brokerRebuildParametricCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.model.artifactId,
+          revisionNumber: core.model.revisionNumber,
+          contentHash: core.model.contentHash,
+          volumeMm3: core.model.volumeMm3,
+          staleMarked: core.model.staleMarked.length,
         },
         outputArtifactRevisionId: core.outputArtifactRevisionId,
         engineKey: core.engineKey,

@@ -30,6 +30,11 @@
  *  - "symbol-hits"  ≥ 2, EVEN   — N pairs [topLeft, bottomRight] of accepted
  *                    template-match boxes, in IMAGE order; unit "each";
  *                                 value === points.length / 2
+ *  - "text-hits"    ≥ 2, EVEN   — N pairs [topLeft, bottomRight] of accepted
+ *                    OCR word boxes (Slice 16-B sheet-text OCR), in IMAGE
+ *                    order; unit "each"; value === points.length / 2; the
+ *                    transcript itself rides the row's payload JSON (route-
+ *                    validated), never the points — geometry stays {x,y} only
  *  - "calibration"  EXACTLY 2   — the two scale-bar picks; unit "mm/pt";
  *                                 value = the calibrated mm-per-point factor > 0
  */
@@ -42,6 +47,7 @@ export const MARKUP_KINDS = [
   "area",
   "count",
   "symbol-hits",
+  "text-hits",
   "calibration",
 ] as const
 export type MarkupKind = (typeof MARKUP_KINDS)[number]
@@ -71,6 +77,7 @@ export function markupUnitFor(kind: MarkupKind): "m" | "m²" | "each" | "mm/pt" 
       return "m²"
     case "count":
     case "symbol-hits":
+    case "text-hits":
       return "each"
     case "calibration":
       return "mm/pt"
@@ -87,6 +94,7 @@ export function requiredPointsFor(kind: MarkupKind): { min: number; exact: numbe
     case "count":
       return { min: 1, exact: null }
     case "symbol-hits":
+    case "text-hits":
       return { min: 2, exact: null } // N pairs → even count ≥ 2 (checked modulo below)
     case "calibration":
       return { min: 2, exact: 2 }
@@ -209,6 +217,11 @@ export function makeSheetMarkup(input: SheetMarkupInput): SheetMarkupRecord {
       `${where}: symbol-hits markups store [topLeft, bottomRight] pairs per hit, so the points count must be even (got ${v.points.length})`,
     )
   }
+  if (kind === "text-hits" && v.points.length % 2 !== 0) {
+    throw new MarkupError(
+      `${where}: text-hits markups store [topLeft, bottomRight] pairs per accepted OCR word, so the points count must be even (got ${v.points.length})`,
+    )
+  }
 
   // -- unit: the closed kind→unit vocabulary --------------------------------
   const expectedUnit = markupUnitFor(kind)
@@ -228,16 +241,16 @@ export function makeSheetMarkup(input: SheetMarkupInput): SheetMarkupRecord {
         `${where}: a count markup's value must equal its clicked points (${v.points.length}), got ${v.value}`,
       )
     }
-  } else if (kind === "symbol-hits") {
+  } else if (kind === "symbol-hits" || kind === "text-hits") {
     const hits = v.points.length / 2
     if (!Number.isInteger(v.value) || v.value < 1) {
       throw new MarkupError(
-        `${where}: a symbol-hits markup's value must be a whole number >= 1 (got ${v.value})`,
+        `${where}: a ${kind} markup's value must be a whole number >= 1 (got ${v.value})`,
       )
     }
     if (v.value !== hits) {
       throw new MarkupError(
-        `${where}: a symbol-hits markup's value must equal its hit-box count (${hits}), got ${v.value}`,
+        `${where}: a ${kind} markup's value must equal its hit-box count (${hits}), got ${v.value}`,
       )
     }
   } else if (kind === "length" || kind === "area") {
