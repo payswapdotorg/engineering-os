@@ -938,21 +938,33 @@ kill_tree() { # a pid AND every descendant, bottom-up (kill -9 never propagates)
   for child in $(pgrep -P "$pid" 2>/dev/null || true); do kill_tree "$child"; done
   kill -9 "$pid" 2>/dev/null || true
 }
-top_server_pid() { # the pid owning :3000, walked UP to the topmost ancestor
+server_chain_member() { # true when pid's cmdline is a dev-server chain member
+  local cmd
+  cmd=$(tr '\0' ' ' < "/proc/$1/cmdline" 2>/dev/null) || return 1
+  case "$cmd" in
+    *dev-server.sh*|*"bun run dev"*|*"next dev"*|*next-server*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+top_server_pid() { # the pid owning :3000, walked UP through dev-server-chain members ONLY
   local pid ppid
   pid=$(ss -ltnp 2>/dev/null | awk '$4 ~ /:3000$/ {print $NF}' | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2)
   [ -n "$pid" ] || return 1
   while :; do
     ppid=$(awk '/^PPid:/{print $2}' "/proc/$pid/status" 2>/dev/null) || break
     [ -n "$ppid" ] && [ "$ppid" != "0" ] && [ "$ppid" != "1" ] || break
-    # NEVER climb into this script's own chain. The takeover/restore servers
-    # are OUR children (without job control the backgrounded setsid execs in
-    # place, so their parent IS this script); the recovery-drill's unguarded
-    # walk assumes a runner shell whose ancestor is the platform (true in
-    # CI) — found live by the first local AC-AD-14 pass, where the walk
-    # reached this script and kill_tree SIGKILLed it (EXIT 137 at the
-    # restore, zero output after PASS 104).
+    # NEVER climb outside the dev-server chain. The unguarded topmost-ancestor
+    # walk is topology-fragile: it SIGKILLed this suite locally (the walk
+    # reached $$ — fixed with the $$ break, EXIT 137) and KILLED A CI RUNNER
+    # in the postgres-runtime job (run 40219235926: the walk climbed from the
+    # drill's canonical server through the live postgres drill script up to
+    # the runner node — exit 137, the job died instantly; the sqlite e2e job
+    # survived only because its server's step shell was DEAD, so the walk
+    # stopped at the PPid-1 boundary). The cmdline gate makes the walk climb
+    # ONLY within {dev-server.sh, bun run dev, next dev, next-server}
+    # processes: the killed tree is exactly the server, in every topology.
     [ "$ppid" = "$$" ] && break
+    server_chain_member "$ppid" || break
     pid="$ppid"
   done
   echo "$pid"

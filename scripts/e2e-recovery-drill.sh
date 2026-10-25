@@ -85,8 +85,22 @@ kill_tree() {
   kill -9 "$pid" 2>/dev/null || true
 }
 
-# The pid owning the :3000 listen socket (ss 'pid=' field), walked UP to the
-# topmost ancestor (the `bun run dev` that scripts/dev-server.sh exec'd).
+# The pid owning the :3000 listen socket (ss 'pid=' field), walked UP the
+# dev-server chain ONLY (cmdline-gated — Slice 17: the unguarded topmost-
+# ancestor walk is topology-fragile; it killed a CI RUNNER from the
+# postgres-runtime job when the killed server's parent chain passed through
+# a LIVE driver script up to the runner node. The gate climbs only within
+# {dev-server.sh, bun run dev, next dev, next-server} processes, so the
+# killed tree is exactly the server in every topology — for this drill it
+# can only stop the walk EARLIER than the old boundary checks did.)
+server_chain_member() { # true when pid's cmdline is a dev-server chain member
+  local cmd
+  cmd=$(tr '\0' ' ' < "/proc/$1/cmdline" 2>/dev/null) || return 1
+  case "$cmd" in
+    *dev-server.sh*|*"bun run dev"*|*"next dev"*|*next-server*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 top_server_pid() {
   local pid ppid
   pid=$(ss -ltnp 2>/dev/null | awk '$4 ~ /:3000$/ {print $NF}' | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2)
@@ -94,6 +108,8 @@ top_server_pid() {
   while :; do
     ppid=$(awk '/^PPid:/{print $2}' "/proc/$pid/status" 2>/dev/null) || break
     [ -n "$ppid" ] && [ "$ppid" != "0" ] && [ "$ppid" != "1" ] || break
+    [ "$ppid" = "$$" ] && break
+    server_chain_member "$ppid" || break
     pid="$ppid"
   done
   echo "$pid"
