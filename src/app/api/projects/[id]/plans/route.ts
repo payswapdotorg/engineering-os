@@ -22,10 +22,12 @@ import { z } from "zod"
 
 import {
   PlannerEnvelopeSchema,
+  REVISION_IDENTICAL_REFUSED,
   buildPlannerMessages,
   extractJsonObject,
   isPlanStatus,
   planToJsonText,
+  revisionIsSubstantiveChange,
   validatePlanDefinition,
   type PlanStatus,
   type PlannerArtifactContext,
@@ -262,6 +264,51 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
       entityType: "AgentPlan",
       entityId: planId,
       detail: { intent, revisesPlanId: revisesPlanId ?? null, status: "failed", stage: "validation" },
+    })
+    return jsonOk({ plan: toPlanRow(failedRow) }, { status: 201 })
+  }
+
+  // 5b. Slice-17 revision-delta backstop (the prompt-quality protocol's
+  // deterministic guard — src/core/planner.ts: revisionIsSubstantiveChange):
+  // a proposal whose definition is IDENTICAL to its parent's is the live
+  // evidence ledger's worst observed LLM failure mode (the requested delta
+  // ignored). Refused at the validation stage, persisted honestly as a
+  // failed row with the raw response as evidence — the human sees the
+  // verbatim reason and can re-ask. Prompt-independent: the prompt carries
+  // the rule, the route enforces it.
+  if (
+    validation.ok &&
+    prior !== null &&
+    prior.definition !== null &&
+    !revisionIsSubstantiveChange(prior.definition, validation.definition)
+  ) {
+    const failedRow = await db.agentPlan.create({
+      data: {
+        id: planId,
+        projectId: id,
+        intent,
+        status: "failed",
+        revisesPlanId: revisesPlanId ?? null,
+        plan: null,
+        evidence: JSON.stringify({
+          rawResponse: result.text, // VERBATIM — the identical proposal is evidence
+          durationMs: result.durationMs,
+          attempts: result.attempts,
+        }),
+        failure: JSON.stringify({
+          stage: "validation",
+          error: REVISION_IDENTICAL_REFUSED,
+          at: new Date().toISOString(),
+        }),
+        createdById: access.session.id,
+      },
+    })
+    await recordEvent({
+      projectId: id,
+      action: "plan.requested",
+      entityType: "AgentPlan",
+      entityId: planId,
+      detail: { intent, revisesPlanId: revisesPlanId ?? null, status: "failed", stage: "revision-delta" },
     })
     return jsonOk({ plan: toPlanRow(failedRow) }, { status: 201 })
   }

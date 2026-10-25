@@ -353,3 +353,49 @@ PASS count is asserted non-zero (Part A always contributes).
 - Never bypasses validation (every proposal passes the canonical schema; failures
   persist as honest `failed` rows with verbatim evidence).
 - Never silent (rawResponse stored VERBATIM; every attempt is a reviewable row).
+
+## 10. Prompt-quality iteration protocol (Slice 17 — the §7.2 loop, now repeatable)
+
+The planner's output QUALITY is observable, never assumed. The loop, its
+tooling, and its first two measured iterations (2026-10-25):
+
+1. **Evidence ledger.** Propose real plans through the REAL API against a
+   persistent project (the demo dataset — NOT a throwaway fixture, whose
+   project-cascade would delete the rows). Every attempt is already a
+   persisted AgentPlan row with the raw response VERBATIM (§2).
+2. **Grade.** `bun scripts/grade-planner-ledger.ts` pulls every row and runs
+   the unit-pinned rubric (`src/core/planner-grade.ts` — definition
+   validity via the canonical parse; refusal honesty {stage, error, at};
+   evidence presence, fixture rows exempt per §7.3). Exit 1 on any invalid
+   row — CI- or session-gateable. The rubric grades STRUCTURE.
+3. **Qualitative pass.** A human reads the proposals against the intents
+   (the rubric cannot judge fidelity). Iteration 1's pass found three real
+   defects: named-artifact substitution (the intent said bracket.step, the
+   plan wired wall-quantities.ifc), format-blind wiring (takeoff_drawing
+   wired to an .svg — a runtime 422 waiting to happen), and revision-delta
+   ignored ("skip the mesh" — the revision kept the mesh, reused the prior
+   rationale verbatim).
+4. **Iterate the prompt.** Each finding became a pinned rule in
+   `PLANNER_SYSTEM_PROMPT` (fidelity rules — every string asserted in
+   `planner.test.ts`, so the rules cannot silently drift). Iteration 2
+   sharpened two of them (the anaphora rule: "the model" resolves to the
+   NAMED artifact; the REMOVE rule: a skip request means the step MUST NOT
+   appear).
+5. **Deterministic backstop.** The worst observed failure (a revision
+   byte-identical to its parent) is now REFUSED at the validation stage —
+   `revisionIsSubstantiveChange` (pure, unit-pinned) +
+   `REVISION_IDENTICAL_REFUSED` persisted as an honest failed row with the
+   raw response as evidence. The prompt carries the rule; the ROUTE enforces
+   it — prompt-independent.
+6. **Re-run live.** Same intents, iterated prompt: the revision now applies
+   the requested delta, wires the named artifact, and its rationale states
+   WHAT CHANGED (the live evidence is in the ledger; 9/9 rows grade clean).
+
+**Residual (recorded for the next loop):** the DIRECT intent path (no
+prior-plan evidence in context) can still substitute a same-kind artifact in
+some runs — the worked-example template's pull. Next-loop candidate: put the
+request's named artifacts FIRST in the user content, or add a
+request-vs-wiring consistency note to the rubric.
+
+The loop is a session of measured work whenever the evidence accumulates;
+the tooling above is committed so any future session can run it cold.

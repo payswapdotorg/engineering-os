@@ -50,6 +50,10 @@ export const ERR_PROJECT_MANAGE_ONLY = () =>
 export const ERR_ADMIN_ONLY = () =>
   jsonError(403, "forbidden", "only an admin can manage platform storage")
 
+/** 403 verbatim — platform-level account administration (Slice 17, limitation #19). */
+export const ERR_ADMIN_USERS_ONLY = () =>
+  jsonError(403, "forbidden", "only an admin can manage accounts")
+
 /** `auth: "public"` opts — the ONLY opt-out from the session gate. */
 export interface HandlerOptions {
   auth?: "public"

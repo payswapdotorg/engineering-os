@@ -126,10 +126,12 @@ function NavList({
   activeProjectId,
   onActivate,
   onActivatePlatform,
+  isAdmin,
 }: {
   activeProjectId: string | null
   onActivate: (item: WorkspaceItem) => void
   onActivatePlatform: (href: string) => void
+  isAdmin: boolean
 }) {
   const pathname = usePathname()
 
@@ -150,7 +152,7 @@ function NavList({
           Platform
         </p>
         <div className="flex flex-col gap-0.5">
-          {PLATFORM_NAV.map((item) => {
+          {PLATFORM_NAV.filter((item) => !item.adminOnly || isAdmin).map((item) => {
             const isActive = pathname.startsWith(item.href)
             return (
               <button
@@ -332,6 +334,7 @@ function AuthenticatedShell({ user, children }: { user: SessionUser; children: R
               </div>
               <NavList
                 activeProjectId={activeProjectId}
+                isAdmin={user.role === "admin"}
                 onActivate={activateWorkspace}
                 onActivatePlatform={(href) => {
                   setSheetOpen(false)
@@ -410,6 +413,7 @@ function AuthenticatedShell({ user, children }: { user: SessionUser; children: R
           </div>
           <NavList
             activeProjectId={activeProjectId}
+            isAdmin={user.role === "admin"}
             onActivate={activateWorkspace}
             onActivatePlatform={(href) => {
               setSheetOpen(false)

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises"
 import path from "node:path"
 
 import { engineRegistry } from "@/engines"
+import { signupOpen } from "@/lib/admin-users"
 import { getStorageRoot } from "@/lib/artifact-store"
 import { jsonOk } from "@/lib/api-utils"
 import { db } from "@/lib/db"
@@ -50,6 +51,7 @@ export const GET = handler(
       storageMode: "local content-addressed store",
       storageRoot: getStorageRoot(),
       dbProvider: liveDbProvider(),
+      signupOpen: signupOpen(), // Slice 17: the auth surface shows the honest closed-state message
       engines: { total: engineRegistry.length, installed },
       counts: { projects, artifacts, revisions },
     })

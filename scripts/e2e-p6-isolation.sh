@@ -8,7 +8,7 @@
 # flow via a local second/third-jar helper (_iso_signin; password demo1234 —
 # src/lib/demo-accounts.ts).
 #
-# Against the live dev server it verifies (80 PASS expected):
+# Against the live dev server it verifies (108 PASS expected — Slice 17 AC-AD-01…14 +28):
 #   fixture  demo roster provisioned via POST /api/auth/demo-accounts
 #           (idempotent: 201 created / 200 already present — never a 4xx);
 #           both personas signed in via the real credentials flow; the three
@@ -75,6 +75,32 @@
 #           the only linked owner → 409 verbatim; unknown row → 404 Member
 #           not found; invalid role → 422
 #   AC-RP-02  (Slice 14) the roleChanged audit detail carries {from, to}
+#   AC-AD-01…03  (Slice 17) global-role admin lane — the limitation-#19
+#           product half: GET /api/admin/users is admin-gated (401
+#           unauthenticated; a global engineer gets the DEDICATED 403
+#           "only an admin can manage accounts"); the admin directory lists
+#           operator + demo personas (roles + demo flags) + every account
+#   AC-AD-04  the settings surface: signup open by default + the honest
+#           boot-time how-to-change text (no fake runtime knob)
+#   AC-AD-05…10  the full refusal matrix verbatim: out-of-vocabulary role
+#           422; unknown id 404; non-admin WRITE 403; demo personas keep
+#           their provisioned role 422; no-op change 422 (never a silent
+#           200); the LAST-ADMIN guard 422
+#   AC-AD-11  the happy demote + the JWT honest boundary: an existing
+#           session keeps its sign-in-time role (project POST 201); after
+#           re-sign-in the viewer POST gets the wrapper's uniform 403 — a
+#           changed role takes effect at the NEXT sign-in, pinned not hidden
+#   AC-AD-12  the guard's arithmetic: promotion → 200; with a SECOND admin
+#           the operator's self-demotion passes (then is restored — the
+#           operator ALWAYS ends the suite admin)
+#   AC-AD-13  the global audit trail: user.roleChanged {from,to,targetEmail,
+#           by} rows in the global feed; ≥4 real transitions recorded
+#   AC-AD-14  the boot-time signup toggle LIVE: a takeover server with
+#           EOS_SIGNUP=closed answers the operator's own email with the
+#           pinned 422 (the guard fires BEFORE the duplicate-email 409)
+#           and reports signupOpen=false; the canonical restore returns
+#           signupOpen=true, keeps the operator's session cookie valid (the
+#           .env secret continuity), and a fresh signup is 201 again
 #
 # Runs LAST of the six scripts (after e2e-p5). Creates and removes its OWN
 # fixtures through the REAL API + the established dev-db-cleanup path; the
@@ -758,6 +784,270 @@ assert_eq "AC-RP-02: Gamma's feed carries the PROMOTION record {from:viewer, to:
   "true" "$(j "$BODY" "[.data.events[] | select(.action == \"member.roleChanged\" and .detail != null) | .detail | fromjson | select(.from == \"viewer\" and .to == \"editor\")] | length > 0")"
 
 # ===========================================================================
+# AC-AD — the global-role administration lane (Slice 17, limitation #19's
+# product half — roadmap-gap-audit §7.2 item 1). The pure-core decision
+# matrix is unit-pinned (src/lib/admin-users.test.ts, 38 tests); this block
+# pins the ROUTE surface live: the gating envelopes, the three verbatim
+# refusals (demo persona / last admin / no-op), the global audit trail, the
+# JWT honest boundary (a changed role takes effect at the NEXT sign-in —
+# pinned, never silently glossed), and the boot-time signup toggle — proven
+# on a TAKEOVER server booted with EOS_SIGNUP=closed (the recovery-drill
+# pattern: same code, same DB, only the boot environment differs), then
+# restored to the canonical launcher before the suite exits.
+# ===========================================================================
+
+# AC-AD-01: unauthenticated 401 — the admin directory never leaks.
+AUTH_ARGS=""
+http GET /api/admin/users
+assert_eq "AC-AD-01: unauthenticated GET /api/admin/users → 401 envelope verbatim" \
+  "401|unauthorized|sign in required" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# AC-AD-02: a non-admin read — the DEDICATED account-admin 403 (narrower
+# vocabulary than the storage routes' envelope; both are pinned verbatim).
+AUTH_ARGS="$KWAME_AUTH"
+http GET /api/admin/users
+assert_eq "AC-AD-02: Kwame (global ENGINEER) GETs /api/admin/users → 403 account-admin envelope verbatim" \
+  "403|forbidden|only an admin can manage accounts" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# AC-AD-03: the admin directory — non-vacuous roster shape (operator admin,
+# the provisioned demo personas with their roles + demo flags, both signup
+# fixtures).
+AUTH_ARGS="${EOS_AUTH:-}"
+http GET /api/admin/users
+AD_OPERATOR_ID=$(j "$BODY" "[.data.users[] | select(.email == \"operator@eos.local\")][0].id")
+AD_KWAME_DEMO_ID=$(j "$BODY" "[.data.users[] | select(.email == \"kwame.demo@eos.local\")][0].id")
+assert_eq "AC-AD-03: operator (admin) GETs the directory → 200 with the full roster shape (operator admin non-demo, kwame demo engineer, zara demo viewer, both signup fixtures)" \
+  "true" "$(j "$BODY" "([.data.users[] | select(.email == \"operator@eos.local\" and .role == \"admin\" and .isDemo == false)] | length == 1) and ([.data.users[] | select(.email == \"kwame.demo@eos.local\" and .role == \"engineer\" and .isDemo == true)] | length == 1) and ([.data.users[] | select(.email == \"zara.demo@eos.local\" and .role == \"viewer\" and .isDemo == true)] | length == 1) and ([.data.users[] | select(.email == \"abi.signup@eos.test\" or .email == \"kojo.signup@eos.test\")] | length == 2)")"
+
+# AC-AD-04: the settings surface — signup open by default + the honest
+# how-to-change (the toggle is env-gated at boot by design — the card says
+# so instead of faking a runtime knob).
+http GET /api/admin/settings
+assert_eq "AC-AD-04: GET /api/admin/settings → 200, signup open (the deployment default), with the boot-time how-to-change text" \
+  "true|set EOS_SIGNUP=open|closed in the deployment environment and restart (boot-time gate)" \
+  "$(j "$BODY" '.data.signup.open')|$(j "$BODY" '.data.signup.howToChange')"
+
+# AC-AD-05: invalid role value → the zod refusal (field-prefixed).
+cat > "$WORK/ad-bogus-role.json" <<'EOF'
+{ "role": "prime-minister" }
+EOF
+http PATCH "/api/admin/users/$KOJO_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/ad-bogus-role.json"
+assert_eq "AC-AD-05: PATCH an out-of-vocabulary role → 422 verbatim (the GLOBAL role vocabulary is closed)" \
+  "422|role: role must be one of admin, engineer, viewer" "$STATUS|$(j "$BODY" '.error.message')"
+
+# AC-AD-06: unknown user id → the no-leak 404 (identical for any bad id).
+http PATCH "/api/admin/users/usr_nonexistent_row" -H 'Content-Type: application/json' --data-binary @"$WORK/role-viewer.json"
+assert_eq "AC-AD-06: PATCH an unknown user id → 404 User not found" \
+  "404|not_found|User not found" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# AC-AD-07: a non-admin WRITE — the same dedicated 403 (engineer, not just viewer).
+AUTH_ARGS="$KWAME_AUTH"
+http PATCH "/api/admin/users/$KOJO_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/role-viewer.json"
+assert_eq "AC-AD-07: Kwame (engineer) PATCHes a role → 403 account-admin envelope verbatim (writes are admin-only too)" \
+  "403|forbidden|only an admin can manage accounts" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# AC-AD-08: demo personas keep their provisioned role — the verbatim refusal.
+AUTH_ARGS="${EOS_AUTH:-}"
+http PATCH "/api/admin/users/$AD_KWAME_DEMO_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/role-viewer.json"
+assert_eq "AC-AD-08: PATCH kwame (demo persona) → 422 verbatim (demo personas keep their provisioned role — re-provisionable fixtures)" \
+  "422|demo personas keep their provisioned role (their grants are re-provisionable demo fixtures — clear the demo accounts and re-provision to change personas)" "$STATUS|$(j "$BODY" '.error.message')"
+
+# AC-AD-09: a no-op change is an explicit refusal, never a silent 200.
+cat > "$WORK/ad-engineer-role.json" <<'EOF'
+{ "role": "engineer" }
+EOF
+http PATCH "/api/admin/users/$KOJO_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/ad-engineer-role.json"
+assert_eq "AC-AD-09: PATCH kojo engineer→engineer (no-op) → 422 verbatim (the audit trail records real transitions only)" \
+  "422|user already has this role" "$STATUS|$(j "$BODY" '.error.message')"
+
+# AC-AD-10: the LAST-ADMIN guard — the operator is the only admin right now.
+http PATCH "/api/admin/users/$AD_OPERATOR_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/ad-engineer-role.json"
+assert_eq "AC-AD-10: the operator (the ONLY admin) PATCHes self→engineer → 422 verbatim (a deployment can never strand itself without an admin)" \
+  "422|cannot demote the last remaining admin (promote another admin first)" "$STATUS|$(j "$BODY" '.error.message')"
+
+# AC-AD-11: the happy demote + the JWT honest boundary. The session strategy
+# is JWT: a changed role applies at the NEXT sign-in — pinned with BOTH
+# sides (the old session still writes; the re-signed one cannot).
+http PATCH "/api/admin/users/$KOJO_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/role-viewer.json"
+assert_eq "AC-AD-11: PATCH kojo engineer→viewer → 200 with the updated row" \
+  "200|viewer|kojo.signup@eos.test" "$STATUS|$(j "$BODY" '.data.user.role')|$(j "$BODY" '.data.user.email')"
+AUTH_ARGS="$KOJO_AUTH"
+cat > "$WORK/ad-kojo-probe.json" <<'EOF'
+{ "name": "Kojo JWT boundary probe", "discipline": "civil", "description": "AC-AD-11 fixture: created under the OLD (engineer) session; removed by the suite cleanup" }
+EOF
+jpost /api/projects "$WORK/ad-kojo-probe.json"
+KOJO_PROBE_ID=$(j "$BODY" '.data.project.id')
+assert_eq "AC-AD-11: kojo's EXISTING session still carries the sign-in-time role engineer → project POST 201 (JWT roles are sign-in-scoped — the honest boundary, pinned not hidden)" \
+  "201" "$STATUS"
+_iso_signin "kojo.signup@eos.test" "kojo-pass-1234"
+KOJO_AUTH="-b $ISO_JAR -c $ISO_JAR"
+assert_eq "AC-AD-11: kojo RE-SIGNS IN → session role viewer (the demotion took effect at the next sign-in)" \
+  "viewer" "$ISO_ROLE"
+AUTH_ARGS="$KOJO_AUTH"
+jpost /api/projects "$WORK/ad-kojo-probe.json"
+assert_eq "AC-AD-11: the re-signed VIEWER session POSTs a project → the wrapper's uniform 403 verbatim" \
+  "403|forbidden|viewer role is read-only" "$STATUS|$(j "$BODY" '.error.code')|$(j "$BODY" '.error.message')"
+
+# AC-AD-12: promote→admin + the guard's arithmetic — with a SECOND admin
+# existing, the operator's self-demotion is allowed; the new admin then
+# restores the operator (the suite's end state keeps the operator admin).
+AUTH_ARGS="${EOS_AUTH:-}"
+cat > "$WORK/ad-admin-role.json" <<'EOF'
+{ "role": "admin" }
+EOF
+http PATCH "/api/admin/users/$KOJO_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/ad-admin-role.json"
+assert_eq "AC-AD-12: PROMOTION — kojo viewer→admin → 200 (the last-admin guard only refuses demotions)" \
+  "200|admin" "$STATUS|$(j "$BODY" '.data.user.role')"
+http PATCH "/api/admin/users/$AD_OPERATOR_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/ad-engineer-role.json"
+assert_eq "AC-AD-12: with kojo now a SECOND admin, the operator's self-demotion PASSES the guard → 200 engineer" \
+  "200|engineer" "$STATUS|$(j "$BODY" '.data.user.role')"
+# kojo's fresh viewer session is role-blind for admin routes — re-sign kojo
+# (viewer-then-admin chain: the promote happened AFTER his latest sign-in,
+# so the CURRENT jar still says viewer — sign in once more for admin).
+_iso_signin "kojo.signup@eos.test" "kojo-pass-1234"
+KOJO_ADMIN_AUTH="-b $ISO_JAR -c $ISO_JAR"
+AUTH_ARGS="$KOJO_ADMIN_AUTH"
+http PATCH "/api/admin/users/$AD_OPERATOR_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/ad-admin-role.json"
+assert_eq "AC-AD-12: kojo (re-signed admin) restores the operator →admin → 200 (the operator ends the suite as admin — the canonical end state)" \
+  "200|admin" "$STATUS|$(j "$BODY" '.data.user.role')"
+http PATCH "/api/admin/users/$KOJO_ID" -H 'Content-Type: application/json' --data-binary @"$WORK/ad-engineer-role.json"
+assert_eq "AC-AD-12: kojo self-demotes → 200 (the operator is admin again — the guard's arithmetic is exactly the count of OTHER admins)" \
+  "200|engineer" "$STATUS|$(j "$BODY" '.data.user.role')"
+AUTH_ARGS="${EOS_AUTH:-}"
+http GET /api/admin/users
+assert_eq "AC-AD-12: end-state check — the operator is admin again and kojo is engineer (the fixture cleanup can remove him safely)" \
+  "admin|engineer" "$(j "$BODY" "[.data.users[] | select(.email == \"operator@eos.local\")][0].role")|$(j "$BODY" "[.data.users[] | select(.email == \"kojo.signup@eos.test\")][0].role")"
+
+# AC-AD-13: the global audit trail — every accepted change carries
+# {from, to, targetEmail, by} in the global feed (null-projectId events).
+http GET "/api/events?limit=200"
+assert_eq "AC-AD-13: the global feed carries user.roleChanged with detail {from:engineer, to:viewer, targetEmail:kojo} (attributable after the fact)" \
+  "true" "$(j "$BODY" "[.data.events[] | select(.action == \"user.roleChanged\" and .detail != null) | .detail | fromjson | select(.from == \"engineer\" and .to == \"viewer\" and .targetEmail == \"kojo.signup@eos.test\" and .by == \"operator@eos.local\")] | length > 0")"
+assert_eq "AC-AD-13: the audit trail records ≥4 role changes (demote, promote, self-demotion, restore — append-only, real transitions only)" \
+  "true" "$(j "$BODY" "([.data.events[] | select(.action == \"user.roleChanged\")] | length) >= 4")"
+
+# ===========================================================================
+# AC-AD-14 — the boot-time signup toggle, LIVE: a takeover server booted with
+# EOS_SIGNUP=closed (same code, same DB — only the boot environment differs),
+# the pinned 422 refusal, signupOpen=false on the public status route, then
+# the canonical restore (the recovery-drill pattern; the EXIT trap below
+# ALWAYS restores the canonical server once we took over :3000).
+# ===========================================================================
+kill_tree() { # a pid AND every descendant, bottom-up (kill -9 never propagates)
+  local pid="$1" child
+  for child in $(pgrep -P "$pid" 2>/dev/null || true); do kill_tree "$child"; done
+  kill -9 "$pid" 2>/dev/null || true
+}
+top_server_pid() { # the pid owning :3000, walked UP to the topmost ancestor
+  local pid ppid
+  pid=$(ss -ltnp 2>/dev/null | awk '$4 ~ /:3000$/ {print $NF}' | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2)
+  [ -n "$pid" ] || return 1
+  while :; do
+    ppid=$(awk '/^PPid:/{print $2}' "/proc/$pid/status" 2>/dev/null) || break
+    [ -n "$ppid" ] && [ "$ppid" != "0" ] && [ "$ppid" != "1" ] || break
+    # NEVER climb into this script's own chain. The takeover/restore servers
+    # are OUR children (without job control the backgrounded setsid execs in
+    # place, so their parent IS this script); the recovery-drill's unguarded
+    # walk assumes a runner shell whose ancestor is the platform (true in
+    # CI) — found live by the first local AC-AD-14 pass, where the walk
+    # reached this script and kill_tree SIGKILLed it (EXIT 137 at the
+    # restore, zero output after PASS 104).
+    [ "$ppid" = "$$" ] && break
+    pid="$ppid"
+  done
+  echo "$pid"
+}
+port_busy() { ss -ltn 2>/dev/null | grep -qE ':3000(\s|$)'; }
+wait_port_free() {
+  local i
+  for i in $(seq 1 40); do port_busy || return 0; sleep 0.5; done
+  port_busy && return 1
+  return 0
+}
+wait_server() { # [tries] [sleepSecs] — /api/status 200 gate on :3000
+  local tries="${1:-60}" secs="${2:-3}" i
+  for i in $(seq 1 "$tries"); do
+    STATUS=$(curl -s -m 5 -o "$WORK/http.body" -w '%{http_code}' "$BASE/api/status" || true)
+    [ "$STATUS" = "200" ] && return 0
+    sleep "$secs"
+  done
+  return 1
+}
+restore_canonical() { # kill whatever owns :3000, start the canonical launcher
+  local p
+  p=$(top_server_pid 2>/dev/null || true)
+  if [ -n "$p" ]; then kill_tree "$p"; wait_port_free || true; sleep 1; fi
+  nohup bash "$REPO/scripts/dev-server.sh" > "$REPO/dev.log" 2>&1 &
+  TOOK_OVER=0
+}
+TOOK_OVER=0
+cleanup_toggle() { # EXIT trap extension: ALWAYS restore the canonical server
+  if [[ "$TOOK_OVER" == "1" ]]; then
+    restore_canonical || true
+    wait_server 80 3 || echo "e2e-p6: WARNING — canonical server did not come back up; restart it manually" >&2
+  fi
+}
+_prev_p6_trap="$(trap -p EXIT | sed "s/^trap -- '//; s/' EXIT$//")"
+trap "${_prev_p6_trap}; cleanup_toggle" EXIT
+
+AD_SERVER_PID=$(top_server_pid 2>/dev/null || true)
+if [ -n "$AD_SERVER_PID" ]; then
+  kill_tree "$AD_SERVER_PID"
+  wait_port_free || true
+  sleep 1
+fi
+TOOK_OVER=1
+setsid nohup env EOS_SIGNUP=closed bash "$REPO/scripts/dev-server.sh" > "$WORK/ad-toggle-server.log" 2>&1 &
+if wait_server 90 3; then
+  ok "AC-AD-14: takeover server booted with EOS_SIGNUP=closed is up (same code, same DB — only the boot env differs)"
+else
+  bad "AC-AD-14: takeover server came up" "no /api/status 200 within ~270s" "(server up)"
+  tail -30 "$WORK/ad-toggle-server.log" >&2 || true
+fi
+
+# The closed refusal — with the OPERATOR's existing email: the guard fires
+# BEFORE the duplicate-email check (a closed deployment answers probes
+# without revealing whether an email exists).
+cat > "$WORK/ad-closed-signup.json" <<'EOF'
+{ "name": "Closed Probe", "email": "operator@eos.local", "password": "probe-pass-1234" }
+EOF
+AD_STATUS=$(curl -sS -m 60 -o "$WORK/ad-closed.body" -w '%{http_code}' -X POST "$BASE/api/auth/signup" -H 'Content-Type: application/json' --data-binary @"$WORK/ad-closed-signup.json" || echo 000)
+AD_CLOSED_MSG=$(/usr/bin/jq -r '.error.message // empty' "$WORK/ad-closed.body")
+assert_eq "AC-AD-14: signup on the CLOSED server → 422 verbatim (the boot-time gate; the operator's own email proves the refusal fires BEFORE the duplicate-email 409)" \
+  "422|signups are closed on this deployment (EOS_SIGNUP=closed at boot — ask the operator to open registration, or have a project owner send an invitation to your email)" \
+  "$AD_STATUS|$AD_CLOSED_MSG"
+curl -sS -m 30 -o "$WORK/ad-status.body" "$BASE/api/status" || true
+AD_SIGNUP_OPEN=$(/usr/bin/jq -r '.data.signupOpen | tostring' "$WORK/ad-status.body")
+assert_eq "AC-AD-14: the public status route reports signupOpen=false on the closed server (the auth surface shows the honest closed-state message)" \
+  "false" "$AD_SIGNUP_OPEN"
+
+# Restore the canonical server, then pin the OTHER side of the boot gate: the
+# same DB + same code + open env → signup works again (a real 201) and the
+# operator's EXISTING session cookie still authenticates (the .env secret is
+# the canonical one — continuity across the restart).
+restore_canonical
+if wait_server 90 3; then
+  ok "AC-AD-14: canonical server restored (EOS_SIGNUP unset → open)"
+else
+  bad "AC-AD-14: canonical server restored" "no /api/status 200 within ~270s" "(server up)"
+  tail -30 "$REPO/dev.log" >&2 || true
+fi
+http GET /api/status
+assert_eq "AC-AD-14: the canonical server reports signupOpen=true again (only the boot env differed)" \
+  "true" "$(j "$BODY" '.data.signupOpen')"
+AUTH_ARGS="${EOS_AUTH:-}"
+http GET /api/projects
+assert_eq "AC-AD-14: the operator's PRE-RESTART session cookie still authenticates after the restore (the canonical .env secret signs both servers' JWTs — continuity pinned)" \
+  "200" "$STATUS"
+cat > "$WORK/ad-open-signup.json" <<'EOF'
+{ "name": "Signup Open Probe", "email": "smoke.signup@eos.test", "password": "smoke-pass-123" }
+EOF
+AUTH_ARGS=""
+jpost /api/auth/signup "$WORK/ad-open-signup.json"
+assert_eq "AC-AD-14: signup on the restored OPEN server → 201 again (the toggle is exactly the boot environment — no state was mutated)" \
+  "201" "$STATUS"
+
+# ===========================================================================
 # Cleanup: remove the three fixture projects + the two Slice-14 signup
 # fixture accounts (KEPT on failure for forensics). The user deletion
 # cascades any remaining TeamMember rows; the projects go first so their
@@ -769,7 +1059,14 @@ if [[ "$FAIL" -eq 0 ]]; then
       && printf 'fixture %s removed — dev DB is back to its pre-suite state\n' "$PID" \
       || printf 'WARNING: fixture removal FAILED for %s (dev-db-cleanup exited non-zero)\n' "$PID"
   done
-  (cd "$REPO" && bun -e 'const {db} = await import("./src/lib/db"); const r = await db.user.deleteMany({where: {email: {in: ["abi.signup@eos.test", "kojo.signup@eos.test"]}}}); await db.$disconnect(); console.log(`signup fixtures removed: ${r.count}`);' >/dev/null) \
+  # Slice-17 fixtures: the JWT-boundary probe project + the open-signup probe
+  # account (guarded — on a FAILED run they may not exist).
+  if [[ -n "${KOJO_PROBE_ID:-}" ]]; then
+    (cd "$REPO" && bun scripts/dev-db-cleanup.ts --project "$KOJO_PROBE_ID" >/dev/null) \
+      && printf 'JWT-boundary probe project removed\n' \
+      || printf 'WARNING: JWT-boundary probe project removal FAILED\n'
+  fi
+  (cd "$REPO" && bun -e 'const {db} = await import("./src/lib/db"); const r = await db.user.deleteMany({where: {email: {in: ["abi.signup@eos.test", "kojo.signup@eos.test", "smoke.signup@eos.test"]}}}); await db.$disconnect(); console.log(`signup fixtures removed: ${r.count}`);' >/dev/null) \
     && printf 'signup fixture accounts removed — dev DB user table is back to operator + demo personas\n' \
     || printf 'WARNING: signup fixture account removal FAILED (non-zero bun -e exit)\n'
 fi

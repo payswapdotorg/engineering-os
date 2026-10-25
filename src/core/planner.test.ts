@@ -18,10 +18,12 @@ import {
   PLANNER_ACTOR,
   PLAN_STATUSES,
   PlannerEnvelopeSchema,
+  REVISION_IDENTICAL_REFUSED,
   buildPlannerMessages,
   extractJsonObject,
   isPlanStatus,
   planToJsonText,
+  revisionIsSubstantiveChange,
   summarizePlanSteps,
   validatePlanDefinition,
   type PlannerArtifactContext,
@@ -123,6 +125,59 @@ describe("buildPlannerMessages (shape & assistant system prompt)", () => {
     expect(system).toContain("Model QA pipeline")
     expect(system).toContain("PLACEHOLDERS")
     expect(system).toContain(JSON.stringify(WORKFLOW_TEMPLATES.modelQaPipeline.definition))
+  })
+
+  test("the assistant prompt pins the Slice-17 fidelity rules (the prompt-quality pass over the live evidence ledger)", () => {
+    // The three live-evidence findings, each turned into a pinned rule:
+    // (1) plan1 re-targeted the named artifact → the NAME-fidelity rule
+    const system = buildPlannerMessages(buildInput())[0].content
+    expect(system).toContain("Wire the artifacts the request NAMES")
+    expect(system).toContain("never substitute another artifact")
+    // iteration 2: the anaphora rule — "the model" resolves to the NAMED artifact
+    expect(system).toContain("resolve it there, not to a different artifact of the same kind")
+    // (2) plan2 wired takeoff_drawing to an .svg source → the format rule
+    expect(system).toContain("takeoff_sheet needs a PDF sheet")
+    expect(system).toContain("takeoff_drawing needs a DXF drawing")
+    expect(system).toContain("Never wire an operation to a source whose format it would refuse")
+    // scope invention — plan1/plan2 added uninvited steps
+    expect(system).toContain("Do only what the request asks")
+    expect(system).toContain("scope invention, not thoroughness")
+    // (3) plan3 ignored the requested revision delta and reused the prior
+    // rationale verbatim → the revision-fidelity rule (iteration 2 made the
+    // REMOVE case explicit)
+    expect(system).toContain("the requested change is mandatory")
+    expect(system).toContain("MUST NOT contain that step")
+    expect(system).toContain("A revision that ignores the requested change is invalid")
+    expect(system).toContain("WHAT CHANGED relative to the prior plan")
+  })
+})
+
+describe("revisionIsSubstantiveChange — the Slice-17 revision-delta backstop", () => {
+  const parent = { steps: [{ id: "report", operation: "build_report", inputs: { artifactIds: ["a"] }, requiresApproval: true }] }
+
+  test("a byte-identical re-proposal is NOT a substantive change (the refusal fires)", () => {
+    expect(revisionIsSubstantiveChange(parent, JSON.parse(JSON.stringify(parent)))).toBe(false)
+  })
+
+  test("any real delta IS substantive: a removed step, a swapped id, a new step, a changed gate", () => {
+    const removedStep = { steps: [] }
+    const swappedId = { steps: [{ ...parent.steps[0], inputs: { artifactIds: ["b"] } }] }
+    const newStep = { steps: [...parent.steps, { id: "extra", operation: "derive_mesh", inputs: { artifactId: "m" }, requiresApproval: false }] }
+    const changedGate = { steps: [{ ...parent.steps[0], requiresApproval: false }] }
+    expect(revisionIsSubstantiveChange(parent, removedStep)).toBe(true)
+    expect(revisionIsSubstantiveChange(parent, swappedId)).toBe(true)
+    expect(revisionIsSubstantiveChange(parent, newStep)).toBe(true)
+    expect(revisionIsSubstantiveChange(parent, changedGate)).toBe(true)
+  })
+
+  test("the refusal text is pinned verbatim (the failed-row failure JSON + future e2e rows)", () => {
+    expect(REVISION_IDENTICAL_REFUSED).toBe(
+      "a revision must differ from the plan it revises (the proposed definition is identical to the parent's — apply the requested change and propose again)",
+    )
+  })
+
+  test("null prior definitions never compare equal (JSON null text vs any definition — the route guards null before this call)", () => {
+    expect(revisionIsSubstantiveChange(null, parent)).toBe(true)
   })
 })
 

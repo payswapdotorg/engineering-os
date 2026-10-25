@@ -45,6 +45,31 @@ export function isPlanStatus(value: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Revision-delta backstop (Slice 17 — the prompt-quality protocol's
+// deterministic guard; unit-pinned, prompt-independent)
+// ---------------------------------------------------------------------------
+
+/** Verbatim refusal — pinned by unit tests AND the live revision path. */
+export const REVISION_IDENTICAL_REFUSED =
+  "a revision must differ from the plan it revises (the proposed definition is identical to the parent's — apply the requested change and propose again)"
+
+/**
+ * The live evidence ledger's worst observed LLM failure mode (Slice-17
+ * prompt-quality pass): a revision whose definition is byte-identical to its
+ * parent's — the requested delta ignored, the prior work restated. The route
+ * refuses such a proposal at the validation stage with the verbatim message
+ * above; this pure predicate makes the comparison canonical: both sides are
+ * post-parse CANONICAL definitions (zod fills defaults in schema key order,
+ * so JSON text equality is a stable, deterministic identity test).
+ */
+export function revisionIsSubstantiveChange(
+  priorDefinition: unknown,
+  proposedDefinition: unknown,
+): boolean {
+  return JSON.stringify(priorDefinition) !== JSON.stringify(proposedDefinition)
+}
+
+// ---------------------------------------------------------------------------
 // Context types (contract §3 — frozen)
 // ---------------------------------------------------------------------------
 
@@ -109,6 +134,12 @@ const PLANNER_SYSTEM_PROMPT = [
   "- At most 8 steps",
   '- build_report takes "inputs": {"artifactIds": [...]} with 1 to 4 artifact ids; every other operation takes "inputs": {"artifactId": "<id>"} with exactly one artifact id',
   '- Gate the final build_report step with "requiresApproval": true (a human publishes the report — Journey F). Never set requiresApproval true on any other step',
+  "",
+  "Fidelity rules (pinned by the Slice-17 prompt-quality pass over the live evidence ledger):",
+  "- Wire the artifacts the request NAMES. When the request names a specific artifact, wire exactly that one — never substitute another artifact because it looks better suited; a plan that quietly re-targets the request is a wrong plan. When the request later says \"the model\", \"the drawing\", \"the sheet\" or \"it\", that reference means the artifact the request ALREADY NAMED — resolve it there, not to a different artifact of the same kind.",
+  "- Do only what the request asks. Every step must be justified by the request itself; adding steps the request did not ask for is scope invention, not thoroughness.",
+  "- Artifact names may carry file extensions (.step, .ifc, .dxf, .svg, .pdf, .png, …) and operations have source-format requirements: takeoff_sheet needs a PDF sheet; takeoff_drawing needs a DXF drawing; derive_mesh / derive_quantities / rebuild_parametric need a model. Never wire an operation to a source whose format it would refuse — if the request names such a source, record the mismatch honestly in assumptions and wire the operation to a compatible artifact only if the request's goal still makes sense; otherwise leave the step out and say why in assumptions.",
+  "- When REVISING a prior plan, the requested change is mandatory: start from the prior definition, apply the requested delta exactly, and re-check every rule. If the request asks to SKIP or REMOVE a step, the revised definition MUST NOT contain that step. If it asks to ADD or REORDER steps, apply exactly that. A revision that ignores the requested change is invalid, and its rationale must state WHAT CHANGED relative to the prior plan — never restate the prior rationale.",
   "",
   'Worked example — the "Model QA pipeline" template. The empty-string artifact ids are PLACEHOLDERS: replace them with real artifact ids from the catalog, keep the step structure:',
   JSON.stringify(MODEL_QA_EXAMPLE.definition),

@@ -129,8 +129,32 @@ export interface StatusData {
   storageMode: string
   storageRoot: string
   dbProvider: string
+  signupOpen: boolean
   engines: { total: number; installed: number }
   counts: { projects: number; artifacts: number; revisions: number }
+}
+
+/** Slice 17 — the Administration surface's data shapes. */
+export interface AdminUserRow {
+  id: string
+  name: string
+  email: string
+  role: "admin" | "engineer" | "viewer"
+  isDemo: boolean
+  title: string | null
+  createdAt: string
+}
+
+export interface AdminUsersData {
+  users: AdminUserRow[]
+}
+
+export interface AdminSettingsData {
+  signup: {
+    open: boolean
+    howToChange: string
+    closedMessage: string
+  }
 }
 
 export interface ProjectSummary {

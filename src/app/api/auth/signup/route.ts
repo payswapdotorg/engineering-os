@@ -16,11 +16,18 @@
  * No email verification exists (single-space self-hosted reality, recorded
  * honestly in the docs) — an invitation activates only for the email it was
  * issued to, and project isolation bounds what a fresh account can see.
+ *
+ * Slice 17: the closed-signup deployment toggle (roadmap-gap-audit §7.2 —
+ * env-gated at boot, surfaced honestly in the UI when off). The guard fires
+ * BEFORE any DB read, so a closed deployment answers signup probes without
+ * revealing whether an email exists (the 409 duplicate-email check stays
+ * reachable only when signups are open).
  */
 import { z } from "zod"
 
 import { recordEvent } from "@/lib/audit"
 import { jsonOk, ERR, parseBody } from "@/lib/api-utils"
+import { signupOpen, SIGNUP_CLOSED_MESSAGE } from "@/lib/admin-users"
 import { db } from "@/lib/db"
 import { hashPassword } from "@/lib/password"
 import { planInvitationActivation, SIGNUP_EMAIL_TAKEN } from "@/lib/signup"
@@ -38,6 +45,10 @@ const signupSchema = z.object({
 /** POST /api/auth/signup — public account creation + invitation self-activation. */
 export const POST = handler(
   async (req) => {
+    // Slice 17: boot-time deployment gate — one vocabulary with the status
+    // route and the Administration surface (src/lib/admin-users.ts).
+    if (!signupOpen()) return ERR.invalid(SIGNUP_CLOSED_MESSAGE)
+
     const parsed = await parseBody(req, signupSchema)
     if (!parsed.ok) return parsed.response
     const { name, password } = parsed.data

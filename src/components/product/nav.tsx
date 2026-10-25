@@ -16,6 +16,7 @@ import {
   Home,
   Map,
   Ruler,
+  ShieldCheck,
   Users,
   type LucideIcon,
 } from "lucide-react"
@@ -53,12 +54,15 @@ export interface PlatformItem {
   label: string
   icon: LucideIcon
   href: string
+  /** Render only for global admins (Slice 17 — the Administration surface). */
+  adminOnly?: boolean
 }
 
 export const PLATFORM_NAV: PlatformItem[] = [
   { key: "engines", label: "Engines & Discovery", icon: Cpu, href: "/engines" },
   { key: "activity", label: "Activity", icon: Activity, href: "/activity" },
   { key: "status", label: "Status & Roadmap", icon: Map, href: "/status" },
+  { key: "admin", label: "Administration", icon: ShieldCheck, href: "/admin", adminOnly: true },
 ]
 
 export const GITHUB_REPO_URL = "https://github.com/payswapdotorg/engineering-os"
