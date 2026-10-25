@@ -12,7 +12,7 @@ Engineering OS does not rewrite CAD, BIM or solver engines. It integrates existi
 
 ## Status — read this first
 
-This project has shipped Phases 0–6 to **verified** state (per-phase evidence in the acceptance catalogue) and is now in **post-Phase-6 slice mode**: the latest slice (8) restored the revision-download route after a gitignore-swallowed-file regression and completed Journey D with **Sheet Measure** (calibrated PDF takeoff). The single source of truth for what actually works, what is verified, and what is not, is:
+Phases 0/1/3/4 are complete with per-phase evidence, Phases 2/5/6 are in progress (their honest remainders are recorded per row), and the project is in **post-Phase-6 slice mode** — slices 8 through 15 shipped takeoff tools (Sheet Measure + persistent markups + symbol auto-count), project isolation + signup (ADR-0007), the LLM planner (ADR-0008), the PostgreSQL runtime drill, and **vector takeoff** (real pdfplumber/ezdxf extraction through the broker, Slice 15). The single source of truth for what actually works, what is verified, and what is not, is:
 
 - [docs/07-release/implementation-status.md](docs/07-release/implementation-status.md) — capability-by-capability status with evidence
 - [docs/06-qa/acceptance-catalogue.md](docs/06-qa/acceptance-catalogue.md) — acceptance items and their current state

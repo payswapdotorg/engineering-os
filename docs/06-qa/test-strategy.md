@@ -22,4 +22,4 @@ Owner: TL
 
 ## 3. CI
 
-`.github/workflows/ci.yml`: install → prisma generate → lint → typecheck → `bun test` on ubuntu-latest. CI green is necessary, never sufficient (see implementation-status).
+`.github/workflows/ci.yml`: SIX gate jobs — verify (lint/typecheck/unit + production build), engines (the real 25-case harness; an all-skip run fails loudly), e2e (all suites against a live dev server + real engines through the real sign-in flow), postgres-runtime (the full drill on a live postgres:16), db-portability (the migrate-diff → db-execute path), packaging (.deb lifecycle). CI green is necessary, never sufficient (see implementation-status).

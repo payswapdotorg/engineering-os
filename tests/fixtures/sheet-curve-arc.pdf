@@ -1,0 +1,35 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1191 842] /Resources << >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 400 >>
+stream
+% EOS vector-takeoff curve fixture - kappa quarter-arc bezier + one rect
+% quarter arc: r=100 pt centred (100,200), start (100,100) end (200,200),
+% kappa 0.5522847498 -> canonical ctrl (155.2285,100) (200,144.7715)
+% analytic arc length 100*pi/2 = 157.0796327 pt
+100 100 m 155.2285 100 200 144.7715 200 200 c S
+% rect: 50 x 30 pt at (10,10) - perimeter 160 pt, area 1500 pt2 (exact)
+10 10 50 30 re S
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000226 00000 n 
+trailer
+<< /Size 5 /Root 1 0 R >>
+startxref
+677
+%%EOF

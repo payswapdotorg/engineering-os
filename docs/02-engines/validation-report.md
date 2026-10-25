@@ -29,7 +29,7 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-23T20:07:26.302Z`
+- Ran at (UTC): `2026-10-25T09:14:19.805Z`
 - Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python3`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
@@ -39,7 +39,10 @@
 - Engine availability probe — simpy (discrete-event): available
 - Engine availability probe — platform CPM core (no engine): available
 - Engine availability probe — libreoffice (document conversion): available
-- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · libreoffice 25.2.3.2
+- Engine availability probe — pdfplumber (vector sheet takeoff): available
+- Engine availability probe — ezdxf (DXF takeoff): available
+- Engine availability probe — cadquery (parametric rebuild): available
+- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5
 - Adapter `step_quantities.py` sha256: `950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d`
 - Adapter `ifc_quantities.py` sha256: `68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78`
 - Adapter `step_mesh.py` sha256: `e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c`
@@ -48,7 +51,10 @@
 - Adapter `powerflow.py` sha256: `a1a8fc441d0cf321e95bbd655fc368cb04c22e17ee693090f9b7193fdb380606`
 - Adapter `des.py` sha256: `9295a66271617f068f9dfab63f9339e814f993db59605df7b7ce86a0c3842550`
 - Adapter `convert-document.ts` sha256: `4b1bb3d10fdcaa3f85ebb654a652092acb3ac5a59812f1f0fd9c5074b15540d0`
-- Corpus: `tests/validation/corpus-manifest.json` — 21 cases
+- Adapter `sheet_takeoff.py` sha256: `bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff`
+- Adapter `dxf_takeoff.py` sha256: `07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329`
+- Adapter `parametric_rebuild.py` sha256: `e6234ff781bf356bc94a1bb18383fd97c00c7cc606d1da74fc51ddfd3aee97aa`
+- Corpus: `tests/validation/corpus-manifest.json` — 29 cases
 
 ## Tolerance policy (pinned)
 
@@ -58,7 +64,7 @@
 | `analytic` | \|obs − exp\| ≤ 1e-9 · max(1, \|exp\|) | exact-engine value vs closed form; also used for the PLANAR mesh case, where the divergence-theorem volume / triangle-sum area are mathematically exact (only IEEE rounding remains) |
 | `mesh` | \|obs − exp\| ≤ 1e-2 · \|exp\| | pinned 1% engineering tolerance for triangulated CURVED surfaces (ifcopenshell PyPI wheel has no OCCT backend, `has_occ=False`); the observed relative error is recorded below — the limitation is quantified, not hidden |
 
-## Results — 21 cases: 21 pass / 0 fail / 0 skip
+## Results — 29 cases: 29 pass / 0 fail / 0 skip
 
 | Case | Adapter | Fixture | Expect | Status | Determinism | Quantities (obs / pinned) | Max observed rel error | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -83,6 +89,14 @@
 | `des-invalid-resource` | des | `des-invalid-resource.json` | error | pass | — | — | — | des: threw honest error: `jobs[0].tasks[1] references unknown resource "crane"` · threw honest error: `` |
 | `cpm-platform-rollout` | cpm | `schedule-cpm.json` | success | pass | — | — / — | — | cpm: 28 pin(s) · engine identity absent (platform core) · doc byte-determinism ✅ |
 | `lo-cover-sheet-convert` | libreoffice | `cover-sheet.fodt` | success | pass | — | — / — | — | libreoffice: 4 pin(s) · libreoffice 25.2.3.2 · byte-determinism not claimed (PDFs embed creation timestamps — single run, §5.4) |
+| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | sheet: 19 pin(s) · pdfplumber 0.11.10 · doc byte-determinism ✅ · max pin rel error 3.519e-7 |
+| `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pass | — | — / — | — | sheet: 6 pin(s) · pdfplumber 0.11.10 · doc byte-determinism ✅ · max pin rel error 3.981e-5 |
+| `sheet-vector-refusal` | sheet | `sheet-scan-like.pdf` | error | pass | — | — | — | sheet: threw honest error: `this sheet page has no vector path operators — it is a scan or raster-only page; vector takeoff is not available for it,` · threw honest error: `` |
+| `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | pass | — | — / — | — | dxf: 13 pin(s) · ezdxf 1.4.5 · doc byte-determinism ✅ |
+| `parametric-schema` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 5 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ |
+| `parametric-defaults` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 9 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ · max pin rel error 7.530e-16 |
+| `parametric-edited` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 9 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ · max pin rel error 8.017e-16 |
+| `parametric-refusals` | parametric | `parametric-bracket.py` | error | pass | — | — | — | parametric: threw honest error: `parameter 'width' = 10 below minimum 20 \| unknown parameter(s) rejected: ['bogus'] \| hole does not fit inside the vertic` · threw honest error: `` |
 
 ## Mesh tessellation validation (W2-d — the eos-mesh/1 bridge)
 
@@ -170,6 +184,14 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 | `des-invalid-resource` | des | `des-invalid-resource.json` | error | — (platform core, honestly absent) | — | 0 | pass |
 | `cpm-platform-rollout` | cpm | `schedule-cpm.json` | success | — (platform core, honestly absent) | ✅ true | 28 | pass |
 | `lo-cover-sheet-convert` | libreoffice | `cover-sheet.fodt` | success | libreoffice 25.2.3.2 | not claimed (single run, §5.4) | 4 | pass |
+| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pdfplumber 0.11.10 | ✅ true | 19 | pass |
+| `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pdfplumber 0.11.10 | ✅ true | 6 | pass |
+| `sheet-vector-refusal` | sheet | `sheet-scan-like.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | ezdxf 1.4.5 | ✅ true | 13 | pass |
+| `parametric-schema` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 5 | pass |
+| `parametric-defaults` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 9 | pass |
+| `parametric-edited` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 9 | pass |
+| `parametric-refusals` | parametric | `parametric-bracket.py` | error | — (platform core, honestly absent) | — | 0 | pass |
 
 ### Discipline pin comparisons (observed vs hand-derived)
 
@@ -191,13 +213,13 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `powerflow-2bus-closed-form` converged: observed **true** vs pinned true [bound structural] · lossless radial 2-bus with a light load: NR from a flat start converges to the high branch
 - `powerflow-2bus-closed-form` busCount: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · fixture declares 2 buses
 - `powerflow-2bus-closed-form` lineCount: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · fixture declares 1 line
-- `powerflow-2bus-closed-form` lossMw: observed **0** vs pinned 0 [bound abs:1e-9] → rel error NaN · r = 0 ohm/km -> I^2*R losses are identically zero; pandapower's residual rounding pinned at 1e-9
+- `powerflow-2bus-closed-form` lossMw: observed **0** vs pinned 0 [bound abs:1e-9] · r = 0 ohm/km -> I^2*R losses are identically zero; pandapower's residual rounding pinned at 1e-9
 - `powerflow-2bus-closed-form` loadMw: observed **2** vs pinned 2 [bound abs:1e-9] → rel error 0 (bitwise) · the single declared load (2 MW)
 - `powerflow-2bus-closed-form` vmPu @ bus-1: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · slack bus holds the external-grid setpoint exactly
 - `powerflow-2bus-closed-form` vmPu @ bus-2: observed **0.9999874997656195** vs pinned 0.9999875 [bound rel:0.000001] → rel error 2.344e-10 · V2 = sqrt((1 + sqrt(1 - 4*(p*x)^2)) / 2) with p = P/baseMva = 2/100 = 0.02 pu and x = Xohm/baseZ = (0.1 ohm/km * 10 km) / ((20 kV)^2 / 100 MVA) = 1 / 4 = 0.25 pu -> p*x = 5e-3 -> 4*(px)^2 = 1e-4 -> V2^2 = (1 + 0.99995)/2 = 0.999975 -> V2 = 0.9999875 (the high branch NR converges to). [An earlier draft of this derivation wrote 1/4 as 0.025 — the harness caught the 10x slip against the real engine, which is exactly its job.]
 - `powerflow-2bus-closed-form` angleDeg @ bus-2: observed **-0.28648367232412064** vs pinned -0.28647895 [bound abs:0.0001] → rel error 1.648e-5 · sin(delta) = p*x/V2 = 5.00000625e-3 rad = 0.28647895 degrees across the line (lossless: P = V1*V2*sin(delta)/X); bus-2 LAGS the slack reference so pandapower reports the negative angle; absTolerance 1e-4 deg absorbs NR's convergence residual (observed -0.28648367, residual 4.7e-6 deg — the solver's own tolerance, not a formula error)
 - `powerflow-2bus-closed-form` iKa @ bus-1>bus-2: observed **0.057735748617323765** vs pinned 0.057735749 [bound rel:0.00001] → rel error 6.628e-9 · I = P / (sqrt(3) * V2_LL * ...) with the SOLVED V2: 2 MW / (1.7320508 * 20 kV * 0.9999875) = 0.05773575 kA (the current reflects the actual end-of-line voltage, not the nominal)
-- `powerflow-2bus-closed-form` pLossMw @ bus-1>bus-2: observed **0** vs pinned 0 [bound abs:1e-9] → rel error NaN · r = 0 -> zero active loss on the line
+- `powerflow-2bus-closed-form` pLossMw @ bus-1>bus-2: observed **0** vs pinned 0 [bound abs:1e-9] · r = 0 -> zero active loss on the line
 - `powerflow-islanded` (powerflow) threw the honest error: `power flow did not produce results for all buses (islanded network - buses with no path to the external grid: bus-3) - results are not available, and simulated `
 - `des-flowshop-makespan` policy: observed **"fifo"** vs pinned "fifo" [bound structural] · the only policy shipped (contract §3.3)
 - `des-flowshop-makespan` jobCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · fixture declares 3 jobs
@@ -217,13 +239,13 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `cpm-platform-rollout` criticalPath: observed **["b","d","f","e"]** vs pinned ["b","d","f","e"] [bound structural] · the single zero-float chain b->d->f->e (a and c each carry 1 day float)
 - `cpm-platform-rollout` formatOk: observed **true** vs pinned true [bound structural] · document starts with the pinned eos-cpm/1 prefix (byte-deterministic pure assembly)
 - `cpm-platform-rollout` engineKeyAbsent: observed **true** vs pinned true [bound structural] · NO engineKey/adapterScript in the document — platform core honesty (contract §4)
-- `cpm-platform-rollout` es @ a: observed **0** vs pinned 0 [bound abs:0] → rel error NaN · no predecessors -> starts day 0
+- `cpm-platform-rollout` es @ a: observed **0** vs pinned 0 [bound abs:0] · no predecessors -> starts day 0
 - `cpm-platform-rollout` ef @ a: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · 0 + duration 3
 - `cpm-platform-rollout` totalFloat @ a: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · ls 4 - es 3... hand: a feeds c(e->8 chain: c.ls = e.ls - dur = 8-3? c: ls = min(successor e.ls) - 4 = 8-4 = 4 -> float = 4-3 = 1
 - `cpm-platform-rollout` critical @ a: observed **false** vs pinned false [bound structural] · float 1 > 0
-- `cpm-platform-rollout` es @ b: observed **0** vs pinned 0 [bound abs:0] → rel error NaN · no predecessors
+- `cpm-platform-rollout` es @ b: observed **0** vs pinned 0 [bound abs:0] · no predecessors
 - `cpm-platform-rollout` ef @ b: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · 0 + 2
-- `cpm-platform-rollout` totalFloat @ b: observed **0** vs pinned 0 [bound abs:0] → rel error NaN · b->d->f->e is the critical chain -> b.ls = 0 = es
+- `cpm-platform-rollout` totalFloat @ b: observed **0** vs pinned 0 [bound abs:0] · b->d->f->e is the critical chain -> b.ls = 0 = es
 - `cpm-platform-rollout` critical @ b: observed **true** vs pinned true [bound structural] · zero float
 - `cpm-platform-rollout` es @ c: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · after a (ef 3)
 - `cpm-platform-rollout` ef @ c: observed **7** vs pinned 7 [bound abs:0] → rel error 0 (bitwise) · 3 + 4
@@ -243,6 +265,69 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `lo-cover-sheet-convert` sizeBytes: observed **26201** vs pinned 1000 [bound min] · the converted Writer document is a multi-digit-KB PDF (live-observed 26201 bytes) — a lower bound only, never an equality claim (timestamps affect exact bytes)
 - `lo-cover-sheet-convert` engineKey: observed **"libreoffice"** vs pinned "libreoffice" [bound structural] · the registry key of the converting engine
 - `lo-cover-sheet-convert` adapterScript: observed **"convert-document.ts"** vs pinned "convert-document.ts" [bound structural] · the TS-native bridge name (no python in the LO path)
+- `sheet-vector-plan` pageCount: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · fixture builder pins a 2-page document (page 1 plan, page 2 symbols)
+- `sheet-vector-plan` pageNo: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · the requested page, echoed by the adapter
+- `sheet-vector-plan` linesCount: observed **5** vs pinned 5 [bound abs:0] → rel error 0 (bitwise) · page 1 drawn ops: bar + 2 end ticks + mid tick + wall = 5 lines (builder pin list)
+- `sheet-vector-plan` rectsCount: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · page 1 drawn ops: sheet border + room outline = 2 rects (builder pin list)
+- `sheet-vector-plan` curvesCount: observed **0** vs pinned 0 [bound abs:0] · page 1 has no curve ops (builder pin list)
+- `sheet-vector-plan` linesTotalLengthMm: observed **14270.002222222225** vs pinned 14270 mm [bound rel:0.000001] → rel error 1.557e-7 · (283.464567 + 85.039370 + 3 x 12) pt x 35.277777… mm/pt = 14 270.000 mm
+- `sheet-vector-plan` rectsTotalPerimeterMm: observed **162666.11555555556** vs pinned 162666.1156 mm [bound rel:0.000001] → rel error 2.732e-10 · (2x(1143+794) + 2x(226.7717+141.7323)) pt x 35.277777… = 162 666.1156 mm
+- `sheet-vector-plan` rectsTotalAreaMm2: observed **1169455639.250001** vs pinned 1169455639.25 mm2 [bound rel:0.000001] → rel error 8.155e-16 · (1143x794 + 226.7717x141.7323) pt2 x (35.277777…)2 = 1 169 455 639.25 mm2
+- `sheet-vector-plan` textContains @ eos demo sheet a-102: observed **true** vs pinned true [bound structural] · the sheet title text operator is drawn on page 1 (builder pin list)
+- `sheet-vector-plan` itemLengthMm @ line@60,120: observed **10000.001166666667** vs pinned 10000 mm [bound rel:0.000001] → rel error 1.167e-7 · bar span 343.4646 - 60 = 283.464567 pt = 10 000.000 mm @ 1:100
+- `sheet-vector-plan` itemLengthMm @ line@613.3858,400: observed **3000.0010555555555** vs pinned 3000 mm [bound rel:0.000001] → rel error 3.519e-7 · wall span 485.0394 - 400 = 85.039370 pt = 3 000.000 mm @ 1:100
+- `sheet-vector-plan` itemPerimeterMm @ rect@500,400: observed **26000.004444444447** vs pinned 26000 mm [bound rel:0.000001] → rel error 1.709e-7 · 2 x (226.7717 + 141.7323) pt = 737.008 pt = 26 000.000 mm @ 1:100
+- `sheet-vector-plan` itemAreaMm2 @ rect@500,400: observed **40000012.86111207** vs pinned 40000000 mm2 [bound rel:0.000001] → rel error 3.215e-7 · 226.7717 x 141.7323 pt2 = 32 139.36 pt2 = 40 000 000 mm2 @ 1:100
+- `sheet-vector-plan` pageNo: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · the requested page, echoed by the adapter
+- `sheet-vector-plan` linesCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · page 2 is the self-contained calibration page: scale bar + 2 end ticks + mid tick = 4 lines (builder: page 2 carries scaleBarOps, NO wall)
+- `sheet-vector-plan` rectsCount: observed **13** vs pinned 13 [bound abs:0] → rel error 0 (bitwise) · page 2: sheet border (borderOps) + 6 outer + 6 inner symbol squares = 13 rects (builder: buildSymbolPageContentStream)
+- `sheet-vector-plan` rectsTotalAreaMm2: observed **1130321813.4259262** vs pinned 1130321813.4259 mm2 [bound rel:0.000001] → rel error 2.320e-14 · (1143x794 border + 6x10x10 + 6x4x4 symbols) pt2 = 908 238 pt2 x (35.277777…)2 = 1 130 321 8xx mm2
+- `sheet-vector-plan` fixtureSha256: observed **"a81c447682d317bf8f491b75d5908300ec5b92316c68128f9702f9626636b50b"** vs pinned "a81c447682d317bf8f491b75d5908300ec5b92316c68128f9702f9626636b50b" [bound structural] · see case groundTruth
+- `sheet-vector-plan` linesTotalLengthMm: observed **11270.001166666669** vs pinned 11270 mm [bound rel:0.000001] → rel error 1.035e-7 · page-2 scale bar 283.464567 pt + 3 x 12 pt ticks = 319.464567 pt = 11 270.1 mm (same bar geometry as page 1, no wall)
+- `sheet-vector-curve` curvesCount: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · page 1 has no curve ops (builder pin list)
+- `sheet-vector-curve` curvesTotalLengthMm: observed **157.08588681984884** vs pinned 157.0796327 mm [bound rel:0.001] → rel error 3.981e-5 · analytic quarter-arc r x pi/2 = 100 x pi/2 = 157.0796327 pt; N=32 flattening rel ~4e-5 (16-R1)
+- `sheet-vector-curve` rectsCount: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · page 1 drawn ops: sheet border + room outline = 2 rects (builder pin list)
+- `sheet-vector-curve` rectsTotalPerimeterMm: observed **160** vs pinned 160 mm [bound rel:1e-9] → rel error 0 (bitwise) · (2x(1143+794) + 2x(226.7717+141.7323)) pt x 35.277777… = 162 666.1156 mm
+- `sheet-vector-curve` rectsTotalAreaMm2: observed **1500** vs pinned 1500 mm2 [bound rel:1e-9] → rel error 0 (bitwise) · (1143x794 + 226.7717x141.7323) pt2 x (35.277777…)2 = 1 169 455 639.25 mm2
+- `sheet-vector-curve` fixtureSha256: observed **"e690f692d1484c2a558d99d0e8181868dd828ba0ad191614662f1bc932d20557"** vs pinned "e690f692d1484c2a558d99d0e8181868dd828ba0ad191614662f1bc932d20557" [bound structural] · see case groundTruth
+- `sheet-vector-refusal` (sheet) threw the honest error: `this sheet page has no vector path operators — it is a scan or raster-only page; vector takeoff is not available for it, and simulated geometry is not an option`
+- `dxf-takeoff-room` unitsMm: observed **true** vs pinned true [bound structural] · $INSUNITS = 4 (mm) set by the fixture generator
+- `dxf-takeoff-room` layerCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · WALLS + DIM + FURN layers authored by the generator
+- `dxf-takeoff-room` entityCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · 1 polyline + 1 line + 1 arc + 1 circle = 4 supported entities
+- `dxf-takeoff-room` fixtureSha256: observed **"c97db72ff09d8e862529422883d164a4d7feca3a41f1aac985a484704c40ed8b"** vs pinned "c97db72ff09d8e862529422883d164a4d7feca3a41f1aac985a484704c40ed8b" [bound structural] · see case groundTruth
+- `dxf-takeoff-room` fixtureRegenByteIdentical: observed **true** vs pinned true [bound structural] · two fresh make_fixture_takeoff_room.py runs == committed bytes (ezdxf write_fixed_meta_data_for_testing)
+- `dxf-takeoff-room` layerPolylinesCount @ WALLS: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · WALLS carries the one closed rectangle LWPOLYLINE
+- `dxf-takeoff-room` layerTotalLengthMm @ WALLS: observed **14000** vs pinned 14000 mm [bound rel:1e-9] → rel error 0 (bitwise) · closed rectangle 4000x3000 mm -> 2x(4000+3000) = 14 000 mm exact
+- `dxf-takeoff-room` layerTotalClosedAreaMm2 @ WALLS: observed **12000000** vs pinned 12000000 mm2 [bound rel:1e-9] → rel error 0 (bitwise) · closed rectangle 4000x3000 mm -> 12 000 000 mm2 exact
+- `dxf-takeoff-room` layerLinesCount @ DIM: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · DIM carries the one vertical LINE
+- `dxf-takeoff-room` layerArcsCount @ DIM: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · DIM carries the one quarter ARC
+- `dxf-takeoff-room` layerTotalLengthMm @ DIM: observed **3413.716694115407** vs pinned 3413.716694115407 mm [bound rel:1e-9] → rel error 0 (bitwise) · LINE 2000 mm + ARC 900 x pi/2 = 1413.716694 mm -> 3413.716694 mm exact (no flattening)
+- `dxf-takeoff-room` layerCirclesCount @ FURN: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · FURN carries the one CIRCLE
+- `dxf-takeoff-room` layerTotalLengthMm @ FURN: observed **628.3185307179587** vs pinned 628.3185307179587 mm [bound rel:1e-9] → rel error 0 (bitwise) · circle circumference 2 x pi x 100 = 628.318531 mm exact
+- `parametric-schema` engineKey: observed **"cadquery"** vs pinned "cadquery" [bound structural] · the adapter's declared engine — cadquery is the pinned BREP kernel (16-R3: the only STEP-authoring engine in the pinned set, zero new dependencies)
+- `parametric-schema` adapterScript: observed **"parametric_rebuild.py"** vs pinned "parametric_rebuild.py" [bound structural] · the adapter names itself in the envelope (the step_femesh.py protocol contract)
+- `parametric-schema` schemaKeysCount: observed **5** vs pinned 5 [bound abs:0] → rel error 0 (bitwise) · the committed model declares exactly five numeric parameters: width, depth, thickness, height, holeDia
+- `parametric-schema` defaultsCount: observed **5** vs pinned 5 [bound abs:0] → rel error 0 (bitwise) · DEFAULT_PARAMS pins one authored default per declared parameter (w80-d50-t8-h60-hd10)
+- `parametric-schema` modelScriptHash: observed **"fcfb7185b7cfc75f5211b17c763df3919f602f4c344c405172f551756463ea82"** vs pinned "fcfb7185b7cfc75f5211b17c763df3919f602f4c344c405172f551756463ea82" [bound structural] · sha256 of the committed tests/fixtures/parametric-bracket.py bytes — the artifact-revision identity the broker pins to the parametric-model revision
+- `parametric-defaults` engineKey: observed **"cadquery"** vs pinned "cadquery" [bound structural] · the adapter's declared engine (cadquery, the pinned BREP kernel)
+- `parametric-defaults` paramKeys: observed **"depth,height,holeDia,thickness,width"** vs pinned "depth,height,holeDia,thickness,width" [bound structural] · paramsUsed = the authored defaults merged over the empty edit set — five keys, sorted, comma-joined
+- `parametric-defaults` paramVolumeMm3: observed **64651.68146928197** vs pinned 64651.68146928197 mm3 [bound rel:1e-9] → rel error 0 (bitwise) · V = 80*50*8 + 80*8*(60-8) - pi*10^2/4*8 = 65280 - 200*pi = 64651.68146928204 mm3 analytic; pinned value = the 16-R3 RUN A STEP re-import (rel 1.13e-15 vs analytic)
+- `parametric-defaults` paramAreaMm2: observed **19326.247779607707** vs pinned 19326.247779607693 mm2 [bound rel:1e-9] → rel error 7.530e-16 · A = w*d + w*(d-t) + 3*w*t + 2*t*(d+h-t) + 2*w*(h-t) - pi*hd^2/2 + pi*hd*t = 19232 + 30*pi mm2 (incl. the internal shared face OCCT retains in the fused solid; verified rel 7e-16)
+- `parametric-defaults` paramBboxW: observed **80** vs pinned 80 [bound abs:0] → rel error 0 (bitwise) · the re-imported solid spans x in [0, 80] — the drawn base width, uncut by the through-hole
+- `parametric-defaults` paramBboxD: observed **50** vs pinned 50 [bound abs:0] → rel error 0 (bitwise) · the re-imported solid spans y in [0, 50] — the drawn base depth (the drill overshoots y but is a cut, adding no material)
+- `parametric-defaults` paramBboxH: observed **60** vs pinned 60 [bound abs:0] → rel error 0 (bitwise) · the re-imported solid spans z in [0, 60] — the drawn overall height
+- `parametric-defaults` paramChecksRelErr: observed **1.1254088755047233e-15** vs pinned 0 [bound abs:1e-9] · the adapter's own analytic gate: |re-imported - analytic| / analytic must be <= 1e-9 (16-R3 measured 1.1254e-15)
+- `parametric-defaults` paramChecksPassed: observed **true** vs pinned true [bound structural] · the STEP is emitted ONLY because the analytic gate passed — the gate result itself is pinned
+- `parametric-edited` engineKey: observed **"cadquery"** vs pinned "cadquery" [bound structural] · the adapter's declared engine (cadquery, the pinned BREP kernel)
+- `parametric-edited` paramKeys: observed **"depth,height,holeDia,thickness,width"** vs pinned "depth,height,holeDia,thickness,width" [bound structural] · paramsUsed = the five edited values — the merged keys are exactly the schema's keys, sorted, comma-joined
+- `parametric-edited` paramVolumeMm3: observed **153989.38070170232** vs pinned 153989.38070170232 mm3 [bound rel:1e-9] → rel error 0 (bitwise) · V = 120*60*10 + 120*10*(80-10) - pi*16^2/4*10 = 156000 - 640*pi = 153989.38070170252 mm3 analytic; pinned value = the 16-R3 RUN B STEP re-import (rel 1.32e-15 vs analytic)
+- `parametric-edited` paramAreaMm2: observed **36300.530964914906** vs pinned 36300.53096491488 mm2 [bound rel:1e-9] → rel error 8.017e-16 · A = w*d + w*(d-t) + 3*w*t + 2*t*(d+h-t) + 2*w*(h-t) - pi*hd^2/2 + pi*hd*t = 36200 + 32*pi mm2 (verified rel 7e-16 against the re-imported solid)
+- `parametric-edited` paramBboxW: observed **120** vs pinned 120 [bound abs:0] → rel error 0 (bitwise) · the re-imported solid spans x in [0, 120] — the edited width
+- `parametric-edited` paramBboxD: observed **60** vs pinned 60 [bound abs:0] → rel error 0 (bitwise) · the re-imported solid spans y in [0, 60] — the edited depth
+- `parametric-edited` paramBboxH: observed **80** vs pinned 80 [bound abs:0] → rel error 0 (bitwise) · the re-imported solid spans z in [0, 80] — the edited height
+- `parametric-edited` paramChecksRelErr: observed **1.3229926133139096e-15** vs pinned 0 [bound abs:1e-9] · the adapter's own analytic gate: |re-imported - analytic| / analytic must be <= 1e-9 (16-R3 measured 1.3230e-15)
+- `parametric-edited` paramChecksPassed: observed **true** vs pinned true [bound structural] · the STEP is emitted ONLY because the analytic gate passed — the gate result itself is pinned
+- `parametric-refusals` (parametric) threw the honest error: `parameter 'width' = 10 below minimum 20 | unknown parameter(s) rejected: ['bogus'] | hole does not fit inside the vertical leg — raise height or shrink holeDia`
 
 ## Regenerate
 

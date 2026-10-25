@@ -138,7 +138,43 @@ describe("validation corpus manifest (integrity — engine independent)", () => 
 
   test("every ground-truth entry carries a valid tolerance class and a hand-derived audit string", () => {
     const DISCIPLINE_ADAPTERS = new Set(["femesh", "powerflow", "des", "cpm", "libreoffice"])
+    // 16-V takeoff kinds + the 16-P parametric kind: pins live under runs[]
+    // (one pins array per parameter set) — same derivation discipline, nested
+    // one level deeper.
+    const TAKEOFF_ADAPTERS = new Set(["sheet", "dxf", "parametric"])
     for (const c of manifest) {
+      if (TAKEOFF_ADAPTERS.has(c.adapter)) {
+        const block = (c as unknown as Record<string, unknown>)[c.adapter] as
+          | { errorContains?: string; runs?: Array<{ pins?: Array<{ derivation: string }>; errorContains?: string }> }
+          | undefined
+        if (c.expect === "error") {
+          if (c.adapter === "parametric") {
+            // 16-P: a parametric error case may pin several DISTINCT refusal
+            // shapes — every run carries its own substring (the block-level
+            // one is an optional common shape)
+            expect((block?.runs ?? []).length).toBeGreaterThan(0)
+            for (const run of block?.runs ?? []) {
+              expect(typeof run.errorContains).toBe("string")
+              expect((run.errorContains ?? "").length).toBeGreaterThan(0)
+            }
+          } else {
+            expect(typeof block?.errorContains).toBe("string")
+            expect((block?.errorContains ?? "").length).toBeGreaterThan(0)
+          }
+          expect(c.groundTruth).toBeUndefined()
+          continue
+        }
+        const groundTruthText = c.takeoffGroundTruth ?? c.parametricGroundTruth
+        expect(typeof groundTruthText).toBe("string")
+        expect((groundTruthText ?? "").length).toBeGreaterThan(0)
+        for (const run of block?.runs ?? []) {
+          expect((run.pins ?? []).length).toBeGreaterThan(0)
+          for (const pin of run.pins ?? []) {
+            expect(pin.derivation.length).toBeGreaterThan(0)
+          }
+        }
+        continue
+      }
       if (DISCIPLINE_ADAPTERS.has(c.adapter)) {
         // W2-f discipline cases pin hand-derived values in their per-adapter
         // block instead of the quantity-ledger groundTruth shape; every pin
@@ -261,6 +297,9 @@ function syntheticReport(): HarnessReport {
         des: { available: false, reason: "synthetic: engine absent" },
         cpm: { available: true }, // platform core — always available, no engine
         libreoffice: { available: false, reason: "synthetic: engine absent" },
+        sheet: { available: false, reason: "synthetic: engine absent" },
+        dxf: { available: false, reason: "synthetic: engine absent" },
+        parametric: { available: false, reason: "synthetic: engine absent" },
       },
     },
     engineVersions: { cadquery: "synthetic", ifcopenshell: null },

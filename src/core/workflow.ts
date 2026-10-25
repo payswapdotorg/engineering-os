@@ -41,6 +41,8 @@ export const BROKER_OPERATIONS = [
   "run_des",
   "convert_document",
   "analyze_schedule",
+  "takeoff_sheet",
+  "takeoff_drawing",
 ] as const
 export type BrokerOperation = (typeof BROKER_OPERATIONS)[number]
 

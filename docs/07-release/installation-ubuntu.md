@@ -188,9 +188,16 @@ sudo userdel eos
 The packaged deployment uses SQLite (as generated) — perfectly fine for a
 single-host team. The production target is PostgreSQL via the same Prisma
 schema (ADR-0003): point `DATABASE_URL` in `/etc/eos/eos.env` at your postgres
-DSN, run `prisma db push` once, and `systemctl restart eos`. PostgreSQL
-verification remains environment-blocked upstream (no server in the sandbox) —
-recorded honestly as planned, not done.
+DSN, run `prisma db push` once, and `systemctl restart eos`. PostgreSQL is
+VERIFIED, not planned: Slice 12 ran the entire product runtime — dev-server
+sessions, NextAuth, the real engines, and ALL SEVEN e2e acceptance suites —
+against a real PostgreSQL deployment end to end (committed, reproducible
+`scripts/postgres-runtime-drill.sh`), and the `postgres-runtime` CI job re-runs
+the same drill against a live postgres:16 service on every push (latest:
+359 e2e PASS / 0 FAIL on the PG backend, identical totals to sqlite). The
+upgrade path is `prisma migrate diff` → `prisma db execute` (ADR-0003
+addendum); automated package migrations on upgrade remain future work (the
+honest limitation recorded in this doc's upgrade section).
 
 ---
 

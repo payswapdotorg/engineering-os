@@ -312,6 +312,8 @@ const OPERATION_LABELS: Record<PlannerOperation, string> = {
   run_des: "Run discrete-event simulation",
   convert_document: "Convert document",
   analyze_schedule: "Analyze schedule",
+  takeoff_sheet: "Vector-takeoff a PDF sheet",
+  takeoff_drawing: "Vector-takeoff a DXF drawing",
 }
 
 /**

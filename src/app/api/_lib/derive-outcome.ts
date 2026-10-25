@@ -107,6 +107,32 @@ export const DERIVE_SUMMARIES = {
       durationDays: numberField(document, "durationDays"),
     }
   },
+  /**
+   * eos-vector-takeoff/1 (sheet) → pageNo / lineCount / rectCount /
+   * curveCount / textCount — read from the stored document's result envelope
+   * (the op core's audit detail is the durable twin of these fields).
+   */
+  takeoffSheet(document: unknown): Record<string, unknown> {
+    const result = field(document, "result")
+    const entities = field(result, "entities")
+    return {
+      pageNo: numberField(result, "pageNo"),
+      lineCount: numberField(field(entities, "lines"), "count"),
+      rectCount: numberField(field(entities, "rects"), "count"),
+      curveCount: numberField(field(entities, "curves"), "count"),
+      textCount: countOf(result, "text"),
+    }
+  },
+  /** eos-vector-takeoff/1 (drawing) → layerCount / entityCount / unitsMm */
+  takeoffDrawing(document: unknown): Record<string, unknown> {
+    const result = field(document, "result")
+    const unitsMm = field(result, "unitsMm")
+    return {
+      layerCount: numberField(result, "layerCount"),
+      entityCount: numberField(result, "entityCount"),
+      ...(typeof unitsMm === "boolean" ? { unitsMm } : {}),
+    }
+  },
 } as const
 
 /** Serialize one successful broker derive outcome into the pinned 201 object. */

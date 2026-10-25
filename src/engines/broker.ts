@@ -41,6 +41,8 @@ import { tessellateFromFile } from "@/engines/adapters/mesh"
 import { feMeshFromFile, type FeMeshParameters, type FeMeshResult } from "@/engines/adapters/femesh"
 import { runPowerflowFromFile, type PowerflowBus, type PowerflowLine, type PowerflowTotals } from "@/engines/adapters/powerflow"
 import { runDesFromFile, type DesJob, type DesResource } from "@/engines/adapters/des"
+import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "@/engines/adapters/sheet_takeoff"
+import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "@/engines/adapters/dxf_takeoff"
 import {
   alreadyPdfMessage,
   conversionExtensionKind,
@@ -82,6 +84,8 @@ export type BrokerOperation =
   | "run_des"
   | "convert_document"
   | "analyze_schedule"
+  | "takeoff_sheet"
+  | "takeoff_drawing"
 
 export interface BrokerContext {
   projectId: string
@@ -1605,6 +1609,444 @@ export async function brokerFeMeshCore(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Vector takeoff (Slice 15, roadmap-gap-audit item 1): the pdfplumber/ezdxf
+// adapters (16-R1 research; harness cases sheet-vector-* / dxf-takeoff-room)
+// extract REAL vector geometry from PDF sheets and DXF drawings. The ops
+// persist the extraction as a byte-deterministic eos-vector-takeoff/1
+// document on a find-or-create kind-"calculation" artifact derived_from the
+// source revision (the femesh precedent). Ledger rows stay HUMAN-disposed:
+// the extraction artifact is the evidence; recording quantities from it goes
+// through the existing quantities contract (the Sheet Measure discipline).
+// ---------------------------------------------------------------------------
+
+/** Pinned 422 for a sheet op handed a non-PDF revision. */
+function takeoffSheetUnsupportedMessage(name: string): string {
+  return `takeoff_sheet requires a PDF sheet revision — "${name}" carries no PDF signal (.pdf name or application/pdf MIME)`
+}
+
+/**
+ * Pinned 422 for the drawing op handed a DWG — the honest boundary from the
+ * 16-R1 research: no open, CI-pinnable DWG path exists (LibreDWG is not on
+ * PyPI or in any Debian/Ubuntu suite; ODA File Converter is proprietary
+ * freeware). DXF-native takeoff + documented operator-side conversion.
+ */
+const TAKEOFF_DWG_REFUSAL_MESSAGE =
+  "DWG is not supported for vector takeoff — convert the drawing to DXF first (ODA File Converter, or LibreDWG's dwg2dxf; both are operator-installed external tools, the LibreOffice probe-path pattern) and register the converted file as a new revision"
+
+/** Pinned 422 for the drawing op handed a non-DXF revision. */
+function takeoffDrawingUnsupportedMessage(name: string): string {
+  return `takeoff_drawing requires a DXF drawing revision — "${name}" carries no DXF signal (.dxf name or image/vnd.dxf MIME)`
+}
+
+function isPdfSignal(name: string, mimeType: string | null | undefined): boolean {
+  return name.toLowerCase().endsWith(".pdf") || mimeType === "application/pdf"
+}
+
+function isDxfSignal(name: string, mimeType: string | null | undefined): boolean {
+  const lower = name.toLowerCase()
+  return lower.endsWith(".dxf") || mimeType === "image/vnd.dxf" || mimeType === "application/dxf"
+}
+
+function isDwgSignal(name: string, mimeType: string | null | undefined): boolean {
+  return name.toLowerCase().endsWith(".dwg") || mimeType === "image/vnd.dwg"
+}
+
+/**
+ * Validate + default the sheet-takeoff parameters (the bridge re-validates —
+ * defense in depth, the femesh §4 pattern). PURE.
+ */
+export function takeoffSheetBrokerParameters(
+  raw: Record<string, unknown>,
+): { ok: true; value: { pageNo: number; flattenSegments: number } } | { ok: false; message: string } {
+  let pageNo = 1
+  if (raw.pageNo !== undefined) {
+    if (typeof raw.pageNo !== "number" || !Number.isInteger(raw.pageNo) || raw.pageNo < 1) {
+      return { ok: false, message: "takeoff_sheet parameters.pageNo must be a positive integer when provided" }
+    }
+    pageNo = raw.pageNo
+  }
+  let flattenSegments = 32
+  if (raw.flattenSegments !== undefined) {
+    if (
+      typeof raw.flattenSegments !== "number" ||
+      !Number.isInteger(raw.flattenSegments) ||
+      raw.flattenSegments < 4 ||
+      raw.flattenSegments > 256
+    ) {
+      return {
+        ok: false,
+        message: "takeoff_sheet parameters.flattenSegments must be an integer 4..256 when provided",
+      }
+    }
+    flattenSegments = raw.flattenSegments
+  }
+  return { ok: true, value: { pageNo, flattenSegments } }
+}
+
+/**
+ * Validate the drawing-takeoff layer filter: an optional array of strings,
+ * deduplicated + sorted (the bridge normalizes identically). PURE.
+ */
+export function takeoffDrawingLayerFilter(
+  raw: Record<string, unknown>,
+): { ok: true; value: string[] | undefined } | { ok: false; message: string } {
+  if (raw.layerFilter === undefined) return { ok: true, value: undefined }
+  if (!Array.isArray(raw.layerFilter) || raw.layerFilter.some((l) => typeof l !== "string" || l.length === 0)) {
+    return { ok: false, message: "takeoff_drawing parameters.layerFilter must be an array of non-empty layer names when provided" }
+  }
+  return { ok: true, value: [...new Set(raw.layerFilter as string[])].sort() }
+}
+
+/** Byte-deterministic eos-vector-takeoff/1 document (the harness pins this). */
+export function buildVectorTakeoffDocument(
+  sourceName: string,
+  sourceKind: "sheet" | "drawing",
+  engine: { engineKey: string; engineVersion: string; adapterScript: string },
+  provenance: Record<string, unknown>,
+  result: SheetTakeoffResult | DxfTakeoffResult,
+): string {
+  return JSON.stringify({
+    format: "eos-vector-takeoff/1",
+    source: { name: sourceName, kind: sourceKind },
+    engine,
+    provenance,
+    result,
+  })
+}
+
+/** Pinned 201 `takeoff_sheet` result object (the femesh shape, takeoff fields). */
+export interface BrokerTakeoffSheetResult {
+  takeoff: {
+    artifactId: string
+    name: string
+    kind: "analysis"
+    revisionNumber: number
+    contentHash: string
+    sizeBytes: number
+    format: "eos-vector-takeoff/1"
+    pageNo: number
+    pageCount: number
+    scaleMmPerPt: number
+    scaleSource: "explicit-parameter" | "calibration-markup"
+    lineCount: number
+    rectCount: number
+    curveCount: number
+    textCount: number
+    engineKey: "pdfplumber"
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+    derivedFromArtifactId: string
+    derivedFromRevisionId: string
+    sourceLatestRevisionId: string
+    staleSource: boolean
+  }
+  outputArtifactRevisionId: string
+  engineKey: "pdfplumber"
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+export async function brokerTakeoffSheetCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerTakeoffSheetResult> {
+  const params = takeoffSheetBrokerParameters(parameters)
+  if (!params.ok) throw new BrokerRefusalError("unsupported", params.message)
+
+  let scaleMmPerPt: number | undefined
+  if (parameters.scaleMmPerPt !== undefined) {
+    if (
+      typeof parameters.scaleMmPerPt !== "number" ||
+      !Number.isFinite(parameters.scaleMmPerPt) ||
+      parameters.scaleMmPerPt <= 0
+    ) {
+      throw new BrokerRefusalError(
+        "unsupported",
+        "takeoff_sheet parameters.scaleMmPerPt must be a positive number when provided",
+      )
+    }
+    scaleMmPerPt = parameters.scaleMmPerPt
+  }
+  let scaleSource: "explicit-parameter" | "calibration-markup" = "explicit-parameter"
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", "This artifact has no revisions to take off from")
+  }
+  const revision = artifact.latestRevision
+
+  if (!isPdfSignal(artifact.name, revision.mimeType) && !isPdfSignal(revision.storageKey, revision.mimeType)) {
+    throw new BrokerRefusalError("unsupported", takeoffSheetUnsupportedMessage(artifact.name))
+  }
+
+  // Scale resolution: explicit parameter first; else the revision's latest
+  // calibration markup (the Sheet Measure machinery — a click calibration
+  // carries the recorded ~0.35% browser bias, limitation #16, so the
+  // scaleSource provenance records WHICH value produced these numbers).
+  if (scaleMmPerPt === undefined) {
+    const calibration = await db.sheetMarkup.findFirst({
+      where: { revisionId: revision.id, kind: "calibration" },
+      orderBy: { createdAt: "desc" },
+      select: { value: true },
+    })
+    if (!calibration || !Number.isFinite(calibration.value) || calibration.value <= 0) {
+      throw new BrokerRefusalError(
+        "unsupported",
+        "no calibration for this revision — calibrate the sheet in Sheet Measure first, or pass parameters.scaleMmPerPt explicitly",
+      )
+    }
+    scaleMmPerPt = calibration.value
+    scaleSource = "calibration-markup"
+  }
+
+  const absPath = path.join(getStorageRoot(), revision.storageKey, "content")
+
+  let result: SheetTakeoffResult
+  try {
+    result = await sheetTakeoffFromStorage(absPath, {
+      pageNo: params.value.pageNo,
+      scaleMmPerPt,
+      flattenSegments: params.value.flattenSegments,
+    })
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildVectorTakeoffDocument(
+    artifact.name,
+    "sheet",
+    { engineKey: result.engineKey, engineVersion: result.engineVersion, adapterScript: result.adapterScript },
+    {
+      pageNo: params.value.pageNo,
+      flattenSegments: params.value.flattenSegments,
+      scaleMmPerPt,
+      scaleSource,
+    },
+    result,
+  )
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, revision.id, {
+    opLabel: "takeoff_sheet",
+    kind: "analysis",
+    format: "eos-vector-takeoff/1",
+    name: `${artifact.name} — vector takeoff (p${params.value.pageNo})`,
+    description: `Vector sheet takeoff extracted by ${result.engineKey} (real drawn path operators, no simulation)`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "takeoff.vectorDerived",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        pageNo: result.pageNo,
+        pageCount: result.pageCount,
+        scaleMmPerPt,
+        scaleSource,
+        lineCount: result.entities.lines.count,
+        rectCount: result.entities.rects.count,
+        curveCount: result.entities.curves.count,
+        textCount: result.text.length,
+      },
+    },
+  })
+
+  return {
+    takeoff: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-vector-takeoff/1",
+      pageNo: result.pageNo,
+      pageCount: result.pageCount,
+      scaleMmPerPt,
+      scaleSource,
+      lineCount: result.entities.lines.count,
+      rectCount: result.entities.rects.count,
+      curveCount: result.entities.curves.count,
+      textCount: result.text.length,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: revision.id,
+      sourceLatestRevisionId: revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+  }
+}
+
+/** Pinned 201 `takeoff_drawing` result object. */
+export interface BrokerTakeoffDrawingResult {
+  takeoff: {
+    artifactId: string
+    name: string
+    kind: "analysis"
+    revisionNumber: number
+    contentHash: string
+    sizeBytes: number
+    format: "eos-vector-takeoff/1"
+    layerCount: number
+    entityCount: number
+    unitsMm: boolean
+    layerFilter?: string[]
+    engineKey: "ezdxf"
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+    derivedFromArtifactId: string
+    derivedFromRevisionId: string
+    sourceLatestRevisionId: string
+    staleSource: boolean
+  }
+  outputArtifactRevisionId: string
+  engineKey: "ezdxf"
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+export async function brokerTakeoffDrawingCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerTakeoffDrawingResult> {
+  const layerFilter = takeoffDrawingLayerFilter(parameters)
+  if (!layerFilter.ok) throw new BrokerRefusalError("unsupported", layerFilter.message)
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", "This artifact has no revisions to take off from")
+  }
+  const revision = artifact.latestRevision
+
+  if (isDwgSignal(artifact.name, revision.mimeType)) {
+    throw new BrokerRefusalError("unsupported", TAKEOFF_DWG_REFUSAL_MESSAGE)
+  }
+  if (!isDxfSignal(artifact.name, revision.mimeType) && !isDxfSignal(revision.storageKey, revision.mimeType)) {
+    throw new BrokerRefusalError("unsupported", takeoffDrawingUnsupportedMessage(artifact.name))
+  }
+
+  const absPath = path.join(getStorageRoot(), revision.storageKey, "content")
+
+  let result: DxfTakeoffResult
+  try {
+    result = await dxfTakeoffFromStorage(absPath, { layerFilter: layerFilter.value })
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildVectorTakeoffDocument(
+    artifact.name,
+    "drawing",
+    { engineKey: result.engineKey, engineVersion: result.engineVersion, adapterScript: result.adapterScript },
+    { layerFilter: layerFilter.value ?? null },
+    result,
+  )
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, revision.id, {
+    opLabel: "takeoff_drawing",
+    kind: "analysis",
+    format: "eos-vector-takeoff/1",
+    name: `${artifact.name} — DXF takeoff`,
+    description: `Per-layer DXF takeoff extracted by ${result.engineKey} (declared mm units, exact arc/circle math)`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "takeoff.dxfDerived",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        layerCount: result.layerCount,
+        entityCount: result.entityCount,
+        unitsMm: result.unitsMm,
+        layerFilter: layerFilter.value ?? null,
+      },
+    },
+  })
+
+  return {
+    takeoff: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-vector-takeoff/1",
+      layerCount: result.layerCount,
+      entityCount: result.entityCount,
+      unitsMm: result.unitsMm,
+      ...(layerFilter.value ? { layerFilter: layerFilter.value } : {}),
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: revision.id,
+      sourceLatestRevisionId: revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+  }
+}
+
 /** Pinned 201 `powerflow` response object (exact key order — mirror of the mesh 201). */
 export interface BrokerPowerflowResponse {
   artifactId: string
@@ -2250,6 +2692,55 @@ export async function runBrokerOperation(
         exitCode: 0,
         stdoutTail: core.stdoutTail,
         stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "takeoff_sheet": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "takeoff_sheet requires inputs.artifactId (one PDF sheet artifact id)")
+      }
+      const core = await brokerTakeoffSheetCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.takeoff.artifactId,
+          revisionNumber: core.takeoff.revisionNumber,
+          contentHash: core.takeoff.contentHash,
+          pageNo: core.takeoff.pageNo,
+          lineCount: core.takeoff.lineCount,
+          rectCount: core.takeoff.rectCount,
+          curveCount: core.takeoff.curveCount,
+          textCount: core.takeoff.textCount,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "takeoff_drawing": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "takeoff_drawing requires inputs.artifactId (one DXF drawing artifact id)")
+      }
+      const core = await brokerTakeoffDrawingCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.takeoff.artifactId,
+          revisionNumber: core.takeoff.revisionNumber,
+          contentHash: core.takeoff.contentHash,
+          layerCount: core.takeoff.layerCount,
+          entityCount: core.takeoff.entityCount,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
         durationMs: Date.now() - startedAt,
       }
     }

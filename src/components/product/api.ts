@@ -1058,6 +1058,38 @@ export type AnalysisPayload = PowerFlowPayload | DesPayload | CpmAnalysisPayload
 
 // --- §8 routes (thin wrappers over broker cores; 422s verbatim) --------------
 
+/**
+ * POST /api/projects/[id]/artifacts/[aid]/vector-takeoff — 201 {takeoff}
+ * (Slice 15): real vector extraction (pdfplumber over drawn PDF path
+ * operators / ezdxf per-layer DXF geometry). The response carries the
+ * find-or-create analysis artifact + the full eos-vector-takeoff/1 document
+ * (per-class totals for sheets, per-layer rows for drawings). 422s surface
+ * verbatim (raster-only pages, no calibration, DWG, non-PDF/non-DXF).
+ */
+export interface VectorTakeoffRunResult extends DeriveRunResult {
+  pageNo?: number
+  pageCount?: number
+  lineCount?: number
+  rectCount?: number
+  curveCount?: number
+  textCount?: number
+  layerCount?: number
+  entityCount?: number
+  document?: Record<string, unknown>
+}
+
+export async function runVectorTakeoff(
+  projectId: string,
+  artifactId: string,
+  parameters: { pageNo?: number; scaleMmPerPt?: number; flattenSegments?: number; layerFilter?: string[] } = {},
+) {
+  return apiJson<{ takeoff: VectorTakeoffRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/vector-takeoff`,
+    "POST",
+    parameters,
+  )
+}
+
 /** POST /api/projects/[id]/artifacts/[aid]/fe-mesh — 201 {femesh}. */
 export async function runFeMesh(projectId: string, artifactId: string) {
   return apiJson<{ femesh: DeriveRunResult }>(

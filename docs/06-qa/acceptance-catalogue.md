@@ -222,3 +222,27 @@ Suite: `scripts/e2e-p6-isolation.sh` grown 53 → **80 PASS / 0 FAIL** (+27). Th
 - **One-call role change:** Ama's Team panel renders a manager-only role Select per row; editor→viewer → toast + select and Access cell both update (single PATCH — the e2e AC-RP-01 pins behind it); the **last-owner demote attempt surfaces the VERBATIM 409 toast** `cannot demote the only owner of the project` and the select SNAPS BACK to owner (controlled by server data — never optimistic). (evidence/s14-role-change.png, s14-lastowner-refused.png)
 - **Viewer perspective:** a project-viewer session sees NO role selects (read-only badges), Add member + Remove visible-but-disabled with the pinned tooltip `only the project owner or an admin can manage team members`. (evidence/s14-viewer-gates.png)
 - **Standards:** 390×844 scrollWidth exactly 390 (no overflow); footer stuck=true; dark mode; zero console/page errors. (evidence/s14-390px.png, s14-dark-mode.png)
+
+## Slice-15 acceptance items — verified 2026-10-25 (TL, dev host; slice = VECTOR TAKEOFF, roadmap-gap-audit item 1; closes limitation #5's vector/DXF core)
+
+Source of truth: `scripts/e2e-takeoff.sh` (51 PASS / 0 FAIL) + `bun run validate:engines` (25/25) + the live API smokes + this session's browser journeys. The slice's audit trail: `docs/07-release/roadmap-gap-audit.md` (the report the user requested — audit → research → recommendations) and implementation-status's fifteenth-pass record.
+
+| AC | What it pins | Verdict | Evidence |
+|---|---|---|---|
+| AC-VT-01 | DXF fixture registers as a drawing artifact (201, r1) through the real multipart API | ✅ passed | e2e PASS 43 |
+| AC-VT-02 | DXF vector takeoff: 201, kind analysis r1, 3 layers / 4 entities, WALLS totalLengthMm 14000.0 EXACT, derived_from == source latest revision, engine ezdxf 1.4.5 | ✅ passed | e2e PASS 44 — the harness case `dxf-takeoff-room`'s exact numbers through the LIVE broker |
+| AC-VT-03 | Rerun appends a sequential revision (find-or-create, r2) | ✅ passed | e2e PASS 45 |
+| AC-VT-04 | Sheet takeoff with explicit analytic scale: 201, 5 lines / 2 rects / text layer, provenance scaleSource=explicit-parameter, scale echoed exactly | ✅ passed | e2e PASS 46 — mirrors harness `sheet-vector-plan` run 1 |
+| AC-VT-05a/05b | Calibration fallback: a PDF-revision calibration markup persists (201, per-revision by design), then a no-scale takeoff resolves it (scaleSource=calibration-markup + the persisted value) | ✅ passed | e2e PASS 47–48 — the AC-18 SVG-revision calibration correctly does NOT leak across revisions |
+| AC-VT-06 | DWG refused with the pinned converter guidance (422 VERBATIM — ODA File Converter / LibreDWG, the honest boundary from the 16-R1 research) | ✅ passed | e2e PASS 49 |
+| AC-VT-07 | Non-vector source (the STEP model) refused verbatim ("requires a PDF sheet revision…") | ✅ passed | e2e PASS 50 |
+| AC-VT-08 | Audit trail (takeoff.dxfDerived ≥ 2, takeoff.vectorDerived ≥ 2 after the block) + unauthenticated POST → the 401 envelope | ✅ passed | e2e PASS 51 |
+
+### Slice-15 engine-harness cases (the analytic-ground-truth layer)
+
+`sheet-vector-plan` (18 pins: both pages of the pinned A-102 fixture — bar 10 000 mm / wall 3 000 mm / room 26 000 mm + 40 000 000 mm² per-entity locators, page-2 border+scale-bar+12-symbol truth, fixture sha) · `sheet-vector-curve` (quarter-arc πr/2 at pinned N=32 flattening, rel 4.0e-5; exact rect pins) · `sheet-vector-refusal` (the verbatim raster refusal — a scan is never simulated) · `dxf-takeoff-room` (13 pins incl. the byte-identical regeneration probe; exact arc r·θ and circle 2πr math). Harness: **25 cases — 25/25**; adapters byte-deterministic on double-run.
+
+### Slice-15 browser journeys (agent-browser, canonical dataset)
+
+- **The dialog, lived:** engineer quick-login → Takeoff & Estimating → "Vector takeoff…" → the candidate list shows the demo sheet (PDF signal via MIME) + the DXF fixture (per-layer) + DWG rows listed-but-disabled with the converter note → Extract on the sheet → toast with the measured summary → the Artifacts tab shows the new analysis artifact without reload (cache-nudge). Evidence: evidence/s15-{vector-dialog,extraction-result,390px-takeoff}.png (the toast is transient — the result state + dialog are captured).
+- **Standards:** 390×844 no horizontal overflow; footer at doc end on the long ledger page; zero console/page errors.

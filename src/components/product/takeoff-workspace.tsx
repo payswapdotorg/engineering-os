@@ -16,7 +16,7 @@
  *  - Sheet Measure rows are real drawing-measured records from the calibrated
  *    pdf.js surface (sheet-measure.tsx) — the same ledger, the same gates.
  */
-import { Boxes, ChevronDown, ClipboardList, Download, Info, Layers, Plus, Ruler, Sigma, Trash2 } from "lucide-react"
+import { Boxes, ChevronDown, ClipboardList, Download, Info, Layers, Plus, Ruler, Sigma, Trash2, DraftingCompass} from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
@@ -46,6 +46,7 @@ import {
   NewEstimateDialog,
   RecordQuantityDialog,
   SupersedeEstimateDialog,
+  VectorTakeoffDialog,
   type ArtifactSourceState,
 } from "@/components/product/takeoff-dialogs"
 import { SheetMeasure } from "@/components/product/sheet-measure"
@@ -168,6 +169,7 @@ export function TakeoffWorkspace({
 
   const [recordOpen, setRecordOpen] = useState(false)
   const [deriveOpen, setDeriveOpen] = useState(false)
+  const [vectorOpen, setVectorOpen] = useState(false)
   const [assemblyOpen, setAssemblyOpen] = useState(false)
   const [rateOpen, setRateOpen] = useState(false)
   const [estimateOpen, setEstimateOpen] = useState(false)
@@ -323,6 +325,9 @@ export function TakeoffWorkspace({
             <div className="ml-auto flex flex-wrap gap-2">
               <GuardedButton variant="outline" className="h-10" onClick={() => setDeriveOpen(true)}>
                 <Boxes aria-hidden /> Derive from model…
+              </GuardedButton>
+              <GuardedButton variant="outline" className="h-10" onClick={() => setVectorOpen(true)}>
+                <DraftingCompass aria-hidden /> Vector takeoff…
               </GuardedButton>
               <GuardedButton className="h-10" onClick={() => setRecordOpen(true)}>
                 <Plus aria-hidden /> Record quantity
@@ -973,6 +978,18 @@ export function TakeoffWorkspace({
           void quantities.refresh()
           // Cache nudge (Phase-6 #13): the derivation appends audit events the
           // project-level activity/artifact caches don't observe on their own.
+          notifyMutated()
+        }}
+      />
+      <VectorTakeoffDialog
+        projectId={projectId}
+        artifacts={artifactSource}
+        open={vectorOpen}
+        onOpenChange={setVectorOpen}
+        onExtracted={() => {
+          // The extraction writes an analysis artifact + audit event — the
+          // ledger itself is untouched (rows stay human-disposed); the cache
+          // nudge keeps the project-level artifacts/activity lists honest.
           notifyMutated()
         }}
       />

@@ -3,7 +3,10 @@
 # 26 PASS + the Phase-2 step-11 mesh derive → 27 PASS; Slice-8 contract §1
 # download-route round-trip +4 → 31 PASS; Slice-13 persistent sheet markups
 # API +11 → 42 PASS). Rebuilt from the acceptance-catalogue evidence
-# (AC-P3-01…08) + implementation-status records.
+# (AC-P3-01…08) + implementation-status records. Slice 15 vector takeoff
+# (roadmap-gap-audit item 1) +8 → 50 PASS (AC-VT-01…08: pdfplumber/ezdxf
+# extraction through the broker, sequential revisions, calibration fallback,
+# the honest DWG + non-source refusals, the audit trail + 401 gate).
 #
 # Rebuilds the demo dataset through the REAL API against the live dev server:
 # project "Harbour View Extension", 4 fixtures, 14 ledger rows, 1 approved GHS
@@ -529,6 +532,136 @@ if [[ "$MESH_STATUS" == "201" && "$MESH_KIND" == "mesh" && "$MESH_FROM_REV" == "
   ok "mesh derived from the demo model (201, kind mesh, elementCount > 0, derivedFrom == source latest rev, exactly one mesh.derived audit event with sha256)"
 else
   bad "mesh derived from the demo model" "status=$MESH_STATUS kind=$MESH_KIND elements=$MESH_ELEMENTS fromRev=$MESH_FROM_REV events=$MESH_EVENTS sha=$MESH_SHA" "201|mesh|>0|$BRACKET_SOLID_REV|1|sha256"
+fi
+
+
+# 34-41. Slice 15 (roadmap-gap-audit item 1) — vector takeoff ACs (AC-VT-01…08):
+# REAL pdfplumber/ezdxf extraction through the broker, the honest DWG and
+# non-source refusals, sequential revisions, calibration-scale fallback, and
+# the audit trail. The DXF pins mirror the harness case dxf-takeoff-room;
+# the sheet pins mirror sheet-vector-plan (the same fixture, page 1).
+
+# AC-VT-01: register the committed DXF fixture as a drawing artifact (r1).
+upload "/api/projects/$PID/artifacts" "$FIXTURES/takeoff-room.dxf" drawing "takeoff-room.dxf"
+VT_DXF_STATUS="$STATUS"
+VT_DXF_BODY="$BODY"
+VT_DXF_ID=$(j "$VT_DXF_BODY" '.data.artifact.id // empty')
+if [[ "$VT_DXF_STATUS" == "201" && -n "$VT_DXF_ID" ]]; then
+  ok "AC-VT-01: DXF fixture registered as a drawing artifact (201, r1)"
+else
+  bad "AC-VT-01: DXF fixture registered" "status=$VT_DXF_STATUS body=${VT_DXF_BODY:0:200}" "201|id"
+fi
+
+# AC-VT-02: vector takeoff of the DXF — per-layer extraction with the
+# harness-pinned numbers, persisted as a draft analysis artifact derived_from r1.
+http POST "/api/projects/$PID/artifacts/$VT_DXF_ID/vector-takeoff" -H 'Content-Type: application/json' --data-binary '{}'
+VT_RUN_STATUS="$STATUS"
+VT_RUN_BODY="$BODY"
+VT_KIND=$(j "$VT_RUN_BODY" '.data.takeoff.kind')
+VT_REV=$(j "$VT_RUN_BODY" '.data.takeoff.revisionNumber')
+VT_LAYERS=$(j "$VT_RUN_BODY" '.data.takeoff.layerCount')
+VT_ENTITIES=$(j "$VT_RUN_BODY" '.data.takeoff.entityCount')
+VT_WALLS_LEN=$(j "$VT_RUN_BODY" '.data.takeoff.document.result.layers[] | select(.name == "WALLS") | .totalLengthMm')
+VT_ENGINE=$(j "$VT_RUN_BODY" '.data.takeoff.engineKey')
+VT_FROM=$(j "$VT_RUN_BODY" '.data.takeoff.derivedFromRevisionId')
+VT_DXF_REV=$(j "$VT_RUN_BODY" '.data.takeoff.sourceLatestRevisionId')
+if [[ "$VT_RUN_STATUS" == "201" && "$VT_KIND" == "analysis" && "$VT_REV" == "1" && "$VT_LAYERS" == "3" && "$VT_ENTITIES" == "4" && "$VT_ENGINE" == "ezdxf" && "$VT_FROM" == "$VT_DXF_REV" ]] && python3 -c 'import sys; sys.exit(0 if abs(float(sys.argv[1]) - 14000.0) < 1e-6 else 1)' "$VT_WALLS_LEN" 2>/dev/null; then
+  ok "AC-VT-02: DXF vector takeoff (201, analysis r1, 3 layers / 4 entities, WALLS 14000 mm exact, derived_from == source rev)"
+else
+  bad "AC-VT-02: DXF vector takeoff" "status=$VT_RUN_STATUS kind=$VT_KIND rev=$VT_REV layers=$VT_LAYERS entities=$VT_ENTITIES wallsLen=$VT_WALLS_LEN engine=$VT_ENGINE" "201|analysis|1|3|4|14000.0|ezdxf|fromRev==latest"
+fi
+
+# AC-VT-03: rerun appends a sequential revision to the SAME find-or-create artifact (r2).
+http POST "/api/projects/$PID/artifacts/$VT_DXF_ID/vector-takeoff" -H 'Content-Type: application/json' --data-binary '{}'
+VT_RERUN_REV=$(j "$BODY" '.data.takeoff.revisionNumber')
+assert_eq "AC-VT-03: rerun appends a sequential revision (find-or-create, r2)" "2" "$VT_RERUN_REV"
+
+# AC-VT-04: sheet takeoff with an EXPLICIT analytic scale — the harness-pinned
+# page-1 counts and the bar's exact 10 m (the click-journey's 0.35% bias does
+# not apply: vector reads the drawn operators).
+http POST "/api/projects/$PID/artifacts/$SHEET_ID/vector-takeoff" -H 'Content-Type: application/json' --data-binary '{"pageNo":1,"scaleMmPerPt":35.27777777777778}'
+VT_SHEET_STATUS="$STATUS"
+VT_SHEET_BODY="$BODY"
+VT_LINES=$(j "$VT_SHEET_BODY" '.data.takeoff.lineCount')
+VT_RECTS=$(j "$VT_SHEET_BODY" '.data.takeoff.rectCount')
+VT_TEXTS=$(j "$VT_SHEET_BODY" '.data.takeoff.textCount')
+VT_SCALE=$(j "$VT_SHEET_BODY" '.data.takeoff.document.provenance.scaleMmPerPt')
+VT_SCALE_SRC=$(j "$VT_SHEET_BODY" '.data.takeoff.document.provenance.scaleSource')
+if [[ "$VT_SHEET_STATUS" == "201" && "$VT_LINES" == "5" && "$VT_RECTS" == "2" && "$VT_TEXTS" != "0" && "$VT_SCALE_SRC" == "explicit-parameter" ]] && python3 -c 'import sys; sys.exit(0 if abs(float(sys.argv[1]) - 35.27777777777778) < 1e-9 else 1)' "$VT_SCALE" 2>/dev/null; then
+  ok "AC-VT-04: sheet vector takeoff with explicit scale (201, 5 lines / 2 rects / text layer, provenance explicit-parameter)"
+else
+  bad "AC-VT-04: sheet vector takeoff with explicit scale" "status=$VT_SHEET_STATUS lines=$VT_LINES rects=$VT_RECTS texts=$VT_TEXTS scale=$VT_SCALE src=$VT_SCALE_SRC" "201|5|2|>0|35.277777…|explicit-parameter"
+fi
+
+# AC-VT-05: sheet takeoff WITHOUT an explicit scale resolves the revision's
+# saved calibration markup. Calibration markups are PER-REVISION by design
+# (each revision is its own coordinate space), and the suite's AC-18
+# calibration sits on the SVG r1 — so the PDF r2 gets its own 2-point scale
+# bar calibration first (the analytic 1:100 value, the same bar geometry).
+cat > "$WORK/vt-calib.json" <<EOF
+{
+  "revisionId": "$PDF_REV",
+  "page": 1,
+  "kind": "calibration",
+  "points": [ { "x": 60, "y": 120 }, { "x": 343.4646, "y": 120 } ],
+  "label": "scale bar 10 m (vector-lane calibration)",
+  "value": 35.27777777777778,
+  "unit": "mm/pt",
+  "scale": "calibrated 2-pt, 10 m ↔ 283.46 pt — 35.28 mm/pt",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt-calib.json"
+VT_CAL_PERSIST="$STATUS|$(j "$BODY" '.data.markup.kind // empty')"
+if [[ "$VT_CAL_PERSIST" == "201|calibration" ]]; then
+  ok "AC-VT-05a: PDF-revision calibration markup persisted (201, mm/pt, per-revision by design)"
+else
+  bad "AC-VT-05a: PDF-revision calibration persisted" "$VT_CAL_PERSIST" "201|calibration"
+fi
+http POST "/api/projects/$PID/artifacts/$SHEET_ID/vector-takeoff" -H 'Content-Type: application/json' --data-binary '{}'
+VT_CAL_SRC=$(j "$BODY" '.data.takeoff.document.provenance.scaleSource')
+VT_CAL_SCALE=$(j "$BODY" '.data.takeoff.document.provenance.scaleMmPerPt')
+if [[ "$VT_CAL_SRC" == "calibration-markup" ]] && python3 -c 'import sys; sys.exit(0 if abs(float(sys.argv[1]) - 35.27777777777778) < 1e-9 else 1)' "$VT_CAL_SCALE" 2>/dev/null; then
+  ok "AC-VT-05b: sheet takeoff without scale falls back to the saved calibration markup (scaleSource + the persisted value)"
+else
+  bad "AC-VT-05b: calibration fallback" "src=$VT_CAL_SRC scale=$VT_CAL_SCALE" "calibration-markup|35.277777…"
+fi
+
+# AC-VT-06: DWG is refused with the pinned converter guidance (no open
+# CI-pinnable DWG path exists — the honest boundary, 16-R1).
+printf 'dummy dwg bytes' > "$WORK/plot.dwg"
+upload "/api/projects/$PID/artifacts" "$WORK/plot.dwg" drawing "plot.dwg"
+VT_DWG_ID=$(j "$BODY" '.data.artifact.id // empty')
+http POST "/api/projects/$PID/artifacts/$VT_DWG_ID/vector-takeoff" -H 'Content-Type: application/json' --data-binary '{}'
+VT_DWG_STATUS="$STATUS"
+VT_DWG_MSG=$(j "$BODY" '.error.message // empty')
+if [[ "$VT_DWG_STATUS" == "422" && "$VT_DWG_MSG" == "DWG is not supported for vector takeoff — convert the drawing to DXF first (ODA File Converter, or LibreDWG's dwg2dxf; both are operator-installed external tools, the LibreOffice probe-path pattern) and register the converted file as a new revision" ]]; then
+  ok "AC-VT-06: DWG refused with the pinned converter guidance (422 verbatim)"
+else
+  bad "AC-VT-06: DWG refused verbatim" "status=$VT_DWG_STATUS msg=$VT_DWG_MSG" "422|DWG is not supported…"
+fi
+
+# AC-VT-07: a non-PDF/non-DXF source (the STEP model) is refused verbatim.
+http POST "/api/projects/$PID/artifacts/$BRACKET_SOLID_ID/vector-takeoff" -H 'Content-Type: application/json' --data-binary '{}'
+VT_MODEL_MSG=$(j "$BODY" '.error.message // empty')
+if [[ "$STATUS" == "422" && "$VT_MODEL_MSG" == *"requires a PDF sheet revision"* ]]; then
+  ok "AC-VT-07: non-vector source refused (422, verbatim 'requires a PDF sheet revision')"
+else
+  bad "AC-VT-07: non-vector source refused" "status=$STATUS msg=$VT_MODEL_MSG" "422|requires a PDF sheet revision…"
+fi
+
+# AC-VT-08: exactly one takeoff.dxfDerived-style event per run is audited
+# (≥1 each for sheet + drawing after this block), and unauthenticated access
+# is refused by the wrapper gate (401 envelope).
+http GET "/api/events?projectId=$PID&limit=300"
+VT_EV_DXF=$(j "$BODY" '[.data.events[] | select(.action == "takeoff.dxfDerived")] | length')
+VT_EV_SHEET=$(j "$BODY" '[.data.events[] | select(.action == "takeoff.vectorDerived")] | length')
+STATUS=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST "$BASE/api/projects/$PID/artifacts/$VT_DXF_ID/vector-takeoff" -H 'Content-Type: application/json' --data-binary '{}') || STATUS="000"
+VT_UNAUTH="$STATUS"
+if python3 -c 'import sys; sys.exit(0 if int(sys.argv[1]) >= 2 and int(sys.argv[2]) >= 2 else 1)' "$VT_EV_DXF" "$VT_EV_SHEET" && [[ "$VT_UNAUTH" == "401" ]]; then
+  ok "AC-VT-08: audit trail (takeoff.dxfDerived ≥ 2, takeoff.vectorDerived ≥ 2) + unauthenticated 401 envelope"
+else
+  bad "AC-VT-08: audit trail + unauth gate" "dxfEvents=$VT_EV_DXF sheetEvents=$VT_EV_SHEET unauth=$VT_UNAUTH" "≥2|≥2|401"
 fi
 
 echo

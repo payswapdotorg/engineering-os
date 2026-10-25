@@ -59,12 +59,15 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { createHash } from "node:crypto"
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { analyzeCpm } from "@/core/cpm"
 import {
+  adapterScriptPath,
   deriveFromFile,
   EngineUnavailableError,
   type DerivedQuantity,
@@ -75,6 +78,14 @@ import { defaultFeMeshParameters, femeshLdLibraryPath, feMeshFromFile, validateF
 import { runPowerflowFromFile, type PowerflowResult } from "../adapters/powerflow"
 import { runDesFromFile, type DesResult } from "../adapters/des"
 import { convertDocumentToFile, type ConversionResult } from "../adapters/convert-document"
+import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "../adapters/sheet_takeoff"
+import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "../adapters/dxf_takeoff"
+import {
+  parametricRebuildFromStorage,
+  parametricSchemaFromStorage,
+  type ParametricBuildResult,
+  type ParametricSchemaResult,
+} from "../adapters/parametric_rebuild"
 import {
   buildCpmAnalysisDocument,
   buildDesDocument,
@@ -87,12 +98,37 @@ import {
 // Corpus manifest types (shape pinned in worklog.md "Contract A — W2-c")
 // ---------------------------------------------------------------------------
 
-export type AdapterKind = "ifc" | "step" | "femesh" | "powerflow" | "des" | "cpm" | "libreoffice"
+export type AdapterKind =
+  | "ifc"
+  | "step"
+  | "femesh"
+  | "powerflow"
+  | "des"
+  | "cpm"
+  | "libreoffice"
+  | "sheet"
+  | "dxf"
+  | "parametric"
 export type ToleranceKind = "exact" | "analytic" | "mesh"
 export type QuantityType = DerivedQuantity["quantityType"]
 
-/** The Phase-5 discipline case kinds (W2-f — one shared pin schema). */
-export type DisciplineAdapter = "femesh" | "powerflow" | "des" | "cpm" | "libreoffice"
+/** The Phase-5 discipline case kinds (W2-f — one shared pin schema). The
+ * 16-V vector-takeoff kinds (sheet/dxf) run their own sub-expectation
+ * machinery but share the DisciplineAdapter dispatch surface. */
+export type DisciplineAdapter =
+  | "femesh"
+  | "powerflow"
+  | "des"
+  | "cpm"
+  | "libreoffice"
+  | "sheet"
+  | "dxf"
+
+/** 16-V (Slice 15 vector-takeoff lane): the pdfplumber/ezdxf case kinds. */
+export type TakeoffAdapter = "sheet" | "dxf"
+
+/** 16-P (Slice 15 parametric-authoring lane): the cadquery parametric-rebuild kind. */
+export type ParametricAdapter = "parametric"
 
 export interface GroundTruthEntry {
   elementRef: string
@@ -110,6 +146,9 @@ export interface CorpusCase {
   expect: "success" | "error"
   errorContains?: string
   groundTruth?: GroundTruthEntry[]
+  /** 16-V takeoff cases: the case-level analytic narrative (a string, not the
+   * quantity-ledger entry array — the pins carry the numbers). */
+  takeoffGroundTruth?: string
   /** W2-d (Contract C): optional tessellation expectations for this fixture —
    * pinned element refs (set-equal to the quantity element refs), per-element
    * vertex/triangle counts, payload invariants, divergence-theorem mesh
@@ -124,6 +163,16 @@ export interface CorpusCase {
   des?: DisciplineExpectation
   cpm?: DisciplineExpectation
   libreoffice?: DisciplineExpectation
+  /** 16-V: the per-adapter expectation block for the takeoff kinds — `sheet`
+   * for adapter "sheet" (pdfplumber), `dxf` for "dxf" (ezdxf). */
+  sheet?: TakeoffExpectation
+  dxf?: TakeoffExpectation
+  /** 16-P: the per-adapter expectation block for the parametric kind —
+   * `parametric` for adapter "parametric" (cadquery parametric rebuild). */
+  parametric?: ParametricExpectation
+  /** 16-P: the case-level analytic narrative for parametric success cases
+   * (a string, like the 16-V takeoffGroundTruth — the pins carry the numbers). */
+  parametricGroundTruth?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +208,73 @@ export interface DisciplineExpectation {
   parameters?: { meshSizeMin: number; meshSizeMax: number; elementOrder: number }
   /** success cases only: the pinned expectation set (every entry carries a derivation) */
   pins?: DisciplinePin[]
+  /** honest routing/limitation note, rendered into the case notes */
+  note?: string
+}
+
+// ---------------------------------------------------------------------------
+// Takeoff expectations (16-V — Slice 15 vector-takeoff lane; the pdfplumber/
+// ezdxf case kinds. Same DisciplinePin schema as the Phase-5 blocks, plus a
+// `runs` array: one takeoff case may exercise several parameter sets (e.g.
+// the A-102 sheet case measures BOTH pages — pageNo 1 and pageNo 2), and each
+// run is executed TWICE with byte-identity asserted on the adapter result.)
+// ---------------------------------------------------------------------------
+
+/** One adapter invocation inside a takeoff case: its parameters + pins. */
+export interface TakeoffRun {
+  /** sheet: {pageNo?, scaleMmPerPt (REQUIRED), flattenSegments?}; dxf: {layerFilter?} */
+  parameters?: Record<string, unknown>
+  /** success runs: non-empty (validated); error runs: pins are not resolved */
+  pins?: DisciplinePin[]
+}
+
+export interface TakeoffExpectation {
+  expect: "success" | "error"
+  errorContains?: string
+  /** success cases: the non-empty runs array (one row per parameter set) */
+  runs?: TakeoffRun[]
+  /** honest routing/limitation note, rendered into the case notes */
+  note?: string
+}
+
+// ---------------------------------------------------------------------------
+// Parametric expectations (16-P — Slice 15 parametric-authoring lane; the
+// cadquery parametric-rebuild kind. Same DisciplinePin schema as the Phase-5
+// blocks, plus a `runs` array of {mode, parameters, pins}: one parametric
+// case may exercise several modes/parameter sets, and each run executes
+// TWICE — schema runs assert byte-identity on the schema JSON, build runs
+// assert EXACT equality on the GEOMETRY PROPERTIES (volume/area/bbox/
+// centerOfMass/checks), NEVER on the STEP bytes: OCCT stamps an export
+// timestamp into FILE_NAME and a per-export counter into PRODUCT(...) — the
+// 16-R3 finding, pinned here. Determinism on content hashes would be a
+// dishonest claim; determinism on the rebuilt geometry is the real one.)
+// ---------------------------------------------------------------------------
+
+/** One adapter invocation inside a parametric case. */
+export interface ParametricRun {
+  /** schema = read PARAM_SCHEMA/DEFAULT_PARAMS (no parameters, no STEP);
+   *  build = validate + merge parameters, build, analytic-gate-check,
+   *  export STEP, re-import, emit the round-trip properties. */
+  mode: "schema" | "build"
+  /** build runs only: the user's parameter edits (merged over DEFAULT_PARAMS
+   *  by the adapter); schema runs take no parameters (parse refuses them). */
+  parameters?: Record<string, unknown>
+  /** success runs: non-empty (validated); error runs: pins are not resolved */
+  pins?: DisciplinePin[]
+  /** error runs only: THIS run's pinned refusal substring. A parametric
+   *  error case may pin several DISTINCT refusal shapes across its runs
+   *  (range / unknown-key / geometry contradiction) — one block-level
+   *  substring cannot cover them all, so every error run pins its own. */
+  errorContains?: string
+}
+
+export interface ParametricExpectation {
+  expect: "success" | "error"
+  /** error cases: OPTIONAL common substring asserted against EVERY run's
+   *  message in addition to the per-run pins */
+  errorContains?: string
+  /** one row per mode/parameter set (non-empty, validated) */
+  runs?: ParametricRun[]
   /** honest routing/limitation note, rendered into the case notes */
   note?: string
 }
@@ -262,7 +378,7 @@ export interface DisciplineComparison {
 }
 
 export interface DisciplineCaseResult {
-  adapter: DisciplineAdapter
+  adapter: DisciplineAdapter | TakeoffAdapter | ParametricAdapter
   expect: "success" | "error"
   status: "pass" | "fail"
   /** engine provenance — null for the cpm platform core (the honest record) */
@@ -343,12 +459,18 @@ const PYTHON_BIN = process.env.EOS_PYTHON ?? "/home/z/.venv/bin/python3"
 const LIBREOFFICE_BIN = process.env.EOS_LIBREOFFICE ?? "/usr/bin/libreoffice"
 
 /** Python engines per adapter kind (cpm/libreoffice are probed differently). */
-const PYTHON_ENGINE_MODULES: Record<"step" | "ifc" | "femesh" | "powerflow" | "des", string> = {
+const PYTHON_ENGINE_MODULES: Record<
+  "step" | "ifc" | "femesh" | "powerflow" | "des" | "sheet" | "dxf" | "parametric",
+  string
+> = {
   step: "cadquery",
   ifc: "ifcopenshell",
   femesh: "gmsh",
   powerflow: "pandapower",
   des: "simpy",
+  sheet: "pdfplumber",
+  dxf: "ezdxf",
+  parametric: "cadquery",
 }
 
 /** Human labels for the availability line in the evidence doc. */
@@ -360,6 +482,9 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   des: "simpy (discrete-event)",
   cpm: "platform CPM core (no engine)",
   libreoffice: "libreoffice (document conversion)",
+  sheet: "pdfplumber (vector sheet takeoff)",
+  dxf: "ezdxf (DXF takeoff)",
+  parametric: "cadquery (parametric rebuild)",
 }
 
 /**
@@ -586,7 +711,16 @@ function parseDisciplineExpectation(
       `manifest case ${caseId}: ${blockName} success cases must pin a non-empty pins array (structural pins included)`,
     )
   }
-  block.pins = pins.map((p: unknown, j: number) => {
+  block.pins = parseDisciplinePins(caseId, blockName, pins)
+  return block
+}
+
+/** Validate a pins array into DisciplinePins (W2-f rules, verbatim — 16-V
+ * extracted this block so the takeoff blocks enforce the IDENTICAL schema:
+ * every entry needs a field, a comparable value with an explicit numeric
+ * bound, and a hand-derived audit string). */
+function parseDisciplinePins(caseId: string, blockName: string, pins: unknown[]): DisciplinePin[] {
+  return pins.map((p: unknown, j: number) => {
     if (!isPlainObject(p)) {
       throw new Error(`manifest case ${caseId}: ${blockName}.pins[${j}] is not an object`)
     }
@@ -650,6 +784,179 @@ function parseDisciplineExpectation(
     if (minBound === true) pin.minBound = true
     return pin
   })
+}
+
+/** 16-V: validate one takeoff run's parameters per adapter kind (sheet: the
+ * calibration is REQUIRED — the bridge refuses without it; dxf: layerFilter
+ * must be a string array; the bridges normalize/validate again at run time). */
+function parseTakeoffRunParameters(
+  caseId: string,
+  blockName: string,
+  adapter: TakeoffAdapter,
+  runIndex: number,
+  parameters: unknown,
+): Record<string, unknown> {
+  if (parameters === undefined) parameters = {}
+  if (!isPlainObject(parameters)) {
+    throw new Error(`manifest case ${caseId}: ${blockName}.runs[${runIndex}].parameters must be an object`)
+  }
+  if (adapter === "sheet") {
+    const { pageNo, scaleMmPerPt, flattenSegments } = parameters
+    if (pageNo !== undefined && (typeof pageNo !== "number" || !Number.isInteger(pageNo) || pageNo < 1)) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.runs[${runIndex}].parameters.pageNo must be an integer >= 1`)
+    }
+    if (typeof scaleMmPerPt !== "number" || !(scaleMmPerPt > 0)) {
+      throw new Error(
+        `manifest case ${caseId}: ${blockName}.runs[${runIndex}].parameters.scaleMmPerPt must be a positive number (sheet takeoff is REFUSED without a calibration)`,
+      )
+    }
+    if (flattenSegments !== undefined && (typeof flattenSegments !== "number" || !Number.isFinite(flattenSegments))) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.runs[${runIndex}].parameters.flattenSegments must be a finite number`)
+    }
+  } else {
+    const { layerFilter } = parameters
+    if (
+      layerFilter !== undefined &&
+      (!Array.isArray(layerFilter) || layerFilter.some((x) => typeof x !== "string" || x.length === 0))
+    ) {
+      throw new Error(
+        `manifest case ${caseId}: ${blockName}.runs[${runIndex}].parameters.layerFilter must be an array of non-empty layer names`,
+      )
+    }
+  }
+  return parameters
+}
+
+/** 16-V: strict validation of a takeoff expectation block (sheet/dxf cases). */
+function parseTakeoffExpectation(
+  caseId: string,
+  blockName: string,
+  raw: unknown,
+  adapter: TakeoffAdapter,
+): TakeoffExpectation {
+  if (!isPlainObject(raw)) {
+    throw new Error(`manifest case ${caseId}: the ${blockName} block must be an object`)
+  }
+  const { expect, errorContains, runs, note } = raw
+  if (expect !== "success" && expect !== "error") {
+    throw new Error(`manifest case ${caseId}: ${blockName}.expect must be "success"|"error"`)
+  }
+  const block: TakeoffExpectation = { expect }
+  if (note !== undefined && (typeof note !== "string" || note.length === 0)) {
+    throw new Error(`manifest case ${caseId}: ${blockName}.note must be a non-empty string when provided`)
+  }
+  if (typeof note === "string") block.note = note
+  if (expect === "error") {
+    if (typeof errorContains !== "string" || errorContains.length === 0) {
+      throw new Error(`manifest case ${caseId}: ${blockName} error cases must pin errorContains`)
+    }
+    block.errorContains = errorContains
+    // error runs may still carry parameters (e.g. the raster-refusal case must
+    // pass a valid scale so the bridge does not refuse on calibration first)
+    if (runs !== undefined) {
+      if (!Array.isArray(runs) || runs.length === 0) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs must be a non-empty array when provided`)
+      }
+      block.runs = runs.map((r: unknown, j: number) => {
+        if (!isPlainObject(r)) {
+          throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}] is not an object`)
+        }
+        return { parameters: parseTakeoffRunParameters(caseId, blockName, adapter, j, r.parameters) }
+      })
+    }
+    return block
+  }
+  if (!Array.isArray(runs) || runs.length === 0) {
+    throw new Error(
+      `manifest case ${caseId}: ${blockName} success cases must pin a non-empty runs array (one row per parameter set)`,
+    )
+  }
+  block.runs = runs.map((r: unknown, j: number) => {
+    if (!isPlainObject(r)) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}] is not an object`)
+    }
+    const runPins = r.pins
+    if (!Array.isArray(runPins) || runPins.length === 0) {
+      throw new Error(
+        `manifest case ${caseId}: ${blockName}.runs[${j}] must pin a non-empty pins array (structural pins included)`,
+      )
+    }
+    return {
+      parameters: parseTakeoffRunParameters(caseId, blockName, adapter, j, r.parameters),
+      pins: parseDisciplinePins(caseId, `${blockName}.runs[${j}]`, runPins),
+    }
+  })
+  return block
+}
+
+/** 16-P: strict validation of a parametric expectation block. Error runs pin
+ * their refusal substring PER RUN (a parametric error case may exercise
+ * several DISTINCT refusal shapes — range, unknown key, geometry
+ * contradiction); an optional block-level substring, when present, is
+ * asserted against every run's message too. */
+function parseParametricExpectation(
+  caseId: string,
+  blockName: string,
+  raw: unknown,
+): ParametricExpectation {
+  if (!isPlainObject(raw)) {
+    throw new Error(`manifest case ${caseId}: the ${blockName} block must be an object`)
+  }
+  const { expect, errorContains, runs, note } = raw
+  if (expect !== "success" && expect !== "error") {
+    throw new Error(`manifest case ${caseId}: ${blockName}.expect must be "success"|"error"`)
+  }
+  const block: ParametricExpectation = { expect }
+  if (note !== undefined && (typeof note !== "string" || note.length === 0)) {
+    throw new Error(`manifest case ${caseId}: ${blockName}.note must be a non-empty string when provided`)
+  }
+  if (typeof note === "string") block.note = note
+  if (!Array.isArray(runs) || runs.length === 0) {
+    throw new Error(
+      `manifest case ${caseId}: ${blockName} cases must pin a non-empty runs array (one row per mode/parameter set)`,
+    )
+  }
+  if (errorContains !== undefined && (typeof errorContains !== "string" || errorContains.length === 0)) {
+    throw new Error(`manifest case ${caseId}: ${blockName}.errorContains must be a non-empty string when provided`)
+  }
+  if (typeof errorContains === "string") block.errorContains = errorContains
+  block.runs = runs.map((r: unknown, j: number) => {
+    if (!isPlainObject(r)) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}] is not an object`)
+    }
+    if (r.mode !== "schema" && r.mode !== "build") {
+      throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].mode must be "schema"|"build"`)
+    }
+    const run: ParametricRun = { mode: r.mode }
+    if (r.parameters !== undefined) {
+      if (!isPlainObject(r.parameters)) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].parameters must be an object`)
+      }
+      if (r.mode === "schema") {
+        throw new Error(
+          `manifest case ${caseId}: ${blockName}.runs[${j}] is a schema run — schema runs take no parameters (the adapter refuses them)`,
+        )
+      }
+      run.parameters = r.parameters
+    }
+    if (expect === "error") {
+      if (typeof r.errorContains !== "string" || r.errorContains.length === 0) {
+        throw new Error(
+          `manifest case ${caseId}: ${blockName}.runs[${j}] error runs must pin their own errorContains (a parametric error case may pin several DISTINCT refusal shapes)`,
+        )
+      }
+      run.errorContains = r.errorContains
+      return run
+    }
+    const runPins = r.pins
+    if (!Array.isArray(runPins) || runPins.length === 0) {
+      throw new Error(
+        `manifest case ${caseId}: ${blockName}.runs[${j}] must pin a non-empty pins array (structural pins included)`,
+      )
+    }
+    run.pins = parseDisciplinePins(caseId, `${blockName}.runs[${j}]`, runPins)
+    return run
+  })
   return block
 }
 
@@ -664,7 +971,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
     if (!isPlainObject(c)) {
       throw new Error(`manifest case [${i}] is not an object`)
     }
-    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, cpm, libreoffice } =
+    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, cpm, libreoffice, sheet, dxf, parametric } =
       c
     if (typeof caseId !== "string" || caseId.length === 0) {
       throw new Error(`manifest case [${i}] has no caseId`)
@@ -675,10 +982,17 @@ function parseManifest(raw: unknown): CorpusCase[] {
     seen.add(caseId)
     const isModelAdapter = adapter === "step" || adapter === "ifc"
     const isDisciplineAdapter =
-      adapter === "femesh" || adapter === "powerflow" || adapter === "des" || adapter === "cpm" || adapter === "libreoffice"
+      adapter === "femesh" ||
+      adapter === "powerflow" ||
+      adapter === "des" ||
+      adapter === "cpm" ||
+      adapter === "libreoffice" ||
+      adapter === "sheet" ||
+      adapter === "dxf" ||
+      adapter === "parametric"
     if (!isModelAdapter && !isDisciplineAdapter) {
       throw new Error(
-        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"cpm"|"libreoffice" (got ${JSON.stringify(adapter)})`,
+        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric" (got ${JSON.stringify(adapter)})`,
       )
     }
     if (typeof fixture !== "string" || fixture.length === 0) {
@@ -691,6 +1005,64 @@ function parseManifest(raw: unknown): CorpusCase[] {
       throw new Error(`manifest case ${caseId}: expect must be "success"|"error"`)
     }
     const parsed: CorpusCase = { caseId, adapter, fixture, expect }
+    if (adapter === "sheet" || adapter === "dxf") {
+      // 16-V: exactly ONE takeoff block, named after the adapter kind
+      const blockName = adapter
+      const blockRaw = adapter === "sheet" ? sheet : dxf
+      if (blockRaw === undefined) {
+        throw new Error(`manifest case ${caseId}: adapter "${adapter}" requires a "${blockName}" expectation block`)
+      }
+      const block = parseTakeoffExpectation(caseId, blockName, blockRaw, adapter)
+      // the case-level expectation must agree with the block
+      if (block.expect !== expect) {
+        throw new Error(
+          `manifest case ${caseId}: expect ${JSON.stringify(expect)} disagrees with the ${blockName} block's expect`,
+        )
+      }
+      if (expect === "error") {
+        // error cases pin the substring in the block; the case-level key mirrors it
+        parsed.errorContains = block.errorContains
+      }
+      if (adapter === "sheet") parsed.sheet = block
+      else parsed.dxf = block
+      if (expect === "success") {
+        if (typeof groundTruth !== "string" || groundTruth.length === 0) {
+          throw new Error(`manifest case ${caseId}: ${adapter} success cases must carry a non-empty groundTruth string (the analytic narrative behind the pins)`)
+        }
+        parsed.takeoffGroundTruth = groundTruth
+      }
+      cases.push(parsed)
+      continue
+    }
+    if (adapter === "parametric") {
+      // 16-P: exactly ONE parametric block, named after the adapter kind
+      if (parametric === undefined) {
+        throw new Error(`manifest case ${caseId}: adapter "parametric" requires a "parametric" expectation block`)
+      }
+      const block = parseParametricExpectation(caseId, "parametric", parametric)
+      // the case-level expectation must agree with the block
+      if (block.expect !== expect) {
+        throw new Error(
+          `manifest case ${caseId}: expect ${JSON.stringify(expect)} disagrees with the parametric block's expect`,
+        )
+      }
+      if (expect === "error") {
+        // per-run substrings carry the refusal pins; the block-level substring
+        // (optional common shape) mirrors to the case level when present
+        parsed.errorContains = block.errorContains
+      }
+      parsed.parametric = block
+      if (expect === "success") {
+        if (typeof groundTruth !== "string" || groundTruth.length === 0) {
+          throw new Error(
+            `manifest case ${caseId}: parametric success cases must carry a non-empty groundTruth string (the analytic narrative behind the pins)`,
+          )
+        }
+        parsed.parametricGroundTruth = groundTruth
+      }
+      cases.push(parsed)
+      continue
+    }
     if (isDisciplineAdapter) {
       // W2-f: exactly ONE per-adapter block, named after the adapter kind
       const blockName = adapter as DisciplineAdapter
@@ -1497,6 +1869,10 @@ function compareDisciplinePin(pin: DisciplinePin, observed: unknown): Discipline
       return row
     }
     row.absDiff = Math.abs(observed - pin.value)
+    // relative error is undefined against a zero reference (e.g. the 16-P
+    // paramChecksRelErr gate pin, value 0 with an abs bound) — record null
+    // instead of Infinity/NaN; the abs bound carries the comparison truth
+    const relVsPin = pin.value === 0 ? null : row.absDiff / Math.abs(pin.value)
     if (pin.minBound === true) {
       row.bound = "min"
       row.ok = observed >= pin.value
@@ -1504,13 +1880,13 @@ function compareDisciplinePin(pin: DisciplinePin, observed: unknown): Discipline
     }
     if (pin.relTolerance !== undefined) {
       row.bound = `rel:${pin.relTolerance}`
-      row.observedRelError = row.absDiff / Math.abs(pin.value)
+      row.observedRelError = relVsPin
       row.ok = row.absDiff <= pin.relTolerance * Math.abs(pin.value)
       return row
     }
     const bound = pin.absTolerance ?? 0
     row.bound = `abs:${bound}`
-    row.observedRelError = row.absDiff / Math.abs(pin.value)
+    row.observedRelError = relVsPin
     row.ok = row.absDiff <= bound
     return row
   }
@@ -1550,7 +1926,24 @@ async function runDisciplineChecks(
   fixturePath: string,
   report: Pick<HarnessReport, "engineVersions" | "adapterHashes">,
 ): Promise<DisciplineCaseResult> {
-  const adapter = c.adapter as DisciplineAdapter
+  const adapter = c.adapter as DisciplineAdapter | ParametricAdapter
+
+  // 16-V: the vector-takeoff kinds run their own sub-expectation machinery
+  // (runs[] parameter sets, per-run double-execution byte-identity, item/text
+  // locators) — hand off BEFORE the Phase-5 discipline dispatch below.
+  if (adapter === "sheet" || adapter === "dxf") {
+    return runTakeoffChecks(c, fixturePath, report)
+  }
+
+  // 16-P: the parametric-rebuild kind runs its own sub-expectation machinery
+  // (runs[] mode+parameter sets, per-run double-execution with GEOMETRY-
+  // PROPERTY determinism — the 16-R3 OCCT-timestamp finding — and per-run
+  // refusal substrings on error cases) — hand off BEFORE the Phase-5
+  // discipline dispatch below.
+  if (adapter === "parametric") {
+    return runParametricChecks(c, fixturePath, report)
+  }
+
   const block = c[adapter] as DisciplineExpectation
   const r: DisciplineCaseResult = {
     adapter,
@@ -1767,6 +2160,518 @@ async function runDisciplineChecks(
 }
 
 // ---------------------------------------------------------------------------
+// Takeoff checks (16-V — Slice 15 vector-takeoff lane; REAL pdfplumber/ezdxf
+// bridges, hand-derived pins from the fixture builders' analytic truth,
+// per-run byte-determinism on the adapter RESULT payload, fixture-bytes and
+// fixture-regen probes)
+// ---------------------------------------------------------------------------
+
+/** Parse a takeoff item-locator ref: "<type>@<x>,<y>" → the item's first point. */
+function takeoffItem<T extends { type: string; pts: number[][] }>(
+  items: T[],
+  ref: string,
+): T | undefined {
+  const at = ref.indexOf("@")
+  if (at <= 0) return undefined
+  const type = ref.slice(0, at)
+  const [xs, ys] = ref.slice(at + 1).split(",")
+  const x = Number(xs)
+  const y = Number(ys)
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined
+  return items.find(
+    (i) =>
+      i.type === type &&
+      Math.abs(i.pts[0][0] - x) <= 1e-6 &&
+      Math.abs(i.pts[0][1] - y) <= 1e-6,
+  )
+}
+
+/** Resolve a pin's observed value on a sheet-takeoff result (16-V fields). */
+function sheetTakeoffObserved(r: SheetTakeoffResult, pin: DisciplinePin, extras: Record<string, unknown>): unknown {
+  switch (pin.field) {
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "pageCount":
+      return r.pageCount
+    case "pageNo":
+      return r.pageNo
+    case "scaleMmPerPt":
+      return r.scaleMmPerPt
+    case "flattenSegments":
+      return r.flattenSegments
+    case "widthPt":
+      return r.page.widthPt
+    case "heightPt":
+      return r.page.heightPt
+    case "linesCount":
+      return r.entities.lines.count
+    case "rectsCount":
+      return r.entities.rects.count
+    case "curvesCount":
+      return r.entities.curves.count
+    case "linesTotalLengthMm":
+      return r.entities.lines.totalLengthMm
+    case "rectsTotalPerimeterMm":
+      return r.entities.rects.totalPerimeterMm
+    case "rectsTotalAreaMm2":
+      return r.entities.rects.totalAreaMm2
+    case "curvesTotalLengthMm":
+      return r.entities.curves.totalLengthMm
+    case "curvesTotalClosedAreaMm2":
+      return r.entities.curves.totalClosedAreaMm2
+    case "itemCount":
+      return r.items.length
+    case "textCount":
+      return r.text.length
+    case "textContains":
+      // pin.ref = the substring (case-insensitive contains, 16-R1(c))
+      if (pin.ref === null) return undefined
+      return r.text.some((t) =>
+        (t as { str?: unknown }).str?.toString().toLowerCase().includes(pin.ref!.toLowerCase()),
+      )
+    case "fixtureSha256":
+      return extras.fixtureSha256
+    default: {
+      // item-locator fields: "<type>@<x>,<y>" refs into the sorted items array
+      if (pin.ref === null) return undefined
+      const item = takeoffItem(r.items as Array<{ type: string; pts: number[][] }>, pin.ref)
+      if (item === undefined) return undefined
+      const record = item as Record<string, unknown>
+      if (pin.field === "itemLengthMm") return record.lengthMm
+      if (pin.field === "itemPerimeterMm") return record.perimeterMm
+      if (pin.field === "itemAreaMm2") return record.areaMm2
+      if (pin.field === "itemClosedAreaMm2") return record.closedAreaMm2
+      if (pin.field === "itemStroke") return record.stroke
+      if (pin.field === "itemFill") return record.fill
+      if (pin.field === "itemPtsCount") return (record.pts as number[][]).length
+      return undefined
+    }
+  }
+}
+
+/** Resolve a pin's observed value on a dxf-takeoff result (16-V fields). */
+function dxfTakeoffObserved(r: DxfTakeoffResult, pin: DisciplinePin, extras: Record<string, unknown>): unknown {
+  switch (pin.field) {
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "unitsMm":
+      return r.unitsMm
+    case "layerCount":
+      return r.layerCount
+    case "entityCount":
+      return r.entityCount
+    case "fixtureSha256":
+      return extras.fixtureSha256
+    case "fixtureRegenByteIdentical":
+      return extras.fixtureRegenByteIdentical
+    default: {
+      // per-layer fields: pin.ref = the layer name
+      if (pin.ref === null) return undefined
+      const layer = r.layers.find((l) => l.name === pin.ref)
+      if (layer === undefined) return undefined
+      switch (pin.field) {
+        case "layerLinesCount":
+          return layer.counts.lines
+        case "layerPolylinesCount":
+          return layer.counts.polylines
+        case "layerArcsCount":
+          return layer.counts.arcs
+        case "layerCirclesCount":
+          return layer.counts.circles
+        case "layerOthersCount":
+          return layer.counts.others
+        case "layerTotalLengthMm":
+          return layer.totalLengthMm
+        case "layerTotalClosedAreaMm2":
+          return layer.totalClosedAreaMm2
+        default:
+          return undefined
+      }
+    }
+  }
+}
+
+/**
+ * Compute the case-level takeoff extras LAZILY (only when a pin references
+ * them): the committed fixture's sha256, and — for dxf cases — the
+ * byte-deterministic REGENERATION probe (run make_fixture_takeoff_room.py
+ * twice into temp files, require both outputs byte-identical AND identical
+ * to the committed fixture; the probe never touches the committed file).
+ */
+function takeoffCaseExtras(
+  c: CorpusCase,
+  fixturePath: string,
+  block: TakeoffExpectation,
+  problems: string[],
+): Record<string, unknown> {
+  const needed = new Set<string>()
+  for (const run of block.runs ?? []) {
+    for (const pin of run.pins ?? []) needed.add(pin.field)
+  }
+  const extras: Record<string, unknown> = {}
+  if (needed.has("fixtureSha256")) {
+    extras.fixtureSha256 = createHash("sha256").update(readFileSync(fixturePath)).digest("hex")
+  }
+  if (needed.has("fixtureRegenByteIdentical")) {
+    // dxf only — the committed fixture must be reproducible byte-for-byte
+    const generator = adapterScriptPath("make_fixture_takeoff_room.py")
+    const tmp = mkdtempSync(path.join(os.tmpdir(), "eos-takeoff-regen-"))
+    try {
+      const outs: Buffer[] = []
+      for (let i = 0; i < 2; i++) {
+        const outPath = path.join(tmp, `regen-${i}.dxf`)
+        const res = spawnSync(PYTHON_BIN, [generator, "--out", outPath], { timeout: 120_000 })
+        if (res.status !== 0) {
+          problems.push(
+            `fixture regen probe failed (exit ${String(res.status)}): ${String(res.stderr).slice(-300)}`,
+          )
+          extras.fixtureRegenByteIdentical = false
+          return extras
+        }
+        outs.push(readFileSync(outPath))
+      }
+      const committed = readFileSync(fixturePath)
+      extras.fixtureRegenByteIdentical =
+        outs[0].equals(outs[1]) && outs[0].equals(committed)
+      if (extras.fixtureRegenByteIdentical !== true) {
+        problems.push(
+          "fixture regen probe: two fresh make_fixture_takeoff_room.py runs are not byte-identical to each other " +
+            "and to the committed fixture — the byte-determinism claim is broken (reconcile the fixture, the " +
+            "generator and the engine pin together)",
+        )
+      }
+    } finally {
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  }
+  return extras
+}
+
+/** Run the takeoff sub-expectation of one corpus case against the REAL bridge (16-V). */
+async function runTakeoffChecks(
+  c: CorpusCase,
+  fixturePath: string,
+  report: Pick<HarnessReport, "engineVersions" | "adapterHashes">,
+): Promise<DisciplineCaseResult> {
+  const adapter = c.adapter as TakeoffAdapter
+  const block = (adapter === "sheet" ? c.sheet : c.dxf) as TakeoffExpectation
+  const r: DisciplineCaseResult = {
+    adapter,
+    expect: block.expect,
+    status: "fail",
+    determinism: null,
+    comparisons: [],
+    problems: [],
+  }
+
+  if (block.expect === "error") {
+    const runs = block.runs ?? [{ parameters: {} }]
+    r.errorContains = block.errorContains
+    for (const run of runs) {
+      let caught: unknown
+      try {
+        if (adapter === "sheet") {
+          await sheetTakeoffFromStorage(
+            fixturePath,
+            (run.parameters ?? {}) as { pageNo?: number; scaleMmPerPt?: number; flattenSegments?: number },
+          )
+        } else {
+          await dxfTakeoffFromStorage(fixturePath, (run.parameters ?? {}) as { layerFilter?: string[] })
+        }
+      } catch (err) {
+        caught = err
+      }
+      if (caught === undefined) {
+        r.problems.push(
+          `expected the ${adapter} takeoff bridge to throw an EngineUnavailableError containing ${JSON.stringify(block.errorContains)}, but the run succeeded`,
+        )
+      } else if (!(caught instanceof EngineUnavailableError)) {
+        r.problems.push(
+          `expected an EngineUnavailableError containing ${JSON.stringify(block.errorContains)}, got ${typeof caught === "object" && caught !== null ? (caught as Error).constructor.name : typeof caught}: ${String(caught)}`,
+        )
+      } else {
+        r.errorObserved = caught.message
+        if (!caught.message.includes(block.errorContains ?? "")) {
+          r.problems.push(
+            `error message does not contain the pinned substring ${JSON.stringify(block.errorContains)}: ${caught.message}`,
+          )
+        }
+      }
+    }
+    r.status = r.problems.length === 0 ? "pass" : "fail"
+    return r
+  }
+
+  // expect === "success": every run executes TWICE; the adapter RESULT payload
+  // (the exact object the broker would store) must be byte-identical across
+  // the two runs — the §2 document builder lands with the TL's broker
+  // integration, so the result payload is the honest determinism unit here.
+  const extras = takeoffCaseExtras(c, fixturePath, block, r.problems)
+  let determinismAll = true
+  let engineRecorded = false
+  for (const [runIndex, run] of (block.runs ?? []).entries()) {
+    const call = () =>
+      adapter === "sheet"
+        ? sheetTakeoffFromStorage(
+            fixturePath,
+            (run.parameters ?? {}) as { pageNo?: number; scaleMmPerPt?: number; flattenSegments?: number },
+          )
+        : dxfTakeoffFromStorage(fixturePath, (run.parameters ?? {}) as { layerFilter?: string[] })
+    let first: SheetTakeoffResult | DxfTakeoffResult
+    let second: SheetTakeoffResult | DxfTakeoffResult
+    try {
+      first = await call()
+      second = await call()
+    } catch (err) {
+      r.problems.push(
+        `expected a successful ${adapter} takeoff run but the bridge threw: ${err instanceof EngineUnavailableError ? err.message : String(err)}`,
+      )
+      r.status = "fail"
+      return r
+    }
+    if (!engineRecorded) {
+      engineRecorded = true
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+    }
+    const runDeterministic = JSON.stringify(first) === JSON.stringify(second)
+    if (!runDeterministic) {
+      determinismAll = false
+      r.problems.push(
+        `run ${runIndex} (parameters ${JSON.stringify(run.parameters ?? {})}): two consecutive real runs produced different adapter result JSON — vector takeoff is not byte-deterministic`,
+      )
+    }
+    for (const pin of run.pins ?? []) {
+      const observed =
+        adapter === "sheet"
+          ? sheetTakeoffObserved(first as SheetTakeoffResult, pin, extras)
+          : dxfTakeoffObserved(first as DxfTakeoffResult, pin, extras)
+      r.comparisons.push(compareDisciplinePin(pin, observed))
+    }
+  }
+  r.determinism = determinismAll
+  pushDisciplineProblems(r)
+  r.status = r.problems.length === 0 ? "pass" : "fail"
+  return r
+}
+
+// ---------------------------------------------------------------------------
+// Parametric checks (16-P — Slice 15 parametric-authoring lane; the REAL
+// cadquery bridge over the committed parametric model fixture, hand-derived
+// analytic pins from the model's closed forms, per-run double-execution with
+// GEOMETRY-PROPERTY determinism — never STEP-byte determinism)
+// ---------------------------------------------------------------------------
+
+function parametricIsSchemaResult(r: ParametricSchemaResult | ParametricBuildResult): r is ParametricSchemaResult {
+  return "schema" in r && "defaults" in r
+}
+
+/**
+ * The build-run determinism signature (16-R3 finding, pinned): OCCT stamps an
+ * export timestamp into the STEP FILE_NAME header and a per-export counter
+ * into PRODUCT(...), so identical parameters NEVER give byte-identical STEPs —
+ * byte-comparing the artifact would be a dishonest determinism claim.
+ * The signature is therefore the GEOMETRY PROPERTIES (volumeMm3, areaMm2,
+ * bboxMm, centerOfMassMm, checks) plus the stable envelope fields, compared
+ * for EXACT equality; `stepBytes` is deliberately absent.
+ */
+function parametricBuildSignature(r: ParametricBuildResult): Record<string, unknown> {
+  return {
+    engineKey: r.engineKey,
+    engineVersion: r.engineVersion,
+    adapterScript: r.adapterScript,
+    adapterHash: r.adapterHash,
+    modelScriptHash: r.modelScriptHash,
+    paramsUsed: r.paramsUsed,
+    volumeMm3: r.volumeMm3,
+    areaMm2: r.areaMm2,
+    bboxMm: r.bboxMm,
+    centerOfMassMm: r.centerOfMassMm,
+    checks: r.checks,
+  }
+}
+
+/** Resolve a pin's observed value on a parametric schema/build result (16-P fields). */
+function parametricObserved(r: ParametricSchemaResult | ParametricBuildResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "adapterScript":
+      return r.adapterScript
+    case "adapterHash":
+      return r.adapterHash
+    case "modelScriptHash":
+      return r.modelScriptHash
+    default:
+      break
+  }
+  if (parametricIsSchemaResult(r)) {
+    switch (pin.field) {
+      case "schemaKeysCount": {
+        const schema = r.schema as Record<string, unknown>
+        const props = schema?.properties
+        return isPlainObject(props) ? Object.keys(props).length : undefined
+      }
+      case "defaultsCount":
+        return Object.keys(r.defaults).length
+      default:
+        return undefined
+    }
+  }
+  switch (pin.field) {
+    case "paramVolumeMm3":
+      return r.volumeMm3
+    case "paramAreaMm2":
+      return r.areaMm2
+    case "paramBboxW":
+      return r.bboxMm[0]
+    case "paramBboxD":
+      return r.bboxMm[1]
+    case "paramBboxH":
+      return r.bboxMm[2]
+    case "paramChecksRelErr":
+      return r.checks.volumeRelErr
+    case "paramChecksPassed":
+      return r.checks.passed
+    case "paramKeys":
+      return Object.keys(r.paramsUsed).sort().join(",")
+    case "paramCount":
+      return Object.keys(r.paramsUsed).length
+    default:
+      return undefined
+  }
+}
+
+/** Run the parametric sub-expectation of one corpus case against the REAL bridge (16-P). */
+async function runParametricChecks(
+  c: CorpusCase,
+  fixturePath: string,
+  report: Pick<HarnessReport, "engineVersions" | "adapterHashes">,
+): Promise<DisciplineCaseResult> {
+  const block = c.parametric as ParametricExpectation
+  const r: DisciplineCaseResult = {
+    adapter: "parametric",
+    expect: block.expect,
+    status: "fail",
+    determinism: null,
+    comparisons: [],
+    problems: [],
+  }
+
+  if (block.expect === "error") {
+    // each error run pins its OWN refusal substring (a parametric error case
+    // may exercise several DISTINCT refusal shapes); the optional block-level
+    // substring must appear in every message too
+    r.errorContains = block.errorContains
+    const observed: string[] = []
+    for (const [runIndex, run] of (block.runs ?? []).entries()) {
+      let caught: unknown
+      try {
+        if (run.mode === "schema") {
+          await parametricSchemaFromStorage(fixturePath)
+        } else {
+          await parametricRebuildFromStorage(fixturePath, run.parameters ?? {})
+        }
+      } catch (err) {
+        caught = err
+      }
+      if (caught === undefined) {
+        r.problems.push(
+          `run ${runIndex} (mode ${run.mode}, parameters ${JSON.stringify(run.parameters ?? {})}): expected the parametric bridge to throw an EngineUnavailableError containing ${JSON.stringify(run.errorContains)}, but the run succeeded`,
+        )
+        continue
+      }
+      if (!(caught instanceof EngineUnavailableError)) {
+        r.problems.push(
+          `run ${runIndex}: expected an EngineUnavailableError containing ${JSON.stringify(run.errorContains)}, got ${typeof caught === "object" && caught !== null ? (caught as Error).constructor.name : typeof caught}: ${String(caught)}`,
+        )
+        continue
+      }
+      observed.push(caught.message)
+      if (!caught.message.includes(run.errorContains ?? "")) {
+        r.problems.push(
+          `run ${runIndex} refusal message does not contain the pinned substring ${JSON.stringify(run.errorContains)}: ${caught.message}`,
+        )
+      }
+      if (block.errorContains !== undefined && !caught.message.includes(block.errorContains)) {
+        r.problems.push(
+          `run ${runIndex} refusal message does not contain the block-level substring ${JSON.stringify(block.errorContains)}: ${caught.message}`,
+        )
+      }
+    }
+    if (observed.length > 0) r.errorObserved = observed.join(" | ")
+    r.status = r.problems.length === 0 ? "pass" : "fail"
+    return r
+  }
+
+  // expect === "success": every run executes TWICE. Schema runs are plain
+  // JSON — byte-identity across the two runs; build runs compare the
+  // GEOMETRY-PROPERTY signature (the 16-R3 OCCT-timestamp finding — the STEP
+  // bytes are never compared, see parametricBuildSignature).
+  let determinismAll = true
+  let engineRecorded = false
+  for (const [runIndex, run] of (block.runs ?? []).entries()) {
+    const call = () =>
+      run.mode === "schema"
+        ? parametricSchemaFromStorage(fixturePath)
+        : parametricRebuildFromStorage(fixturePath, run.parameters ?? {})
+    let first: ParametricSchemaResult | ParametricBuildResult
+    let second: ParametricSchemaResult | ParametricBuildResult
+    try {
+      first = await call()
+      second = await call()
+    } catch (err) {
+      r.problems.push(
+        `run ${runIndex} (mode ${run.mode}, parameters ${JSON.stringify(run.parameters ?? {})}): expected a successful parametric run but the bridge threw: ${err instanceof EngineUnavailableError ? err.message : String(err)}`,
+      )
+      r.status = "fail"
+      return r
+    }
+    if (!engineRecorded) {
+      engineRecorded = true
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+    }
+    const runDeterministic =
+      run.mode === "schema"
+        ? JSON.stringify(first) === JSON.stringify(second)
+        : JSON.stringify(parametricBuildSignature(first as ParametricBuildResult)) ===
+          JSON.stringify(parametricBuildSignature(second as ParametricBuildResult))
+    if (!runDeterministic) {
+      determinismAll = false
+      r.problems.push(
+        `run ${runIndex} (mode ${run.mode}, parameters ${JSON.stringify(run.parameters ?? {})}): two consecutive real runs produced different ${run.mode === "schema" ? "schema JSON" : "geometry properties (volume/area/bbox/centerOfMass/checks)"} — the parametric rebuild is not deterministic`,
+      )
+    }
+    for (const pin of run.pins ?? []) {
+      r.comparisons.push(compareDisciplinePin(pin, parametricObserved(first, pin)))
+    }
+  }
+  r.determinism = determinismAll
+  pushDisciplineProblems(r)
+  r.status = r.problems.length === 0 ? "pass" : "fail"
+  return r
+}
+
+// ---------------------------------------------------------------------------
 // The harness
 // ---------------------------------------------------------------------------
 
@@ -1792,9 +2697,21 @@ export async function runHarness(): Promise<HarnessReport> {
         des: probeEngine("des"),
         cpm: probeEngine("cpm"),
         libreoffice: probeEngine("libreoffice"),
+        sheet: probeEngine("sheet"),
+        dxf: probeEngine("dxf"),
+        parametric: probeEngine("parametric"),
       },
     },
-    engineVersions: { cadquery: null, ifcopenshell: null, gmsh: null, pandapower: null, simpy: null, libreoffice: null },
+    engineVersions: {
+      cadquery: null,
+      ifcopenshell: null,
+      gmsh: null,
+      pandapower: null,
+      simpy: null,
+      libreoffice: null,
+      pdfplumber: null,
+      ezdxf: null,
+    },
     adapterHashes: {
       "step_quantities.py": null,
       "ifc_quantities.py": null,
@@ -1804,6 +2721,9 @@ export async function runHarness(): Promise<HarnessReport> {
       "powerflow.py": null,
       "des.py": null,
       "convert-document.ts": null,
+      "sheet_takeoff.py": null,
+      "dxf_takeoff.py": null,
+      "parametric_rebuild.py": null,
     },
     cases: [],
     summary: { total: manifest.length, pass: 0, fail: 0, skip: 0, ran: 0, notRun: false },

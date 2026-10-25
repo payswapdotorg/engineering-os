@@ -12,7 +12,7 @@
  *  - nothing is applied optimistically: success closes the dialog and the
  *    caller refetches.
  */
-import { Boxes, Info, Plus, Trash2 } from "lucide-react"
+import { Boxes, DraftingCompass, Info, Plus, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -23,6 +23,7 @@ import {
   createQuantity,
   createRate,
   deriveQuantities,
+  runVectorTakeoff,
   type ArtifactListItem,
   type AssemblyComponentInput,
   type AssemblyRow,
@@ -32,6 +33,7 @@ import {
   type RateCreateInput,
 } from "@/components/product/api"
 import { KindBadge } from "@/components/product/badges"
+import { GuardedButton } from "@/components/product/guarded-button"
 import { EmptyState, ErrorState, InfoNote, RowSkeleton } from "@/components/product/parts"
 import { deriveKind } from "@/engines/adapters/derive-kind"
 import {
@@ -1394,6 +1396,138 @@ export function SupersedeEstimateDialog({
             Supersede estimate
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+
+// ---------------------------------------------------------------------------
+// Vector takeoff (Slice 15, roadmap-gap-audit item 1) — REAL vector extraction
+// ---------------------------------------------------------------------------
+
+/**
+ * Candidate source kinds for vector takeoff: PDF sheets (drawn path operators
+ * through pdfplumber) and DXF drawings (per-layer geometry through ezdxf).
+ * DWG rows are listed with an honest note — the op refuses them with the
+ * documented converter guidance (no open CI-pinnable DWG path exists).
+ */
+function vectorTakeoffSignal(a: ArtifactListItem): "sheet" | "drawing" | "dwg" | null {
+  if (a.latestRevision === null) return null
+  const name = a.name.toLowerCase()
+  const mime = a.latestRevision.mimeType ?? ""
+  if (name.endsWith(".dwg") || mime === "image/vnd.dwg") return "dwg"
+  if (name.endsWith(".dxf") || mime === "image/vnd.dxf" || mime === "application/dxf") return "drawing"
+  if (name.endsWith(".pdf") || mime === "application/pdf") return "sheet"
+  return null
+}
+
+export function VectorTakeoffDialog({
+  projectId,
+  artifacts,
+  open,
+  onOpenChange,
+  onExtracted,
+}: {
+  projectId: string
+  artifacts: ArtifactSourceState
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onExtracted: () => void
+}) {
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const candidates = artifacts.rows
+    .map((a) => ({ artifact: a, signal: vectorTakeoffSignal(a) }))
+    .filter((entry): entry is { artifact: ArtifactListItem; signal: "sheet" | "drawing" | "dwg" } => entry.signal !== null)
+
+  const run = async (artifact: ArtifactListItem) => {
+    if (busyId !== null) return
+    setBusyId(artifact.id)
+    try {
+      const data = await runVectorTakeoff(projectId, artifact.id)
+      const t = data.takeoff
+      const measures =
+        t.layerCount !== undefined
+          ? `${t.layerCount} layer${t.layerCount === 1 ? "" : "s"} · ${t.entityCount ?? 0} entities`
+          : `p${t.pageNo ?? 1}: ${t.lineCount ?? 0} lines · ${t.rectCount ?? 0} rects · ${t.curveCount ?? 0} curves · ${t.textCount ?? 0} text spans`
+      toast.success(
+        `Vector takeoff of "${artifact.name}" — ${measures} (saved as "${t.name}" r${t.revisionNumber ?? "?"}, draft analysis)`,
+      )
+      onOpenChange(false)
+      onExtracted()
+    } catch (err) {
+      // 422s (raster-only page, no calibration, DWG, non-PDF/non-DXF) surface verbatim.
+      toast.error(err instanceof Error ? err.message : "Vector takeoff failed")
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <DraftingCompass aria-hidden className="size-4" /> Vector takeoff
+          </DialogTitle>
+          <DialogDescription>
+            Extract real vector geometry — PDF sheets read their drawn path operators (exact
+            coordinates, no click noise); DXF drawings read per-layer line work with exact arc and
+            circle math. The extraction is saved as a draft analysis artifact linked to its source;
+            record quantities from it through the ledger as you review. Raster-only scans and DWG
+            files are refused honestly.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          {candidates.length === 0 ? (
+            <EmptyState
+              icon={DraftingCompass}
+              title="No vector sources in this project"
+              description="Register a PDF sheet or a DXF drawing first. Vector takeoff reads the real drawn geometry — scans without vector content are refused, never simulated."
+            />
+          ) : (
+            <div className="eos-scroll flex max-h-72 flex-col gap-2 overflow-auto">
+              {candidates.map(({ artifact, signal }) => (
+                <div
+                  key={artifact.id}
+                  className="flex items-center gap-3 rounded-lg border p-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{artifact.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {signal === "sheet"
+                        ? "PDF sheet — scale from the saved calibration (or pass one explicitly)"
+                        : signal === "drawing"
+                          ? "DXF drawing — declared mm units, per-layer"
+                          : "DWG — refused honestly: convert to DXF first (ODA File Converter / LibreDWG)"}
+                    </p>
+                  </div>
+                  <KindBadge kind={artifact.kind} />
+                  <GuardedButton
+                    size="sm"
+                    className="h-8"
+                    disabled={busyId !== null || signal === "dwg"}
+                    title={
+                      signal === "dwg"
+                        ? "DWG is not supported for vector takeoff — convert the drawing to DXF first"
+                        : "Run the real vector extraction through the broker"
+                    }
+                    onClick={() => void run(artifact)}
+                  >
+                    {busyId === artifact.id ? "Extracting…" : "Extract"}
+                  </GuardedButton>
+                </div>
+              ))}
+            </div>
+          )}
+          <InfoNote>
+            Sheet scale resolution: an explicit value wins; otherwise the revision&apos;s saved
+            Sheet Measure calibration is used; otherwise the op refuses and asks you to calibrate
+            first. Click calibrations carry the recorded ~0.35% browser bias — the extraction
+            provenance records which scale produced the numbers.
+          </InfoNote>
+        </div>
       </DialogContent>
     </Dialog>
   )
