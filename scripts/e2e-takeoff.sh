@@ -785,6 +785,80 @@ assert_eq "AC-VT-09k: unauthenticated OCR read refused (401 envelope)" "401" "$S
 # The e2e transcript markup is cleaned with the rest of the probe dataset at
 # the suite end (dev-db-cleanup); the LEDGER rows are untouched by it (a
 # text-hits markup writes NO ledger row — text is evidence, not a quantity).
+
+# ===========================================================================
+# AC-FR-01 (Slice 16-D, known-limitation #9 e2e pin): future-dated rates are
+# honest evidence — a line priced by a future-dated rate carries the additive
+# futureDatedRate: true marker (the UI's amber-chip source), and an
+# already-effective rate added later WINS the deterministic preference order.
+# Uses its own probe assembly + probe estimate (the demo estimate's pinned
+# math is untouched); the probe estimate stays draft (approved-selection
+# regression markers elsewhere only ever select approved estimates).
+# ===========================================================================
+cat > "$WORK/fr-assembly.json" <<'EOF'
+{
+  "name": "Future-rate probe",
+  "trade": "Probes",
+  "components": [
+    { "id": "frp-material", "kind": "material", "name": "Probe material", "quantityPerUnit": 1, "unit": "m²" }
+  ]
+}
+EOF
+jpost "/api/projects/$PID/assemblies" "$WORK/fr-assembly.json"
+FR_ASM_ID=$(j "$BODY" '.data.assembly.id')
+assert_eq "AC-FR-01a: probe assembly created (1 component, no waste/productivity factors)" \
+  "201|Future-rate probe|1" "$STATUS|$(j "$BODY" '.data.assembly.name')|$(j "$BODY" '.data.assembly.components | length')"
+
+cat > "$WORK/fr-rate-future.json" <<'EOF'
+{ "componentId": "frp-material", "currency": "GHS", "unitPrice": 100.0, "source": "price-book", "effectiveFrom": "2099-01-01T00:00:00.000Z" }
+EOF
+jpost "/api/projects/$PID/rates" "$WORK/fr-rate-future.json"
+FR_RATE_FUTURE=$(j "$BODY" '.data.rate.id')
+assert_eq "AC-FR-01b: engineer records a FUTURE-dated rate (effectiveFrom 2099, the only candidate for its component)" \
+  "201|2099" "$STATUS|$(j "$BODY" '.data.rate.effectiveFrom' | cut -c1-4)"
+
+cat > "$WORK/fr-estimate.json" <<'EOF'
+{ "name": "Future-dated rate probe", "currency": "GHS", "overheadPct": 0, "profitPct": 0, "taxPct": 0 }
+EOF
+jpost "/api/projects/$PID/estimates" "$WORK/fr-estimate.json"
+FR_EST_ID=$(j "$BODY" '.data.estimate.id')
+assert_eq "AC-FR-01c: probe estimate created (draft, GHS, zero overhead/profit/tax so line math is bare)" \
+  "201|draft" "$STATUS|$(j "$BODY" '.data.estimate.status')"
+
+cat > "$WORK/fr-line1.json" <<EOF
+{ "quantityId": "$Q1", "assemblyId": "$FR_ASM_ID" }
+EOF
+jpost "/api/estimates/$FR_EST_ID/lines" "$WORK/fr-line1.json"
+assert_eq "AC-FR-01d: line priced by the FUTURE-only rate: breakdown carries futureDatedRate true (additive evidence, price still computed — 46.2 m² × GHS 100 = 4620) and rateIds pins the exact rate used" \
+  "201|true|100|4620" \
+  "$STATUS|$(j "$BODY" '.data.estimate.lines[0].breakdown[0].futureDatedRate')|$(j "$BODY" '.data.estimate.lines[0].breakdown[0].unitPrice')|$(j "$BODY" '.data.estimate.lines[0].breakdown[0].cost')"
+assert_eq "AC-FR-01e: the line's rateIds is the future rate (an engineer can always see WHICH rate id priced it — never silent)" \
+  "$FR_RATE_FUTURE" "$(j "$BODY" '.data.estimate.lines[0].rateIds[0]')"
+
+http GET "/api/projects/$PID/estimates"
+FR_ROUND=$(j "$BODY" "[.data.estimates[] | select(.id == \"$FR_EST_ID\")][0].id")
+FR_FLAGGED=$(j "$BODY" "[.data.estimates[] | select(.id == \"$FR_EST_ID\")][0].lines | map(select(.breakdown | map(.futureDatedRate == true) | any)) | length")
+assert_eq "AC-FR-01f: GET round-trip — the amber-chip data source persists (the flagged line reads back flagged)" \
+  "$FR_EST_ID|1" "$FR_ROUND|$FR_FLAGGED"
+
+cat > "$WORK/fr-rate-effective.json" <<'EOF'
+{ "componentId": "frp-material", "currency": "GHS", "unitPrice": 120.0, "source": "contract" }
+EOF
+jpost "/api/projects/$PID/rates" "$WORK/fr-rate-effective.json"
+FR_RATE_NOW=$(j "$BODY" '.data.rate.id')
+assert_eq "AC-FR-01g: an ALREADY-EFFECTIVE rate recorded afterwards (no effectiveFrom — effective now, newest createdAt)" \
+  "201|null" "$STATUS|$(j "$BODY" '.data.rate.effectiveFrom')"
+
+cat > "$WORK/fr-line2.json" <<EOF
+{ "quantityId": "$Q1", "assemblyId": "$FR_ASM_ID" }
+EOF
+jpost "/api/estimates/$FR_EST_ID/lines" "$WORK/fr-line2.json"
+assert_eq "AC-FR-01h: deterministic preference order pinned: already-effective beats future-dated even when the future rate is older — line 2 prices at GHS 120 (46.2 × 120 = 5544), NO futureDatedRate marker, rateIds = the effective rate" \
+  "null|120|5544" \
+  "$(j "$BODY" '.data.estimate.lines[1].breakdown[0].futureDatedRate')|$(j "$BODY" '.data.estimate.lines[1].breakdown[0].unitPrice')|$(j "$BODY" '.data.estimate.lines[1].breakdown[0].cost')"
+assert_eq "AC-FR-01i: line 2's rateIds is the effective rate (the preference is visible, not implied)" \
+  "$FR_RATE_NOW" "$(j "$BODY" '.data.estimate.lines[1].rateIds[0]')"
+
 echo
 echo "== e2e-takeoff.sh: $PASS PASS / $FAIL FAIL =="
 if [[ "$FAIL" -ne 0 ]]; then exit 1; fi

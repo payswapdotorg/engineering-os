@@ -109,8 +109,17 @@ function isUniqueViolation(err: unknown): boolean {
 // Internals: state-machine guard, sleep, run chain
 // ---------------------------------------------------------------------------
 
-/** Rows in `running` older than this are orphaned (server restart / executor death). */
-const RECOVERY_CUTOFF_MS = 5 * 60 * 1000
+/**
+ * Rows in `running` older than this are orphaned (server restart / executor
+ * death). Default 5 minutes; `EOS_RECOVERY_CUTOFF_MS` overrides it for drills
+ * and runbooks (the EOS_PYTHON/EOS_TESSERACT convention — read once at module
+ * load, invalid/absent values fall back to the default; a floor of 1000ms
+ * keeps the scan from racing its own row writes).
+ */
+const RECOVERY_CUTOFF_MS = (() => {
+  const raw = Number.parseInt(process.env.EOS_RECOVERY_CUTOFF_MS ?? "", 10)
+  return Number.isFinite(raw) && raw >= 1000 ? raw : 5 * 60 * 1000
+})()
 
 /** stepId recorded in workflow.failure for executor-level failures (no step row involved). */
 const EXECUTOR_STEP_ID = "executor"

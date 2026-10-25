@@ -21,8 +21,9 @@
 #            ledger row, exactly ONE estimate.recomputed event, 422 gates
 #   AC-P5-07 single execution path: workflow definitions accept the five new
 #            broker ops (vocabulary sync); regression marker (demo export 200)
-#   AC-P5-08 registry validation fields served by /api/engines for all four
-#            Phase-5 engines
+#   AC-P5-08 registry validation fields served by /api/engines for all
+#            harness-validated engines (the four Phase-5 engines + the three
+#            Slice-15/16 takeoff engines added by the 16-D reconciliation)
 #
 # Runs LAST of the five scripts. Probe project "P5 Disciplines Probe" is
 # removed on success (KEPT on failure for forensics). Final line
@@ -387,11 +388,17 @@ assert_eq "workflow definitions accept the five new broker ops (fe_mesh parses; 
 
 # ===========================================================================
 # AC-P5-08 — registry validation fields served by /api/engines
+# (Slice 16-D reconciliation: every harness-validated engine carries BOTH
+# state "tested" AND its validation block; pdfplumber/ezdxf/tesseract joined
+# the registry with machine-verified upstreams 2026-10-25)
 # ===========================================================================
 http GET /api/engines
-assert_eq "/api/engines serves harness validation fields for all four Phase-5 engines (gmsh/pandapower/simpy/libreoffice; cases 4/2/2/1)" \
-  "pass|pass|pass|pass|4|2|2|1" \
-  "$(j "$BODY" '[.data.registry[] | select(.key == "gmsh")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "pandapower")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "simpy")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "libreoffice")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "gmsh")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "pandapower")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "simpy")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "libreoffice")][0].validation.cases')"
+assert_eq "/api/engines serves harness validation fields for the seven 16-D-reconciled engines (gmsh/pandapower/simpy/libreoffice/pdfplumber/ezdxf/tesseract; cases 4/2/2/1/3/1/1)" \
+  "pass|pass|pass|pass|pass|pass|pass|4|2|2|1|3|1|1" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "gmsh")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "pandapower")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "simpy")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "libreoffice")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "pdfplumber")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "ezdxf")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "tesseract")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "gmsh")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "pandapower")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "simpy")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "libreoffice")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "pdfplumber")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "ezdxf")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "tesseract")][0].validation.cases')"
+assert_eq "Slice 16-D reconciliation: exactly the nine harness-validated engines (cadquery/ifcopenshell + gmsh/pandapower/simpy/libreoffice + pdfplumber/ezdxf/tesseract) carry state 'tested', registry total 38 (35 audited + three takeoff engines added 2026-10-25)" \
+  "9|9|38" \
+  "$(j "$BODY" '[.data.registry[] | select(.state == "tested")] | length')|$(j "$BODY" '[.data.registry[] | select(.state == "tested" and (.key == "gmsh" or .key == "pandapower" or .key == "simpy" or .key == "libreoffice" or .key == "pdfplumber" or .key == "ezdxf" or .key == "tesseract" or .key == "cadquery" or .key == "ifcopenshell"))] | length')|$(j "$BODY" '.data.registry | length')"
 
 # ===========================================================================
 # AC-P5-09 — regression marker (byte-stability of untouched routes is proven by

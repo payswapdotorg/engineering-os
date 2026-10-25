@@ -185,9 +185,17 @@ export default function EnginesPage() {
       <Card>
         <CardContent className="p-4">
           <p className="text-sm text-muted-foreground">
-            No engines are installed on this host. The registry is a source-verified plan
-            (ADR-0005); adapters execute from Phase 2. “Run discovery” probes your actual PATH and
-            python environment and stores the result — it never fabricates an install.
+            {(() => {
+              const probed = Object.values(probes)
+              const installed = probed.filter((p) => p?.state === "installed").length
+              const tested = registry.filter((e) => e.state === "tested").length
+              return probed.length > 0 && installed > 0
+                ? `${installed} of ${registry.length} registry engines detected installed on this host (real PATH / python-module probes — never fabricated). ${tested} carry state "tested": a harness-validated adapter driving real broker operations.`
+                : `No engines detected installed on this host${probed.length > 0 ? " (probed honestly)" : " (not probed yet)"} — an uninstalled engine is reported as-is, never faked. ${tested} of ${registry.length} carry state "tested" (harness-validated adapters).`
+            })()}
+            {" "}"Run discovery" probes your actual PATH and python environment and stores the
+            result; "planned" means no integrated adapter exists yet — installation alone
+            never marks a capability complete (ADR-0005).
           </p>
         </CardContent>
       </Card>

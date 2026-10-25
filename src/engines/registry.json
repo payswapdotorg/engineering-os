@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run \u2014 via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters \u2014 model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json \u2014 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) \u2014 see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py \u2192 eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) \u2014 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index \u2014 both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod.",
+  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run \u2014 via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters \u2014 model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json \u2014 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) \u2014 see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py \u2192 eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) \u2014 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index \u2014 both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod. Update 2026-10-25 (Slice 16-D, registry state-vocabulary reconciliation \u2014 closes roadmap-gap-audit finding #15): every engine with a harness-validated adapter driving real broker operations now carries state 'tested' \u2014 gmsh (fe-mesh), pandapower (power flow), simpy (DES), libreoffice (headless document conversion) join cadquery and ifcopenshell; the three Slice-15/16 takeoff engines were ADDED with machine-verified upstreams (pdfplumber, ezdxf, tesseract \u2014 github-api license + PyPI/releases version checks, 2026-10-25). 'planned' now means exactly: no integrated adapter yet, regardless of installation state.",
   "engines": [
     {
       "key": "freecad",
@@ -76,12 +76,12 @@
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 5,
-        "lastRun": "2026-10-21",
+        "lastRun": "2026-10-25",
         "result": "pass",
         "mesh": {
           "harness": "tests/validation/corpus-manifest.json (mesh blocks)",
           "cases": 4,
-          "lastRun": "2026-10-21",
+          "lastRun": "2026-10-25",
           "result": "pass",
           "note": "2 tessellation success cases (two-solids.step 2\u00d724v/12t planar-exact volumes; cylinder-solid.step 506v/500t at 0.0414% on the curved surface) + 2 honest-error probes (0-solid STEP, non-model file)"
         }
@@ -246,12 +246,12 @@
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 6,
-        "lastRun": "2026-10-21",
+        "lastRun": "2026-10-25",
         "result": "pass",
         "mesh": {
           "harness": "tests/validation/corpus-manifest.json (mesh blocks)",
           "cases": 5,
-          "lastRun": "2026-10-21",
+          "lastRun": "2026-10-25",
           "result": "pass",
           "note": "3 tessellation success cases (two-elements.ifc 3\u00d78v/12t planar-exact volumes; wall-geometry.ifc 8v/12t exact; cylinder-geometry.ifc 90v/176t at 0.3246% on the curved column) + 2 honest-error probes (geometry-free IFC, non-model file)"
         }
@@ -503,6 +503,135 @@
       ]
     },
     {
+      "key": "pdfplumber",
+      "name": "pdfplumber",
+      "domain": "takeoff",
+      "description": "Python library for extracting drawn vector operators (lines, rects, curves with exact coordinates), embedded text and tables from PDF pages; powers sheet takeoff on vector drawings.",
+      "upstream": {
+        "canonical": "https://github.com/jsvine/pdfplumber",
+        "repo": "jsvine/pdfplumber",
+        "licenseSpdx": "MIT",
+        "latestStable": "0.11.10",
+        "verified": true,
+        "verifiedAt": "2026-10-25",
+        "verifiedMethod": "github-api /repos/jsvine/pdfplumber (license MIT) + PyPI JSON /pypi/pdfplumber/json (0.11.10, MIT classifier) \u2014 2026-10-25 machine-verified during the Slice-16 registry reconciliation"
+      },
+      "integration": {
+        "mechanisms": [
+          "python-module"
+        ],
+        "notes": "REAL ADAPTER (Slice 15, 2026-10-25): src/engines/adapters/sheet_takeoff.py walks the DRAWN path operators (lines/rects/curves, curve control points via the pdfminer pathset with pinned N=32 flattening) plus the embedded text layer \u2014 vector sheets need no OCR. Bridge: the takeoff_sheet broker op persists a byte-deterministic eos-vector-takeoff/1 document. Raster-only pages are refused verbatim (never simulated)."
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "pdfplumber",
+          "moduleVersionExpr": "import pdfplumber; print(pdfplumber.__version__)"
+        }
+      ],
+      "state": "tested",
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 3,
+        "lastRun": "2026-10-25",
+        "result": "pass",
+        "note": "sheet-vector-plan (18 pins incl. per-entity locators), sheet-vector-curve (quarter-arc pi*r/2 at pinned flattening, rel 4.0e-5), sheet-vector-refusal (verbatim raster refusal)"
+      },
+      "limitations": [
+        "Pinned at 0.11.10 in tests/validation/engines-requirements.txt \u2014 the wheel's internal pdfminer lineage reports its own version string; upgrades re-pin with the harness",
+        "Vector PDFs only: a raster-only page is refused with the pinned message (no OCR on this path \u2014 the Sheet Measure OCR tool covers raster regions)",
+        "Curve lengths use the pinned N=32 flattening \u2014 the tolerance policy quantifies, never hides, the discretization"
+      ]
+    },
+    {
+      "key": "ezdxf",
+      "name": "ezdxf",
+      "domain": "takeoff",
+      "description": "Python library for reading/writing DXF drawings; per-layer entity math (exact arc + circle lengths/areas, declared-mm units) powers DXF takeoff.",
+      "upstream": {
+        "canonical": "https://github.com/mozman/ezdxf",
+        "repo": "mozman/ezdxf",
+        "licenseSpdx": "MIT",
+        "latestStable": "1.4.5",
+        "verified": true,
+        "verifiedAt": "2026-10-25",
+        "verifiedMethod": "github-api /repos/mozman/ezdxf (license MIT) + PyPI JSON /pypi/ezdxf/json (1.4.5, MIT classifier) \u2014 2026-10-25 machine-verified during the Slice-16 registry reconciliation"
+      },
+      "integration": {
+        "mechanisms": [
+          "python-module"
+        ],
+        "notes": "REAL ADAPTER (Slice 15, 2026-10-25): src/engines/adapters/dxf_takeoff.py extracts per-layer counts/lengths/areas with EXACT arc + circle math (declared-mm units only). Bridge: the takeoff_drawing broker op persists a byte-deterministic eos-vector-takeoff/1 document. DWG is refused with the pinned converter guidance (ODA/LibreDWG) \u2014 no open CI-pinnable path exists."
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "ezdxf",
+          "moduleVersionExpr": "import ezdxf; print(ezdxf.__version__)"
+        }
+      ],
+      "state": "tested",
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 1,
+        "lastRun": "2026-10-25",
+        "result": "pass",
+        "note": "dxf-takeoff-room (13 pins incl. the byte-identical regen probe; WALLS 14 000 mm / 12 000 000 mm^2, DIM 2000+900*pi/2 exact, FURN 2*pi*100)"
+      },
+      "limitations": [
+        "DXF-native only: DWG inputs are refused with the documented operator-conversion boundary (ODA File Converter / LibreDWG)",
+        "Declared-mm units only \u2014 a drawing without a declared unit is refused rather than guessed",
+        "Pinned at 1.4.5 in tests/validation/engines-requirements.txt; upgrades re-pin with the harness"
+      ]
+    },
+    {
+      "key": "tesseract",
+      "name": "Tesseract OCR",
+      "domain": "takeoff",
+      "description": "Apache-2.0 OCR engine (TSV output) reading drawing callout text from operator-picked raster regions; the Sheet Measure OCR tool's engine.",
+      "upstream": {
+        "canonical": "https://github.com/tesseract-ocr/tesseract",
+        "repo": "tesseract-ocr/tesseract",
+        "licenseSpdx": "Apache-2.0",
+        "latestStable": "5.5.3",
+        "verified": true,
+        "verifiedAt": "2026-10-25",
+        "verifiedMethod": "github-api /repos/tesseract-ocr/tesseract (license Apache-2.0) + /releases/latest (5.5.3) \u2014 2026-10-25 machine-verified during the Slice-16 registry reconciliation; the dev host runs the Ubuntu 24.04 package build 5.5.0"
+      },
+      "integration": {
+        "mechanisms": [
+          "cli"
+        ],
+        "notes": "REAL ADAPTER (Slice 16-B, 2026-10-25): src/engines/adapters/sheet_ocr.ts runs the tesseract binary (EOS_TESSERACT-overridable) on the fixed 4x-page-scale PNG region rendered by Sheet Measure, TSV-parsed with confidence floors; the vendored tests/fixtures/tessdata/eng.traineddata pins the model (byte-identical to the ubuntu-24.04 package model) for dev/CI determinism. The \u00d8 glyph is never read natively \u2014 the documented @400\u2192\u00d8400 callout-context normalization always preserves the RAW transcript alongside."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": [
+            "tesseract"
+          ],
+          "versionArgs": [
+            "--version"
+          ],
+          "versionRegex": "tesseract ([0-9][0-9.]*)"
+        }
+      ],
+      "state": "tested",
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 1,
+        "lastRun": "2026-10-25",
+        "result": "pass",
+        "note": "sheet-ocr-callout (9 pins; tesseract 5.5.0; doc byte-determinism)"
+      },
+      "limitations": [
+        "OCR reads raster regions the operator picks \u2014 it never mines the whole sheet silently; the transcript is evidence for a human ledger decision, never an auto-recorded quantity",
+        "The \u00d8 glyph is not in the base eng model: the @400\u2192\u00d8400 normalization is documented callout-context mapping with the raw transcript always preserved (harness-pinned)",
+        "Model determinism requires the vendored eng.traineddata (dev/CI) or a fixed system tessdata \u2014 deployments should pin their OS package version in the runbook",
+        "Low-contrast or rotated text degrades conf floors \u2014 words under the floor are dropped, never guessed"
+      ]
+    },
+    {
       "key": "kicad",
       "name": "KiCad",
       "domain": "ee",
@@ -644,14 +773,14 @@
           "moduleVersionExpr": "import pandapower; print(pandapower.__version__)"
         }
       ],
-      "state": "planned",
+      "state": "tested",
       "limitations": [
         "GitHub license field returned NOASSERTION \u2014 BSD-3-Clause read from repo LICENSE text"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 2,
-        "lastRun": "2026-10-22",
+        "lastRun": "2026-10-25",
         "result": "pass",
         "note": "2-bus lossless closed form V2=0.9999875 at rel 1.2e-5 (10/10 pins incl. losses=0 at 1e-9) + islanded-bus honest refusal"
       }
@@ -837,15 +966,16 @@
           "versionRegex": "([0-9][0-9.]*)"
         }
       ],
-      "state": "planned",
+      "state": "tested",
       "limitations": [
         "GPLv2+ with a linking exception for Netgen/METIS/OpenCASCADE/ParaView \u2014 read upstream LICENSE.txt before any bundling",
-        "Canonical GitLab (onelab) API unreachable from audit host (bot challenge) \u2014 upstream docs used instead; re-verify against pinned tree at Phase 6"
+        "Canonical GitLab (onelab) API unreachable from audit host (bot challenge) \u2014 upstream docs used instead; re-verify against pinned tree at Phase 6",
+        "Registry-probe note (2026-10-25, Slice 16-D): the plain `gmsh --version` invocation fails on a host without libGLU.so.1 on the loader path \u2014 the probe still reports the binary present (installed, version null: presence is the truth); the REAL adapter spawns carry the LD_LIBRARY_PATH bridge to ~/.local/lib/eos-engine-libs (scripts/setup-engine-libs.sh), so the fe_mesh broker op is the authoritative capability proof"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 4,
-        "lastRun": "2026-10-22",
+        "lastRun": "2026-10-25",
         "result": "pass",
         "note": "fe-mesh cases: bracket-solid (1088 v / 3482 tet4, mesh volume within 2% of 36000-960pi \u2014 linear-tet curved-hole bias 0.92%), two-solids planar EXACT at rel 1.4e-15, geometry-free + IFC honest refusals; requires scripts/setup-engine-libs.sh on clean hosts"
       }
@@ -1143,14 +1273,14 @@
           "moduleVersionExpr": "import simpy; print(simpy.__version__)"
         }
       ],
-      "state": "planned",
+      "state": "tested",
       "limitations": [
         "Source host is GitLab (team-simpy/simpy), not GitHub \u2014 npm-style package presence is pip-only"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 2,
-        "lastRun": "2026-10-22",
+        "lastRun": "2026-10-25",
         "result": "pass",
         "note": "deterministic FIFO flow shop: makespan 13 hand-traced (11/11 pins) + unknown-resource honest refusal"
       }
@@ -1265,7 +1395,7 @@
           "versionRegex": "LibreOffice\\s+([0-9][0-9.]+)"
         }
       ],
-      "state": "planned",
+      "state": "tested",
       "limitations": [
         "LICENSE CONFLICT: GitHub mirror COPYING shows GPLv3 text (GitHub license field GPL-3.0) while libreoffice.org states MPL-2.0 OR LGPL-3.0-or-later \u2014 must be resolved against the pinned release tree before bundling/redistribution (ADR-0004)",
         "Mirror carries no GitHub releases/tags; versions published on libreoffice.org"
@@ -1273,7 +1403,7 @@
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 1,
-        "lastRun": "2026-10-22",
+        "lastRun": "2026-10-25",
         "result": "pass",
         "note": "headless fodt->PDF conversion, structural pins (%PDF- magic, size floor); byte-determinism NOT claimed (PDFs embed creation timestamps)"
       }

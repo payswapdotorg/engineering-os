@@ -197,7 +197,7 @@ jobs:
           done
           echo "dev server did not come up"; tail -60 dev.log; exit 1
 
-      - name: "e2e-takeoff (62 PASS expected — Slice 15 vector takeoff +11, AC-VT-01…09)"
+      - name: "e2e-takeoff (71 PASS expected — Slice 15 vector takeoff +11 AC-VT-01…09, Slice 16-D future-dated-rate +9 AC-FR-01)"
         run: |
           set -o pipefail
           bun scripts/dev-db-cleanup.ts --all
@@ -221,7 +221,7 @@ jobs:
           bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
           bash scripts/e2e-p4-workflows.sh 2>&1 | tee /tmp/e2e-p4.log
 
-      - name: e2e-p5-disciplines (47 PASS expected)
+      - name: e2e-p5-disciplines (48 PASS expected — Slice 16-D registry reconciliation +1)
         run: |
           set -o pipefail
           bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
@@ -245,6 +245,15 @@ jobs:
           bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
           bash scripts/e2e-p7-planner.sh 2>&1 | tee /tmp/e2e-p7.log
 
+      # Slice 16-C: the PROCESS-LEVEL recovery drill — runs LAST of the e2e
+      # steps because it takes over port 3000 (SIGKILL + restart cycles), then
+      # restores the canonical server before exiting (the postgres-drill
+      # precedent). 16 PASS expected, pinned.
+      - name: "recovery drill (16 PASS expected — SIGKILL mid-run → recovery-marked → retry succeeds)"
+        run: |
+          set -o pipefail
+          bash scripts/e2e-recovery-drill.sh 2>&1 | tee /tmp/e2e-recovery.log
+
       - name: Upload server + suite logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -252,6 +261,7 @@ jobs:
           name: e2e-logs
           path: |
             dev.log
+            server.log
             /tmp/e2e-*.log
           if-no-files-found: warn
           retention-days: 7
