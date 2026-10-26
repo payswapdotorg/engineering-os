@@ -169,8 +169,16 @@ interface FinishedMeasurement {
   /** Slice 18: committed cutout rings (area-with-cutouts; the rawMm/ledger
    *  above are the NET after every committed cutout). */
   cutouts?: Pt[][],
-  /** Slice 18: the honest gross/cutout/net breakdown in mm² (display only). */
-  breakdown?: { grossMm2: number; cutoutsMm2: number; netMm2: number }
+  /** Slice 18/19: the honest gross/cutout/net breakdown in mm² (display only).
+   * Slice 19 v2: `clipped[i]` true when ring i crosses the boundary (its
+   * subtracted area is the clipped intersection, perCutoutMm2 is that area). */
+  breakdown?: {
+    grossMm2: number
+    cutoutsMm2: number
+    netMm2: number
+    perCutoutMm2?: number[]
+    clipped?: boolean[]
+  }
 }
 
 /** One accepted symbol-scan hit, already mapped back to PDF-point space. */
@@ -1413,10 +1421,12 @@ export function SheetMeasure({
   )
 
   /**
-   * Slice 18: commit the drafted cutout ring to the pending area — the §2.2
-   * core validates the full geometry (strictly inside, no overlap) and the
-   * ledger value becomes the NET. A MeasureError surfaces verbatim inline
-   * and the draft stays editable (the user sees exactly which rule fired).
+   * Slice 18 (v2 in Slice 19): commit the drafted cutout ring to the pending
+   * area — the §2.2 core validates the full geometry (fully-inside rings
+   * ride the v1 lane; rings touching/crossing the boundary need a CONVEX
+   * region and subtract their clipped intersection) and the ledger value
+   * becomes the NET. A MeasureError surfaces verbatim inline and the draft
+   * stays editable (the user sees exactly which rule fired).
    */
   const commitCutoutRing = useCallback(
     (draft: Pt[]) => {
@@ -1439,6 +1449,8 @@ export function SheetMeasure({
             grossMm2: result.grossMm2,
             cutoutsMm2: result.cutoutsMm2,
             netMm2: result.netMm2,
+            perCutoutMm2: result.cutoutMm2,
+            clipped: result.clipped,
           },
         })
         setCutoutDraft([])
@@ -1486,6 +1498,8 @@ export function SheetMeasure({
               grossMm2: result.grossMm2,
               cutoutsMm2: result.cutoutsMm2,
               netMm2: result.netMm2,
+              perCutoutMm2: result.cutoutMm2,
+              clipped: result.clipped,
             },
           })
         }
@@ -1874,7 +1888,12 @@ export function SheetMeasure({
     if (tool === "autocount") parts.push("Press Enter to scan, Escape to cancel.")
     else if (tool !== "calibrate") parts.push("Press Enter to finish, Escape to cancel.")
     return parts.join(" ")
-  }, [selected, pageNumber, pageCount, tool, calibPicks.length, points.length, liveReadout, autoPicks.length, autoHits])
+    // Slice 19 live-caught: cutoutActive + cutoutDraft.length are deps — the
+    // journey proved the aria stayed stale under 3 draft points (the memo
+    // recomputed only when liveReadout's identity changed, i.e. at 3+ points
+    // when the draft's area becomes readable); a screen reader must hear the
+    // first pick land, so both cutout states belong in the dependency list.
+  }, [selected, pageNumber, pageCount, tool, calibPicks.length, points.length, liveReadout, autoPicks.length, autoHits, cutoutActive, cutoutDraft.length])
 
   // ---------------------------------------------------------------------------
   // Render
@@ -2578,9 +2597,10 @@ export function SheetMeasure({
                 {finished.cutouts !== undefined && finished.cutouts.length > 0 ? (
                   <Badge
                     className="border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                    title="Region cutouts — the saved value is the NET area after every committed cutout"
+                    title="Region cutouts — the saved value is the NET area after every committed cutout; a cutout crossing the edge of a convex area subtracts only its part inside"
                   >
                     region cutouts × {finished.cutouts.length}
+                    {finished.breakdown?.clipped?.some(Boolean) === true ? " (1 crosses the edge)" : ""}
                   </Badge>
                 ) : null}
               </div>
@@ -2588,7 +2608,12 @@ export function SheetMeasure({
                 <div className="rounded-md border bg-muted/40 px-3 py-2 font-mono text-xs tabular-nums sm:text-sm">
                   gross {trim3(finished.breakdown.grossMm2 / 1e6)} m² − cutouts {trim3(finished.breakdown.cutoutsMm2 / 1e6)} m² ={" "}
                   <span className="font-semibold">net {trim3(finished.breakdown.netMm2 / 1e6)} m²</span>
-                  <span className="ml-2 text-muted-foreground">(the ledger row stores the net)</span>
+                  <span className="ml-2 text-muted-foreground">
+                    (the ledger row stores the net)
+                    {finished.breakdown.clipped?.some(Boolean) === true
+                      ? " — cutouts crossing the edge subtract only their part inside the area"
+                      : ""}
+                  </span>
                 </div>
               ) : null}
               {/* -- Slice 18: the region-cutouts sub-mode (manual areas only) ----- */}
@@ -2622,13 +2647,13 @@ export function SheetMeasure({
                           setCutoutError(null)
                         }}
                       >
-                        Add cutout inside this area
+                        Add cutout (inside, or crossing the edge of a convex area)
                       </Button>
                     )}
                     <span className="text-xs text-muted-foreground">
                       {cutoutActive
-                        ? "Click inside the area to trace an opening (shaft, column, penetration); Enter or double-click closes it. Escape cancels the ring."
-                        : "Subtract openings (stair shafts, columns, penetrations) from this area before saving."}
+                        ? "Click to trace an opening (shaft, column, penetration); Enter or double-click closes it. Escape cancels the ring. Rings fully inside always work; a ring crossing the area's edge is accepted when the area is CONVEX — its outside part is not subtracted."
+                        : "Subtract openings (stair shafts, columns, penetrations) from this area before saving — fully inside, or crossing the edge of a convex area."}
                     </span>
                   </div>
                   {cutoutError !== null ? (
@@ -2646,8 +2671,11 @@ export function SheetMeasure({
                           <span className="font-mono tabular-nums">
                             cutout {index + 1} · {ring.length} pts
                             {calib !== null
-                              ? ` · ${trim3(polygonArea(ring, calib.mmPerPt) / 1e6)} m²`
+                              ? ` · ${trim3(
+                                  (finished.breakdown?.perCutoutMm2?.[index] ?? polygonArea(ring, calib.mmPerPt)) / 1e6,
+                                )} m²`
                               : ""}
+                            {finished.breakdown?.clipped?.[index] === true ? " · crosses the edge (clipped)" : ""}
                           </span>
                           <Button
                             type="button"

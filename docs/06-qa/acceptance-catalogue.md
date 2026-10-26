@@ -278,14 +278,14 @@ Suite: `scripts/e2e-p6-isolation.sh` — **108 PASS / 0 FAIL** (AC-AD-01…14 ar
 
 ## Slice-18 acceptance items — verified 2026-10-26 (TL, dev host; slice = region cutouts for Sheet Measure [limitation #5's last drillable remainder] + planner protocol loop 2 [the Slice-17 direct-intent residual]; the roadmap-gap-audit sixteenth-pass forward queue)
 
-Suite: `scripts/e2e-takeoff.sh` — **81 PASS / 0 FAIL** (AC-VT-10a…j are the +10 additions). The pure geometry core is unit-pinned by `src/core/measure.test.ts` (32 tests, NEW file) and the markup consistency rules by `src/core/markup.test.ts` (+10); the name-fidelity backstop by `src/core/planner.test.ts` (+12).
+Suite: `scripts/e2e-takeoff.sh` — **81 PASS / 0 FAIL** at Slice 18 (AC-VT-10a…j are the +10 additions; **89 PASS / 0 FAIL after the Slice-19 v2 evolution** — AC-VT-10d flipped to acceptance + AC-VT-11a…h, below). The pure geometry core is unit-pinned by `src/core/measure.test.ts` (32 tests at Slice 18, **53 after Slice 19's v2 additions**, NEW file) and the markup consistency rules by `src/core/markup.test.ts` (+10); the name-fidelity backstop by `src/core/planner.test.ts` (+12).
 
 | AC | Item | Status | Evidence |
 |---|---|---|---|
 | AC-VT-10a | The NET lands in the ledger: a drawing-measured area row 1.96 m² with `quantityMethod eos-pdf-measure/2 (browser-calibrated, region cutouts)` — the cutouts lane is distinguishable in the ledger | ✅ passed | e2e PASS 72 |
 | AC-VT-10b | The area-with-cutouts markup: value = the NET (1.96 m²), the payload echoes the 2 rings + the re-derived breakdown {gross 2, cutouts 0.04, net 1.96} — the SERVER re-derived every number from the geometry (src/core/markup.ts re-runs the §2.3 core and refuses disagreement) | ✅ passed | e2e PASS 73 |
 | AC-VT-10c | GET round-trip: the cutouts payload persists (rings + breakdown) with the ledger link intact | ✅ passed | e2e PASS 74 |
-| AC-VT-10d | A cutout vertex ON the region boundary → 422 VERBATIM `…cutouts[0].points[0] is not strictly inside the region…v1 cutouts must be drawn fully inside the area` | ✅ passed | e2e PASS 75 |
+| AC-VT-10d | **Slice 19 flip:** a cutout vertex ON the boundary of a CONVEX region is now ACCEPTED (the v2 clip lane, §2.4) — the payload echoes the ring + the honest re-derived breakdown {gross 2, cutouts 0.04, net 1.96}; the former v1 refusal (`…v1 cutouts must be drawn fully inside the area`) is dead, the concave-region case now carries AC-VT-11c's message | ✅ passed (v2) | e2e PASS 75 |
 | AC-VT-10e | Overlapping cutouts → 422 VERBATIM `…overlapping cutouts would double-subtract the same area` (crossing AND nested variants unit-pinned) | ✅ passed | e2e PASS 76 |
 | AC-VT-10f | A tampered value → 422 VERBATIM with BOTH numbers pinned: `value (1.5) disagrees with the recomputed NET area (1.98)` — the geometry and the number can never disagree in storage | ✅ passed | e2e PASS 77 |
 | AC-VT-10g | Cutouts on a non-area kind → 422 VERBATIM `cutouts are only accepted for kind "area" markups (kind length carries none)` | ✅ passed | e2e PASS 78 |
@@ -302,3 +302,23 @@ Suite: `scripts/e2e-takeoff.sh` — **81 PASS / 0 FAIL** (AC-VT-10a…j are the 
 ### Slice-18 browser journeys (agent-browser, canonical dataset)
 
 - **The cutout flow, lived:** Ama (admin) quick-login → Harbour View Extension → Takeoff & Estimating → Sheet Measure → the PDF sheet (calibration auto-restored from the durable scale record, 35.28 mm/pt) → Area tool, 4 clicks + Enter → "Add cutout inside this area" → 4 inner clicks + Enter (toast `Cutout subtracted — net …`) → a SECOND cutout ring → the breakdown card reads `gross 217.327 m² − cutouts 40.62 m² = net 176.707 m² (the ledger row stores the net)` with the `region cutouts × 2` badge → Save to ledger → the saved-markups row reads `area · 176.707 m² · net of 2 cutouts → ledger`. Dark mode · 390×844 scrollWidth 390 · zero console/page errors. Evidence: evidence/s18-cutouts-{desktop,dark,390px}.png
+
+## Slice-19 acceptance items — verified 2026-10-26 (TL, dev host; slice = cutout v2 [boundary-crossing cutouts via polygon clipping — the eighteenth-pass forward queue's first drillable product-depth item, integrity-measure-contract §2.4])
+
+Suite: `scripts/e2e-takeoff.sh` — **89 PASS / 0 FAIL** (AC-VT-10d flipped + AC-VT-11a…h are the +8 additions). The v2 primitives + lane matrix are unit-pinned by `src/core/measure.test.ts` (32 → 53 tests: isConvexRing, clipToConvexRegion incl. the concave-subject bridge case + CW orientation, the v1-lane bit-identity regression, the now-REACHABLE net-0 swallower, the concave gate, the conservative pairwise bound). The markup gate rode unchanged (the §2.2→§2.4 core owns the rules; only its docstring + one stale message pin updated).
+
+| AC | Item | Status | Evidence |
+|---|---|---|---|
+| AC-VT-11a | A boundary-CROSSING cutout is accepted on a convex region — only the inside part subtracts: the payload echoes the original ring + the honest clipped breakdown {gross 2, cutouts 0.02, net 1.98}, exact on the integer crossing (u = 0.5 at x=100) | ✅ passed | e2e PASS 82 |
+| AC-VT-11b | GET round-trip: the crossing ring (4 points) + the clipped breakdown persist exactly | ✅ passed | e2e PASS 83 |
+| AC-VT-11c | A crossing cutout on a CONCAVE region → 422 VERBATIM `…v2 boundary-crossing cutouts need a CONVEX region; a concave region accepts only cutouts drawn fully inside` (the convex gate) | ✅ passed | e2e PASS 84 |
+| AC-VT-11d | A cutout entirely outside the region → 422 VERBATIM `…lies entirely outside the region — it would subtract nothing…` | ✅ passed | e2e PASS 85 |
+| AC-VT-11e | A cutout containing the whole region → 422 VERBATIM `…the cutouts cancel the region exactly (net area 0)…` — the formerly-unreachable backstop, now reachable through the v2 lane and pinned | ✅ passed | e2e PASS 86 |
+| AC-VT-11f | A claimed net disagreeing with the CLIPPED re-derivation → 422 VERBATIM with BOTH numbers pinned (1.5 vs 1.98) | ✅ passed | e2e PASS 87 |
+| AC-VT-11g | The `markup.created` audit event carries the CLIPPED net detail `{count: 1, netValue: 1.98}` for the crossing row | ✅ passed | e2e PASS 88 |
+| AC-VT-11h | Unauthenticated crossing-cutout create → 401 (the v2 lane rides the same ADR-0007 wrapper) | ✅ passed | e2e PASS 89 |
+
+### Slice-19 browser journey (agent-browser, canonical dataset)
+
+- **The crossing-cutout flow, lived:** Ama (admin) quick-login → Harbour View Extension → Takeoff & Estimating → Sheet Measure → the sheet renders with the calibration auto-restored (35.28 mm/pt · 1:100 · restored) → Area tool, 4 clicks + Enter (running value 56.130 m²) → "Add cutout (inside, or crossing the edge of a convex area)" → 4 clicks drawing a ring that CROSSES the area's right edge + Enter → the live breakdown reads `gross 56.13 m² − cutouts 4.293 m² = net 51.837 m² (the ledger row stores the net) — cutouts crossing the edge subtract only their part inside the area`, the badge reads `region cutouts × 1 (1 crosses the edge)`, and the per-ring row reads `cutout 1 · 4 pts · 4.293 m² · crosses the edge (clipped)` (the SUBTRACTED area shown, not the full 8.586 m² ring — the UI cannot lie about what was subtracted) → Done → label → Save to ledger → the row lands in the Quantity Ledger as `area 51.83730431415355 m² · drawing-measured · Sheet-A101-GA-plan.svg r2 · Draft`. Dark mode · 390×844 scrollWidth 390 · zero console/page errors. VLM-verified on the light evidence: the region + the edge-crossing ring are both visibly rendered with the `1 cutout` badge. Evidence: evidence/s19-v2-crossing-cutout-{light,dark,mobile-390}.png
+- **Live-caught a11y defect, fixed in-session:** the canvas aria stayed STALE during cutout drafting under 3 points (the `canvasAria` useMemo was missing `cutoutActive`/`cutoutDraft.length` — it recomputed only when the liveReadout identity changed at 3+ points, so a screen reader could not hear the first two picks land). Both states added to the dependency list; the journey's console stayed at zero errors before and after. Same class as the GuardedButton-forever-disabled catch of the thirteenth pass — the journey is the net.

@@ -189,6 +189,80 @@ strict-inside/contact predicates (concave L-shape cases), analytic
 cutout ground truths on integer coordinates (2.000 m² − 0.02 − 0.02 =
 1.960 m², exact), and the full refusal matrix verbatim.
 
+### 2.4 Cutout v2 — boundary-crossing cutouts via polygon clipping (Slice 19, frozen 2026-10-26)
+
+The eighteenth-pass forward queue's first drillable product-depth item,
+closing the v1 bound recorded above ("a cutout poking out has no exact
+shoelace-only answer, so it is refused"). `src/core/measure.ts` grew two
+exports, ADDITIVE to the §2.1/§2.3 lists (those signatures untouched
+byte-for-byte), and `areaWithCutouts` evolved its RULES (the result type
+gained one field; the §2.3 numbers are bit-identical for §2.3-shaped inputs):
+
+- `isConvexRing(ring)` — exact-sign convexity (consecutive cross products all
+  ≥ 0 or all ≤ 0, collinear allowed; mixed signs = concave).
+- `clipToConvexRegion(subject, region)` — orientation-aware Sutherland–Hodgman
+  against the CONVEX ring `region` (points ON a plane are kept). Degenerate
+  bridges/duplicates the algorithm leaves when a subject splits or runs along
+  the boundary contribute exactly 0 to the shoelace, so the clipped AREA is
+  the true intersection area — the classical S-H property, honestly recorded:
+  the SHAPE at the bridges is degenerate on purpose and never stored (the
+  caller only measures the piece; the payload keeps the operator's original
+  rings as the evidence).
+- `areaWithCutouts` v2 lane classification, per cutout: fully-inside rings
+  (zero boundary contact + every vertex strictly inside) ride the v1 lane —
+  the ring's own shoelace, no clip ever runs, BIT-IDENTICAL to Slice 18;
+  rings touching/crossing the boundary — or containing the region whole —
+  ride the v2 lane: the region must be CONVEX (the honest v2 bound:
+  Sutherland–Hodgman is exact for a convex clip window; a concave region is
+  refused with a message that says exactly that), and the subtracted amount
+  is the CLIPPED INTERSECTION area — only the square millimetres inside the
+  region, so a boundary-crossing opening can no longer lie by subtracting
+  its outside part. Result type gains `clipped: boolean[]` (per cutout, true
+  = v2 lane) — the UI shows which rings cross the edge.
+- The refusal matrix, v2 additions/changes (verbatim 422s; the unchanged
+  rows — degenerate rings, pairwise overlap, mmPerPt, both-payloads — keep
+  their §2.3 texts byte-for-byte):
+  - disjoint cutout (no boundary contact, no vertex of either ring inside
+    the other): `…lies entirely outside the region — it would subtract
+    nothing; draw it inside the area or crossing its boundary`;
+  - boundary contact on a CONCAVE region: `…touches or crosses the region
+    boundary — v2 boundary-crossing cutouts need a CONVEX region; a concave
+    region accepts only cutouts drawn fully inside`;
+  - the former strictly-inside-vertex message is DEAD (a vertex ON the
+    boundary of a convex region is now accepted — the clip keeps the
+    boundary, the intersection IS the ring); its e2e pin (AC-VT-10d)
+    flipped from refusal to acceptance with the honest numbers the fixture
+    itself claimed;
+  - the net-area-0 refusal is now REACHABLE (a crossing cutout whose
+    intersection is the whole region) and is pinned by test — no longer a
+    documented backstop only;
+  - the defensive not-a-simple-ring branch (vertices inside and outside
+    with zero boundary contact — impossible for a simple ring by the Jordan
+    curve argument) refuses honestly rather than guessing.
+- Pairwise rule unchanged and now a RECORDED CONSERVATIVE BOUND: cutouts may
+  not touch, cross, or nest ANYWHERE — even in the part outside the region.
+  Overlap detection runs on the ORIGINAL rings; overlap-only-outside is
+  geometrically harmless but refused anyway because it costs one honest
+  sentence and removes a whole class of double-subtract subtleties.
+- Exactness posture (unchanged in kind): all arithmetic is exactly-specified
+  IEEE-754 on the given doubles; the pinned fixtures cross region edges at
+  INTEGER coordinates (the clip's u = fs/(fs−ft) divides evenly, e.g. the
+  e2e's 0.5 at x=100), so every pinned product is exact. Crossings at
+  non-representable coordinates carry float ulps by construction — the
+  SERVER re-derives with the same deterministic core, so storage can never
+  disagree with the stored geometry (the 1e-9 relative window of the markup
+  gate absorbs only engine-level ulps, never a real mismatch).
+- The unit battery pins: `isConvexRing` (rect/L/triangle/bowtie/collinear),
+  `clipToConvexRegion` (fully-inside vertex-for-vertex bit-identity; integer
+  crossing; corner overlap; swallower; disjoint; CONCAVE subject with
+  bridges; boundary-sharing wall; CW orientation), and the v2 lane matrix
+  (v1 regression bit-identity, on-boundary acceptance, crossing exactness,
+  mixed lanes, swallower net-0, concave gate, conservative pairwise,
+  wall-touch refusal, gross bit-identity) — 32 → 53 tests. The e2e battery
+  pins AC-VT-10d flipped + AC-VT-11a…h (acceptance, round-trip, concave
+  gate, disjoint, swallower, both-numbers disagreement, clipped audit
+  detail, 401): takeoff 81 → 89.
+
 ## 3. Lane 8-b (W1) — Sheet Measure tab (Takeoff workspace)
 
 Files: new `src/components/product/sheet-measure.tsx`; edit

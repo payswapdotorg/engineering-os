@@ -270,26 +270,35 @@ export function toLedgerQuantity(
 }
 
 // ---------------------------------------------------------------------------
-// Region cutouts — contract §2.2 (Slice 18, limitation #5's remainder)
+// Region cutouts — contract §2.3 (Slice 18) and §2.4 (Slice 19, v2)
 //
 // ADDITIVE to the frozen §2.1 export list: the §2.1 signatures are untouched
 // (byte-for-byte); this section adds the area-with-cutouts core used by the
 // Sheet Measure cutout flow and the markups route's payload consistency gate.
-// Pinned semantics:
+// Pinned semantics (v1, contract §2.3 → v2 evolution, contract §2.4):
 //
-//  - a cutout is a polygon ring drawn STRICTLY INSIDE the region ring: every
-//    vertex strictly inside (never on the boundary), and no boundary contact
-//    of any kind between the rings (a shared vertex, a touching edge, a
-//    crossing, a collinear overlap — all refused). v1 bounds are honest: a
-//    cutout that pokes out of the region has no exact shoelace-only answer,
-//    so it is refused with a message that says exactly that;
+//  - a cutout drawn STRICTLY INSIDE the region (every vertex strictly inside,
+//    zero boundary contact) rides the v1 lane: its subtracted area is its own
+//    shoelace area — the arithmetic is BIT-IDENTICAL to the Slice-18 core,
+//    no clipping is involved, and every v1 pin stays green untouched;
+//  - a cutout that TOUCHES or CROSSES the region boundary (or contains the
+//    region entirely) rides the v2 lane: the region must be CONVEX (the
+//    honest v2 bound — Sutherland–Hodgman is exact for a convex clip window;
+//    a concave region is refused with a message that says exactly that), and
+//    the subtracted area is the CLIPPED INTERSECTION area — the part of the
+//    cutout actually inside the region, so a boundary-crossing opening
+//    subtracts only the square millimetres it really covers;
+//  - a cutout entirely OUTSIDE the region (disjoint boundaries, no vertex of
+//    either ring inside the other) is refused: it would subtract nothing;
 //  - cutout rings must be pairwise NON-OVERLAPPING (no boundary contact, no
-//    nesting): overlapping cutouts would double-subtract the same square
-//    millimetre, so the geometry and the number would disagree — refused;
-//  - net = gross − Σ cutouts, all by the same shoelace arithmetic as
+//    nesting, conservative even outside the region — recorded §2.4 bound):
+//    overlapping cutouts would double-subtract the same square millimetre;
+//  - net = gross − Σ subtracted, all by the same shoelace arithmetic as
 //    polygonArea (deterministic, exactly-specified IEEE-754);
 //  - net must be > 0 (cutouts that cancel the region exactly leave nothing
-//    measurable — refused, never a silent 0).
+//    measurable — refused, never a silent 0; the v2 lane makes this
+//    REACHABLE — a crossing cutout whose intersection is the whole region —
+//    and it is pinned by test, no longer a defensive backstop only).
 //
 // Boundary-contact detection is exact-arithmetic on the given doubles
 // (orientation products with === 0): coordinates from hand clicks are PDF
@@ -399,26 +408,118 @@ export function ringsTouchOrCross(a: Pt[], b: Pt[]): boolean {
 export interface AreaWithCutouts {
   /** gross region area in mm² (shoelace × mmPerPt²) */
   grossMm2: number
-  /** each cutout's area in mm², in input order */
+  /** each cutout's SUBTRACTED area in mm², in input order (the clipped intersection area when the cutout crosses the boundary — contract §2.4) */
   cutoutMm2: number[]
-  /** sum of the cutout areas in mm² */
+  /** sum of the subtracted cutout areas in mm² */
   cutoutsMm2: number
   /** gross − cutouts in mm²; always > 0 (a net of 0 is refused) */
   netMm2: number
+  /** per cutout, in input order: true when the ring touches/crosses the region boundary (the v2 lane — its subtracted area is the clipped intersection) */
+  clipped: boolean[]
 }
 
 /**
- * Area of a region ring minus cutout rings — the Slice 18 core. Every rule
- * violation throws a MeasureError whose message the API returns verbatim as
- * a 422 (the house discipline: geometry and number can never disagree in
- * storage):
+ * True when the ring is CONVEX: every consecutive turn is the same sign or
+ * collinear (exact-arithmetic cross products, === 0 collinear). A ring with
+ * mixed signs is concave; the v2 boundary-crossing lane refuses concave
+ * REGIONS (the clip window), not concave cutouts (a concave subject clips
+ * fine — Sutherland–Hodgman only needs the window convex). Degenerate
+ * all-collinear rings return true here but are refused upstream by the
+ * positive-area rule.
+ */
+export function isConvexRing(ring: Pt[]): boolean {
+  const r = requirePoints(ring, 3, "isConvexRing")
+  let positive = false
+  let negative = false
+  for (let i = 0; i < r.length; i += 1) {
+    const z = cross(r[i], r[(i + 1) % r.length], r[(i + 2) % r.length])
+    if (z > 0) positive = true
+    else if (z < 0) negative = true
+    if (positive && negative) return false
+  }
+  return true
+}
+
+/**
+ * Sutherland–Hodgman clip of `subject` against the CONVEX ring `region`
+ * (contract §2.4): each region edge's inside half-plane is applied in ring
+ * order, orientation-aware (the sign of `ringCrossedArea(region)`), with
+ * points ON a plane kept (they are inside the closed region). The output may
+ * carry degenerate bridges/duplicates when the subject splits into pieces or
+ * runs along the boundary — they contribute exactly 0 to the shoelace, so
+ * the AREA of the result is the true intersection area (the classical
+ * Sutherland–Hodgman property for area; the polygon SHAPE at the bridges is
+ * degenerate on purpose and never stored — the caller only measures it).
+ * An empty result (subject fully outside) returns [].
+ */
+export function clipToConvexRegion(subject: Pt[], region: Pt[]): Pt[] {
+  const reg = requirePoints(region, 3, "clipToConvexRegion: region")
+  let polygon = requirePoints(subject, 3, "clipToConvexRegion: subject")
+  const ccw = ringCrossedArea(reg) >= 0
+
+  for (let i = 0; i < reg.length && polygon.length > 0; i += 1) {
+    const a = reg[i]
+    const b = reg[(i + 1) % reg.length]
+    // Signed side of the plane through a→b (>= 0 is inside for the ring's
+    // orientation): the boundary is kept, so touching rings clip to the
+    // touching piece exactly.
+    const side = (p: Pt): number => (ccw ? cross(a, b, p) : -cross(a, b, p))
+    const next: Pt[] = []
+    for (let j = 0; j < polygon.length; j += 1) {
+      const s = polygon[(j + polygon.length - 1) % polygon.length] // previous
+      const t = polygon[j] // current
+      const fs = side(s)
+      const ft = side(t)
+      const sIn = fs >= 0
+      const tIn = ft >= 0
+      if (tIn) {
+        // entering or staying: emit the crossing point first when the
+        // previous vertex was outside, then the inside vertex
+        if (!sIn) next.push(intersectWithPlane(s, t, fs, ft))
+        next.push(t)
+      } else if (sIn) {
+        // leaving: emit only the crossing point
+        next.push(intersectWithPlane(s, t, fs, ft))
+      }
+    }
+    polygon = next
+  }
+  return polygon
+}
+
+/**
+ * Intersection of segment s→t with the line through the clip edge, given the
+ * two endpoints' signed sides. Called only when one endpoint is strictly
+ * outside and the other is inside-or-on, so fs − ft is never 0: u = fs/(fs−ft)
+ * lies in [0,1), and the point is computed in the plane's exact line space
+ * (on integer fixtures whose crossings land on integer coordinates — the
+ * pinned class — every product and the division are exact IEEE-754).
+ */
+function intersectWithPlane(s: Pt, t: Pt, fs: number, ft: number): Pt {
+  const u = fs / (fs - ft)
+  return { x: s.x + u * (t.x - s.x), y: s.y + u * (t.y - s.y) }
+}
+
+/**
+ * Area of a region ring minus cutout rings — the Slice-18 core, evolved to
+ * v2 (contract §2.4): cutouts drawn fully inside ride the v1 lane (arithmetic
+ * bit-identical to Slice 18); cutouts touching/crossing the boundary — or
+ * containing the region — require a CONVEX region and subtract their clipped
+ * intersection area. Every rule violation throws a MeasureError whose
+ * message the API returns verbatim as a 422 (the house discipline: geometry
+ * and number can never disagree in storage):
  *  - region: ≥3 finite points enclosing a positive area;
  *  - cutouts: a non-empty array of rings, each ≥3 finite points with
  *    positive area;
- *  - each cutout STRICTLY inside the region (all vertices strictly inside;
- *    no boundary contact between the rings);
- *  - cutouts pairwise non-overlapping (no boundary contact; no nesting);
- *  - net > 0 after subtraction;
+ *  - per cutout, ONE of:
+ *      v1 lane: every vertex strictly inside + zero boundary contact;
+ *      v2 lane: boundary contact, or containment — needs a CONVEX region
+ *               and a positive clipped intersection (a disjoint cutout is
+ *               refused: it would subtract nothing);
+ *  - cutouts pairwise non-overlapping (no boundary contact; no nesting —
+ *    conservative even outside the region, recorded §2.4);
+ *  - net > 0 after subtraction (reachable through v2: a crossing cutout
+ *    whose intersection is the whole region);
  *  - mmPerPt finite > 0 (the §2.1 calibration factor).
  */
 export function areaWithCutouts(region: Pt[], cutouts: Pt[][], mmPerPt: number): AreaWithCutouts {
@@ -449,28 +550,76 @@ export function areaWithCutouts(region: Pt[], cutouts: Pt[][], mmPerPt: number):
     return r
   })
 
-  // Each cutout strictly inside the region: vertex strictness first (the
-  // honest per-vertex message), then boundary contact (edges touching or
-  // crossing the region edge even when all vertices sit inside).
+  // Per-cutout lane classification (§2.4). `pieces[i]` holds the clipped
+  // intersection ring for a v2-lane cutout, null for a v1-lane cutout — the
+  // v1 lane keeps the exact Slice-18 arithmetic path (no clip ever runs).
+  const pieces: (Pt[] | null)[] = new Array(rings.length).fill(null)
   for (let i = 0; i < rings.length; i += 1) {
     const r = rings[i]
-    for (let j = 0; j < r.length; j += 1) {
-      if (!pointStrictlyInsidePolygon(r[j], ring)) {
+    const contact = ringsTouchOrCross(r, ring)
+
+    // v1 lane: zero boundary contact AND every vertex strictly inside.
+    if (!contact) {
+      let allStrictlyInside = true
+      for (let j = 0; j < r.length; j += 1) {
+        if (!pointStrictlyInsidePolygon(r[j], ring)) {
+          allStrictlyInside = false
+          break
+        }
+      }
+      if (allStrictlyInside) continue // pieces[i] stays null — the v1 lane
+    }
+
+    // v2 lane. Refusals first, both geometry-only and honest:
+    if (!contact) {
+      // No boundary contact but not fully inside: the rings are either
+      // disjoint (the cutout lies entirely outside — it would subtract
+      // nothing) or the cutout contains the region whole (the clip below
+      // then measures gross − gross = net 0, refused by the net rule).
+      const containsRegion = pointStrictlyInsidePolygon(ring[0], r)
+      let anyVertexInside = false
+      for (let j = 0; j < r.length; j += 1) {
+        if (pointStrictlyInsidePolygon(r[j], ring)) {
+          anyVertexInside = true
+          break
+        }
+      }
+      if (!containsRegion && !anyVertexInside) {
         throw new MeasureError(
-          `${where}: cutouts[${i}].points[${j}] is not strictly inside the region (on the boundary or outside) — v1 cutouts must be drawn fully inside the area`,
+          `${where}: cutouts[${i}] lies entirely outside the region — it would subtract nothing; draw it inside the area or crossing its boundary`,
+        )
+      }
+      if (!containsRegion) {
+        // No contact, some vertices inside, some not — impossible for a
+        // simple ring (the boundary would have been crossed and `contact`
+        // true). Honest refusal rather than a guess: the ring is not simple.
+        throw new MeasureError(
+          `${where}: cutouts[${i}] is not a simple ring (vertices both inside and outside the region without crossing its boundary) — a self-crossing ring has no unambiguous subtracted area`,
         )
       }
     }
-    if (ringsTouchOrCross(r, ring)) {
+    if (!isConvexRing(ring)) {
       throw new MeasureError(
-        `${where}: cutouts[${i}] boundary touches or crosses the region boundary — v1 cutouts must be drawn fully inside the area`,
+        `${where}: cutouts[${i}] touches or crosses the region boundary — v2 boundary-crossing cutouts need a CONVEX region; a concave region accepts only cutouts drawn fully inside`,
       )
     }
+    const piece = clipToConvexRegion(r, ring)
+    const pieceArea = piece.length >= 3 ? ringAreaPt2(piece) : 0
+    if (!(pieceArea > 0)) {
+      // The clip measured nothing inside (a sliver/boundary-only touch on a
+      // convex region) — the same honest refusal as the disjoint case.
+      throw new MeasureError(
+        `${where}: cutouts[${i}] lies entirely outside the region — it would subtract nothing; draw it inside the area or crossing its boundary`,
+      )
+    }
+    pieces[i] = piece
   }
 
   // Cutouts pairwise non-overlapping: boundary contact first (crossing or
   // touching), then containment (one ring nested inside the other with no
-  // contact — it would double-subtract the same area silently).
+  // contact — it would double-subtract the same area silently). The §2.4
+  // conservative bound: this runs on the ORIGINAL rings, so two crossing
+  // cutouts may not touch even in the part outside the region.
   for (let i = 0; i < rings.length; i += 1) {
     for (let j = i + 1; j < rings.length; j += 1) {
       if (ringsTouchOrCross(rings[i], rings[j])) {
@@ -489,7 +638,12 @@ export function areaWithCutouts(region: Pt[], cutouts: Pt[][], mmPerPt: number):
     }
   }
 
-  const cutoutMm2 = rings.map((r) => ringAreaPt2(r) * mmPerPt * mmPerPt)
+  const cutoutMm2 = rings.map((r, i) => {
+    // v1 lane: the ring's own shoelace (the Slice-18 path, bit-identical);
+    // v2 lane: the clipped intersection's shoelace.
+    const areaPt2 = pieces[i] !== null ? ringAreaPt2(pieces[i] as Pt[]) : ringAreaPt2(r)
+    return areaPt2 * mmPerPt * mmPerPt
+  })
   const grossMm2 = grossPt2 * mmPerPt * mmPerPt
   const cutoutsMm2 = cutoutMm2.reduce((sum, area) => sum + area, 0)
   const netMm2 = grossMm2 - cutoutsMm2
@@ -498,5 +652,11 @@ export function areaWithCutouts(region: Pt[], cutouts: Pt[][], mmPerPt: number):
       `${where}: the cutouts cancel the region exactly (net area 0) — nothing measurable remains`,
     )
   }
-  return { grossMm2, cutoutMm2, cutoutsMm2, netMm2 }
+  return {
+    grossMm2,
+    cutoutMm2,
+    cutoutsMm2,
+    netMm2,
+    clipped: pieces.map((piece) => piece !== null),
+  }
 }

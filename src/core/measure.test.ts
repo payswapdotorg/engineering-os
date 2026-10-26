@@ -1,20 +1,26 @@
 /**
- * Engineering OS — unit battery for the measurement core (Slice 18).
+ * Engineering OS — unit battery for the measurement core (Slice 18 + the
+ * Slice-19 v2 evolution).
  *
  * The §2.1 functions were previously covered indirectly (markup.test.ts +
  * the e2e golden path); this file pins them for arithmetic sanity AND owns
- * the full §2.2 region-cutout battery: analytic ground truths on integer
+ * the full region-cutout battery: analytic ground truths on integer
  * coordinates (every float operation below is exact — integers < 2^53) and
- * the verbatim refusal matrix. The one §2.2 refusal that is provably
- * unreachable through valid rings (net area exactly 0 with strictly-inside
- * cutouts) is documented as a defensive backstop rather than pinned.
+ * the verbatim refusal matrix. Slice 19 (§2.4) evolves three of the §2.3
+ * refusal pins — a boundary-touching cutout on a CONVEX region is now
+ * ACCEPTED (the clipped-intersection lane), the disjoint cutout and the
+ * concave-region cases get their new honest messages — and makes the
+ * net-area-0 refusal REACHABLE (a crossing cutout whose intersection is the
+ * whole region), so it is pinned, no longer a documented backstop only.
  */
 import { describe, expect, test } from "bun:test"
 
 import {
   areaWithCutouts,
   calibrate,
+  clipToConvexRegion,
   distance,
+  isConvexRing,
   MeasureError,
   pointStrictlyInsidePolygon,
   polygonArea,
@@ -165,20 +171,12 @@ describe("measure §2.2 areaWithCutouts — analytic ground truths", () => {
 describe("measure §2.2 areaWithCutouts — the verbatim refusal matrix", () => {
   const inside = (): Pt[] => [pt(10, 10), pt(20, 10), pt(20, 15), pt(10, 15)]
 
-  test("cutout vertex ON the region boundary", () => {
-    const onEdge: Pt[] = [pt(0, 10), pt(20, 10), pt(20, 15), pt(0, 15)]
-    try {
-      areaWithCutouts(REGION, [onEdge], MM)
-      throw new Error("expected MeasureError")
-    } catch (err) {
-      expect(err).toBeInstanceOf(MeasureError)
-      expect((err as MeasureError).message).toBe(
-        "areaWithCutouts: cutouts[0].points[0] is not strictly inside the region (on the boundary or outside) — v1 cutouts must be drawn fully inside the area",
-      )
-    }
-  })
+  // Slice 19 (§2.4): the three former v1 refusals below evolved — a
+  // boundary-touching cutout on a CONVEX region is ACCEPTED (see the §2.4
+  // battery), and the disjoint / concave cases now carry their own honest
+  // messages. The rest of the matrix is byte-identical to Slice 18.
 
-  test("cutout vertex OUTSIDE the region", () => {
+  test("cutout vertex OUTSIDE the region (disjoint — v2 honest message)", () => {
     const outside: Pt[] = [pt(150, 10), pt(160, 10), pt(160, 15), pt(150, 15)]
     try {
       areaWithCutouts(REGION, [outside], MM)
@@ -186,14 +184,16 @@ describe("measure §2.2 areaWithCutouts — the verbatim refusal matrix", () => 
     } catch (err) {
       expect(err).toBeInstanceOf(MeasureError)
       expect((err as MeasureError).message).toBe(
-        "areaWithCutouts: cutouts[0].points[0] is not strictly inside the region (on the boundary or outside) — v1 cutouts must be drawn fully inside the area",
+        "areaWithCutouts: cutouts[0] lies entirely outside the region — it would subtract nothing; draw it inside the area or crossing its boundary",
       )
     }
   })
 
   test("cutout edge crossing a concave region's inner corner (all vertices strictly inside)", () => {
     // Both endpoints sit strictly inside the L, but the (5,16)→(16,5) edge
-    // cuts across the notch — the boundary-contact net catches it.
+    // cuts across the notch — the boundary-contact net catches it, and the
+    // concave REGION is refused for the crossing (§2.4: the clip lane is
+    // convex-region-only; concave regions keep the fully-inside rule).
     const chord: Pt[] = [pt(5, 16), pt(16, 5), pt(6, 6)]
     try {
       areaWithCutouts(L_REGION, [chord], MM)
@@ -201,7 +201,7 @@ describe("measure §2.2 areaWithCutouts — the verbatim refusal matrix", () => 
     } catch (err) {
       expect(err).toBeInstanceOf(MeasureError)
       expect((err as MeasureError).message).toBe(
-        "areaWithCutouts: cutouts[0] boundary touches or crosses the region boundary — v1 cutouts must be drawn fully inside the area",
+        "areaWithCutouts: cutouts[0] touches or crosses the region boundary — v2 boundary-crossing cutouts need a CONVEX region; a concave region accepts only cutouts drawn fully inside",
       )
     }
   })
@@ -322,10 +322,204 @@ describe("measure §2.2 areaWithCutouts — the verbatim refusal matrix", () => 
     }
   })
 
-  // NOTE: the "cutouts cancel the region exactly (net area 0)" refusal is a
-  // DEFENSIVE BACKSTOP, provably unreachable through the strict-inside rules
-  // (a ring strictly inside another always has strictly smaller shoelace
-  // area, so gross − Σcutouts > 0 whenever every check above passes). It is
-  // documented here rather than pinned — a test could only reach it by
-  // bypassing the guards it protects.
+  // NOTE: through the §2.3 (strictly-inside) rules the "cutouts cancel the
+  // region exactly (net area 0)" refusal was a defensive backstop — provably
+  // unreachable (a ring strictly inside another always has strictly smaller
+  // shoelace area). The §2.4 v2 lane makes it REACHABLE (a crossing cutout
+  // whose intersection is the whole region), so it is now pinned below.
+})
+
+describe("measure §2.4 isConvexRing + clipToConvexRegion (the v2 primitives)", () => {
+  test("isConvexRing: the 100×50 rect is convex", () => {
+    expect(isConvexRing(REGION)).toBe(true)
+  })
+
+  test("isConvexRing: the L-shape is concave", () => {
+    expect(isConvexRing(L_REGION)).toBe(false)
+  })
+
+  test("isConvexRing: a triangle is convex", () => {
+    expect(isConvexRing([pt(0, 0), pt(60, 0), pt(0, 40)])).toBe(true)
+  })
+
+  test("isConvexRing: a bowtie (self-crossing quad) is refused as non-convex", () => {
+    expect(isConvexRing([pt(0, 0), pt(40, 40), pt(40, 0), pt(0, 40)])).toBe(false)
+  })
+
+  test("isConvexRing: collinear vertices on a convex ring stay convex", () => {
+    // (0,0),(10,0),(20,0) collinear along the bottom edge — still convex.
+    const ring: Pt[] = [pt(0, 0), pt(10, 0), pt(20, 0), pt(20, 20), pt(0, 20)]
+    expect(isConvexRing(ring)).toBe(true)
+  })
+
+  test("clip: a fully-inside subject comes back VERTEX-FOR-VERTEX (bit-identity with its own shoelace)", () => {
+    const subject: Pt[] = [pt(10, 10), pt(20, 10), pt(20, 15), pt(10, 15)]
+    const clipped = clipToConvexRegion(subject, REGION)
+    expect(clipped).toEqual(subject)
+    expect(polygonArea(clipped, MM)).toBe(polygonArea(subject, MM))
+  })
+
+  test("clip: a crossing rect keeps only the inside part, exact on integer crossings", () => {
+    // (90..110)×(10..15) crossing x=100: the inside part is 90..100 — the
+    // two crossing points land ON integer coordinates (u = 500/1000 = 0.5
+    // exact), so the clipped area is the exact 50 pt².
+    const subject: Pt[] = [pt(90, 10), pt(110, 10), pt(110, 15), pt(90, 15)]
+    const clipped = clipToConvexRegion(subject, REGION)
+    expect(clipped.length).toBeGreaterThan(2)
+    expect(polygonArea(clipped, 1)).toBe(50) // pt², exact
+  })
+
+  test("clip: a subject containing the whole region clips to the region", () => {
+    const subject: Pt[] = [pt(-10, -10), pt(110, -10), pt(110, 60), pt(-10, 60)]
+    const clipped = clipToConvexRegion(subject, REGION)
+    expect(polygonArea(clipped, 1)).toBe(polygonArea(REGION, 1)) // 5000 pt²
+  })
+
+  test("clip: a disjoint subject clips to empty", () => {
+    const subject: Pt[] = [pt(150, 10), pt(160, 10), pt(160, 15), pt(150, 15)]
+    expect(clipToConvexRegion(subject, REGION)).toEqual([])
+  })
+
+  test("clip: a concave (L-shaped) SUBJECT crossing the boundary clips by area (bridge edges contribute 0)", () => {
+    // L-subject whose left bar pokes out over the top edge y=50: the inside
+    // part is the base (0..40)×(20..50) = 1200 pt²; the piece's shoelace is
+    // exact despite any degenerate bridges the clip leaves behind.
+    const subject: Pt[] = [
+      pt(0, 20), pt(40, 20), pt(40, 70), pt(10, 70), pt(10, 50), pt(0, 50),
+    ]
+    const clipped = clipToConvexRegion(subject, REGION)
+    expect(polygonArea(clipped, 1)).toBe(1200)
+  })
+
+  test("clip: a rect sharing an edge with the region keeps the boundary (kept-plane semantics)", () => {
+    // (100..110)×(10..15) is entirely outside except its LEFT edge which
+    // lies ON x=100 — the clip keeps the zero-width boundary piece and the
+    // area honestly measures 0 (an outside cutout touching the wall).
+    const subject: Pt[] = [pt(100, 10), pt(110, 10), pt(110, 15), pt(100, 15)]
+    const clipped = clipToConvexRegion(subject, REGION)
+    expect(polygonArea(clipped, 1)).toBe(0)
+  })
+
+  test("clip: a CW-oriented region ring works identically (orientation-aware)", () => {
+    const cwRegion: Pt[] = [pt(0, 50), pt(100, 50), pt(100, 0), pt(0, 0)]
+    const subject: Pt[] = [pt(90, 10), pt(110, 10), pt(110, 15), pt(90, 15)]
+    expect(polygonArea(clipToConvexRegion(subject, cwRegion), 1)).toBe(50)
+  })
+})
+
+describe("measure §2.4 areaWithCutouts v2 — boundary-crossing cutouts (the clipped lane)", () => {
+  test("v1 regression: strictly-inside cutouts keep the EXACT Slice-18 numbers and the v1 lane", () => {
+    const cutout: Pt[] = [pt(10, 10), pt(20, 10), pt(20, 15), pt(10, 15)]
+    const result = areaWithCutouts(REGION, [cutout], MM)
+    expect(result.grossMm2).toBe(2_000_000)
+    expect(result.cutoutMm2).toEqual([20_000])
+    expect(result.cutoutsMm2).toBe(20_000)
+    expect(result.netMm2).toBe(1_980_000)
+    expect(result.clipped).toEqual([false])
+  })
+
+  test("a cutout vertex ON the boundary is accepted on a convex region (the v1 refusal, evolved)", () => {
+    // The former §2.3 refusal — (0,10) sits ON the left edge. v2: the clip
+    // keeps the boundary, the intersection IS the ring, so the subtracted
+    // area is the full 20×5 pt ring = 100 pt² = 0.04 m² and the net is
+    // 1.96 m², exact.
+    const onEdge: Pt[] = [pt(0, 10), pt(20, 10), pt(20, 15), pt(0, 15)]
+    const result = areaWithCutouts(REGION, [onEdge], MM)
+    expect(result.cutoutMm2).toEqual([40_000])
+    expect(result.netMm2).toBe(1_960_000)
+    expect(result.clipped).toEqual([true])
+  })
+
+  test("a boundary-crossing rect subtracts only its inside part (integer crossings, exact)", () => {
+    // (90..110)×(10..15) crossing x=100 → subtract 90..100 × 10..15 = 50 pt²
+    // → 0.02 m²; gross 2 m² − net 1.98 m², every step exact IEEE-754.
+    const crossing: Pt[] = [pt(90, 10), pt(110, 10), pt(110, 15), pt(90, 15)]
+    const result = areaWithCutouts(REGION, [crossing], MM)
+    expect(result.cutoutMm2).toEqual([20_000])
+    expect(result.cutoutsMm2).toBe(20_000)
+    expect(result.netMm2).toBe(1_980_000)
+    expect(toLedgerQuantity(result.netMm2, "area").value).toBe(1.98)
+    expect(result.clipped).toEqual([true])
+  })
+
+  test("a cutout crossing a corner subtracts the quarter still inside (split-piece bridges exact)", () => {
+    // (80..120)×(0..60) overlaps the whole right side: inside part = the
+    // strip x 80..100 = 20×50 = 1000 pt² → 0.4 m²; net = 1.6 m² exact.
+    const corner: Pt[] = [pt(80, 0), pt(120, 0), pt(120, 60), pt(80, 60)]
+    const result = areaWithCutouts(REGION, [corner], MM)
+    expect(result.cutoutMm2).toEqual([400_000])
+    expect(result.netMm2).toBe(1_600_000)
+  })
+
+  test("mixed lanes: one strictly-inside + one crossing, subtracted independently", () => {
+    const inside: Pt[] = [pt(10, 10), pt(20, 10), pt(20, 15), pt(10, 15)] // 50 pt²
+    const crossing: Pt[] = [pt(90, 10), pt(110, 10), pt(110, 15), pt(90, 15)] // inside part 50 pt²
+    const result = areaWithCutouts(REGION, [inside, crossing], MM)
+    expect(result.cutoutMm2).toEqual([20_000, 20_000])
+    expect(result.netMm2).toBe(1_960_000)
+    expect(result.clipped).toEqual([false, true])
+  })
+
+  test("a cutout containing the whole region is refused: net area 0 (the now-reachable backstop)", () => {
+    const swallower: Pt[] = [pt(-10, -10), pt(110, -10), pt(110, 60), pt(-10, 60)]
+    try {
+      areaWithCutouts(REGION, [swallower], MM)
+      throw new Error("expected MeasureError")
+    } catch (err) {
+      expect(err).toBeInstanceOf(MeasureError)
+      expect((err as MeasureError).message).toBe(
+        "areaWithCutouts: the cutouts cancel the region exactly (net area 0) — nothing measurable remains",
+      )
+    }
+  })
+
+  test("a boundary-crossing cutout on a CONCAVE region is refused verbatim (the convex gate)", () => {
+    // The L's notch edge y=10 (x 10..100) is crossed by this rect.
+    const crossing: Pt[] = [pt(40, 5), pt(60, 5), pt(60, 15), pt(40, 15)]
+    try {
+      areaWithCutouts(L_REGION, [crossing], MM)
+      throw new Error("expected MeasureError")
+    } catch (err) {
+      expect(err).toBeInstanceOf(MeasureError)
+      expect((err as MeasureError).message).toBe(
+        "areaWithCutouts: cutouts[0] touches or crosses the region boundary — v2 boundary-crossing cutouts need a CONVEX region; a concave region accepts only cutouts drawn fully inside",
+      )
+    }
+  })
+
+  test("two crossing cutouts may not touch each other even OUTSIDE the region (the conservative pairwise bound)", () => {
+    // Both cross x=100; a is y 10..30, b is y 15..25 — b lies inside a's
+    // outside part too; the pairwise rule fires on the ORIGINAL rings.
+    const a: Pt[] = [pt(90, 10), pt(110, 10), pt(110, 30), pt(90, 30)]
+    const b: Pt[] = [pt(95, 15), pt(115, 15), pt(115, 25), pt(95, 25)]
+    try {
+      areaWithCutouts(REGION, [a, b], MM)
+      throw new Error("expected MeasureError")
+    } catch (err) {
+      expect(err).toBeInstanceOf(MeasureError)
+      expect((err as MeasureError).message).toBe(
+        "areaWithCutouts: cutouts[0] and cutouts[1] overlap (their boundaries touch or cross) — overlapping cutouts would double-subtract the same area",
+      )
+    }
+  })
+
+  test("an outside cutout sharing only the boundary wall is refused (it would subtract nothing)", () => {
+    // Entirely right of x=100 except its left edge lying ON the wall.
+    const touching: Pt[] = [pt(100, 10), pt(110, 10), pt(110, 15), pt(100, 15)]
+    try {
+      areaWithCutouts(REGION, [touching], MM)
+      throw new Error("expected MeasureError")
+    } catch (err) {
+      expect(err).toBeInstanceOf(MeasureError)
+      expect((err as MeasureError).message).toBe(
+        "areaWithCutouts: cutouts[0] lies entirely outside the region — it would subtract nothing; draw it inside the area or crossing its boundary",
+      )
+    }
+  })
+
+  test("gross stays bit-identical to polygonArea with a crossing cutout present", () => {
+    const crossing: Pt[] = [pt(90, 10), pt(110, 10), pt(110, 15), pt(90, 15)]
+    const result = areaWithCutouts(REGION, [crossing], MM)
+    expect(result.grossMm2).toBe(polygonArea(REGION, MM))
+  })
 })

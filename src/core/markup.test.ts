@@ -495,7 +495,7 @@ describe("makeSheetMarkup — region cutouts (Slice 18)", () => {
     )
   })
 
-  test("geometry violations surface the §2.2 core messages verbatim (cutout outside)", () => {
+  test("geometry violations surface the §2.2 core messages verbatim (cutout outside — the §2.4 message)", () => {
     expectMarkupError(
       {
         kind: "area",
@@ -507,7 +507,7 @@ describe("makeSheetMarkup — region cutouts (Slice 18)", () => {
           rings: [[{ x: 150, y: 10 }, { x: 160, y: 10 }, { x: 160, y: 15 }, { x: 150, y: 15 }]],
         },
       },
-      "areaWithCutouts: cutouts[0].points[0] is not strictly inside the region",
+      "areaWithCutouts: cutouts[0] lies entirely outside the region — it would subtract nothing; draw it inside the area or crossing its boundary",
     )
   })
 

@@ -38,15 +38,18 @@
  *  - "calibration"  EXACTLY 2   — the two scale-bar picks; unit "mm/pt";
  *                                 value = the calibrated mm-per-point factor > 0
  *
- * Slice 18 — region cutouts: a kind "area" markup may carry a `cutouts`
- * structure (the payload the API stores alongside the row). `points` stays
- * the REGION ring; `cutouts.rings` are the cutout rings drawn strictly
- * inside it (src/core/measure.ts §2.2 owns the geometry rules); `value` MUST
- * equal the recomputed NET area in m² — the server re-derives every number
- * from the geometry under `cutouts.mmPerPt`, so the geometry and the number
- * can never disagree in storage (the count/symbol-hits discipline, applied
- * to derived areas). The gross/cutout/net breakdown the client displays is
- * re-verified, not trusted.
+ * Slice 18 — region cutouts, Slice 19 — the v2 clip lane: a kind "area"
+ * markup may carry a `cutouts` structure (the payload the API stores
+ * alongside the row). `points` stays the REGION ring; `cutouts.rings` are
+ * the cutout rings drawn inside it — fully inside (the §2.3 lane) OR
+ * touching/crossing the boundary of a CONVEX region, where the subtracted
+ * amount is the clipped intersection area (src/core/measure.ts §2.2–§2.4
+ * owns the geometry rules); `value` MUST equal the recomputed NET area in
+ * m² — the server re-derives every number from the geometry under
+ * `cutouts.mmPerPt`, so the geometry and the number can never disagree in
+ * storage (the count/symbol-hits discipline, applied to derived areas).
+ * The gross/cutout/net breakdown the client displays is re-verified, not
+ * trusted.
  */
 
 import { z } from "zod"

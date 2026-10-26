@@ -7,6 +7,10 @@
 # (roadmap-gap-audit item 1) +8 → 50 PASS (AC-VT-01…08: pdfplumber/ezdxf
 # extraction through the broker, sequential revisions, calibration fallback,
 # the honest DWG + non-source refusals, the audit trail + 401 gate).
+# Slice 18 region cutouts +11 → 81 PASS (AC-VT-10a…j). Slice 19 (§2.4):
+# AC-VT-10d flips from refusal to ACCEPTANCE (a boundary-touching cutout on
+# a CONVEX region rides the v2 clip lane) and AC-VT-11a…h pins the v2
+# matrix → 89 PASS.
 #
 # Rebuilds the demo dataset through the REAL API against the live dev server:
 # project "Harbour View Extension", 4 fixtures, 14 ledger rows, 1 approved GHS
@@ -862,12 +866,15 @@ assert_eq "AC-FR-01i: line 2's rateIds is the effective rate (the preference is 
   "$FR_RATE_NOW" "$(j "$BODY" '.data.estimate.lines[1].rateIds[0]')"
 
 # ===========================================================================
-# AC-VT-10 (Slice 18, limitation #5's remainder): region cutouts — an area
-# markup with cutout rings. The SERVER re-derives gross/cutout/net from the
-# geometry (src/core/measure.ts §2.2 through src/core/markup.ts) and refuses
-# any disagreement, so the pinned numbers are analytic ground truths on
-# integer coordinates: region 100×50 pt @ 20 mm/pt = 2.000 m² gross; two
-# 10×5 pt cutouts = 0.020 m² each; net 1.960 m² (the ledger value).
+# AC-VT-10 (Slice 18, limitation #5's remainder; v2 evolution in Slice 19):
+# region cutouts — an area markup with cutout rings. The SERVER re-derives
+# gross/cutout/net from the geometry (src/core/measure.ts §2.2–§2.4 through
+# src/core/markup.ts) and refuses any disagreement, so the pinned numbers
+# are analytic ground truths on integer coordinates: region 100×50 pt @
+# 20 mm/pt = 2.000 m² gross; two 10×5 pt cutouts = 0.020 m² each; net
+# 1.960 m² (the ledger value). Slice 19: 10d flips to ACCEPTANCE — a vertex
+# ON the boundary of this CONVEX region subtracts the full ring (2 −
+# 0.04 = 1.96) — and the AC-VT-11 block below pins the crossing matrix.
 # ===========================================================================
 cat > "$WORK/vt10-qty.json" <<EOF
 {
@@ -932,22 +939,27 @@ cat > "$WORK/vt10-onedge.json" <<EOF
   "page": 1,
   "kind": "area",
   "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 50 }, { "x": 0, "y": 50 } ],
-  "value": 1.98,
+  "value": 1.96,
   "unit": "m²",
+  "label": "slab S-1 opening on the edge",
   "cutouts": {
     "rings": [ [ { "x": 0, "y": 10 }, { "x": 20, "y": 10 }, { "x": 20, "y": 15 }, { "x": 0, "y": 15 } ] ],
     "mmPerPt": 20,
     "grossValue": 2,
-    "cutoutValue": 0.02,
-    "netValue": 1.98
+    "cutoutValue": 0.04,
+    "netValue": 1.96
   },
   "createdBy": "local-operator"
 }
 EOF
 jpost "/api/projects/$PID/markups" "$WORK/vt10-onedge.json"
-assert_eq "AC-VT-10d: a cutout vertex ON the region boundary is refused 422 verbatim (v1 cutouts are strictly inside)" \
-  'invalid SheetMarkup: areaWithCutouts: cutouts[0].points[0] is not strictly inside the region (on the boundary or outside) — v1 cutouts must be drawn fully inside the area' \
-  "$(j "$BODY" '.error.message')"
+# Slice 19 (§2.4): the former v1 refusal — a cutout vertex ON the boundary of
+# a CONVEX region is now ACCEPTED (the v2 clip lane); the numbers the body
+# claims are the honest re-derived ones (the 20×5 pt ring clipped by the wall
+# subtracts its FULL 0.04 m² — it lies inside-or-on the closed region).
+assert_eq "AC-VT-10d: a cutout vertex ON the boundary of a CONVEX region is accepted (v2) — the payload echoes the ring + the re-derived breakdown (2 − 0.04 = 1.96)" \
+  "201|area|1.96|2|0.04|1.96" \
+  "$STATUS|$(j "$BODY" '.data.markup.kind')|$(j "$BODY" '.data.markup.value')|$(j "$BODY" '.data.markup.payload.grossValue')|$(j "$BODY" '.data.markup.payload.cutoutValue')|$(j "$BODY" '.data.markup.payload.netValue')"
 
 cat > "$WORK/vt10-overlap.json" <<EOF
 {
@@ -1050,9 +1062,146 @@ assert_eq "AC-VT-10i: unauthenticated markup create is 401 (the cutouts lane rid
   "401" "$STATUS"
 
 http GET "/api/events?projectId=$PID&limit=200"
-assert_eq "AC-VT-10j: the markup.created audit event carries the cutouts detail (count + netValue, machine-checkable; detail is a stored JSON string — fromjson, contract §5)" \
+assert_eq "AC-VT-10j: the markup.created audit event carries the cutouts detail (count + netValue, machine-checkable; detail is a stored JSON string — fromjson, contract §5 — pinned to the TWO-ring row; the Slice-19 10d acceptance adds a one-ring 1.96 row of its own)" \
   "1|2|1.96" \
-  "$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.96)] | length")|$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.96)][0].cutouts.count")|$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.96)][0].cutouts.netValue")"
+  "$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.96 and .cutouts.count == 2)] | length")|$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.96 and .cutouts.count == 2)][0].cutouts.count")|$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.96 and .cutouts.count == 2)][0].cutouts.netValue")"
+
+# AC-VT-11 (Slice 19, contract §2.4): boundary-crossing cutouts via polygon
+# clipping — a cutout may cross the edge of a CONVEX region and subtracts
+# only its CLIPPED intersection; the concave / disjoint / swallower cases
+# carry their own honest verbatim refusals; the numbers are exact on the
+# integer-crossing fixture (u = 0.5 at x=100).
+cat > "$WORK/vt11-crossing.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "area",
+  "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 50 }, { "x": 0, "y": 50 } ],
+  "label": "slab S-2 opening crossing the edge",
+  "value": 1.98,
+  "unit": "m²",
+  "scale": "calibrated 2-pt, 20 mm/pt (fixture)",
+  "cutouts": {
+    "rings": [ [ { "x": 90, "y": 10 }, { "x": 110, "y": 10 }, { "x": 110, "y": 15 }, { "x": 90, "y": 15 } ] ],
+    "mmPerPt": 20,
+    "grossValue": 2,
+    "cutoutValue": 0.02,
+    "netValue": 1.98
+  },
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt11-crossing.json"
+VT11_MKP=$(j "$BODY" '.data.markup.id')
+assert_eq "AC-VT-11a: a boundary-CROSSING cutout is accepted on a convex region — only the inside part subtracts (2 − 0.02 = 1.98, exact on the integer crossing)" \
+  "201|area|1.98|1|2|0.02|1.98" \
+  "$STATUS|$(j "$BODY" '.data.markup.kind')|$(j "$BODY" '.data.markup.value')|$(j "$BODY" '.data.markup.payload.rings | length')|$(j "$BODY" '.data.markup.payload.grossValue')|$(j "$BODY" '.data.markup.payload.cutoutValue')|$(j "$BODY" '.data.markup.payload.netValue')"
+
+http GET "/api/projects/$PID/markups?revisionId=$SVG_REV"
+assert_eq "AC-VT-11b: GET round-trip — the crossing rings + the clipped breakdown persist exactly" \
+  "200|$VT11_MKP|4|1.98" \
+  "$STATUS|$(j "$BODY" "[.data.markups[] | select(.id == \"$VT11_MKP\")][0].id")|$(j "$BODY" "[.data.markups[] | select(.id == \"$VT11_MKP\")][0].payload.rings[0] | length")|$(j "$BODY" "[.data.markups[] | select(.id == \"$VT11_MKP\")][0].value")"
+
+cat > "$WORK/vt11-concave.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "area",
+  "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 10 }, { "x": 10, "y": 10 }, { "x": 10, "y": 50 }, { "x": 0, "y": 50 } ],
+  "value": 0.55,
+  "unit": "m²",
+  "cutouts": {
+    "rings": [ [ { "x": 40, "y": 5 }, { "x": 60, "y": 5 }, { "x": 60, "y": 15 }, { "x": 40, "y": 15 } ] ],
+    "mmPerPt": 20,
+    "grossValue": 0.56,
+    "cutoutValue": 0.02,
+    "netValue": 0.54
+  },
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt11-concave.json"
+assert_eq "AC-VT-11c: a crossing cutout on a CONCAVE region is refused 422 verbatim (the convex gate)" \
+  'invalid SheetMarkup: areaWithCutouts: cutouts[0] touches or crosses the region boundary — v2 boundary-crossing cutouts need a CONVEX region; a concave region accepts only cutouts drawn fully inside' \
+  "$(j "$BODY" '.error.message')"
+
+cat > "$WORK/vt11-outside.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "area",
+  "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 50 }, { "x": 0, "y": 50 } ],
+  "value": 2,
+  "unit": "m²",
+  "cutouts": {
+    "rings": [ [ { "x": 150, "y": 10 }, { "x": 160, "y": 10 }, { "x": 160, "y": 15 }, { "x": 150, "y": 15 } ] ],
+    "mmPerPt": 20,
+    "grossValue": 2,
+    "cutoutValue": 0,
+    "netValue": 2
+  },
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt11-outside.json"
+assert_eq "AC-VT-11d: a cutout entirely outside the region is refused 422 verbatim (it would subtract nothing)" \
+  'invalid SheetMarkup: areaWithCutouts: cutouts[0] lies entirely outside the region — it would subtract nothing; draw it inside the area or crossing its boundary' \
+  "$(j "$BODY" '.error.message')"
+
+cat > "$WORK/vt11-swallower.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "area",
+  "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 50 }, { "x": 0, "y": 50 } ],
+  "value": 0.001,
+  "unit": "m²",
+  "cutouts": {
+    "rings": [ [ { "x": -10, "y": -10 }, { "x": 110, "y": -10 }, { "x": 110, "y": 60 }, { "x": -10, "y": 60 } ] ],
+    "mmPerPt": 20,
+    "grossValue": 2,
+    "cutoutValue": 2,
+    "netValue": 0
+  },
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt11-swallower.json"
+assert_eq "AC-VT-11e: a cutout containing the whole region is refused 422 verbatim (net area 0 — the now-reachable backstop)" \
+  'invalid SheetMarkup: areaWithCutouts: the cutouts cancel the region exactly (net area 0) — nothing measurable remains' \
+  "$(j "$BODY" '.error.message')"
+
+cat > "$WORK/vt11-lied.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "area",
+  "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 50 }, { "x": 0, "y": 50 } ],
+  "value": 1.5,
+  "unit": "m²",
+  "cutouts": {
+    "rings": [ [ { "x": 90, "y": 10 }, { "x": 110, "y": 10 }, { "x": 110, "y": 15 }, { "x": 90, "y": 15 } ] ],
+    "mmPerPt": 20,
+    "grossValue": 2,
+    "cutoutValue": 0.02,
+    "netValue": 1.5
+  },
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt11-lied.json"
+assert_eq "AC-VT-11f: a claimed net that disagrees with the CLIPPED re-derivation is refused 422 verbatim with BOTH numbers pinned" \
+  'invalid SheetMarkup: value (1.5) disagrees with the recomputed NET area (1.98) — the geometry and the number must agree' \
+  "$(j "$BODY" '.error.message')"
+
+http GET "/api/events?projectId=$PID&limit=200"
+assert_eq "AC-VT-11g: the markup.created audit event carries the CLIPPED net detail (1 crossing cutout, net 1.98)" \
+  "1|1|1.98" \
+  "$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.98)] | length")|$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.98)][0].cutouts.count")|$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.98)][0].cutouts.netValue")"
+
+STATUS=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST "$BASE/api/projects/$PID/markups" -H 'Content-Type: application/json' --data-binary @"$WORK/vt11-crossing.json") || STATUS="000"
+assert_eq "AC-VT-11h: unauthenticated crossing-cutout create is 401 (the v2 lane rides the same wrapper)" \
+  "401" "$STATUS"
 
 echo
 echo "== e2e-takeoff.sh: $PASS PASS / $FAIL FAIL =="
