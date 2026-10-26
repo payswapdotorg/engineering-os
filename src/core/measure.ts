@@ -268,3 +268,235 @@ export function toLedgerQuantity(
   const unit = type === "length" ? "m" : "m²"
   return { value, unit, display: `${value.toFixed(3)} ${unit}` }
 }
+
+// ---------------------------------------------------------------------------
+// Region cutouts — contract §2.2 (Slice 18, limitation #5's remainder)
+//
+// ADDITIVE to the frozen §2.1 export list: the §2.1 signatures are untouched
+// (byte-for-byte); this section adds the area-with-cutouts core used by the
+// Sheet Measure cutout flow and the markups route's payload consistency gate.
+// Pinned semantics:
+//
+//  - a cutout is a polygon ring drawn STRICTLY INSIDE the region ring: every
+//    vertex strictly inside (never on the boundary), and no boundary contact
+//    of any kind between the rings (a shared vertex, a touching edge, a
+//    crossing, a collinear overlap — all refused). v1 bounds are honest: a
+//    cutout that pokes out of the region has no exact shoelace-only answer,
+//    so it is refused with a message that says exactly that;
+//  - cutout rings must be pairwise NON-OVERLAPPING (no boundary contact, no
+//    nesting): overlapping cutouts would double-subtract the same square
+//    millimetre, so the geometry and the number would disagree — refused;
+//  - net = gross − Σ cutouts, all by the same shoelace arithmetic as
+//    polygonArea (deterministic, exactly-specified IEEE-754);
+//  - net must be > 0 (cutouts that cancel the region exactly leave nothing
+//    measurable — refused, never a silent 0).
+//
+// Boundary-contact detection is exact-arithmetic on the given doubles
+// (orientation products with === 0): coordinates from hand clicks are PDF
+// points with two decimals; the e2e fixtures pin integer coordinates, so the
+// exact test is deterministic where it is used. A pair of rings that share a
+// boundary point only in the last ulp of a float product is treated as
+// NOT touching — the strictly-inside vertex test (a separate, sign-based
+// check) is the gate that matters; contact detection is the second, stronger
+// net for hand-drawn geometry.
+// ---------------------------------------------------------------------------
+
+/** Signed area ×2 of a ring (shoelace, no abs) — the orientation primitive. */
+function ringCrossedArea(ring: Pt[]): number {
+  let twice = 0
+  const n = ring.length
+  for (let i = 0; i < n; i += 1) {
+    const a = ring[i]
+    const b = ring[(i + 1) % n]
+    twice += a.x * b.y - b.x * a.y
+  }
+  return twice
+}
+
+/** |shoelace|/2 in point² — the same arithmetic polygonArea uses. */
+function ringAreaPt2(ring: Pt[]): number {
+  return Math.abs(ringCrossedArea(ring)) / 2
+}
+
+/** z-component of the cross product (b−a)×(c−a): >0 left, <0 right, 0 collinear. */
+function cross(o: Pt, a: Pt, b: Pt): number {
+  return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x)
+}
+
+/** True when p lies ON the closed segment a→b (collinear + within the bbox). */
+function pointOnSegment(p: Pt, a: Pt, b: Pt): boolean {
+  if (cross(a, b, p) !== 0) return false
+  const minX = Math.min(a.x, b.x)
+  const maxX = Math.max(a.x, b.x)
+  const minY = Math.min(a.y, b.y)
+  const maxY = Math.max(a.y, b.y)
+  return p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY
+}
+
+/**
+ * Strict point-in-polygon: true only when p is INSIDE the ring, never on its
+ * boundary. Even-odd ray cast (half-open edge rule) + an explicit on-edge
+ * exclusion, so a vertex exactly on the boundary is honestly "not strictly
+ * inside" — the cutout gate depends on that strictness.
+ */
+export function pointStrictlyInsidePolygon(p: Pt, ring: Pt[]): boolean {
+  const n = ring.length
+  let inside = false
+  for (let i = 0, j = n - 1; i < n; j = i, i += 1) {
+    const a = ring[j]
+    const b = ring[i]
+    if (pointOnSegment(p, a, b)) return false // on the boundary — not strict
+    const straddles =
+      a.y > p.y !== b.y > p.y &&
+      p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x
+    if (straddles) inside = !inside
+  }
+  return inside
+}
+
+/**
+ * Any-contact segment intersection (proper crossing, endpoint touch, or
+ * collinear overlap). Used ONLY to detect boundary CONTACT between rings —
+ * for the cutout rules any contact is a refusal, so there is no need to
+ * distinguish the kinds.
+ */
+function segmentsContact(a1: Pt, a2: Pt, b1: Pt, b2: Pt): boolean {
+  const d1 = cross(b1, b2, a1)
+  const d2 = cross(b1, b2, a2)
+  const d3 = cross(a1, a2, b1)
+  const d4 = cross(a1, a2, b2)
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    return true // proper crossing
+  }
+  if (d1 === 0 && pointOnSegment(a1, b1, b2)) return true
+  if (d2 === 0 && pointOnSegment(a2, b1, b2)) return true
+  if (d3 === 0 && pointOnSegment(b1, a1, a2)) return true
+  if (d4 === 0 && pointOnSegment(b2, a1, a2)) return true
+  return false
+}
+
+/**
+ * True when the two closed rings' boundaries touch or cross anywhere (any
+ * edge pair in contact, or any vertex of one lying on the other's boundary).
+ * Rings whose boundaries are completely disjoint return false.
+ */
+export function ringsTouchOrCross(a: Pt[], b: Pt[]): boolean {
+  const an = a.length
+  const bn = b.length
+  for (let i = 0; i < an; i += 1) {
+    const a1 = a[i]
+    const a2 = a[(i + 1) % an]
+    for (let j = 0; j < bn; j += 1) {
+      const b1 = b[j]
+      const b2 = b[(j + 1) % bn]
+      if (segmentsContact(a1, a2, b1, b2)) return true
+    }
+  }
+  return false
+}
+
+/** The area-with-cutouts result: every number the UI and the route re-derive. */
+export interface AreaWithCutouts {
+  /** gross region area in mm² (shoelace × mmPerPt²) */
+  grossMm2: number
+  /** each cutout's area in mm², in input order */
+  cutoutMm2: number[]
+  /** sum of the cutout areas in mm² */
+  cutoutsMm2: number
+  /** gross − cutouts in mm²; always > 0 (a net of 0 is refused) */
+  netMm2: number
+}
+
+/**
+ * Area of a region ring minus cutout rings — the Slice 18 core. Every rule
+ * violation throws a MeasureError whose message the API returns verbatim as
+ * a 422 (the house discipline: geometry and number can never disagree in
+ * storage):
+ *  - region: ≥3 finite points enclosing a positive area;
+ *  - cutouts: a non-empty array of rings, each ≥3 finite points with
+ *    positive area;
+ *  - each cutout STRICTLY inside the region (all vertices strictly inside;
+ *    no boundary contact between the rings);
+ *  - cutouts pairwise non-overlapping (no boundary contact; no nesting);
+ *  - net > 0 after subtraction;
+ *  - mmPerPt finite > 0 (the §2.1 calibration factor).
+ */
+export function areaWithCutouts(region: Pt[], cutouts: Pt[][], mmPerPt: number): AreaWithCutouts {
+  const where = "areaWithCutouts"
+  requireMmPerPt(mmPerPt, where)
+
+  const ring = requirePoints(region, 3, `${where}: region`)
+  const grossPt2 = ringAreaPt2(ring)
+  if (!(grossPt2 > 0)) {
+    throw new MeasureError(
+      `${where}: the region ring must enclose a positive area (a degenerate or collinear ring measures 0 — draw an area first)`,
+    )
+  }
+
+  if (!Array.isArray(cutouts) || cutouts.length === 0) {
+    throw new MeasureError(
+      `${where}: cutouts must be a non-empty array of rings (got ${describe(cutouts)})`,
+    )
+  }
+
+  const rings: Pt[][] = cutouts.map((cutout, index) => {
+    const r = requirePoints(cutout, 3, `${where}: cutouts[${index}]`)
+    if (!(ringAreaPt2(r) > 0)) {
+      throw new MeasureError(
+        `${where}: cutouts[${index}] must enclose a positive area (a degenerate or collinear ring cannot subtract anything)`,
+      )
+    }
+    return r
+  })
+
+  // Each cutout strictly inside the region: vertex strictness first (the
+  // honest per-vertex message), then boundary contact (edges touching or
+  // crossing the region edge even when all vertices sit inside).
+  for (let i = 0; i < rings.length; i += 1) {
+    const r = rings[i]
+    for (let j = 0; j < r.length; j += 1) {
+      if (!pointStrictlyInsidePolygon(r[j], ring)) {
+        throw new MeasureError(
+          `${where}: cutouts[${i}].points[${j}] is not strictly inside the region (on the boundary or outside) — v1 cutouts must be drawn fully inside the area`,
+        )
+      }
+    }
+    if (ringsTouchOrCross(r, ring)) {
+      throw new MeasureError(
+        `${where}: cutouts[${i}] boundary touches or crosses the region boundary — v1 cutouts must be drawn fully inside the area`,
+      )
+    }
+  }
+
+  // Cutouts pairwise non-overlapping: boundary contact first (crossing or
+  // touching), then containment (one ring nested inside the other with no
+  // contact — it would double-subtract the same area silently).
+  for (let i = 0; i < rings.length; i += 1) {
+    for (let j = i + 1; j < rings.length; j += 1) {
+      if (ringsTouchOrCross(rings[i], rings[j])) {
+        throw new MeasureError(
+          `${where}: cutouts[${i}] and cutouts[${j}] overlap (their boundaries touch or cross) — overlapping cutouts would double-subtract the same area`,
+        )
+      }
+      if (
+        pointStrictlyInsidePolygon(rings[i][0], rings[j]) ||
+        pointStrictlyInsidePolygon(rings[j][0], rings[i])
+      ) {
+        throw new MeasureError(
+          `${where}: cutouts[${i}] and cutouts[${j}] overlap (one lies inside the other) — overlapping cutouts would double-subtract the same area`,
+        )
+      }
+    }
+  }
+
+  const cutoutMm2 = rings.map((r) => ringAreaPt2(r) * mmPerPt * mmPerPt)
+  const grossMm2 = grossPt2 * mmPerPt * mmPerPt
+  const cutoutsMm2 = cutoutMm2.reduce((sum, area) => sum + area, 0)
+  const netMm2 = grossMm2 - cutoutsMm2
+  if (!(netMm2 > 0)) {
+    throw new MeasureError(
+      `${where}: the cutouts cancel the region exactly (net area 0) — nothing measurable remains`,
+    )
+  }
+  return { grossMm2, cutoutMm2, cutoutsMm2, netMm2 }
+}

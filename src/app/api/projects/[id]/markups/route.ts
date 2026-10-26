@@ -19,7 +19,10 @@ export const dynamic = "force-dynamic"
 /**
  * Slice 13 — persistent sheet markups (limitation #5). Slice 16-B extends
  * the kind vocabulary with "text-hits" (accepted OCR word boxes) whose
- * transcript rides the new nullable `payload` column.
+ * transcript rides the new nullable `payload` column. Slice 18 adds region
+ * cutouts: kind "area" may carry a `cutouts` structure (rings + the m²
+ * breakdown); the core re-derives every number from the geometry and refuses
+ * disagreement, then the validated structure is stored as the row's payload.
  *
  * GET  /api/projects/[id]/markups            → all markups of the project
  * GET  …/markups?revisionId=<rid>            → filtered to one revision
@@ -42,6 +45,12 @@ export const dynamic = "force-dynamic"
  *    and shape-validated: words[] with boxIndex < hit-pair count, conf ≥ 0,
  *    raw text always present, the engine envelope; every other kind
  *    carrying a payload is a 422 (never silently dropped);
+ *  - `cutouts` is accepted ONLY for kind "area" (Slice 18): the rings +
+ *    mmPerPt + the gross/cutout/net breakdown; src/core/markup.ts re-derives
+ *    all three areas from the geometry (src/core/measure.ts §2.2) and
+ *    refuses any disagreement — the row's payload column stores the
+ *    validated structure. A body carrying BOTH payload and cutouts is a
+ *    422 (ambiguous provenance);
  *  - mutations emit audit events (markup.created), reads do not.
  */
 
@@ -61,6 +70,21 @@ const createMarkupSchema = z.object({
   scale: z.string().optional(),
   quantityId: z.string().optional(),
   payload: z.unknown().optional(),
+  /** Slice 18: the region-cutouts structure (kind "area" only) — the pure
+   * core owns the geometry rules and the recompute gate. */
+  cutouts: z
+    .object({
+      rings: z
+        .array(z.array(pointSchema, { message: "cutouts.rings[] must be an array of {x, y}" }).min(3, {
+          message: "cutouts.rings[] must have at least 3 points",
+        }))
+        .min(1, { message: "cutouts.rings must contain at least one cutout ring" }),
+      mmPerPt: z.number({ message: "cutouts.mmPerPt must be a number" }).finite().positive(),
+      grossValue: z.number({ message: "cutouts.grossValue must be a number" }).finite(),
+      cutoutValue: z.number({ message: "cutouts.cutoutValue must be a number" }).finite(),
+      netValue: z.number({ message: "cutouts.netValue must be a number" }).finite(),
+    })
+    .optional(),
   createdBy: z.string().trim().min(1, "createdBy is required"),
 })
 
@@ -220,10 +244,23 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
   // Slice 16-B: the transcript payload is text-hits-ONLY, shape-validated,
   // with every word's boxIndex inside the markup's own hit-pair boxes — the
   // transcript and the geometry can never disagree in storage.
+  // Slice 18: kind "area" rides the `cutouts` body field instead (validated
+  // by the pure core with a full re-derivation); a body carrying BOTH is
+  // refused — ambiguous provenance.
   let payloadJson: string | null = null
   if (input.payload !== undefined) {
     if (input.kind !== "text-hits") {
+      if (input.kind === "area" && input.cutouts !== undefined) {
+        return ERR.invalid(
+          'payload: is only accepted for kind "text-hits" markups — an area-with-cutouts markup carries its rings in the cutouts field, not a payload',
+        )
+      }
       return ERR.invalid(`payload: is only accepted for kind "text-hits" markups (kind ${input.kind} carries none)`,)
+    }
+    if (input.cutouts !== undefined) {
+      return ERR.invalid(
+        'cutouts: cannot be combined with a payload — an area-with-cutouts markup carries cutouts only',
+      )
     }
     const payload = transcriptPayloadSchema.safeParse(input.payload)
     if (!payload.success) {
@@ -260,11 +297,18 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
       unit: input.unit,
       scale: input.scale,
       quantityId: input.quantityId,
+      cutouts: input.cutouts,
       createdBy: input.createdBy,
     })
   } catch (err) {
     if (err instanceof MarkupError) return ERR.invalid(err.message)
     throw err
+  }
+
+  // Slice 18: an area-with-cutouts row stores the validated structure as its
+  // payload (kind "area" carries no other payload — mutually exclusive above).
+  if (record.cutouts !== null) {
+    payloadJson = JSON.stringify(record.cutouts)
   }
 
   const created = await db.sheetMarkup.create({
@@ -298,6 +342,7 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
       value: record.value,
       unit: record.unit,
       label: record.label,
+      cutouts: record.cutouts !== null ? { count: record.cutouts.rings.length, netValue: record.cutouts.netValue } : undefined,
     },
   })
 

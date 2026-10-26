@@ -402,3 +402,156 @@ describe("text-hits markups (Slice 16-B sheet-text OCR)", () => {
     expect(requiredPointsFor("text-hits")).toEqual({ min: 2, exact: null })
   })
 })
+
+// ---------------------------------------------------------------------------
+// Slice 18 — region cutouts (kind "area" + the cutouts payload structure)
+// ---------------------------------------------------------------------------
+
+/** The analytic cutouts fixture: 100×50 pt region, mmPerPt 20 (§2.2 battery). */
+const CUTOUTS_REGION = [
+  { x: 0, y: 0 },
+  { x: 100, y: 0 },
+  { x: 100, y: 50 },
+  { x: 0, y: 50 },
+]
+const CUTOUT_RING = [
+  { x: 10, y: 10 },
+  { x: 20, y: 10 },
+  { x: 20, y: 15 },
+  { x: 10, y: 15 },
+]
+/** gross 2.0 m² · cutout 0.02 m² · net 1.98 m² (all exact — integer arithmetic). */
+const CUTOUTS_INPUT = {
+  rings: [CUTOUT_RING],
+  mmPerPt: 20,
+  grossValue: 2,
+  cutoutValue: 0.02,
+  netValue: 1.98,
+}
+
+const makeAreaWithCutouts = (over: Record<string, unknown>) =>
+  make({
+    kind: "area",
+    points: CUTOUTS_REGION,
+    value: 1.98,
+    unit: "m²",
+    cutouts: CUTOUTS_INPUT,
+    ...over,
+  })
+
+describe("makeSheetMarkup — region cutouts (Slice 18)", () => {
+  test("a valid area-with-cutouts record echoes the validated structure", () => {
+    const record = makeAreaWithCutouts({})
+    expect(record.kind).toBe("area")
+    expect(record.value).toBe(1.98)
+    expect(record.cutouts).not.toBeNull()
+    expect(record.cutouts?.rings).toHaveLength(1)
+    expect(record.cutouts?.mmPerPt).toBe(20)
+    expect(record.cutouts?.netValue).toBe(1.98)
+  })
+
+  test("a plain area carries cutouts: null (no payload, backward compatible)", () => {
+    const record = make({ kind: "area", points: CUTOUTS_REGION, value: 2, unit: "m²" })
+    expect(record.cutouts).toBeNull()
+  })
+
+  test("cutouts on a non-area kind are refused (length)", () => {
+    expectMarkupError(
+      { kind: "length", value: 8, unit: "m", cutouts: CUTOUTS_INPUT },
+      'cutouts are only accepted for kind "area" markups (kind length carries none)',
+    )
+  })
+
+  test("value disagreeing with the recomputed NET area is refused with both numbers", () => {
+    expectMarkupError(
+      { kind: "area", points: CUTOUTS_REGION, value: 1.5, unit: "m²", cutouts: CUTOUTS_INPUT },
+      "value (1.5) disagrees with the recomputed NET area (1.98)",
+    )
+  })
+
+  test("a tampered grossValue in the breakdown is refused", () => {
+    expectMarkupError(
+      {
+        kind: "area",
+        points: CUTOUTS_REGION,
+        value: 1.98,
+        unit: "m²",
+        cutouts: { ...CUTOUTS_INPUT, grossValue: 3 },
+      },
+      "cutouts.grossValue (3) disagrees with the recomputed gross area (2)",
+    )
+  })
+
+  test("a tampered cutoutValue in the breakdown is refused", () => {
+    expectMarkupError(
+      {
+        kind: "area",
+        points: CUTOUTS_REGION,
+        value: 1.98,
+        unit: "m²",
+        cutouts: { ...CUTOUTS_INPUT, cutoutValue: 0.5 },
+      },
+      "cutouts.cutoutValue (0.5) disagrees with the recomputed cutout area (0.02)",
+    )
+  })
+
+  test("geometry violations surface the §2.2 core messages verbatim (cutout outside)", () => {
+    expectMarkupError(
+      {
+        kind: "area",
+        points: CUTOUTS_REGION,
+        value: 1.98,
+        unit: "m²",
+        cutouts: {
+          ...CUTOUTS_INPUT,
+          rings: [[{ x: 150, y: 10 }, { x: 160, y: 10 }, { x: 160, y: 15 }, { x: 150, y: 15 }]],
+        },
+      },
+      "areaWithCutouts: cutouts[0].points[0] is not strictly inside the region",
+    )
+  })
+
+  test("overlapping cutouts surface the double-subtract refusal verbatim", () => {
+    expectMarkupError(
+      {
+        kind: "area",
+        points: CUTOUTS_REGION,
+        value: 1.98,
+        unit: "m²",
+        cutouts: {
+          ...CUTOUTS_INPUT,
+          rings: [
+            [{ x: 10, y: 10 }, { x: 20, y: 10 }, { x: 20, y: 20 }, { x: 10, y: 20 }],
+            [{ x: 15, y: 15 }, { x: 25, y: 15 }, { x: 25, y: 25 }, { x: 15, y: 25 }],
+          ],
+        },
+      },
+      "overlapping cutouts would double-subtract the same area",
+    )
+  })
+
+  test("an empty rings array is refused (plain areas send no cutouts at all)", () => {
+    expectMarkupError(
+      { kind: "area", points: CUTOUTS_REGION, value: 2, unit: "m²", cutouts: { ...CUTOUTS_INPUT, rings: [] } },
+      "cutouts.rings must contain at least one cutout ring",
+    )
+  })
+
+  test("the record round-trips a two-cutout net exactly", () => {
+    const secondRing = [
+      { x: 30, y: 10 },
+      { x: 40, y: 10 },
+      { x: 40, y: 15 },
+      { x: 30, y: 15 },
+    ]
+    const record = make({
+      kind: "area",
+      points: CUTOUTS_REGION,
+      value: 1.96,
+      unit: "m²",
+      cutouts: { rings: [CUTOUT_RING, secondRing], mmPerPt: 20, grossValue: 2, cutoutValue: 0.04, netValue: 1.96 },
+    })
+    expect(record.value).toBe(1.96)
+    expect(record.cutouts?.rings).toHaveLength(2)
+  })
+})

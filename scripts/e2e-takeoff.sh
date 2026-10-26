@@ -859,6 +859,199 @@ assert_eq "AC-FR-01h: deterministic preference order pinned: already-effective b
 assert_eq "AC-FR-01i: line 2's rateIds is the effective rate (the preference is visible, not implied)" \
   "$FR_RATE_NOW" "$(j "$BODY" '.data.estimate.lines[1].rateIds[0]')"
 
+# ===========================================================================
+# AC-VT-10 (Slice 18, limitation #5's remainder): region cutouts — an area
+# markup with cutout rings. The SERVER re-derives gross/cutout/net from the
+# geometry (src/core/measure.ts §2.2 through src/core/markup.ts) and refuses
+# any disagreement, so the pinned numbers are analytic ground truths on
+# integer coordinates: region 100×50 pt @ 20 mm/pt = 2.000 m² gross; two
+# 10×5 pt cutouts = 0.020 m² each; net 1.960 m² (the ledger value).
+# ===========================================================================
+cat > "$WORK/vt10-qty.json" <<EOF
+{
+  "sourceArtifactRevisionId": "$SVG_REV",
+  "quantityType": "area",
+  "value": 1.96,
+  "unit": "m²",
+  "method": "drawing-measured",
+  "sheetRef": "Sheet-A101-GA-plan.svg — p1",
+  "scale": "calibrated 2-pt, 20 mm/pt (fixture)",
+  "quantityMethod": "eos-pdf-measure/2 (browser-calibrated, region cutouts)",
+  "rulesetId": "drawing-takeoff",
+  "rulesetVersion": "0.1",
+  "elementRef": "slab S-1 with two openings",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/quantities" "$WORK/vt10-qty.json"
+VT10_QTY=$(j "$BODY" '.data.quantity.id')
+assert_eq "AC-VT-10a: the NET area lands in the ledger as a drawing-measured row with the cutouts-aware quantityMethod (draft, 1.96 m²)" \
+  "201|draft|1.96|area|eos-pdf-measure/2 (browser-calibrated, region cutouts)" \
+  "$STATUS|$(j "$BODY" '.data.quantity.status')|$(j "$BODY" '.data.quantity.value')|$(j "$BODY" '.data.quantity.quantityType')|$(j "$BODY" '.data.quantity.quantityMethod')"
+
+cat > "$WORK/vt10-markup.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "area",
+  "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 50 }, { "x": 0, "y": 50 } ],
+  "label": "slab S-1 net of openings",
+  "value": 1.96,
+  "unit": "m²",
+  "scale": "calibrated 2-pt, 20 mm/pt (fixture)",
+  "quantityId": "$VT10_QTY",
+  "cutouts": {
+    "rings": [
+      [ { "x": 10, "y": 10 }, { "x": 20, "y": 10 }, { "x": 20, "y": 15 }, { "x": 10, "y": 15 } ],
+      [ { "x": 30, "y": 10 }, { "x": 40, "y": 10 }, { "x": 40, "y": 15 }, { "x": 30, "y": 15 } ]
+    ],
+    "mmPerPt": 20,
+    "grossValue": 2,
+    "cutoutValue": 0.04,
+    "netValue": 1.96
+  },
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt10-markup.json"
+VT10_MKP=$(j "$BODY" '.data.markup.id')
+assert_eq "AC-VT-10b: area-with-cutouts markup created — value is the NET (1.96 m²), the payload echoes the two rings + the re-derived breakdown" \
+  "201|area|1.96|m²|2|2|0.04|1.96" \
+  "$STATUS|$(j "$BODY" '.data.markup.kind')|$(j "$BODY" '.data.markup.value')|$(j "$BODY" '.data.markup.unit')|$(j "$BODY" '.data.markup.payload.rings | length')|$(j "$BODY" '.data.markup.payload.grossValue')|$(j "$BODY" '.data.markup.payload.cutoutValue')|$(j "$BODY" '.data.markup.payload.netValue')"
+
+http GET "/api/projects/$PID/markups?revisionId=$SVG_REV"
+assert_eq "AC-VT-10c: GET round-trip — the cutouts payload persists (rings + breakdown) with the ledger link intact" \
+  "200|$VT10_MKP|2|1.96|$VT10_QTY" \
+  "$STATUS|$(j "$BODY" "[.data.markups[] | select(.id == \"$VT10_MKP\")][0].id")|$(j "$BODY" "[.data.markups[] | select(.id == \"$VT10_MKP\")][0].payload.rings | length")|$(j "$BODY" "[.data.markups[] | select(.id == \"$VT10_MKP\")][0].value")|$(j "$BODY" "[.data.markups[] | select(.id == \"$VT10_MKP\")][0].quantityId")"
+
+cat > "$WORK/vt10-onedge.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "area",
+  "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 50 }, { "x": 0, "y": 50 } ],
+  "value": 1.98,
+  "unit": "m²",
+  "cutouts": {
+    "rings": [ [ { "x": 0, "y": 10 }, { "x": 20, "y": 10 }, { "x": 20, "y": 15 }, { "x": 0, "y": 15 } ] ],
+    "mmPerPt": 20,
+    "grossValue": 2,
+    "cutoutValue": 0.02,
+    "netValue": 1.98
+  },
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt10-onedge.json"
+assert_eq "AC-VT-10d: a cutout vertex ON the region boundary is refused 422 verbatim (v1 cutouts are strictly inside)" \
+  'invalid SheetMarkup: areaWithCutouts: cutouts[0].points[0] is not strictly inside the region (on the boundary or outside) — v1 cutouts must be drawn fully inside the area' \
+  "$(j "$BODY" '.error.message')"
+
+cat > "$WORK/vt10-overlap.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "area",
+  "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 50 }, { "x": 0, "y": 50 } ],
+  "value": 1.9,
+  "unit": "m²",
+  "cutouts": {
+    "rings": [
+      [ { "x": 10, "y": 10 }, { "x": 20, "y": 10 }, { "x": 20, "y": 20 }, { "x": 10, "y": 20 } ],
+      [ { "x": 15, "y": 15 }, { "x": 25, "y": 15 }, { "x": 25, "y": 25 }, { "x": 15, "y": 25 } ]
+    ],
+    "mmPerPt": 20,
+    "grossValue": 2,
+    "cutoutValue": 0.1,
+    "netValue": 1.9
+  },
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt10-overlap.json"
+assert_eq "AC-VT-10e: overlapping cutouts are refused 422 verbatim (double-subtract guard)" \
+  'invalid SheetMarkup: areaWithCutouts: cutouts[0] and cutouts[1] overlap (their boundaries touch or cross) — overlapping cutouts would double-subtract the same area' \
+  "$(j "$BODY" '.error.message')"
+
+cat > "$WORK/vt10-lied.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "area",
+  "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 50 }, { "x": 0, "y": 50 } ],
+  "value": 1.5,
+  "unit": "m²",
+  "cutouts": {
+    "rings": [ [ { "x": 10, "y": 10 }, { "x": 20, "y": 10 }, { "x": 20, "y": 15 }, { "x": 10, "y": 15 } ] ],
+    "mmPerPt": 20,
+    "grossValue": 2,
+    "cutoutValue": 0.02,
+    "netValue": 1.98
+  },
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt10-lied.json"
+assert_eq "AC-VT-10f: a value that disagrees with the recomputed NET is refused 422 verbatim with BOTH numbers pinned" \
+  'invalid SheetMarkup: value (1.5) disagrees with the recomputed NET area (1.98) — the geometry and the number must agree' \
+  "$(j "$BODY" '.error.message')"
+
+cat > "$WORK/vt10-wrongkind.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "length",
+  "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 } ],
+  "value": 2,
+  "unit": "m",
+  "cutouts": {
+    "rings": [ [ { "x": 10, "y": 10 }, { "x": 20, "y": 10 }, { "x": 20, "y": 15 }, { "x": 10, "y": 15 } ] ],
+    "mmPerPt": 20,
+    "grossValue": 2,
+    "cutoutValue": 0.02,
+    "netValue": 1.98
+  },
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt10-wrongkind.json"
+assert_eq "AC-VT-10g: cutouts on a non-area kind are refused 422 verbatim (the structure is area-only)" \
+  'invalid SheetMarkup: cutouts are only accepted for kind "area" markups (kind length carries none)' \
+  "$(j "$BODY" '.error.message')"
+
+cat > "$WORK/vt10-bothpayloads.json" <<EOF
+{
+  "revisionId": "$SVG_REV",
+  "page": 1,
+  "kind": "area",
+  "points": [ { "x": 0, "y": 0 }, { "x": 100, "y": 0 }, { "x": 100, "y": 50 }, { "x": 0, "y": 50 } ],
+  "value": 1.98,
+  "unit": "m²",
+  "payload": { "words": [ { "text": "x", "conf": 90, "boxIndex": 0 } ], "engine": "t", "engineVersion": "1", "adapterScript": "s", "adapterHash": "h" },
+  "cutouts": {
+    "rings": [ [ { "x": 10, "y": 10 }, { "x": 20, "y": 10 }, { "x": 20, "y": 15 }, { "x": 10, "y": 15 } ] ],
+    "mmPerPt": 20,
+    "grossValue": 2,
+    "cutoutValue": 0.02,
+    "netValue": 1.98
+  },
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/vt10-bothpayloads.json"
+assert_eq "AC-VT-10h: a body carrying BOTH payload and cutouts is refused 422 verbatim (ambiguous provenance)" \
+  'payload: is only accepted for kind "text-hits" markups — an area-with-cutouts markup carries its rings in the cutouts field, not a payload' \
+  "$(j "$BODY" '.error.message')"
+
+STATUS=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST "$BASE/api/projects/$PID/markups" -H 'Content-Type: application/json' --data-binary @"$WORK/vt10-markup.json") || STATUS="000"
+assert_eq "AC-VT-10i: unauthenticated markup create is 401 (the cutouts lane rides the same wrapper)" \
+  "401" "$STATUS"
+
+http GET "/api/events?projectId=$PID&limit=200"
+assert_eq "AC-VT-10j: the markup.created audit event carries the cutouts detail (count + netValue, machine-checkable; detail is a stored JSON string — fromjson, contract §5)" \
+  "1|2|1.96" \
+  "$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.96)] | length")|$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.96)][0].cutouts.count")|$(j "$BODY" "[.data.events[] | select(.action == \"markup.created\") | .detail | fromjson | select(.kind == \"area\" and .cutouts != null and .value == 1.96)][0].cutouts.netValue")"
+
 echo
 echo "== e2e-takeoff.sh: $PASS PASS / $FAIL FAIL =="
 if [[ "$FAIL" -ne 0 ]]; then exit 1; fi

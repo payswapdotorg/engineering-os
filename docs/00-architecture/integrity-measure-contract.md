@@ -155,6 +155,40 @@ module as constants and mirrored in this contract:
   generator/fixture byte-identity. The TL re-checks the same numbers via the
   browser journey on lane 8-b's surface.
 
+### 2.3 Region cutouts — the Slice 18 ADDITIVE extension (frozen 2026-10-26)
+
+`src/core/measure.ts` grew three exports + one result type, ADDITIVE to the
+frozen §2.1 list (the §2.1 signatures are untouched byte-for-byte; the
+standing "changes escalate to the TL" rule was exercised with the TL as the
+author — recorded here so the freeze stays honest):
+
+- `pointStrictlyInsidePolygon(p, ring)` — even-odd ray cast with an explicit
+  on-boundary exclusion: a point ON an edge or vertex is NOT strictly inside.
+- `ringsTouchOrCross(a, b)` — any-contact detection between two closed
+  rings' boundaries (proper crossing, endpoint touch, collinear overlap).
+- `areaWithCutouts(region, cutouts, mmPerPt)` → `{ grossMm2, cutoutMm2[],
+  cutoutsMm2, netMm2 }` — the same shoelace arithmetic as `polygonArea`
+  (gross is BIT-IDENTICAL to `polygonArea(region, mmPerPt)` on the same
+  ring), with the pinned validation matrix, every violation throwing a
+  `MeasureError` whose message the markups route returns verbatim as a 422:
+  region ≥3 points enclosing positive area; each cutout ring ≥3 points
+  enclosing positive area; each cutout STRICTLY inside the region (all
+  vertices strictly inside; zero boundary contact — v1 bounds, honest: a
+  cutout poking out has no exact shoelace-only answer, so it is refused);
+  cutouts pairwise non-overlapping (no boundary contact, no nesting —
+  overlapping cutouts would double-subtract the same mm²); net > 0.
+- Boundary-contact detection is exact-arithmetic on the given doubles
+  (orientation products with `=== 0`); the defensive net-zero refusal is
+  provably unreachable through the strict-inside rules and is documented as
+  a backstop, not pinned by test.
+
+The unit battery `src/core/measure.test.ts` (NEW — the §2.1 "no new test
+files" constraint was Slice-8-scoped; Slice 18 ships the module's own file)
+pins: §2.1 arithmetic sanity (gross bit-identity included), the
+strict-inside/contact predicates (concave L-shape cases), analytic
+cutout ground truths on integer coordinates (2.000 m² − 0.02 − 0.02 =
+1.960 m², exact), and the full refusal matrix verbatim.
+
 ## 3. Lane 8-b (W1) — Sheet Measure tab (Takeoff workspace)
 
 Files: new `src/components/product/sheet-measure.tsx`; edit

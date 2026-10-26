@@ -24,6 +24,8 @@ import {
   PlannerEnvelopeSchema,
   REVISION_IDENTICAL_REFUSED,
   buildPlannerMessages,
+  formatNamedArtifactRefusal,
+  namedArtifactsAreWired,
   extractJsonObject,
   isPlanStatus,
   planToJsonText,
@@ -309,6 +311,54 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
       entityType: "AgentPlan",
       entityId: planId,
       detail: { intent, revisesPlanId: revisesPlanId ?? null, status: "failed", stage: "revision-delta" },
+    })
+    return jsonOk({ plan: toPlanRow(failedRow) }, { status: 201 })
+  }
+
+  // 5c. Slice-18 name-fidelity backstop (planner protocol loop 2 — the
+  // direct-intent residual Slice 17 recorded honestly): when the intent
+  // NAMES an artifact and the plan wires NOTHING to it while a same-kind
+  // sibling IS wired, that is the observed named-artifact substitution —
+  // refused at the validation stage, persisted honestly as a failed row with
+  // the raw response as evidence. Prompt-independent (the prompt carries the
+  // rule; the route enforces it). Deliberately narrow — see the pure core's
+  // doc for the honest-plan guarantees (wired-anywhere passes, no-sibling
+  // passes, two-named-of-kind is a legitimate choice the review gate owns).
+  const fidelity = namedArtifactsAreWired(intent, artifacts, validation.definition)
+  if (!fidelity.ok) {
+    const failedRow = await db.agentPlan.create({
+      data: {
+        id: planId,
+        projectId: id,
+        intent,
+        status: "failed",
+        revisesPlanId: revisesPlanId ?? null,
+        plan: null,
+        evidence: JSON.stringify({
+          rawResponse: result.text, // VERBATIM — the substituted plan is evidence
+          durationMs: result.durationMs,
+          attempts: result.attempts,
+        }),
+        failure: JSON.stringify({
+          stage: "validation",
+          error: formatNamedArtifactRefusal(fidelity.name, fidelity.kind),
+          at: new Date().toISOString(),
+        }),
+        createdById: access.session.id,
+      },
+    })
+    await recordEvent({
+      projectId: id,
+      action: "plan.requested",
+      entityType: "AgentPlan",
+      entityId: planId,
+      detail: {
+        intent,
+        revisesPlanId: revisesPlanId ?? null,
+        status: "failed",
+        stage: "name-fidelity",
+        substituted: { name: fidelity.name, kind: fidelity.kind },
+      },
     })
     return jsonOk({ plan: toPlanRow(failedRow) }, { status: 201 })
   }

@@ -366,6 +366,16 @@ export interface MarkupTranscriptPayload {
   adapterHash: string
 }
 
+/** The Slice 18 region-cutouts payload (kind "area" payload): the rings, the
+ * calibration factor, and the m² breakdown the server re-derived and stored. */
+export interface MarkupCutoutsPayload {
+  rings: Array<Array<{ x: number; y: number }>>
+  mmPerPt: number
+  grossValue: number
+  cutoutValue: number
+  netValue: number
+}
+
 export interface SheetMarkupRow {
   id: string
   revisionId: string
@@ -377,7 +387,7 @@ export interface SheetMarkupRow {
   unit: string
   scale: string | null
   quantityId: string | null
-  payload?: MarkupTranscriptPayload
+  payload?: MarkupTranscriptPayload | MarkupCutoutsPayload
   createdBy: string
   createdAt: string
 }
@@ -396,6 +406,8 @@ export interface SheetMarkupCreateInput {
   scale?: string
   quantityId?: string
   payload?: MarkupTranscriptPayload
+  /** Slice 18: kind "area" only — the server re-derives the breakdown. */
+  cutouts?: MarkupCutoutsPayload
   createdBy: string
 }
 

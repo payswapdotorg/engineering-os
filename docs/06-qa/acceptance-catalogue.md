@@ -275,3 +275,30 @@ Suite: `scripts/e2e-p6-isolation.sh` — **108 PASS / 0 FAIL** (AC-AD-01…14 ar
 ### Slice-17 browser journeys (agent-browser, canonical dataset)
 
 - **The admin surface, lived:** Ama (admin) quick-login → the Administration nav item renders (admin-gated) → the directory table (operator/ama/kwame/zara with inline role selects) + the Deployment card (signup `open` + the boot-time how-to) → operator self-demotion → the VERBATIM toast `cannot demote the last remaining admin (promote another admin first)` + the select SNAPS BACK to admin (never optimistic) → ama role change → the verbatim demo-persona refusal toast + snap-back → dark mode · 390×844 scrollWidth 390 · zero console/page errors. Zara (viewer): the Administration nav item count is 0 + the honest "administrators only" gate card on direct URL. Evidence: evidence/s17-admin-{surface,lastadmin-refusal,dark,mobile-390,viewer-gate}.png
+
+## Slice-18 acceptance items — verified 2026-10-26 (TL, dev host; slice = region cutouts for Sheet Measure [limitation #5's last drillable remainder] + planner protocol loop 2 [the Slice-17 direct-intent residual]; the roadmap-gap-audit sixteenth-pass forward queue)
+
+Suite: `scripts/e2e-takeoff.sh` — **81 PASS / 0 FAIL** (AC-VT-10a…j are the +10 additions). The pure geometry core is unit-pinned by `src/core/measure.test.ts` (32 tests, NEW file) and the markup consistency rules by `src/core/markup.test.ts` (+10); the name-fidelity backstop by `src/core/planner.test.ts` (+12).
+
+| AC | Item | Status | Evidence |
+|---|---|---|---|
+| AC-VT-10a | The NET lands in the ledger: a drawing-measured area row 1.96 m² with `quantityMethod eos-pdf-measure/2 (browser-calibrated, region cutouts)` — the cutouts lane is distinguishable in the ledger | ✅ passed | e2e PASS 72 |
+| AC-VT-10b | The area-with-cutouts markup: value = the NET (1.96 m²), the payload echoes the 2 rings + the re-derived breakdown {gross 2, cutouts 0.04, net 1.96} — the SERVER re-derived every number from the geometry (src/core/markup.ts re-runs the §2.3 core and refuses disagreement) | ✅ passed | e2e PASS 73 |
+| AC-VT-10c | GET round-trip: the cutouts payload persists (rings + breakdown) with the ledger link intact | ✅ passed | e2e PASS 74 |
+| AC-VT-10d | A cutout vertex ON the region boundary → 422 VERBATIM `…cutouts[0].points[0] is not strictly inside the region…v1 cutouts must be drawn fully inside the area` | ✅ passed | e2e PASS 75 |
+| AC-VT-10e | Overlapping cutouts → 422 VERBATIM `…overlapping cutouts would double-subtract the same area` (crossing AND nested variants unit-pinned) | ✅ passed | e2e PASS 76 |
+| AC-VT-10f | A tampered value → 422 VERBATIM with BOTH numbers pinned: `value (1.5) disagrees with the recomputed NET area (1.98)` — the geometry and the number can never disagree in storage | ✅ passed | e2e PASS 77 |
+| AC-VT-10g | Cutouts on a non-area kind → 422 VERBATIM `cutouts are only accepted for kind "area" markups (kind length carries none)` | ✅ passed | e2e PASS 78 |
+| AC-VT-10h | A body carrying BOTH payload and cutouts → 422 VERBATIM (ambiguous provenance refused, never silently dropped) | ✅ passed | e2e PASS 79 |
+| AC-VT-10i | Unauthenticated create → the 401 envelope (the cutouts lane rides the same ADR-0007 wrapper) | ✅ passed | e2e PASS 80 |
+| AC-VT-10j | The `markup.created` audit event carries the cutouts detail `{count: 2, netValue: 1.96}` (fromjson, machine-checkable) | ✅ passed | e2e PASS 81 |
+
+### Slice-18 planner-protocol loop 2 (the direct-intent named-artifact residual — agent-planning-contract §10)
+
+- **The deterministic backstop:** `namedArtifactsInIntent` + `wiredArtifactIds` + `namedArtifactsAreWired` + `NAMED_ARTIFACT_SUBSTITUTION_REFUSED` (src/core/planner.ts, +12 unit pins). A named-but-unwired artifact with a same-kind sibling wired is refused at the validation stage and persisted as an honest failed row with the raw response as evidence — the REVISION_IDENTICAL_REFUSED pattern, extended. Deliberately narrow: wired-anywhere passes, no-sibling passes, two-named-of-kind is a legitimate choice the review gate owns. ✔ shipped
+- **LIVE verification (the backstop caught the real failure mode on its first live run):** a probe project with two same-kind models, intent naming `two-solids-live.step` — attempts 2–3 of the live LLM substituted the sibling `two-solids.step` and the guard refused each with the verbatim message BEFORE any human accept button could see the substitution; attempt 1 behaved and proposed. The p7 live battery's first attempt also hit the guard and its honest-failure branch PASSed. ✔ verified
+- **The residual, honestly moved:** the regenerated demo-project ledger (graded 2/2 clean) shows the remaining prompt-owned class is OP/KIND fidelity (a takeoff_drawing wired to an .svg named in the intent; a Model-QA intent answered with a DXF takeoff) — name-fidelity HOLDS in both rows (the named artifact IS wired / no same-kind sibling), so the deterministic layer correctly passes them; the prompt's op↔format rule + the runtime 422 + the review gate own that class. The protocol's next loop owns it if it recurs. ✔ recorded
+
+### Slice-18 browser journeys (agent-browser, canonical dataset)
+
+- **The cutout flow, lived:** Ama (admin) quick-login → Harbour View Extension → Takeoff & Estimating → Sheet Measure → the PDF sheet (calibration auto-restored from the durable scale record, 35.28 mm/pt) → Area tool, 4 clicks + Enter → "Add cutout inside this area" → 4 inner clicks + Enter (toast `Cutout subtracted — net …`) → a SECOND cutout ring → the breakdown card reads `gross 217.327 m² − cutouts 40.62 m² = net 176.707 m² (the ledger row stores the net)` with the `region cutouts × 2` badge → Save to ledger → the saved-markups row reads `area · 176.707 m² · net of 2 cutouts → ledger`. Dark mode · 390×844 scrollWidth 390 · zero console/page errors. Evidence: evidence/s18-cutouts-{desktop,dark,390px}.png

@@ -15,13 +15,17 @@ import { describe, expect, test } from "bun:test"
 
 import { BROKER_OPERATIONS, WORKFLOW_TEMPLATES, type WorkflowDefinition } from "./workflow"
 import {
+  NAMED_ARTIFACT_SUBSTITUTION_REFUSED,
   PLANNER_ACTOR,
   PLAN_STATUSES,
   PlannerEnvelopeSchema,
   REVISION_IDENTICAL_REFUSED,
   buildPlannerMessages,
   extractJsonObject,
+  formatNamedArtifactRefusal,
   isPlanStatus,
+  namedArtifactsAreWired,
+  namedArtifactsInIntent,
   planToJsonText,
   revisionIsSubstantiveChange,
   summarizePlanSteps,
@@ -739,5 +743,110 @@ describe("plan status vocabulary & planner actor", () => {
 
   test("PLANNER_ACTOR is the pinned agent actor", () => {
     expect(PLANNER_ACTOR).toBe("agent:planner-v1")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Slice 18 — named-artifact fidelity backstop (planner protocol loop 2)
+// ---------------------------------------------------------------------------
+
+/** Minimal catalog fixture (the fidelity core reads name/kind only). */
+function mkArtifact(id: string, name: string, kind: string): PlannerArtifactContext {
+  return { id, name, kind, revisionCount: 1, latestApprovalState: "none", latestNote: null }
+}
+
+describe("namedArtifactsInIntent — the naming predicate", () => {
+  const catalog = [
+    mkArtifact("art-bracket", "bracket.step", "model"),
+    mkArtifact("art-wall", "wall-quantities.ifc", "model"),
+    mkArtifact("art-sheet", "Sheet-A101.pdf", "drawing"),
+  ]
+
+  test("an intent naming a file names that artifact (verbatim substring)", () => {
+    const named = namedArtifactsInIntent("please takeoff bracket.step and report", catalog)
+    expect(named.map((a) => a.name)).toEqual(["bracket.step"])
+  })
+
+  test("case-SENSITIVE: a lowercased name is NOT a naming (filenames are exact)", () => {
+    const named = namedArtifactsInIntent("please takeoff sheet-a101.pdf", catalog)
+    expect(named).toHaveLength(0)
+  })
+
+  test("names shorter than 4 characters never count (pronoun guard)", () => {
+    const tiny = [mkArtifact("art-tiny", "ab", "document")]
+    expect(namedArtifactsInIntent("look at ab please", tiny)).toHaveLength(0)
+  })
+
+  test("an intent naming nothing names nothing", () => {
+    expect(namedArtifactsInIntent("build a QA pipeline for the project", catalog)).toHaveLength(0)
+  })
+})
+
+describe("namedArtifactsAreWired — the direct-intent substitution guard", () => {
+  const catalog = [
+    mkArtifact("art-bracket", "bracket.step", "model"),
+    mkArtifact("art-wall", "wall-quantities.ifc", "model"),
+    mkArtifact("art-sheet", "Sheet-A101.pdf", "drawing"),
+  ]
+  const wiredToWall = {
+    steps: [{ id: "quantities", operation: "derive_quantities", inputs: { artifactId: "art-wall" } }],
+  }
+  const wiredToBracket = {
+    steps: [{ id: "quantities", operation: "derive_quantities", inputs: { artifactId: "art-bracket" } }],
+  }
+  const wiredToSheet = {
+    steps: [{ id: "takeoff", operation: "takeoff_sheet", inputs: { artifactId: "art-sheet" } }],
+  }
+  const reportWiresBoth = {
+    steps: [
+      { id: "takeoff", operation: "takeoff_sheet", inputs: { artifactId: "art-sheet" } },
+      { id: "report", operation: "build_report", inputs: { artifactIds: ["art-sheet", "art-bracket"] }, requiresApproval: true },
+    ],
+  }
+
+  test("THE OBSERVED FAILURE MODE: intent names bracket.step, plan wires the same-kind sibling → refused", () => {
+    const verdict = namedArtifactsAreWired("takeoff bracket.step for quantities", catalog, wiredToWall)
+    expect(verdict).toEqual({ ok: false, name: "bracket.step", kind: "model" })
+  })
+
+  test("the named artifact wired directly → ok (fidelity holds)", () => {
+    expect(namedArtifactsAreWired("takeoff bracket.step for quantities", catalog, wiredToBracket)).toEqual({ ok: true })
+  })
+
+  test("the named artifact wired only in a build_report list → ok (wired anywhere counts)", () => {
+    expect(namedArtifactsAreWired("QA bracket.step with Sheet-A101.pdf", catalog, reportWiresBoth)).toEqual({ ok: true })
+  })
+
+  test("named-but-deliberately-untouched (no same-kind sibling wired) → ok", () => {
+    // "leave bracket.step alone, takeoff the sheet" — the plan wires a drawing,
+    // not a model: no model sibling is wired, so no substitution happened.
+    expect(namedArtifactsAreWired("leave bracket.step alone, takeoff the sheet", catalog, wiredToSheet)).toEqual({ ok: true })
+  })
+
+  test("TWO named artifacts of one kind = a legitimate choice → ok (the review gate owns it)", () => {
+    const verdict = namedArtifactsAreWired(
+      "compare bracket.step against wall-quantities.ifc",
+      catalog,
+      wiredToWall,
+    )
+    expect(verdict).toEqual({ ok: true })
+  })
+
+  test("no named artifacts at all → ok", () => {
+    expect(namedArtifactsAreWired("build a QA pipeline", catalog, wiredToWall)).toEqual({ ok: true })
+  })
+})
+
+describe("formatNamedArtifactRefusal — the verbatim envelope", () => {
+  test("interpolates the catalog's exact name and kind", () => {
+    expect(formatNamedArtifactRefusal("bracket.step", "model")).toBe(
+      'the request names the artifact "bracket.step" but no step wires it — another "model" artifact is wired instead (wire the named artifact, or leave the step out and say why in assumptions; never quietly re-target the request)',
+    )
+  })
+
+  test("the pattern constant pins the template (cannot drift)", () => {
+    expect(NAMED_ARTIFACT_SUBSTITUTION_REFUSED).toBe(
+      'the request names the artifact "<name>" but no step wires it — another "<kind>" artifact is wired instead (wire the named artifact, or leave the step out and say why in assumptions; never quietly re-target the request)',
+    )
   })
 })

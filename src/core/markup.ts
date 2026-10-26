@@ -37,9 +37,21 @@
  *                    validated), never the points — geometry stays {x,y} only
  *  - "calibration"  EXACTLY 2   — the two scale-bar picks; unit "mm/pt";
  *                                 value = the calibrated mm-per-point factor > 0
+ *
+ * Slice 18 — region cutouts: a kind "area" markup may carry a `cutouts`
+ * structure (the payload the API stores alongside the row). `points` stays
+ * the REGION ring; `cutouts.rings` are the cutout rings drawn strictly
+ * inside it (src/core/measure.ts §2.2 owns the geometry rules); `value` MUST
+ * equal the recomputed NET area in m² — the server re-derives every number
+ * from the geometry under `cutouts.mmPerPt`, so the geometry and the number
+ * can never disagree in storage (the count/symbol-hits discipline, applied
+ * to derived areas). The gross/cutout/net breakdown the client displays is
+ * re-verified, not trusted.
  */
 
 import { z } from "zod"
+
+import { areaWithCutouts, type Pt } from "./measure"
 
 /** Closed kind vocabulary (storage strings, src/core normative). */
 export const MARKUP_KINDS = [
@@ -118,8 +130,25 @@ export interface SheetMarkupRecord {
   scale: string | null
   /** → QuantityRecord.id when the markup produced a ledger row (null for calibration) */
   quantityId: string | null
+  /** Slice 18: the validated cutouts structure (null unless kind "area" with cutouts) */
+  cutouts: SheetMarkupCutouts | null
   createdBy: string
   createdAt: string
+}
+
+/**
+ * The Slice 18 cutouts structure (kind "area" only): the rings, the
+ * calibration factor the measurement was taken under, and the m² breakdown
+ * the client computed. The core re-derives all three areas from the geometry
+ * and refuses any disagreement (values are LEDGER units — m², the same
+ * toLedgerQuantity arithmetic: mm² / 1e6).
+ */
+export interface SheetMarkupCutouts {
+  rings: MarkupPoint[][]
+  mmPerPt: number
+  grossValue: number
+  cutoutValue: number
+  netValue: number
 }
 
 /** Input accepted by `makeSheetMarkup` (id/projectId supplied by the caller). */
@@ -135,6 +164,8 @@ export interface SheetMarkupInput {
   unit: string
   scale?: string
   quantityId?: string
+  /** Slice 18: present only for an area-with-cutouts markup. */
+  cutouts?: SheetMarkupCutouts
   createdBy: string
   createdAt?: string
 }
@@ -163,6 +194,17 @@ const inputSchema = z.object({
   unit: nonEmpty,
   scale: z.string().optional(),
   quantityId: z.string().optional(),
+  cutouts: z
+    .object({
+      rings: z.array(z.array(pointSchema, { message: "cutouts.rings[] must be an array of {x, y}" }).min(3, {
+        message: "cutouts.rings[] must have at least 3 points",
+      })),
+      mmPerPt: z.number({ message: "cutouts.mmPerPt must be a number" }).finite(),
+      grossValue: z.number({ message: "cutouts.grossValue must be a number" }).finite(),
+      cutoutValue: z.number({ message: "cutouts.cutoutValue must be a number" }).finite(),
+      netValue: z.number({ message: "cutouts.netValue must be a number" }).finite(),
+    })
+    .optional(),
   createdBy: nonEmpty,
   createdAt: z.string().optional(),
 })
@@ -171,6 +213,22 @@ const inputSchema = z.object({
 function requireFinitePositive(name: string, v: number, where: string): void {
   if (!Number.isFinite(v) || v <= 0) {
     throw new MarkupError(`${where}: ${name} must be a finite number > 0 (got ${v})`)
+  }
+}
+
+/**
+ * Relative-equality gate for the cutouts breakdown (client display vs the
+ * server's re-derivation — both run the same deterministic core, so a real
+ * mismatch is always a client bug or a tampered body, never float noise;
+ * the 1e-9 relative window absorbs only engine-level ulps). The message
+ * pins BOTH numbers, the honest diff.
+ */
+function nearEqual(field: string, given: number, expected: number, what: string): void {
+  const tol = 1e-9 * Math.max(Math.abs(given), Math.abs(expected), 1)
+  if (Math.abs(given - expected) > tol) {
+    throw new MarkupError(
+      `${field} (${given}) disagrees with ${what} (${expected}) — the geometry and the number must agree`,
+    )
   }
 }
 
@@ -268,6 +326,45 @@ export function makeSheetMarkup(input: SheetMarkupInput): SheetMarkupRecord {
   const label = (v.label ?? "").trim()
   const scale = (v.scale ?? "").trim()
 
+  // -- Slice 18: the cutouts structure — area-only, geometry-reverified ------
+  let cutouts: SheetMarkupCutouts | null = null
+  if (v.cutouts !== undefined) {
+    if (kind !== "area") {
+      throw new MarkupError(
+        `${where}: cutouts are only accepted for kind "area" markups (kind ${kind} carries none)`,
+      )
+    }
+    const rings = v.cutouts.rings as MarkupPoint[][]
+    if (rings.length === 0) {
+      throw new MarkupError(
+        `${where}: cutouts.rings must contain at least one cutout ring — send no cutouts for a plain area`,
+      )
+    }
+    let computed
+    try {
+      // The §2.2 core owns every geometry rule; its MeasureError messages
+      // surface verbatim (same text, wrapped as the markup envelope error).
+      computed = areaWithCutouts(v.points as Pt[], rings as Pt[][], v.cutouts.mmPerPt)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      throw new MarkupError(`${where}: ${message}`)
+    }
+    const grossM2 = computed.grossMm2 / 1e6
+    const cutoutM2 = computed.cutoutsMm2 / 1e6
+    const netM2 = computed.netMm2 / 1e6
+    nearEqual(`${where}: value`, v.value, netM2, "the recomputed NET area")
+    nearEqual(`${where}: cutouts.grossValue`, v.cutouts.grossValue, grossM2, "the recomputed gross area")
+    nearEqual(`${where}: cutouts.cutoutValue`, v.cutouts.cutoutValue, cutoutM2, "the recomputed cutout area")
+    nearEqual(`${where}: cutouts.netValue`, v.cutouts.netValue, netM2, "the recomputed net area")
+    cutouts = {
+      rings,
+      mmPerPt: v.cutouts.mmPerPt,
+      grossValue: v.cutouts.grossValue,
+      cutoutValue: v.cutouts.cutoutValue,
+      netValue: v.cutouts.netValue,
+    }
+  }
+
   return {
     id: v.id,
     projectId: v.projectId,
@@ -285,6 +382,7 @@ export function makeSheetMarkup(input: SheetMarkupInput): SheetMarkupRecord {
         : v.quantityId !== undefined && v.quantityId.trim() !== ""
           ? v.quantityId.trim()
           : null,
+    cutouts,
     createdBy: v.createdBy,
     createdAt: v.createdAt ?? new Date().toISOString(),
   }

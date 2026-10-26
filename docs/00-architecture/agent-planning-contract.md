@@ -399,3 +399,29 @@ request-vs-wiring consistency note to the rubric.
 
 The loop is a session of measured work whenever the evidence accumulates;
 the tooling above is committed so any future session can run it cold.
+
+### Loop 2 (Slice 18, 2026-10-26) — the named-artifact residual CLOSED deterministically
+
+The recorded next-loop candidates were tried in a different order than
+suggested, and the loop closed with the STRONGER of the two shapes:
+
+- **The deterministic backstop shipped first** (`src/core/planner.ts`):
+  `namedArtifactsInIntent` (verbatim substring, ≥4 chars, case-sensitive) +
+  `wiredArtifactIds` + `namedArtifactsAreWired` + the pinned envelope
+  `NAMED_ARTIFACT_SUBSTITUTION_REFUSED`. When the intent names an artifact
+  and the plan wires NOTHING to it while a same-kind sibling IS wired, the
+  plans route refuses the proposal at the validation stage and persists the
+  honest failed row with the raw response as evidence — the
+  REVISION_IDENTICAL_REFUSED pattern, extended to the direct path.
+  Deliberately narrow: wired-anywhere passes, no-same-kind-sibling passes,
+  two-named-of-kind is a legitimate choice the review gate owns. +12 unit
+  pins. **Live-verified on its first run** — the two-model probe's LLM
+  substituted the sibling on attempts 2–3 and the guard refused each
+  verbatim before any accept button could see it.
+- **The residual moved, honestly:** the regenerated ledger (2/2 clean) shows
+  the remaining prompt-owned class is OP/KIND fidelity (takeoff_drawing
+  wired to a named .svg; a Model-QA intent answered with a DXF takeoff —
+  name-fidelity HOLDS in both rows, so the deterministic layer correctly
+  passes them). The prompt's op↔format rule (Slice 17), the runtime 422,
+  and the human review gate own that class; loop 3 owns it only if it
+  recurs in the evidence ledger.

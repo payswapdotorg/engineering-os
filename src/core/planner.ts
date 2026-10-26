@@ -70,6 +70,111 @@ export function revisionIsSubstantiveChange(
 }
 
 // ---------------------------------------------------------------------------
+// Named-artifact fidelity backstop (Slice 18 — planner protocol loop 2; the
+// direct-intent residual the Slice-17 pass recorded honestly: "the direct
+// no-prior-evidence intent path can still substitute a same-kind artifact
+// in some runs"). Deterministic, prompt-independent, unit-pinned.
+// ---------------------------------------------------------------------------
+
+/** Minimum name length that can count as "naming" (guards "a", "it", "the"). */
+const NAMED_ARTIFACT_MIN_NAME = 4
+
+/**
+ * Verbatim refusal pattern — pinned by unit tests. `<name>`/`<kind>` are the
+ * catalog's exact strings (never lowercase munged — the human sees what the
+ * catalog shows).
+ */
+export const NAMED_ARTIFACT_SUBSTITUTION_REFUSED =
+  'the request names the artifact "<name>" but no step wires it — another "<kind>" artifact is wired instead (wire the named artifact, or leave the step out and say why in assumptions; never quietly re-target the request)'
+
+/**
+ * The artifacts the intent NAMES: an artifact is named when its exact stored
+ * name appears as a substring of the intent text (names are filenames like
+ * "bracket.step" — a substring match on the verbatim name is precise; names
+ * shorter than 4 characters never count, so pronouns and articles cannot
+ * false-positive). Case-SENSITIVE on purpose: artifact names are filenames,
+ * and "Sheet-A101.pdf" ≠ "sheet-a101.pdf".
+ */
+export function namedArtifactsInIntent(
+  intent: string,
+  artifacts: PlannerArtifactContext[],
+): PlannerArtifactContext[] {
+  return artifacts.filter(
+    (artifact) => artifact.name.length >= NAMED_ARTIFACT_MIN_NAME && intent.includes(artifact.name),
+  )
+}
+
+/** Collects every artifact id a canonical definition wires (single + list inputs). */
+export function wiredArtifactIds(definition: unknown): string[] {
+  const steps =
+    typeof definition === "object" && definition !== null
+      ? (definition as { steps?: unknown }).steps
+      : null
+  if (!Array.isArray(steps)) return []
+  const ids: string[] = []
+  for (const step of steps) {
+    if (typeof step !== "object" || step === null) continue
+    const inputs = (step as { inputs?: unknown }).inputs
+    if (typeof inputs !== "object" || inputs === null) continue
+    const single = (inputs as { artifactId?: unknown }).artifactId
+    if (typeof single === "string") ids.push(single)
+    const list = (inputs as { artifactIds?: unknown }).artifactIds
+    if (Array.isArray(list)) {
+      for (const id of list) if (typeof id === "string") ids.push(id)
+    }
+  }
+  return ids
+}
+
+/**
+ * The name-fidelity verdict for one plan. A named artifact is SUBSTITUTED
+ * when it is wired NOWHERE in the definition while a same-KIND sibling IS
+ * wired — exactly the observed failure mode ("takeoff bracket.step" answered
+ * with a plan wired to wall-quantities.ifc). Deliberately narrow so honest
+ * plans never false-positive:
+ *  - a named artifact that IS wired anywhere (including a build_report list)
+ *    passes;
+ *  - a named artifact whose kind has NO sibling wired passes (the request may
+ *    name context it does not want operated on — "leave bracket.step alone,
+ *    takeoff the sheet");
+ *  - when the intent names TWO artifacts of the same kind, choosing between
+ *    them is a legitimate ambiguity the deterministic layer cannot resolve —
+ *    the prompt's fidelity rule owns it, and the residual is recorded.
+ */
+export function namedArtifactsAreWired(
+  intent: string,
+  artifacts: PlannerArtifactContext[],
+  definition: unknown,
+): { ok: true } | { ok: false; name: string; kind: string } {
+  const named = namedArtifactsInIntent(intent, artifacts)
+  if (named.length === 0) return { ok: true }
+  const wired = new Set(wiredArtifactIds(definition))
+  const byId = new Map(artifacts.map((artifact) => [artifact.id, artifact]))
+  for (const artifact of named) {
+    if (wired.has(artifact.id)) continue // wired somewhere — fidelity holds
+    // TWO named artifacts of this kind = a legitimate choice between them —
+    // the deterministic layer cannot know which the human meant; the prompt's
+    // fidelity rule owns the preference, and the review gate owns the verdict.
+    const namedOfKind = named.filter((candidate) => candidate.kind === artifact.kind).length
+    if (namedOfKind >= 2) continue
+    // Same-kind sibling wired? (wired ids not belonging to this artifact)
+    const siblingOfKindWired = [...wired].some((id) => {
+      const other = byId.get(id)
+      return other !== undefined && other.id !== artifact.id && other.kind === artifact.kind
+    })
+    if (siblingOfKindWired) {
+      return { ok: false, name: artifact.name, kind: artifact.kind }
+    }
+  }
+  return { ok: true }
+}
+
+/** Formats the refusal with the catalog's exact name/kind strings. */
+export function formatNamedArtifactRefusal(name: string, kind: string): string {
+  return NAMED_ARTIFACT_SUBSTITUTION_REFUSED.replaceAll("<name>", name).replaceAll("<kind>", kind)
+}
+
+// ---------------------------------------------------------------------------
 // Context types (contract §3 — frozen)
 // ---------------------------------------------------------------------------
 

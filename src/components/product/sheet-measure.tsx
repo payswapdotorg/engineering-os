@@ -100,6 +100,7 @@ import type { ArtifactSourceState } from "@/components/product/takeoff-dialogs"
 import {
   MeasureError,
   PT_MM,
+  areaWithCutouts,
   calibrate,
   distance,
   polygonArea,
@@ -165,6 +166,11 @@ interface FinishedMeasurement {
   provenance: "manual" | "template"
   /** template provenance only: the scan context for the save panel's copy */
   templateInfo?: { threshold: number; templateWpt: number; templateHpt: number }
+  /** Slice 18: committed cutout rings (area-with-cutouts; the rawMm/ledger
+   *  above are the NET after every committed cutout). */
+  cutouts?: Pt[][],
+  /** Slice 18: the honest gross/cutout/net breakdown in mm² (display only). */
+  breakdown?: { grossMm2: number; cutoutsMm2: number; netMm2: number }
 }
 
 /** One accepted symbol-scan hit, already mapped back to PDF-point space. */
@@ -321,6 +327,14 @@ export function SheetMeasure({
   const [ocrReading, setOcrReading] = useState(false)
   const [ocrError, setOcrError] = useState<string | null>(null)
 
+  // -- Slice 18: region cutouts (a sub-mode of a finished manual area) ---------
+  /** true while the user is drawing cutout rings inside the finished area */
+  const [cutoutActive, setCutoutActive] = useState(false)
+  /** the ring being drawn (≥3 points to close) */
+  const [cutoutDraft, setCutoutDraft] = useState<Pt[]>([])
+  /** inline validation error for the ring being drawn (verbatim core text) */
+  const [cutoutError, setCutoutError] = useState<string | null>(null)
+
   // Derived picker data — only drawing artifacts whose latest revision is a
   // real PDF (the serialized ArtifactListItem carries latestRevision.mimeType).
   const pdfSheets = useMemo(
@@ -346,6 +360,15 @@ export function SheetMeasure({
     setCursorPt(null)
   }, [])
 
+  /** Slice 18: clears any cutout drafting state (never the committed rings). */
+  const clearCutoutDraft = useCallback((reason: string | null) => {
+    if (reason !== null) setCutoutError(reason)
+    else setCutoutError(null)
+    setCutoutDraft([])
+    setCutoutActive(false)
+    setCursorPt(null)
+  }, [])
+
   const discardFinished = useCallback(() => {
     setFinished(null)
     setPoints([])
@@ -354,6 +377,10 @@ export function SheetMeasure({
     // A discarded template count also clears the scan it came from.
     setAutoHits(null)
     setScanError(null)
+    // Slice 18: the whole pending measurement (cutouts included) goes away.
+    setCutoutDraft([])
+    setCutoutActive(false)
+    setCutoutError(null)
   }, [])
 
   /** Reset the whole measuring session for a (new) sheet. */
@@ -377,6 +404,9 @@ export function SheetMeasure({
     setOcrPicks([])
     setOcrWords(null)
     setOcrError(null)
+    setCutoutDraft([])
+    setCutoutActive(false)
+    setCutoutError(null)
   }, [])
 
   const onSheetChange = (nextId: string) => {
@@ -386,6 +416,11 @@ export function SheetMeasure({
 
   const changeTool = (next: MeasureTool) => {
     if (next === tool) return
+    // Slice 18: switching tools cancels any cutout drafting (the committed
+    // rings stay on the pending measurement — only the draft is cancelled).
+    if (cutoutDraft.length > 0 || cutoutActive) {
+      clearCutoutDraft("Cutout cancelled — tool switched. Committed cutouts on the pending area are untouched.")
+    }
     // Auto-count and OCR need NO calibration (a count is scale-free; reading
     // text is scale-free — the same rule the core's count mapping encodes);
     // length/area/count stay gated.
@@ -424,6 +459,9 @@ export function SheetMeasure({
         `Switched to page ${next} — the in-progress measurement was cleared. Saved rows are never lost.`,
       )
       setFinished(null)
+      setCutoutDraft([])
+      setCutoutActive(false)
+      setCutoutError(null)
     }
     if (autoPicks.length > 0 || autoHits !== null) {
       setAutoPicks([])
@@ -720,7 +758,36 @@ export function SheetMeasure({
         ctx.lineWidth = 2
         ctx.strokeStyle = SAVED_STROKE
         ctx.stroke()
-        drawSavedChip(m.points[0], `${trim3(m.value)} ${m.unit}`)
+        // Slice 18: an area-with-cutouts row draws its rings dashed + hatched
+        // (the payload's shape distinguishes it — a transcript has words[]).
+        const cutoutsPayload =
+          m.payload !== undefined && "rings" in m.payload ? m.payload : null
+        if (cutoutsPayload !== null) {
+          for (const ring of cutoutsPayload.rings) {
+            if (ring.length < 3) continue
+            ctx.beginPath()
+            const [rx, ry] = toPx(ring[0])
+            ctx.moveTo(rx, ry)
+            for (let i = 1; i < ring.length; i += 1) {
+              const [x, y] = toPx(ring[i])
+              ctx.lineTo(x, y)
+            }
+            ctx.closePath()
+            ctx.fillStyle = "rgba(255, 255, 255, 0.55)"
+            ctx.fill()
+            ctx.lineWidth = 1.5
+            ctx.strokeStyle = SAVED_STROKE
+            ctx.setLineDash([5, 4])
+            ctx.stroke()
+            ctx.setLineDash([])
+          }
+          drawSavedChip(
+            m.points[0],
+            `${trim3(m.value)} ${m.unit} net · ${cutoutsPayload.rings.length} cutout${cutoutsPayload.rings.length === 1 ? "" : "s"}`,
+          )
+        } else {
+          drawSavedChip(m.points[0], `${trim3(m.value)} ${m.unit}`)
+        }
       } else if (m.kind === "count") {
         for (const p of m.points) {
           const [x, y] = toPx(p)
@@ -852,7 +919,55 @@ export function SheetMeasure({
         drawLine(points[points.length - 1], cursorPt, true)
       }
     }
-  }, [tool, calibPicks, points, cursorPt, finished, renderScale, pageDims, markups, pageNumber, autoPicks, autoHits])
+
+    // -- Slice 18: the cutout layer over a finished area -----------------------
+    // Committed rings (dashed amber + white knock-out) + the ring being drawn
+    // (dashed amber + rubber band to the cursor).
+    if (finished !== null && finished.tool === "area") {
+      const committed = finished.cutouts ?? []
+      for (const ring of committed) {
+        if (ring.length < 3) continue
+        ctx.beginPath()
+        const [cx, cy] = toPx(ring[0])
+        ctx.moveTo(cx, cy)
+        for (let i = 1; i < ring.length; i += 1) {
+          const [x, y] = toPx(ring[i])
+          ctx.lineTo(x, y)
+        }
+        ctx.closePath()
+        ctx.fillStyle = "rgba(255, 255, 255, 0.55)"
+        ctx.fill()
+        ctx.lineWidth = 1.5
+        ctx.strokeStyle = stroke
+        ctx.setLineDash([5, 4])
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+      if (cutoutDraft.length > 0) {
+        ctx.beginPath()
+        const [dx, dy] = toPx(cutoutDraft[0])
+        ctx.moveTo(dx, dy)
+        for (let i = 1; i < cutoutDraft.length; i += 1) {
+          const [x, y] = toPx(cutoutDraft[i])
+          ctx.lineTo(x, y)
+        }
+        if (cutoutDraft.length >= 3) {
+          ctx.closePath()
+          ctx.fillStyle = "rgba(255, 255, 255, 0.35)"
+          ctx.fill()
+        }
+        ctx.lineWidth = 1.5
+        ctx.strokeStyle = stroke
+        ctx.setLineDash([5, 4])
+        ctx.stroke()
+        ctx.setLineDash([])
+        for (const p of cutoutDraft) drawDot(p)
+        if (cursorPt !== null) {
+          drawLine(cutoutDraft[cutoutDraft.length - 1], cursorPt, true)
+        }
+      }
+    }
+  }, [tool, calibPicks, points, cursorPt, finished, renderScale, pageDims, markups, pageNumber, autoPicks, autoHits, cutoutDraft])
 
   useEffect(() => {
     drawOverlay()
@@ -1197,13 +1312,38 @@ export function SheetMeasure({
       return
     }
 
+    // Slice 18: cutout drafting collects clicks INSIDE the finished area —
+    // the inert-while-finished rule below does not apply to this sub-mode.
+    if (cutoutActive && finished !== null && finished.tool === "area" && finished.provenance === "manual") {
+      setCutoutError(null)
+      // Same dblclick-echo dedup (double-click closes the ring).
+      if (
+        cutoutDraft.length > 0 &&
+        distance(pt, cutoutDraft[cutoutDraft.length - 1]) <= DBLCLICK_DEDUP_PT
+      ) {
+        return
+      }
+      setCutoutDraft((prev) => [...prev, pt])
+      return
+    }
+
     if (finished !== null) return // awaiting save/discard — clicks are inert
     setPoints((prev) => [...prev, pt])
   }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (tool !== "length" && tool !== "area") return
-    if (finished !== null || points.length === 0) {
+    // Slice 18: the cutout draft rubber-bands to the cursor too.
+    if (finished !== null) {
+      if (cutoutActive && cutoutDraft.length > 0) {
+        const pt = eventToPt(e)
+        setCursorPt(pt)
+        return
+      }
+      if (cursorPt !== null) setCursorPt(null)
+      return
+    }
+    if (points.length === 0) {
       if (cursorPt !== null) setCursorPt(null)
       return
     }
@@ -1272,8 +1412,114 @@ export function SheetMeasure({
     [calib, tool, finished],
   )
 
+  /**
+   * Slice 18: commit the drafted cutout ring to the pending area — the §2.2
+   * core validates the full geometry (strictly inside, no overlap) and the
+   * ledger value becomes the NET. A MeasureError surfaces verbatim inline
+   * and the draft stays editable (the user sees exactly which rule fired).
+   */
+  const commitCutoutRing = useCallback(
+    (draft: Pt[]) => {
+      if (calib === null || finished === null) return
+      if (finished.tool !== "area" || finished.provenance !== "manual") return
+      if (draft.length < 3) {
+        setCutoutError("A cutout needs at least 3 points — click inside the area, then Enter or double-click to close it.")
+        return
+      }
+      try {
+        const rings = [...(finished.cutouts ?? []), draft]
+        const result = areaWithCutouts(points, rings, calib.mmPerPt)
+        const ledger = toLedgerQuantity(result.netMm2, "area")
+        setFinished({
+          ...finished,
+          rawMm: result.netMm2,
+          ledger,
+          cutouts: rings,
+          breakdown: {
+            grossMm2: result.grossMm2,
+            cutoutsMm2: result.cutoutsMm2,
+            netMm2: result.netMm2,
+          },
+        })
+        setCutoutDraft([])
+        setCutoutError(null)
+        setCursorPt(null)
+        toast.success(`Cutout subtracted — net ${ledger.display}`)
+      } catch (err) {
+        if (err instanceof MeasureError) {
+          setCutoutError(err.message)
+          return
+        }
+        throw err
+      }
+    },
+    [calib, finished, points],
+  )
+
+  /**
+   * Slice 18: remove one committed cutout ring and re-derive the net (the
+   * remaining rings re-validate through the same core; removing the last
+   * ring reverts the measurement to a plain area at the gross value).
+   */
+  const removeCutoutAt = useCallback(
+    (index: number) => {
+      if (calib === null || finished === null || finished.cutouts === undefined) return
+      const remaining = finished.cutouts.filter((_, i) => i !== index)
+      try {
+        if (remaining.length === 0) {
+          const grossMm2 = polygonArea(points, calib.mmPerPt)
+          setFinished({
+            ...finished,
+            rawMm: grossMm2,
+            ledger: toLedgerQuantity(grossMm2, "area"),
+            cutouts: undefined,
+            breakdown: undefined,
+          })
+        } else {
+          const result = areaWithCutouts(points, remaining, calib.mmPerPt)
+          setFinished({
+            ...finished,
+            rawMm: result.netMm2,
+            ledger: toLedgerQuantity(result.netMm2, "area"),
+            cutouts: remaining,
+            breakdown: {
+              grossMm2: result.grossMm2,
+              cutoutsMm2: result.cutoutsMm2,
+              netMm2: result.netMm2,
+            },
+          })
+        }
+        setCutoutError(null)
+      } catch (err) {
+        // Unreachable through committed rings (they validated on commit) —
+        // the message still surfaces honestly instead of being swallowed.
+        if (err instanceof MeasureError) {
+          setCutoutError(err.message)
+          return
+        }
+        throw err
+      }
+    },
+    [calib, finished, points],
+  )
+
   const handleDoubleClick = () => {
-    if (tool === "calibrate" || tool === "autocount" || finished !== null) return
+    if (tool === "calibrate" || tool === "autocount") return
+    // Slice 18: double-click closes the cutout ring being drafted.
+    if (finished !== null) {
+      if (cutoutActive && cutoutDraft.length > 0) {
+        let draft = cutoutDraft
+        if (
+          draft.length >= 2 &&
+          distance(draft[draft.length - 1], draft[draft.length - 2]) <= DBLCLICK_DEDUP_PT
+        ) {
+          draft = draft.slice(0, -1)
+          setCutoutDraft(draft)
+        }
+        commitCutoutRing(draft)
+      }
+      return
+    }
     // The second click of a double-click re-adds the last point — dedup it
     // so double-click means "finish here", not "finish with a duplicate".
     let pts = points
@@ -1290,7 +1536,11 @@ export function SheetMeasure({
   const handleOverlayKeyDown = (e: React.KeyboardEvent<HTMLCanvasElement>) => {
     if (e.key === "Enter") {
       e.preventDefault()
-      if (finished !== null) return
+      // Slice 18: Enter closes the cutout ring being drafted.
+      if (finished !== null) {
+        if (cutoutActive && cutoutDraft.length > 0) commitCutoutRing(cutoutDraft)
+        return
+      }
       if (tool === "calibrate") return
       if (tool === "autocount") {
         // Keyboard path for the scan: box complete → Enter scans.
@@ -1305,6 +1555,22 @@ export function SheetMeasure({
       finishMeasurement(points)
     } else if (e.key === "Escape") {
       e.preventDefault()
+      // Slice 18: Escape cancels the cutout draft FIRST (the pending area
+      // and its committed cutouts are untouched); a second Escape while the
+      // mode is active but empty just leaves the mode.
+      if (cutoutDraft.length > 0) {
+        setCutoutDraft([])
+        setCutoutError(null)
+        setCursorPt(null)
+        setNotice("Cutout cancelled — the area and its committed cutouts are untouched.")
+        return
+      }
+      if (cutoutActive) {
+        setCutoutActive(false)
+        setCutoutError(null)
+        setNotice("Left cutout mode — the pending area is unchanged.")
+        return
+      }
       if (finished !== null) {
         discardFinished()
         setNotice("Measurement discarded — it was not saved to the ledger.")
@@ -1435,6 +1701,15 @@ export function SheetMeasure({
       }
       return null
     }
+    // Slice 18: while drafting a cutout, the honest live number is the draft
+    // ring's OWN area (validation fires on commit, not per mouse-move).
+    if (cutoutActive && cutoutDraft.length >= 3 && calib !== null) {
+      try {
+        return toLedgerQuantity(polygonArea(cutoutDraft, calib.mmPerPt), "area")
+      } catch {
+        return null // degenerate draft — the commit path will say it honestly
+      }
+    }
     if (calib === null || finished !== null) return null
     try {
       if (tool === "length" && points.length >= 2) {
@@ -1451,7 +1726,7 @@ export function SheetMeasure({
       if (err instanceof MeasureError) return { error: err.message }
       throw err
     }
-  }, [tool, points, calib, finished, autoHits])
+  }, [tool, points, calib, finished, autoHits, cutoutActive, cutoutDraft])
 
   // -- save panel (POST /api/projects/<id>/quantities) ---------------------------
 
@@ -1483,7 +1758,9 @@ export function SheetMeasure({
         quantityMethod:
           finished.provenance === "template"
             ? `eos-symbol-template/1 (NCC ≥ ${finished.templateInfo?.threshold ?? "0.85"})`
-            : "eos-pdf-measure/1 (browser-calibrated)",
+            : finished.cutouts !== undefined && finished.cutouts.length > 0
+              ? "eos-pdf-measure/2 (browser-calibrated, region cutouts)"
+              : "eos-pdf-measure/1 (browser-calibrated)",
         rulesetId: rulesetId.trim(),
         rulesetVersion: rulesetVersion.trim(),
         createdBy: createdBy.trim().length > 0 ? createdBy.trim() : "local-operator",
@@ -1517,6 +1794,20 @@ export function SheetMeasure({
             unit: finished.ledger.unit,
             scale: calib !== null ? calib.scaleRecord : undefined,
             quantityId: data.quantity.id,
+            // Slice 18: the committed cutout rings + the breakdown ride the
+            // cutouts field — the SERVER re-derives all three areas from the
+            // geometry and refuses any disagreement (422 surfaces verbatim).
+            ...(finished.cutouts !== undefined && finished.cutouts.length > 0 && finished.breakdown !== undefined && calib !== null
+              ? {
+                  cutouts: {
+                    rings: finished.cutouts,
+                    mmPerPt: calib.mmPerPt,
+                    grossValue: finished.breakdown.grossMm2 / 1e6,
+                    cutoutValue: finished.breakdown.cutoutsMm2 / 1e6,
+                    netValue: finished.breakdown.netMm2 / 1e6,
+                  },
+                }
+              : {}),
             createdBy: createdBy.trim().length > 0 ? createdBy.trim() : "local-operator",
           })
           setMarkupsNonce((n) => n + 1)
@@ -1532,6 +1823,9 @@ export function SheetMeasure({
       setAutoHits(null)
       setScanError(null)
       setLabel("")
+      setCutoutDraft([])
+      setCutoutActive(false)
+      setCutoutError(null)
       // 201 → refetch the ledger (nothing optimistic anywhere).
       onSaved()
     } catch (err) {
@@ -1570,6 +1864,9 @@ export function SheetMeasure({
       )
     } else {
       parts.push(`${tool} tool active, ${points.length} points.`)
+    }
+    if (cutoutActive && finished !== null && finished.tool === "area") {
+      parts.push(`Cutout drafting active, ${cutoutDraft.length} points picked. Press Enter to close the cutout, Escape to cancel it.`)
     }
     if (liveReadout !== null && "display" in liveReadout) {
       parts.push(`Running value ${liveReadout.display}.`)
@@ -2211,13 +2508,21 @@ export function SheetMeasure({
                       <span className="font-mono text-sm tabular-nums">
                         {trim3(m.value)} {m.unit}
                       </span>
-                      {m.kind === "text-hits" && m.payload !== undefined ? (
+                      {m.kind === "text-hits" && m.payload !== undefined && "words" in m.payload ? (
                         <span
                           className="min-w-0 max-w-72 truncate font-mono text-[11px] text-emerald-700 dark:text-emerald-300"
                           title={m.payload.words.map((w) => w.normalized?.normalized ?? w.text).join(" · ")}
                         >
                           “{m.payload.words.map((w) => w.normalized?.normalized ?? w.text).join(" ")}” ·{" "}
                           {m.payload.engine}
+                        </span>
+                      ) : null}
+                      {m.kind === "area" && m.payload !== undefined && "rings" in m.payload ? (
+                        <span
+                          className="font-mono text-[11px] text-emerald-700 dark:text-emerald-300"
+                          title={`gross ${(m.payload.grossValue).toFixed(3)} m² − cutouts ${(m.payload.cutoutValue).toFixed(3)} m²`}
+                        >
+                          net of {m.payload.rings.length} cutout{m.payload.rings.length === 1 ? "" : "s"}
                         </span>
                       ) : null}
                       {m.quantityId !== null ? (
@@ -2270,7 +2575,97 @@ export function SheetMeasure({
                     symbol auto-count · NCC ≥ {finished.templateInfo?.threshold ?? "0.85"}
                   </Badge>
                 ) : null}
+                {finished.cutouts !== undefined && finished.cutouts.length > 0 ? (
+                  <Badge
+                    className="border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                    title="Region cutouts — the saved value is the NET area after every committed cutout"
+                  >
+                    region cutouts × {finished.cutouts.length}
+                  </Badge>
+                ) : null}
               </div>
+              {finished.cutouts !== undefined && finished.cutouts.length > 0 && finished.breakdown !== undefined ? (
+                <div className="rounded-md border bg-muted/40 px-3 py-2 font-mono text-xs tabular-nums sm:text-sm">
+                  gross {trim3(finished.breakdown.grossMm2 / 1e6)} m² − cutouts {trim3(finished.breakdown.cutoutsMm2 / 1e6)} m² ={" "}
+                  <span className="font-semibold">net {trim3(finished.breakdown.netMm2 / 1e6)} m²</span>
+                  <span className="ml-2 text-muted-foreground">(the ledger row stores the net)</span>
+                </div>
+              ) : null}
+              {/* -- Slice 18: the region-cutouts sub-mode (manual areas only) ----- */}
+              {finished.tool === "area" && finished.provenance === "manual" ? (
+                <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Region cutouts
+                    </span>
+                    {cutoutActive ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={saving || cutoutDraft.length > 0}
+                        onClick={() => {
+                          setCutoutActive(false)
+                          setCutoutError(null)
+                        }}
+                      >
+                        Done adding cutouts
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={saving}
+                        onClick={() => {
+                          setCutoutActive(true)
+                          setCutoutError(null)
+                        }}
+                      >
+                        Add cutout inside this area
+                      </Button>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {cutoutActive
+                        ? "Click inside the area to trace an opening (shaft, column, penetration); Enter or double-click closes it. Escape cancels the ring."
+                        : "Subtract openings (stair shafts, columns, penetrations) from this area before saving."}
+                    </span>
+                  </div>
+                  {cutoutError !== null ? (
+                    <p role="alert" className="text-xs text-destructive">
+                      {cutoutError}
+                    </p>
+                  ) : null}
+                  {finished.cutouts !== undefined && finished.cutouts.length > 0 ? (
+                    <ul className="flex flex-col gap-1.5">
+                      {finished.cutouts.map((ring, index) => (
+                        <li
+                          key={`cutout-${index}`}
+                          className="flex flex-wrap items-center gap-2 rounded border bg-background px-2 py-1 text-xs"
+                        >
+                          <span className="font-mono tabular-nums">
+                            cutout {index + 1} · {ring.length} pts
+                            {calib !== null
+                              ? ` · ${trim3(polygonArea(ring, calib.mmPerPt) / 1e6)} m²`
+                              : ""}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="ml-auto h-7 px-2 text-muted-foreground hover:text-destructive"
+                            disabled={saving || cutoutActive}
+                            aria-label={`Remove cutout ${index + 1}`}
+                            onClick={() => removeCutoutAt(index)}
+                          >
+                            Remove
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
               <InfoNote>
                 Posts a draft, unverified ledger row pinned to revision r{selected.latestRevision?.revNumber} of{" "}
                 {selected.name} — sheet <span className="font-mono">{`${selected.name} — p${pageNumber}`}</span>, scale{" "}
@@ -2279,12 +2674,14 @@ export function SheetMeasure({
                     ? calib.scaleRecord
                     : "none — a symbol count is scale-free, so none was needed"}
                 </span>. The measured value is read-only: it is the honest number from the
-                canvas, never re-typed. {finished.provenance === "template" ? "Every accepted hit box persists as a symbol-hits markup — the count's evidence stays on the sheet. " : "Its on-sheet geometry persists as an emerald markup. "}
+                canvas, never re-typed. {finished.provenance === "template" ? "Every accepted hit box persists as a symbol-hits markup — the count's evidence stays on the sheet. " : finished.cutouts !== undefined && finished.cutouts.length > 0 ? "The region ring, every cutout ring, and the gross/cutout/net breakdown persist as the markup's payload — the server re-derives the numbers from the geometry before storing. " : "Its on-sheet geometry persists as an emerald markup. "}
                 The quantityMethod will read{" "}
                 <span className="font-mono">
                   {finished.provenance === "template"
                     ? `eos-symbol-template/1 (NCC ≥ ${finished.templateInfo?.threshold ?? "0.85"})`
-                    : "eos-pdf-measure/1 (browser-calibrated)"}
+                    : finished.cutouts !== undefined && finished.cutouts.length > 0
+                      ? "eos-pdf-measure/2 (browser-calibrated, region cutouts)"
+                      : "eos-pdf-measure/1 (browser-calibrated)"}
                 </span>
                 .
               </InfoNote>
