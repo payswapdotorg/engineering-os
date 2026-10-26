@@ -69,6 +69,7 @@ BODY=""
 http() {
   local method="$1" path="$2"
   shift 2
+  : > "$WORK/http.body" # truncate BEFORE curl: a timed-out request must never report the previous response as BODY (run 42 stale-body lesson)
   STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X "$method" "$BASE$path" "$@" ${EOS_AUTH:-}) || STATUS="000"
   BODY=$(cat "$WORK/http.body")
 }
@@ -77,6 +78,7 @@ upload() { # path file [explicit artifact name]
   local path="$1" file="$2" name="${3:-}"
   local args=(-F "file=@$file")
   if [[ -n "$name" ]]; then args+=(-F "name=$name"); fi
+  : > "$WORK/http.body" # truncate BEFORE curl: a timed-out request must never report the previous response as BODY (run 42 stale-body lesson)
   STATUS=$(curl -sS -m 180 -o "$WORK/http.body" -w '%{http_code}' -X POST "${args[@]}" "$BASE$path" ${EOS_AUTH:-}) || STATUS="000"
   BODY=$(cat "$WORK/http.body")
 }
