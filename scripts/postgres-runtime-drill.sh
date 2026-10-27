@@ -200,6 +200,22 @@ run_suite() { # name script preclean-keep-name(1|0)
   # one line per suite in the machine-greppable summary (CI asserts on these)
   TOTALS="${TOTALS}$(printf '%s=%s' "$name" "$(grep -oE '[0-9]+ PASS / [0-9]+ FAIL' "/tmp/drill-$name.log" | tail -1)")
 "
+  # RUN-43 LESSON (the run-42 stale-body lesson's sibling): the /tmp copy of a
+  # suite's full output DIES WITH THE RUNNER, and `tail -2` above swallowed the
+  # per-assertion lines — run 43's postgres p7 32/2 was unclassifiable from the
+  # downloaded job log alone (only the summary line reached the console; the
+  # FAIL detail + the server side were gone when forensics began). A suite that
+  # records FAILs now prints its FAIL lines AND the dev.log tail to the console
+  # so the failure class (hung request? wrong payload? which route?) is
+  # forensically readable from the job log on the FIRST read, without a re-run.
+  local summary
+  summary="$(grep -oE '[0-9]+ PASS / [0-9]+ FAIL' "/tmp/drill-$name.log" | tail -1)"
+  if ! printf '%s' "$summary" | grep -q '0 FAIL'; then
+    printf '!! suite %s recorded "%s" — the FAIL lines follow (run-43 drill-visibility fix):\n' "$name" "${summary:-no summary line found}"
+    grep -A2 -E '^FAIL [ 0-9]+:' "/tmp/drill-$name.log" || true
+    printf -- '-- dev.log tail (the server side of the failures) --\n'
+    tail -40 dev.log 2>/dev/null || true
+  fi
 }
 
 TOTALS=""
