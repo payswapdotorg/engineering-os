@@ -3,11 +3,12 @@
  *
  * Pure only: no DB, no network, no filesystem (ADR-0002) — pins the prompt
  * invariants (metadata-only context with the pinned key set, the planner
- * rules, the ONE worked example, VERBATIM prior-plan evidence), the JSON
- * extractor (bare / fenced / prose-wrapped / trailing-prose / no-object),
- * the envelope schema, the canonical validation chain + existence gate with
- * verbatim messages, the human-readable step summaries, the persisted
- * plan-column format and the status vocabulary.
+ * rules, the ONE worked example, VERBATIM prior-plan evidence, the loop-3
+ * Request wire + op↔kind fidelity backstop), the JSON extractor (bare /
+ * fenced / prose-wrapped / trailing-prose / no-object), the envelope schema,
+ * the canonical validation chain + existence gate with verbatim messages,
+ * the human-readable step summaries, the persisted plan-column format and
+ * the status vocabulary.
  */
 
 /// <reference types="bun-types" />
@@ -16,6 +17,9 @@ import { describe, expect, test } from "bun:test"
 import { BROKER_OPERATIONS, WORKFLOW_TEMPLATES, type WorkflowDefinition } from "./workflow"
 import {
   NAMED_ARTIFACT_SUBSTITUTION_REFUSED,
+  OP_KIND_DRAWING_DWG_REFUSED,
+  OP_KIND_DRAWING_REFUSED,
+  OP_KIND_SHEET_REFUSED,
   PLANNER_ACTOR,
   PLAN_STATUSES,
   PlannerEnvelopeSchema,
@@ -26,6 +30,7 @@ import {
   isPlanStatus,
   namedArtifactsAreWired,
   namedArtifactsInIntent,
+  opKindFidelity,
   planToJsonText,
   revisionIsSubstantiveChange,
   summarizePlanSteps,
@@ -71,6 +76,7 @@ const artifactsById = new Map(artifacts.map((artifact) => [artifact.id, artifact
 const buildInput = (): PlannerMessagesInput => ({
   projectName: "Harbour View Tower",
   discipline: "structural",
+  intent: "Plan the model QA pipeline on the Harbour Wall artifact: derive quantities and a mesh, then build a human-gated report",
   artifacts,
   prior: null,
   feedback: null,
@@ -100,6 +106,12 @@ describe("buildPlannerMessages (shape & assistant system prompt)", () => {
     expect(system).toContain('"definition"')
     expect(system).toContain('"steps"')
     expect(system).toContain("no prose, no code fences")
+    // LOOP-3 referent pin: the Request line the user content opens with is
+    // THE request the fidelity rules refer to (the wire fix — the rules
+    // finally have a visible referent)
+    expect(system).toContain(
+      "The user content OPENS with the human's Request — that is THE request every fidelity rule below refers to: serve exactly it, wire the artifacts it names, and add nothing it does not ask for.",
+    )
   })
 
   test("the assistant prompt pins the operation catalog, step rules and approval gate", () => {
@@ -223,8 +235,25 @@ describe("buildPlannerMessages (user content — metadata-only context)", () => 
       expect(message.content).not.toContain("quantityType")
       expect(message.content).not.toContain('"value"')
     }
-    // the user content never even mentions the word — metadata only
+    // the user content never even mentions the word — metadata only. The
+    // loop-3 Request line is the human's VERBATIM intent, not builder-
+    // fabricated context — it is exempt from the metadata-only invariant BY
+    // DESIGN (the request is the one thing the LLM must see verbatim); the
+    // fixture intent above simply carries none of the banned words so the
+    // builder's own serialization lanes stay pinned clean.
     expect(messages[1].content).not.toContain("value")
+  })
+
+  test("LOOP-3 WIRE PIN: the user content OPENS with the human's Request — the intent VERBATIM, first", () => {
+    const user = buildPlannerMessages(buildInput())[1].content
+    const intent = buildInput().intent
+    expect(user.startsWith(`Request: ${intent}\n`)).toBe(true)
+    // the request precedes the project, the discipline and the catalog — the
+    // loop-2 recorded candidate ("put the request's named artifacts FIRST in
+    // the user content"), closed by the loop-3 wire fix
+    expect(user.indexOf("Request:")).toBeLessThan(user.indexOf("Project:"))
+    expect(user.indexOf("Request:")).toBeLessThan(user.indexOf("Discipline:"))
+    expect(user.indexOf("Request:")).toBeLessThan(user.indexOf("Artifact catalog"))
   })
 
   test("no prior block and no feedback line when prior and feedback are null", () => {
@@ -848,5 +877,113 @@ describe("formatNamedArtifactRefusal — the verbatim envelope", () => {
     expect(NAMED_ARTIFACT_SUBSTITUTION_REFUSED).toBe(
       'the request names the artifact "<name>" but no step wires it — another "<kind>" artifact is wired instead (wire the named artifact, or leave the step out and say why in assumptions; never quietly re-target the request)',
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// opKindFidelity — the loop-3 op↔kind fidelity backstop (takeoff classes
+// only, mirroring the runtime's name-signal half)
+// ---------------------------------------------------------------------------
+
+const opKindCatalog: PlannerArtifactContext[] = [
+  { id: "art_pdf", name: "Sheet-A101.pdf", kind: "drawing", revisionCount: 2, latestApprovalState: "approved", latestNote: null },
+  { id: "art_dxf", name: "takeoff-room.dxf", kind: "drawing", revisionCount: 1, latestApprovalState: "approved", latestNote: null },
+  { id: "art_svg", name: "Sheet-A101.svg", kind: "drawing", revisionCount: 1, latestApprovalState: "draft", latestNote: null },
+  { id: "art_dwg", name: "plot.dwg", kind: "drawing", revisionCount: 1, latestApprovalState: "draft", latestNote: null },
+  { id: "art_step", name: "bracket.step", kind: "model", revisionCount: 3, latestApprovalState: "approved", latestNote: null },
+]
+
+const step = (id: string, operation: string, artifactId: string) => ({
+  id,
+  operation,
+  inputs: { artifactId },
+  parameters: {},
+  retry: { maxAttempts: 1, backoffMs: 0 },
+  requiresApproval: false,
+  skipOnError: false,
+})
+
+describe("opKindFidelity — the loop-3 takeoff backstop", () => {
+  test("takeoff_sheet on a .pdf name → ok; takeoff_drawing on a .dxf name → ok", () => {
+    expect(opKindFidelity({ steps: [step("sheet", "takeoff_sheet", "art_pdf")] }, opKindCatalog)).toEqual({ ok: true })
+    expect(opKindFidelity({ steps: [step("drawing", "takeoff_drawing", "art_dxf")] }, opKindCatalog)).toEqual({ ok: true })
+  })
+
+  test("takeoff_sheet on an .svg name → refused verbatim (the loop-2 residual class, live re-caught on loop 3's first probe)", () => {
+    const verdict = opKindFidelity({ steps: [step("sheet", "takeoff_sheet", "art_svg")] }, opKindCatalog)
+    expect(verdict).toEqual({
+      ok: false,
+      message:
+        'step "sheet" wires takeoff_sheet to "Sheet-A101.svg" — the runtime requires a PDF sheet (a ".pdf" name signal); this wiring is a runtime 422, never a step (wire the op to a PDF sheet, or leave the step out and say why in assumptions)',
+    })
+  })
+
+  test("takeoff_drawing on an .svg name → refused verbatim (the live-caught probe-1 mis-wiring)", () => {
+    const verdict = opKindFidelity({ steps: [step("drawing", "takeoff_drawing", "art_svg")] }, opKindCatalog)
+    expect(verdict).toEqual({
+      ok: false,
+      message:
+        'step "drawing" wires takeoff_drawing to "Sheet-A101.svg" — the runtime requires a DXF drawing (a ".dxf" name signal); this wiring is a runtime 422, never a step (wire the op to a DXF drawing, or leave the step out and say why in assumptions)',
+    })
+  })
+
+  test("takeoff_drawing on a .dwg name → the DWG mirror refusal (the runtime's documented converter guidance)", () => {
+    const verdict = opKindFidelity({ steps: [step("drawing", "takeoff_drawing", "art_dwg")] }, opKindCatalog)
+    expect(verdict).toEqual({
+      ok: false,
+      message:
+        "step \"drawing\" wires takeoff_drawing to \"plot.dwg\" — DWG is the runtime's documented refusal (no open CI-pinnable DWG path exists; convert to DXF first — see docs); this wiring is a runtime 422, never a step (wire the op to a DXF drawing, or leave the step out and say why in assumptions)",
+    })
+  })
+
+  test("first violation wins — deterministic order (the .svg step before the .dwg step)", () => {
+    const definition = {
+      steps: [
+        step("first", "takeoff_drawing", "art_svg"),
+        step("second", "takeoff_drawing", "art_dwg"),
+      ],
+    }
+    const verdict = opKindFidelity(definition, opKindCatalog)
+    expect(verdict.ok).toBe(false)
+    if (!verdict.ok) expect(verdict.message).toContain('"first"')
+  })
+
+  test("NARROW by design: derive ops, report steps and non-takeoff wirings never fire the guard", () => {
+    // derive_mesh on a drawing-kind source: the runtime gate reads the
+    // revision's storageKey/mimeType via deriveKind — signals this guard's
+    // context does not carry — so it stays OUTSIDE (no false refusals)
+    expect(opKindFidelity({ steps: [step("mesh", "derive_mesh", "art_svg")] }, opKindCatalog)).toEqual({ ok: true })
+    expect(opKindFidelity({ steps: [step("qty", "derive_quantities", "art_step")] }, opKindCatalog)).toEqual({ ok: true })
+    expect(
+      opKindFidelity(
+        {
+          steps: [
+            step("drawing", "takeoff_drawing", "art_dxf"),
+            { id: "report", operation: "build_report", inputs: { artifactIds: ["art_svg", "art_pdf", "art_dwg"] }, parameters: { title: "T" }, retry: { maxAttempts: 1, backoffMs: 0 }, requiresApproval: true, skipOnError: false },
+          ],
+        },
+        opKindCatalog,
+      ),
+    ).toEqual({ ok: true })
+  })
+
+  test("the pattern constants pin the templates (cannot drift)", () => {
+    expect(OP_KIND_SHEET_REFUSED).toBe(
+      'step "<step>" wires takeoff_sheet to "<name>" — the runtime requires a PDF sheet (a ".pdf" name signal); this wiring is a runtime 422, never a step (wire the op to a PDF sheet, or leave the step out and say why in assumptions)',
+    )
+    expect(OP_KIND_DRAWING_REFUSED).toBe(
+      'step "<step>" wires takeoff_drawing to "<name>" — the runtime requires a DXF drawing (a ".dxf" name signal); this wiring is a runtime 422, never a step (wire the op to a DXF drawing, or leave the step out and say why in assumptions)',
+    )
+    expect(OP_KIND_DRAWING_DWG_REFUSED).toBe(
+      'step "<step>" wires takeoff_drawing to "<name>" — DWG is the runtime\'s documented refusal (no open CI-pinnable DWG path exists; convert to DXF first — see docs); this wiring is a runtime 422, never a step (wire the op to a DXF drawing, or leave the step out and say why in assumptions)',
+    )
+  })
+
+  test("degenerate shapes pass honestly (the canonical chain owns their errors)", () => {
+    expect(opKindFidelity(null, opKindCatalog)).toEqual({ ok: true })
+    expect(opKindFidelity({}, opKindCatalog)).toEqual({ ok: true })
+    expect(opKindFidelity({ steps: [] }, opKindCatalog)).toEqual({ ok: true })
+    // unknown wired ids: the existence gate owns them — the guard skips
+    expect(opKindFidelity({ steps: [step("sheet", "takeoff_sheet", "art_nonexistent")] }, opKindCatalog)).toEqual({ ok: true })
   })
 })

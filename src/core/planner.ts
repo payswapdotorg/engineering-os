@@ -175,6 +175,110 @@ export function formatNamedArtifactRefusal(name: string, kind: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Op↔kind fidelity backstop (planner protocol loop 3 — deterministic,
+// prompt-independent, unit-pinned)
+// ---------------------------------------------------------------------------
+
+/**
+ * Verbatim refusal patterns — pinned by unit tests. `<step>`/`<op>`/`<name>`
+ * are the definition's and catalog's exact strings. Mirrors the RUNTIME
+ * name-signal rules (src/engines/broker.ts isPdfSignal/isDxfSignal/
+ * isDwgSignal — the name half only: the validation context has names, never
+ * the revision's storageKey/mimeType, so the guard is deliberately NARROWER
+ * than the runtime; the runtime stays the truth, the review gate stays the
+ * verdict).
+ */
+export const OP_KIND_SHEET_REFUSED =
+  'step "<step>" wires takeoff_sheet to "<name>" — the runtime requires a PDF sheet (a ".pdf" name signal); this wiring is a runtime 422, never a step (wire the op to a PDF sheet, or leave the step out and say why in assumptions)'
+
+export const OP_KIND_DRAWING_DWG_REFUSED =
+  'step "<step>" wires takeoff_drawing to "<name>" — DWG is the runtime\'s documented refusal (no open CI-pinnable DWG path exists; convert to DXF first — see docs); this wiring is a runtime 422, never a step (wire the op to a DXF drawing, or leave the step out and say why in assumptions)'
+
+export const OP_KIND_DRAWING_REFUSED =
+  'step "<step>" wires takeoff_drawing to "<name>" — the runtime requires a DXF drawing (a ".dxf" name signal); this wiring is a runtime 422, never a step (wire the op to a DXF drawing, or leave the step out and say why in assumptions)'
+
+/**
+ * The takeoff classes only. Deliberately narrow (the loop-2 discipline):
+ * the derive_* / rebuild_parametric ops' runtime gates read the REVISION's
+ * storageKey + mimeType via `deriveKind` — signals the validation context
+ * does not carry — so a validation mirror could FALSE-REFUSE honest plans;
+ * that class has also never recurred in the evidence ledger. The takeoff
+ * ops' runtime gates are name-signal-first (isPdfSignal/isDxfSignal/
+ * isDwgSignal check `artifact.name` before storageKey), the catalog names
+ * are filenames, and the .svg/.dwg mis-wirings are the recorded recurrence
+ * (loop 2's residual, live-caught again on loop 3's first probe).
+ */
+function takeoffFidelityFor(
+  op: string,
+  stepId: string,
+  artifactName: string,
+): { ok: true } | { ok: false; message: string } {
+  const lower = artifactName.toLowerCase()
+  if (op === "takeoff_sheet") {
+    if (!lower.endsWith(".pdf")) {
+      return {
+        ok: false,
+        message: OP_KIND_SHEET_REFUSED.replaceAll("<step>", stepId).replaceAll("<name>", artifactName),
+      }
+    }
+    return { ok: true }
+  }
+  if (op === "takeoff_drawing") {
+    if (lower.endsWith(".dwg")) {
+      return {
+        ok: false,
+        message: OP_KIND_DRAWING_DWG_REFUSED.replaceAll("<step>", stepId).replaceAll("<name>", artifactName),
+      }
+    }
+    if (!lower.endsWith(".dxf")) {
+      return {
+        ok: false,
+        message: OP_KIND_DRAWING_REFUSED.replaceAll("<step>", stepId).replaceAll("<name>", artifactName),
+      }
+    }
+    return { ok: true }
+  }
+  return { ok: true } // not a takeoff op — outside the guard's narrow scope
+}
+
+/**
+ * The op↔kind fidelity verdict for one canonical definition: walks the
+ * steps in order (first violation wins, deterministic) and refuses any
+ * takeoff op wired to a source whose CATALOG NAME carries the wrong signal
+ * (.svg/.png/.step/… on takeoff_sheet; .dwg or non-DXF on takeoff_drawing).
+ * Pure, prompt-independent; the route persists the refusal as an honest
+ * failed row with the raw response as evidence (the loop-2 pattern).
+ * Unknown wired ids never reach here — the canonical validation's existence
+ * gate already refused them.
+ */
+export function opKindFidelity(
+  definition: unknown,
+  artifacts: PlannerArtifactContext[],
+): { ok: true } | { ok: false; message: string } {
+  const byId = new Map(artifacts.map((artifact) => [artifact.id, artifact]))
+  const steps =
+    typeof definition === "object" && definition !== null
+      ? (definition as { steps?: unknown }).steps
+      : null
+  if (!Array.isArray(steps)) return { ok: true }
+  for (const step of steps) {
+    if (typeof step !== "object" || step === null) continue
+    const op = (step as { operation?: unknown }).operation
+    const stepId = (step as { id?: unknown }).id
+    const inputs = (step as { inputs?: unknown }).inputs
+    if (typeof op !== "string" || op !== "takeoff_sheet" && op !== "takeoff_drawing") continue
+    if (typeof stepId !== "string" || typeof inputs !== "object" || inputs === null) continue
+    const artifactId = (inputs as { artifactId?: unknown }).artifactId
+    if (typeof artifactId !== "string") continue // the canonical chain owns input-shape errors
+    const artifact = byId.get(artifactId)
+    if (artifact === undefined) continue // the existence gate owns unknown ids
+    const verdict = takeoffFidelityFor(op, stepId, artifact.name)
+    if (!verdict.ok) return verdict
+  }
+  return { ok: true }
+}
+
+// ---------------------------------------------------------------------------
 // Context types (contract §3 — frozen)
 // ---------------------------------------------------------------------------
 
@@ -200,6 +304,17 @@ export interface PlannerPriorPlan {
 export interface PlannerMessagesInput {
   projectName: string
   discipline: string
+  /**
+   * The human's request, VERBATIM (loop 3 — the planner wire fix). From
+   * Slice 11 until loop 3 this field did not exist and the intent never
+   * reached the LLM: the user content carried only the project, the
+   * discipline, the catalog and (when revising) the prior plan — so every
+   * "intent-specific" behavior the live ledger ever recorded was the
+   * worked-example template's pull over the catalog, and the Slice-17
+   * fidelity rules addressed a request the model could not see. The wire
+   * is now honest: the Request line opens the user content.
+   */
+  intent: string
   artifacts: PlannerArtifactContext[]
   prior: PlannerPriorPlan | null // the revisesPlanId plan's context, when re-planning
   feedback: string | null // optional human guidance sent with the revision request
@@ -223,6 +338,8 @@ const PLANNER_SYSTEM_PROMPT = [
   "You are the workflow PLANNER for an engineering platform.",
   "You propose workflow definitions for a human to review, accept or reject.",
   "You NEVER execute anything, NEVER compute engineering numbers and NEVER approve anything — acceptance, execution and approvals are human actions.",
+  "",
+  "The user content OPENS with the human's Request — that is THE request every fidelity rule below refers to: serve exactly it, wire the artifacts it names, and add nothing it does not ask for.",
   "",
   "Your context is metadata only: artifact ids, names, kinds, revision counts, latest approval states and short notes.",
   "It deliberately contains no geometry, no sizes, no quantities and no rates — you cannot be a source of numeric truth, and you must not invent any.",
@@ -253,10 +370,12 @@ const PLANNER_SYSTEM_PROMPT = [
 /**
  * Builds the exact chat messages for one planner round trip: an
  * assistant-role system prompt (the SDK idiom) followed by the user content.
- * The user content carries the project name, the discipline, the
- * metadata-only artifact catalog, the prior-plan evidence VERBATIM when
- * re-planning, the optional human feedback line, and the final
- * output-json-only instruction.
+ * The user content OPENS with the human's Request (loop 3 — the wire fix:
+ * from Slice 11 the intent never reached the LLM and every recorded
+ * "intent-specific" behavior was the worked example's pull), then carries
+ * the project name, the discipline, the metadata-only artifact catalog, the
+ * prior-plan evidence VERBATIM when re-planning, the optional human feedback
+ * line, and the final output-json-only instruction.
  */
 export function buildPlannerMessages(
   input: PlannerMessagesInput,
@@ -274,6 +393,8 @@ export function buildPlannerMessages(
   }))
 
   const lines: string[] = [
+    `Request: ${input.intent}`,
+    "",
     `Project: ${input.projectName}`,
     `Discipline: ${input.discipline}`,
     "",

@@ -113,12 +113,30 @@ export interface PlannerPriorPlan {
 export interface PlannerMessagesInput {
   projectName: string
   discipline: string
+  /**
+   * The human's request, VERBATIM — the LOOP-3 WIRE FIX (2026-10-27, the
+   * prompt-quality protocol's third iteration). From Slice 11 until loop 3
+   * the intent NEVER reached the LLM: the user content carried only the
+   * project, the discipline, the catalog and (when revising) the prior
+   * plan, so every "intent-specific" behavior the live ledger ever
+   * recorded was the worked-example template's pull over the catalog — and
+   * the Slice-17 fidelity rules addressed a request the model could not
+   * see. The Request line now OPENS the user content (pinned by unit test,
+   * first, before the project/discipline/catalog — the loop-2 recorded
+   * candidate, closed).
+   */
+  intent: string
   artifacts: PlannerArtifactContext[]
   prior: PlannerPriorPlan | null   // the revisesPlanId plan's context, when re-planning
   feedback: string | null          // optional human guidance sent with the revision request
 }
 
-/** Builds the exact chat messages (assistant-role system prompt + user content). */
+/** Builds the exact chat messages (assistant-role system prompt + user content). The
+ * user content OPENS with `Request: <intent>` — the human's request verbatim —
+ * then the project, the discipline, the metadata-only catalog, the prior-plan
+ * evidence when re-planning, the optional feedback line, and the final
+ * output-json-only instruction. (The Request line is the loop-3 wire fix.)
+ */
 export function buildPlannerMessages(input: PlannerMessagesInput): Array<{ role: "assistant" | "user"; content: string }>
 
 /** Response envelope schema: {rationale, assumptions, definition}. */
@@ -186,11 +204,14 @@ non-member → 404 `Project not found`). Body (zod, 422 verbatim):
 { "intent": "10..2000 chars", "revisesPlanId": "optional plan id in THIS project" }
 ```
 
-Flow: load the project's artifact context (id/name/kind/revisionCount/
-latestApprovalState/latestNote — metadata only) → build messages (prior plan
-context when revisesPlanId set: prior row + its workflow's live state/failure
-JSON + failed step stderrTail, all verbatim) → `planWithLlm` →
-`extractJsonObject` → `PlannerEnvelopeSchema` → `validatePlanDefinition` →
+Flow (amended by the loop-3 wire fix — the intent is now IN the messages):
+load the project's artifact context (id/name/kind/revisionCount/
+latestApprovalState/latestNote — metadata only) → build messages (the intent
+VERBATIM as the opening `Request:` line, plus prior plan context when
+revisesPlanId set: prior row + its workflow's live state/failure JSON +
+failed step stderrTail, all verbatim) → `planWithLlm` → `extractJsonObject`
+→ `PlannerEnvelopeSchema` → `validatePlanDefinition` → the loop-2/3
+deterministic backstops (revision-delta, name-fidelity, op↔kind fidelity) →
 persist ONE AgentPlan row in ALL cases:
 
 - success → status `proposed`, plan column = canonical JSON, evidence =
@@ -425,3 +446,67 @@ suggested, and the loop closed with the STRONGER of the two shapes:
   passes them). The prompt's op↔format rule (Slice 17), the runtime 422,
   and the human review gate own that class; loop 3 owns it only if it
   recurs in the evidence ledger.
+
+### Loop 3 (Slice 21, 2026-10-27) — THE WIRE DEFECT FOUND AND CLOSED: the intent never reached the LLM + the op↔kind backstop
+
+Triggered honestly by the recorded condition ("loop 3 owns it only IF the
+op/kind-fidelity class recurs in the evidence ledger") — the twentieth-pass
+forward queue's conditional item. The ledger regeneration (the persistent
+demo project, through the REAL API) fired it on the first probe, and the
+forensic read found something much deeper than the recurrence:
+
+- **THE WIRE DEFECT (root cause, from Slice 11 until this loop):**
+  `buildPlannerMessages` never put the intent in the user content — the LLM
+  saw only Project/Discipline/catalog/(prior)/(feedback). Every
+  "intent-specific" behavior the live ledger ever recorded was the
+  worked-example template's pull over the catalog; the Slice-17 fidelity
+  rules addressed a request the model could NOT see. The probe-1 evidence:
+  an intent naming `two-solids.step` ("derive quantities and a mesh on it,
+  then a human-gated report") was answered with a template-shaped plan over
+  the WHOLE catalog — wall-quantities.ifc + bracket-solid.step wired, TWO
+  invented takeoff steps (one on the .svg — loop 2's residual class,
+  re-caught live), and a four-artifact report. The loop-2 name-fidelity
+  backstop refused it verbatim (working exactly as designed — the
+  substitution never reached a human unnamed), but the honest read was that
+  the prompt-quality loops had been iterating rules the model could never
+  apply. Slice 11's §5.1 flow text itself never carried the intent into the
+  messages — the defect was the design, not a regression.
+- **The fix (loop-2's own recorded candidate, closed):** `PlannerMessagesInput`
+  gains `intent: string` (contract §3 amended above); the user content OPENS
+  with `Request: <intent>` — the human's request VERBATIM, before the
+  project/discipline/catalog; the system prompt gains the referent line
+  ("The user content OPENS with the human's Request — that is THE request
+  every fidelity rule below refers to…"); the route passes the intent.
+  Unit-pinned (the Request line first, the referent string verbatim, and
+  the metadata-only invariant honestly re-scoped: the Request line is the
+  human's text, not builder-fabricated context — exempt BY DESIGN).
+- **The op↔kind deterministic backstop (the loop-2 stronger shape, the
+  recorded recurrence):** `opKindFidelity` (pure, unit-pinned) mirrors the
+  RUNTIME's name-signal half for the takeoff classes only —
+  takeoff_sheet needs a `.pdf` name signal, takeoff_drawing needs `.dxf`
+  (with the DWG converter-guidance mirror for `.dwg`) — and the plans
+  route persists a violation as an honest failed row with the raw response
+  as evidence (the NAMED_ARTIFACT_SUBSTITUTION_REFUSED pattern, third
+  member of the backstop family). Deliberately narrow: the derive ops'
+  runtime gates read the revision's storageKey/mimeType via `deriveKind`
+  (signals the validation context lacks) so they stay OUTSIDE — no false
+  refusals; unknown ids stay with the existence gate.
+- **Live-verified, both halves, on the first runs:** (1) the SAME probe
+  intent through the fixed wire now PROPOSES — derive_quantities and
+  derive_mesh both wired to the NAMED two-solids.step, zero invented
+  takeoffs, the rationale answering the request ("The request asks to
+  derive quantities and a mesh from 'two-solids.step'…"); (2) the trap
+  probe ("vector sheet takeoff on Sheet-A101-GA-plan.svg") still saw the
+  LLM wire takeoff_drawing to the .svg — and the new guard refused it
+  VERBATIM on its first live attempt, raw response persisted. The ledger
+  grades 3/3 clean; e2e-p7 re-earned 40 → **43 PASS / 0 FAIL** — the +3
+  are the live Part-B proposed-branch asserts that had NEVER run before
+  the wire fix (the live attempt always failed validation pre-fix): the
+  proposal's non-empty rationale + stepSummary, the wired-ids membership,
+  and the revision PROPOSED through the prior-evidence round trip.
+- **The honest residual, recorded for loop 4:** the op↔kind guard covers
+  the takeoff classes only (the recorded recurrences); a same-kind
+  substitution between TWO artifacts BOTH named in one request remains the
+  review gate's call (loop-2's recorded narrowness); and the prompt's
+  scope/format rules are now ENFORCEABLE but still prompt-owned — the
+  evidence ledger owns the next iteration if a new class accumulates.

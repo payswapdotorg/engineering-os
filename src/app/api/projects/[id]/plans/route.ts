@@ -26,6 +26,7 @@ import {
   buildPlannerMessages,
   formatNamedArtifactRefusal,
   namedArtifactsAreWired,
+  opKindFidelity,
   extractJsonObject,
   isPlanStatus,
   planToJsonText,
@@ -191,6 +192,7 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
   const messages = buildPlannerMessages({
     projectName: projectFull.name,
     discipline: projectFull.discipline,
+    intent,
     artifacts,
     prior,
     feedback: null,
@@ -358,6 +360,56 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
         status: "failed",
         stage: "name-fidelity",
         substituted: { name: fidelity.name, kind: fidelity.kind },
+      },
+    })
+    return jsonOk({ plan: toPlanRow(failedRow) }, { status: 201 })
+  }
+
+  // 5d. Loop-3 op↔kind fidelity backstop (planner protocol loop 3 — the
+  // class loop 2's residual recorded and live re-caught on loop 3's first
+  // probe: takeoff_drawing wired to a named .svg, a runtime 422 waiting to
+  // happen): a takeoff op wired to a source whose catalog NAME carries the
+  // wrong signal is refused at the validation stage, persisted honestly as
+  // a failed row with the raw response as evidence. Deliberately narrow —
+  // takeoff classes only, mirroring the runtime's name-signal half (see the
+  // pure core's doc for the honest-plan guarantees: the derive ops' runtime
+  // gates read revision storageKey/mimeType the validation context lacks,
+  // so they stay OUTSIDE the guard; unknown ids already died at the
+  // existence gate; non-takeoff ops are out of scope by design).
+  const opKind = opKindFidelity(validation.definition, artifacts)
+  if (!opKind.ok) {
+    const failedRow = await db.agentPlan.create({
+      data: {
+        id: planId,
+        projectId: id,
+        intent,
+        status: "failed",
+        revisesPlanId: revisesPlanId ?? null,
+        plan: null,
+        evidence: JSON.stringify({
+          rawResponse: result.text, // VERBATIM — the mis-wired plan is evidence
+          durationMs: result.durationMs,
+          attempts: result.attempts,
+        }),
+        failure: JSON.stringify({
+          stage: "validation",
+          error: opKind.message,
+          at: new Date().toISOString(),
+        }),
+        createdById: access.session.id,
+      },
+    })
+    await recordEvent({
+      projectId: id,
+      action: "plan.requested",
+      entityType: "AgentPlan",
+      entityId: planId,
+      detail: {
+        intent,
+        revisesPlanId: revisesPlanId ?? null,
+        status: "failed",
+        stage: "op-kind-fidelity",
+        refusal: opKind.message,
       },
     })
     return jsonOk({ plan: toPlanRow(failedRow) }, { status: 201 })
