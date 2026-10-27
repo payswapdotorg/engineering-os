@@ -26,6 +26,7 @@
  * page 2 marked [S13]):
  *  - TWO pages, both MediaBox `0 0 1191 842` (A3 landscape, 420 x 297 mm
  *    paper; exact 1190.55 x 841.89 rounded to whole points per the contract);
+ *    [S20] THREE pages — page 3 is the two-size panel-schedule fixture;
  *  - page 1 (unchanged from Slice 8): stroke-only ops: border rectangle;
  *    title text "EOS DEMO SHEET A-102 — FLOOR PLAN @ 1:100" (Helvetica,
  *    WinAnsiEncoding; the em dash is the WinAnsi byte 0x97, written as the
@@ -44,6 +45,11 @@
  *    (205,355) (325,355) (445,355), the auto-count fixture (symbol-hits
  *    takeoff, limitation #5). Pure re/f ops: deterministic, hand-verifiable,
  *    and each instance rasterizes identically.
+ *  - [S20] page 3 "PANEL SCHEDULE": the TWO-SIZE field — six 10 pt sockets
+ *    at (205..805, 560) plus four 15 pt sockets (outer 15 pt @ 1.5 w,
+ *    inner 6 pt) at (205..565, 360), the scale-invariant auto-count fixture
+ *    (limitation #18): the 15 pt row is the 10 pt symbol scaled UNIFORMLY
+ *    ×1.5 including the pen, the exact 1.5 rung of the default ladder.
  *
  * EXACT vs DRAWN precision (documented honestly): the named constants below
  * are the FULL-PRECISION doubles of paper-mm x 72/25.4, because the pinned
@@ -146,6 +152,38 @@ const SYMBOL_CENTERS: [number, number][] = [
 /** Page-2 title (fits the 14 pt Helvetica at x=40, y=790). */
 const P2_TITLE = "EOS DEMO SHEET A-102 P2 \\227 LIGHTING LAYOUT @ 1:100"
 
+// ---------------------------------------------------------------------------
+// [S20] Page 3 — the two-size panel schedule (scale-invariant auto-count
+// fixture, limitation #18): SIX 10 pt sockets (the page-2 size, default 1 pt
+// pen) + FOUR 15 pt sockets — the SAME symbol UNIFORMLY scaled ×1.5 including
+// the pen (outer 15 pt @ 1.5 w, inner 6 pt filled), the way an annotation
+// block scales every stroke. The 1.5 rung of DEFAULT_SCALE_LADDER hits the
+// large size EXACTLY; the multi-scale scan finds all TEN in one pass.
+// ---------------------------------------------------------------------------
+
+/** The 10 pt row: 6 instances, 120 pt pitch, on the y=560 line. */
+const P3_SMALL_CENTERS: [number, number][] = [
+  [205, 560],
+  [325, 560],
+  [445, 560],
+  [565, 560],
+  [685, 560],
+  [805, 560],
+]
+/** The 15 pt row: 4 instances on the y=360 line — the ×1.5 devices. */
+const P3_LARGE_CENTERS: [number, number][] = [
+  [205, 360],
+  [325, 360],
+  [445, 360],
+  [565, 360],
+]
+const P3_LARGE_OUTER_PT = 15
+const P3_LARGE_INNER_PT = 6
+const P3_LARGE_STROKE_PT = 1.5
+
+/** Page-3 title. */
+const P3_TITLE = "EOS DEMO SHEET A-102 P3 \\227 PANEL SCHEDULE @ 1:100"
+
 /**
  * The full-precision truth about this sheet, exported so harnesses (and the
  * TL's journey) measure against the same numbers the stream is drawn from.
@@ -188,6 +226,32 @@ export const SHEET_SYMBOLS: SheetSymbolField = {
   outerPt: SYMBOL_OUTER_PT,
   innerPt: SYMBOL_INNER_PT,
   page: 2,
+}
+
+/** [S20] The page-3 two-size field's pinned truth (the multi-scale fixture).
+ *  `small` mirrors page 2's 10 pt sockets; `large` is the same symbol ×1.5
+ *  INCLUDING the pen — the exact 1.5 rung of the default scale ladder. */
+export interface TwoSizeSymbolField {
+  small: SheetSymbolField
+  large: SheetSymbolField & { strokePt: number }
+  page: number
+}
+
+export const SHEET_SYMBOLS_P3: TwoSizeSymbolField = {
+  small: {
+    centers: P3_SMALL_CENTERS.map(([x, y]) => ({ x, y })),
+    outerPt: SYMBOL_OUTER_PT,
+    innerPt: SYMBOL_INNER_PT,
+    page: 3,
+  },
+  large: {
+    centers: P3_LARGE_CENTERS.map(([x, y]) => ({ x, y })),
+    outerPt: P3_LARGE_OUTER_PT,
+    innerPt: P3_LARGE_INNER_PT,
+    strokePt: P3_LARGE_STROKE_PT,
+    page: 3,
+  },
+  page: 3,
 }
 
 // ---------------------------------------------------------------------------
@@ -262,6 +326,40 @@ function scaleBarOps(): string[] {
   ]
 }
 
+/** [S20] The page-3 content stream: furniture + P3 title + the two-size
+ *  panel schedule. The 10 pt row rides the DEFAULT pen (1 pt — the same ops
+ * as page 2); the 15 pt row sets `1.5 w` first so the stroke scales WITH the
+ *  symbol (a uniform ×1.5, the annotation-block reality). */
+function buildPanelScheduleContentStream(): string {
+  const lines: string[] = [
+    "% EOS demo sheet A-102 p3 - panel schedule @ 1:100 (Slice 20 two-size fixture)",
+    ...borderOps(),
+    `BT /F1 14 Tf ${fmt(TITLE_X_PT)} ${fmt(TITLE_Y_PT)} Td (${P3_TITLE}) Tj ET`,
+    ...scaleBarOps(),
+    "% six 10 pt sockets (the page-2 size, default 1 pt pen) at y=560",
+  ]
+  for (const [cx, cy] of P3_SMALL_CENTERS) {
+    lines.push(
+      `% socket symbol at (${fmt(cx)}, ${fmt(cy)})`,
+      `${fmt(cx - SYMBOL_OUTER_PT / 2)} ${fmt(cy - SYMBOL_OUTER_PT / 2)} ${fmt(SYMBOL_OUTER_PT)} ${fmt(SYMBOL_OUTER_PT)} re S`,
+      `${fmt(cx - SYMBOL_INNER_PT / 2)} ${fmt(cy - SYMBOL_INNER_PT / 2)} ${fmt(SYMBOL_INNER_PT)} ${fmt(SYMBOL_INNER_PT)} re f`,
+    )
+  }
+  lines.push(
+    "% four 15 pt sockets - the SAME symbol x1.5 including the pen (1.5 w):",
+    "% the exact 1.5 rung of the default scale ladder (Slice 20)",
+    `${fmt(P3_LARGE_STROKE_PT)} w`,
+  )
+  for (const [cx, cy] of P3_LARGE_CENTERS) {
+    lines.push(
+      `% large socket symbol at (${fmt(cx)}, ${fmt(cy)})`,
+      `${fmt(cx - P3_LARGE_OUTER_PT / 2)} ${fmt(cy - P3_LARGE_OUTER_PT / 2)} ${fmt(P3_LARGE_OUTER_PT)} ${fmt(P3_LARGE_OUTER_PT)} re S`,
+      `${fmt(cx - P3_LARGE_INNER_PT / 2)} ${fmt(cy - P3_LARGE_INNER_PT / 2)} ${fmt(P3_LARGE_INNER_PT)} ${fmt(P3_LARGE_INNER_PT)} re f`,
+    )
+  }
+  return lines.join("\n")
+}
+
 /** The page-1 content stream: furniture + title + room + wall (Slice 8, unchanged). */
 function buildContentStream(): string {
   const lines: string[] = [
@@ -307,33 +405,41 @@ function buildSymbolPageContentStream(): string {
 
 /**
  * Builds the committed fixture `tests/fixtures/sheet-a102-plan.pdf` as a real,
- * valid, TWO-PAGE vector PDF 1.4 that pdf.js parses and renders: correct xref
+ * valid, THREE-PAGE vector PDF 1.4 that pdf.js parses and renders: correct xref
  * offsets, exact /Length on the uncompressed content streams, /Resources with
  * a /Font (Helvetica, WinAnsiEncoding) for the text ops.
  *
  * Object layout (fixed order, fixed numbering — part of the determinism):
  *   1 0 obj  Catalog          → /Pages 2 0 R
- *   2 0 obj  Pages            → /Kids [3 0 R 6 0 R] /Count 2
+ *   2 0 obj  Pages            → /Kids [3 0 R 6 0 R 8 0 R] /Count 3
  *   3 0 obj  Page 1           → /MediaBox [0 0 1191 842] /Resources /Contents
  *   4 0 obj  Content stream 1 → /Length <exact byte count> (uncompressed)
  *   5 0 obj  Font             → Type1 Helvetica WinAnsiEncoding
  *   6 0 obj  Page 2           → /MediaBox [0 0 1191 842] /Resources /Contents
  *   7 0 obj  Content stream 2 → /Length <exact byte count> (uncompressed)
+ *   8 0 obj  Page 3 [S20]     → /MediaBox [0 0 1191 842] /Resources /Contents
+ *   9 0 obj  Content stream 3 → /Length <exact byte count> (uncompressed)
  * No /Info dictionary on purpose — it would only invite timestamps; the file
- * carries no date, so regeneration is byte-identical.
+ * carries no date, so regeneration is byte-identical. Pages 1–2's STREAMS are
+ * byte-identical to the two-page Slice-13 fixture (the S20 addition is purely
+ * additive — the established page-2 precedent: page 1's stream was
+ * byte-identical to Slice 8's).
  */
 export function buildSheetPdf(): Uint8Array {
   const content1 = ascii(buildContentStream())
   const content2 = ascii(buildSymbolPageContentStream())
+  const content3 = ascii(buildPanelScheduleContentStream())
 
   const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 2 >>",
+    "<< /Type /Pages /Kids [3 0 R 6 0 R 8 0 R] /Count 3 >>",
     `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmt(PAGE_W_PT)} ${fmt(PAGE_H_PT)}] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>`,
     `<< /Length ${content1.length} >>\nstream\n${buildContentStream()}\nendstream`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
     `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmt(PAGE_W_PT)} ${fmt(PAGE_H_PT)}] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>`,
     `<< /Length ${content2.length} >>\nstream\n${buildSymbolPageContentStream()}\nendstream`,
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmt(PAGE_W_PT)} ${fmt(PAGE_H_PT)}] /Resources << /Font << /F1 5 0 R >> >> /Contents 9 0 R >>`,
+    `<< /Length ${content3.length} >>\nstream\n${buildPanelScheduleContentStream()}\nendstream`,
   ]
 
   const chunks: Uint8Array[] = []

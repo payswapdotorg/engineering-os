@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-10-26T21:33:28.796Z",
+  "ranAt": "2026-10-27T08:15:29.976Z",
   "pythonBin": "/home/z/.venv/bin/python",
   "manifestPath": "tests/validation/corpus-manifest.json",
   "caseCount": 30,
@@ -2717,15 +2717,15 @@
           {
             "field": "pageCount",
             "ref": null,
-            "expected": 2,
-            "observed": 2,
+            "expected": 3,
+            "observed": 3,
             "unit": null,
             "bound": "abs:0",
             "absDiff": 0,
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "fixture builder pins a 2-page document (page 1 plan, page 2 symbols)"
+            "derivation": "fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)"
           },
           {
             "field": "pageNo",
@@ -2938,15 +2938,15 @@
           {
             "field": "fixtureSha256",
             "ref": null,
-            "expected": "a81c447682d317bf8f491b75d5908300ec5b92316c68128f9702f9626636b50b",
-            "observed": "a81c447682d317bf8f491b75d5908300ec5b92316c68128f9702f9626636b50b",
+            "expected": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
+            "observed": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
             "unit": null,
             "bound": "structural",
             "absDiff": null,
             "observedRelError": null,
             "ok": true,
             "problem": "value",
-            "derivation": "see case groundTruth"
+            "derivation": "see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)"
           },
           {
             "field": "linesTotalLengthMm",
@@ -2960,6 +2960,97 @@
             "ok": true,
             "problem": "value",
             "derivation": "page-2 scale bar 283.464567 pt + 3 x 12 pt ticks = 319.464567 pt = 11 270.1 mm (same bar geometry as page 1, no wall)"
+          },
+          {
+            "field": "pageNo",
+            "ref": null,
+            "expected": 3,
+            "observed": 3,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the requested page, echoed by the adapter"
+          },
+          {
+            "field": "pageCount",
+            "ref": null,
+            "expected": 3,
+            "observed": 3,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)"
+          },
+          {
+            "field": "linesCount",
+            "ref": null,
+            "expected": 4,
+            "observed": 4,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "page 3 is self-contained like page 2: scale bar + 2 end ticks + mid tick = 4 lines (builder: buildPanelScheduleContentStream)"
+          },
+          {
+            "field": "rectsCount",
+            "ref": null,
+            "expected": 21,
+            "observed": 21,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "page 3: border + 6 outer 10 pt + 6 inner 4 pt small sockets + 4 outer 15 pt + 4 inner 6 pt large sockets = 21 rects (the Slice-20 two-size field)"
+          },
+          {
+            "field": "rectsTotalAreaMm2",
+            "ref": null,
+            "expected": 1131621093.9815,
+            "observed": 1131621093.9814816,
+            "unit": "mm2",
+            "bound": "rel:0.000001",
+            "absDiff": 0.000018358230590820312,
+            "observedRelError": 1.622294837773715e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "(1143x794 border + 6x(100+16) small + 4x(225+36) large) pt2 = 909 282 pt2 x (35.277777…)2 = 1 131 621 093.98 mm2"
+          },
+          {
+            "field": "fixtureSha256",
+            "ref": null,
+            "expected": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
+            "observed": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)"
+          },
+          {
+            "field": "linesTotalLengthMm",
+            "ref": null,
+            "expected": 11270,
+            "observed": 11270.001166666669,
+            "unit": "mm",
+            "bound": "rel:0.000001",
+            "absDiff": 0.0011666666687233374,
+            "observedRelError": 1.0351966891955079e-7,
+            "ok": true,
+            "problem": "value",
+            "derivation": "page-3 scale bar 283.464567 pt + 3 x 12 pt ticks = 319.464567 pt = 11 270.000 mm (same furniture as page 2)"
           }
         ],
         "problems": [],

@@ -4,7 +4,7 @@
 << /Type /Catalog /Pages 2 0 R >>
 endobj
 2 0 obj
-<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 2 >>
+<< /Type /Pages /Kids [3 0 R 6 0 R 8 0 R] /Count 3 >>
 endobj
 3 0 obj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 1191 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
@@ -79,18 +79,76 @@ BT /F1 8 Tf 334 100 Td (10 m) Tj ET
 443 353 4 4 re f
 endstream
 endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1191 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 1541 >>
+stream
+% EOS demo sheet A-102 p3 - panel schedule @ 1:100 (Slice 20 two-size fixture)
+% border rectangle (paper frame): 24 24 1143 794
+24 24 1143 794 re S
+BT /F1 14 Tf 40 790 Td (EOS DEMO SHEET A-102 P3 \227 PANEL SCHEDULE @ 1:100) Tj ET
+% scale bar: 100 paper-mm = 10.000 m real @ 1:100 (drawn span 343.4646 - 60 = 283.4646 pt)
+60 120 m 343.4646 120 l S
+% end ticks (12 pt tall) and mid tick at 5 m
+60 114 m 60 126 l S
+343.4646 114 m 343.4646 126 l S
+201.7323 114 m 201.7323 126 l S
+% tick labels 0 / 5 / 10 m: Helvetica 8 at baseline y=100
+BT /F1 8 Tf 57.5 100 Td (0) Tj ET
+BT /F1 8 Tf 199.5 100 Td (5) Tj ET
+BT /F1 8 Tf 334 100 Td (10 m) Tj ET
+% six 10 pt sockets (the page-2 size, default 1 pt pen) at y=560
+% socket symbol at (205, 560)
+200 555 10 10 re S
+203 558 4 4 re f
+% socket symbol at (325, 560)
+320 555 10 10 re S
+323 558 4 4 re f
+% socket symbol at (445, 560)
+440 555 10 10 re S
+443 558 4 4 re f
+% socket symbol at (565, 560)
+560 555 10 10 re S
+563 558 4 4 re f
+% socket symbol at (685, 560)
+680 555 10 10 re S
+683 558 4 4 re f
+% socket symbol at (805, 560)
+800 555 10 10 re S
+803 558 4 4 re f
+% four 15 pt sockets - the SAME symbol x1.5 including the pen (1.5 w):
+% the exact 1.5 rung of the default scale ladder (Slice 20)
+1.5 w
+% large socket symbol at (205, 360)
+197.5 352.5 15 15 re S
+202 357 6 6 re f
+% large socket symbol at (325, 360)
+317.5 352.5 15 15 re S
+322 357 6 6 re f
+% large socket symbol at (445, 360)
+437.5 352.5 15 15 re S
+442 357 6 6 re f
+% large socket symbol at (565, 360)
+557.5 352.5 15 15 re S
+562 357 6 6 re f
+endstream
+endobj
 xref
-0 8
+0 10
 0000000000 65535 f 
 0000000015 00000 n 
 0000000064 00000 n 
-0000000127 00000 n 
-0000000254 00000 n 
-0000001272 00000 n 
-0000001369 00000 n 
-0000001496 00000 n 
+0000000133 00000 n 
+0000000260 00000 n 
+0000001278 00000 n 
+0000001375 00000 n 
+0000001502 00000 n 
+0000002753 00000 n 
+0000002880 00000 n 
 trailer
-<< /Size 8 /Root 1 0 R >>
+<< /Size 10 /Root 1 0 R >>
 startxref
-2747
+4473
 %%EOF

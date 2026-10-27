@@ -10,7 +10,10 @@
 # Slice 18 region cutouts +11 → 81 PASS (AC-VT-10a…j). Slice 19 (§2.4):
 # AC-VT-10d flips from refusal to ACCEPTANCE (a boundary-touching cutout on
 # a CONVEX region rides the v2 clip lane) and AC-VT-11a…h pins the v2
-# matrix → 89 PASS.
+# matrix → 89 PASS. Slice 20 (scale-invariant auto-count): AC-AC-04a…f
+# pins the two-size page-3 field through the real pdfplumber lane, the v2
+# quantityMethod provenance, and the mixed-size symbol-hits round-trip
+# (+ the size-blind consistency gate) → 95 PASS.
 #
 # Rebuilds the demo dataset through the REAL API against the live dev server:
 # project "Harbour View Extension", 4 fixtures, 14 ledger rows, 1 approved GHS
@@ -1201,6 +1204,118 @@ assert_eq "AC-VT-11g: the markup.created audit event carries the CLIPPED net det
 
 STATUS=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST "$BASE/api/projects/$PID/markups" -H 'Content-Type: application/json' --data-binary @"$WORK/vt11-crossing.json") || STATUS="000"
 assert_eq "AC-VT-11h: unauthenticated crossing-cutout create is 401 (the v2 lane rides the same wrapper)" \
+  "401" "$STATUS"
+
+# ===========================================================================
+# AC-AC-04 (Slice 20): scale-invariant auto-count — the two-size fixture
+# page through the REAL pdfplumber lane, the mixed-size symbol-hits payload
+# round-trip, the v2 quantityMethod provenance, and the unchanged
+# count-consistency gate (mixed sizes never weaken it).
+# ===========================================================================
+http POST "/api/projects/$PID/artifacts/$SHEET_ID/vector-takeoff" -H 'Content-Type: application/json' --data-binary '{"pageNo":3,"scaleMmPerPt":35.27777777777778}'
+VT_P3_STATUS="$STATUS"
+VT_P3_BODY="$BODY"
+VT_P3_RECTS=$(j "$VT_P3_BODY" '.data.takeoff.rectCount')
+VT_P3_LINES=$(j "$VT_P3_BODY" '.data.takeoff.lineCount')
+VT_P3_LARGE=$(j "$VT_P3_BODY" '[.data.takeoff.document.result.items[] | select(.type == "rect" and .pts[0][0] == 197.5 and .pts[0][1] == 352.5)] | length')
+VT_P3_LARGE_AREA=$(j "$VT_P3_BODY" '[.data.takeoff.document.result.items[] | select(.type == "rect" and .pts[0][0] == 197.5 and .pts[0][1] == 352.5)][0].areaMm2')
+if [[ "$VT_P3_STATUS" == "201" && "$VT_P3_RECTS" == "21" && "$VT_P3_LINES" == "4" && "$VT_P3_LARGE" == "1" ]] && python3 -c 'import sys; sys.exit(0 if abs(float(sys.argv[1]) - 225 * 35.27777777777778**2) / (225 * 35.27777777777778**2) <= 1e-9 else 1)' "$VT_P3_LARGE_AREA" 2>/dev/null; then
+  ok "AC-AC-04a: page-3 two-size field through the REAL pdfplumber lane (201, 21 rects / 4 lines, the 15 pt outer square at (197.5,352.5) with its builder-truth area)"
+else
+  bad "AC-AC-04a: page-3 two-size vector read" "status=$VT_P3_STATUS rects=$VT_P3_RECTS lines=$VT_P3_LINES large=$VT_P3_LARGE area=$VT_P3_LARGE_AREA" "201|21|4|1|225·s²"
+fi
+
+# The v2-method ledger row: a count of TEN (six ×1.0 + four ×1.5 instances)
+# with the multi-scale provenance string — the lane the UI saves when the
+# "Match other sizes" toggle is on.
+cat > "$WORK/ac04-qty.json" <<EOF
+{
+  "sourceArtifactRevisionId": "$PDF_REV",
+  "sheetRef": "EOS DEMO SHEET A-102 P3 — p3",
+  "quantityType": "count",
+  "value": 10,
+  "unit": "each",
+  "method": "drawing-measured",
+  "quantityMethod": "eos-symbol-template/2 (NCC ≥ 0.85 · scales 0.5–2)",
+  "rulesetId": "drawing-takeoff",
+  "rulesetVersion": "0.1",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/quantities" "$WORK/ac04-qty.json"
+AC04_QID=$(j "$BODY" '.data.quantity.id')
+assert_eq "AC-AC-04b: the v2 quantityMethod provenance persists verbatim on the ledger row (count 10 = 6×1.0 + 4×1.5)" \
+  "201|each|eos-symbol-template/2 (NCC ≥ 0.85 · scales 0.5–2)" \
+  "$STATUS|$(j "$BODY" '.data.quantity.unit')|$(j "$BODY" '.data.quantity.quantityMethod')"
+
+# The mixed-size symbol-hits markup: 10 pairs (20 points) — the six 10 pt
+# boxes on the y=560 row + the four 15 pt boxes on the y=360 row, each pair
+# [topLeft(higher y), bottomRight] in PDF-page space, linked to the v2 row.
+cat > "$WORK/ac04-hits.json" <<EOF
+{
+  "revisionId": "$PDF_REV",
+  "page": 3,
+  "kind": "symbol-hits",
+  "points": [
+    { "x": 200, "y": 565 }, { "x": 210, "y": 555 },
+    { "x": 320, "y": 565 }, { "x": 330, "y": 555 },
+    { "x": 440, "y": 565 }, { "x": 450, "y": 555 },
+    { "x": 560, "y": 565 }, { "x": 570, "y": 555 },
+    { "x": 680, "y": 565 }, { "x": 690, "y": 555 },
+    { "x": 800, "y": 565 }, { "x": 810, "y": 555 },
+    { "x": 197.5, "y": 367.5 }, { "x": 212.5, "y": 352.5 },
+    { "x": 317.5, "y": 367.5 }, { "x": 332.5, "y": 352.5 },
+    { "x": 437.5, "y": 367.5 }, { "x": 452.5, "y": 352.5 },
+    { "x": 557.5, "y": 367.5 }, { "x": 572.5, "y": 352.5 }
+  ],
+  "label": "panel schedule — two-size scan",
+  "value": 10,
+  "unit": "each",
+  "quantityId": "$AC04_QID",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/ac04-hits.json"
+assert_eq "AC-AC-04c: the MIXED-SIZE symbol-hits markup round-trips (201, 10 pairs, linked to the v2 ledger row)" \
+  "201|symbol-hits|10|each|$AC04_QID|20" \
+  "$STATUS|$(j "$BODY" '.data.markup.kind')|$(j "$BODY" '.data.markup.value')|$(j "$BODY" '.data.markup.unit')|$(j "$BODY" '.data.markup.quantityId')|$(j "$BODY" '.data.markup.points | length')"
+
+http GET "/api/projects/$PID/markups?revisionId=$PDF_REV"
+assert_eq "AC-AC-04d: GET round-trip — the mixed-size pairs persist exactly (both sizes' boxes listed under the revision)" \
+  "1|20" \
+  "$(j "$BODY" '[.data.markups[] | select(.kind == "symbol-hits" and .page == 3)] | length')|$(j "$BODY" '[.data.markups[] | select(.kind == "symbol-hits" and .page == 3)][0].points | length')"
+
+# The count-consistency gate is size-blind by design: 10 pairs with a value
+# of 9 is refused verbatim (a stored count can never disagree with its boxes).
+cat > "$WORK/ac04-bad.json" <<EOF
+{
+  "revisionId": "$PDF_REV",
+  "page": 3,
+  "kind": "symbol-hits",
+  "points": [
+    { "x": 200, "y": 565 }, { "x": 210, "y": 555 },
+    { "x": 320, "y": 565 }, { "x": 330, "y": 555 },
+    { "x": 440, "y": 565 }, { "x": 450, "y": 555 },
+    { "x": 560, "y": 565 }, { "x": 570, "y": 555 },
+    { "x": 680, "y": 565 }, { "x": 690, "y": 555 },
+    { "x": 800, "y": 565 }, { "x": 810, "y": 555 },
+    { "x": 197.5, "y": 367.5 }, { "x": 212.5, "y": 352.5 },
+    { "x": 317.5, "y": 367.5 }, { "x": 332.5, "y": 352.5 },
+    { "x": 437.5, "y": 367.5 }, { "x": 452.5, "y": 352.5 },
+    { "x": 557.5, "y": 367.5 }, { "x": 572.5, "y": 352.5 }
+  ],
+  "value": 9,
+  "unit": "each",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/ac04-bad.json"
+assert_eq "AC-AC-04e: a 10-pair mixed-size markup with value 9 refused 422 verbatim (the gate is size-blind)" \
+  "invalid SheetMarkup: a symbol-hits markup's value must equal its hit-box count (10), got 9" \
+  "$(j "$BODY" '.error.message')"
+
+STATUS=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST "$BASE/api/projects/$PID/markups" -H 'Content-Type: application/json' --data-binary @"$WORK/ac04-hits.json") || STATUS="000"
+assert_eq "AC-AC-04f: unauthenticated mixed-size symbol-hits create is 401 (the v2 lane rides the same wrapper)" \
   "401" "$STATUS"
 
 echo

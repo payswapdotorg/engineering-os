@@ -324,8 +324,10 @@ describe.skipIf(!pdfplumberAvailable)("sheetTakeoffFromStorage — real pdfplumb
         scaleMmPerPt: A102_SCALE_MM_PER_PT,
       })
       // build-sheet-pdf.ts truth: page 1 draws border rect + room rect, bar +
-      // 2 end ticks + mid tick + wall lines
-      expect(result.pageCount).toBe(2)
+      // 2 end ticks + mid tick + wall lines. Slice 20 grew the document to
+      // THREE pages (page 3 = the two-size panel schedule) — pages 1–2's
+      // streams stayed byte-identical.
+      expect(result.pageCount).toBe(3)
       expect(result.entities.lines.count).toBe(5)
       expect(result.entities.rects.count).toBe(2)
       expect(result.entities.curves.count).toBe(0)
@@ -388,6 +390,36 @@ describe.skipIf(!pdfplumberAvailable)("sheetTakeoffFromStorage — real pdfplumb
       expect(Math.abs(inner.areaMm2 - 16 * s * s) / (16 * s * s)).toBeLessThanOrEqual(1e-9)
       expect(inner.stroke).toBe(false)
       expect(inner.fill).toBe(true)
+    },
+    TEST_TIMEOUT_MS,
+  )
+
+  test(
+    "sheet-a102-plan.pdf page 3 (Slice 20): 15 rects (border + 6×2 small + 4×2 large sockets) with the builder-truth areas — the two-size field",
+    async () => {
+      const result = await sheetTakeoffFromStorage(path.join(fixtures, "sheet-a102-plan.pdf"), {
+        pageNo: 3,
+        scaleMmPerPt: A102_SCALE_MM_PER_PT,
+      })
+      // builder truth: page 3 draws the shared border rect + 6 outer 10 pt +
+      // 6 inner 4 pt small squares + 4 outer 15 pt + 4 inner 6 pt large
+      // squares (1 + 12 + 8 = 21); bar + 3 tick lines
+      expect(result.entities.rects.count).toBe(21)
+      expect(result.entities.lines.count).toBe(4)
+      // total rect area = border + 6*(100+16) + 4*(225+36) pt², scaled by s²
+      const s = A102_SCALE_MM_PER_PT
+      const expectedAreaMm2 = (1143 * 794 + 6 * 100 + 6 * 16 + 4 * 225 + 4 * 36) * s * s
+      expect(Math.abs(result.entities.rects.totalAreaMm2 - expectedAreaMm2) / expectedAreaMm2)
+        .toBeLessThanOrEqual(1e-9)
+      // one large outer (15 pt) square located by anchor (197.5, 352.5): the
+      // ×1.5 devices the multi-scale ladder's 1.5 rung matches
+      const items = result.items as Array<Record<string, unknown>>
+      const large = items.find(
+        (i) => i.type === "rect" && (i.pts as number[][])[0][0] === 197.5 && (i.pts as number[][])[0][1] === 352.5,
+      ) as { areaMm2: number; stroke: boolean; fill: boolean }
+      expect(Math.abs(large.areaMm2 - 225 * s * s) / (225 * s * s)).toBeLessThanOrEqual(1e-9)
+      expect(large.stroke).toBe(true)
+      expect(large.fill).toBe(false)
     },
     TEST_TIMEOUT_MS,
   )

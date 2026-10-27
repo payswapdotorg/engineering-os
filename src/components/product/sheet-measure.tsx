@@ -24,8 +24,13 @@
  *    hits are drawn as boxes → "Accept N" produces the same save panel as a
  *    manual count, with quantityMethod "eos-symbol-template/1 (NCC ≥ T)" and
  *    a kind="symbol-hits" markup carrying every hit box. Honest limits:
- *    matches instances the SAME rendered size as the picked template; a
- *    rotated page (/Rotate ≠ 0) inherits the Slice-8 click-mapping caveat.
+ *    a rotated page (/Rotate ≠ 0) inherits the Slice-8 click-mapping caveat.
+ *    Slice 20 — the "Match other sizes" toggle runs the pinned 12-rung
+ *    0.5×–2× scale ladder (nccScanMultiScale) in ONE pass: hits at other
+ *    sizes carry their rung, quantityMethod reads "eos-symbol-template/2
+ *    (NCC ≥ T · scales 0.5–2)", ~12× the single-scale scan time (shown on
+ *    the toggle); matches are found at LADDER RUNGS — a between-rung size
+ *    matches its nearest rung with a degraded-but-real score.
  *
  * Honesty rules this component follows (mirrors takeoff-workspace.tsx):
  *  - every measurement is REAL: bytes come from GET /api/revisions/<id>/download
@@ -109,10 +114,12 @@ import {
   type Pt,
 } from "@/core/measure"
 import {
+  DEFAULT_SCALE_LADDER,
   DEFAULT_SCAN_OPTIONS,
   SymbolMatchError,
   extractTemplate,
   nccScan,
+  nccScanMultiScale,
   toGray,
 } from "@/core/symbol-match"
 import { Badge } from "@/components/ui/badge"
@@ -165,7 +172,13 @@ interface FinishedMeasurement {
   /** manual = picked by hand; template = NCC symbol auto-count (Slice 13) */
   provenance: "manual" | "template"
   /** template provenance only: the scan context for the save panel's copy */
-  templateInfo?: { threshold: number; templateWpt: number; templateHpt: number }
+  templateInfo?: {
+    threshold: number
+    templateWpt: number
+    templateHpt: number
+    /** Slice 20: the multi-scale ladder context (undefined = the v1 lane) */
+    multiScale?: { rungs: number; lo: number; hi: number }
+  }
   /** Slice 18: committed cutout rings (area-with-cutouts; the rawMm/ledger
    *  above are the NET after every committed cutout). */
   cutouts?: Pt[][],
@@ -181,11 +194,14 @@ interface FinishedMeasurement {
   }
 }
 
-/** One accepted symbol-scan hit, already mapped back to PDF-point space. */
+/** One accepted symbol-scan hit, already mapped back to PDF-point space.
+ *  Slice 20: `scale` is the ladder rung that matched (multi-scale scans only;
+ *  1 = the picked size — v1 single-scale hits leave it undefined). */
 interface SymbolHit {
   tl: Pt
   br: Pt
   score: number
+  scale?: number
 }
 
 /** Slice 16-B: one OCR word, its raster box mapped back to PDF-point space. */
@@ -319,6 +335,10 @@ export function SheetMeasure({
 
   const [autoPicks, setAutoPicks] = useState<Pt[]>([])
   const [autoThreshold, setAutoThreshold] = useState(DEFAULT_SCAN_OPTIONS.minScore)
+  /** Slice 20: the multi-scale ladder toggle (default OFF = the v1 lane,
+   *  bit-identical single-scale scan; ON = the pinned 12-rung 0.5×–2× ladder,
+   *  ~12× the scan time — the honest cost is shown on the toggle). */
+  const [autoMultiScale, setAutoMultiScale] = useState(false)
   const [autoHits, setAutoHits] = useState<SymbolHit[] | null>(null)
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
@@ -1038,7 +1058,12 @@ export function SheetMeasure({
         height: Math.max(2, Math.round((maxY - minY) * SCAN_SCALE)),
       }
       const template = extractTemplate(gray, rect)
-      const boxes = nccScan(gray, template, { minScore: threshold })
+      // Slice 20: the multi-scale lane rides the SAME raster + template —
+      // every v1 rule holds; the ladder adds the other rungs and each hit
+      // carries the rung that matched it.
+      const boxes = autoMultiScale
+        ? nccScanMultiScale(gray, template, { minScore: threshold })
+        : nccScan(gray, template, { minScore: threshold })
 
       // Raster px → PDF pt (y flip back). tl/br in PDF space for the markup.
       const hits: SymbolHit[] = boxes.map((b) => ({
@@ -1048,15 +1073,17 @@ export function SheetMeasure({
           y: pageDims.hPt - (b.y + b.height) / SCAN_SCALE,
         },
         score: b.score,
+        ...("scale" in b ? { scale: (b as { scale: number }).scale } : {}),
       }))
       setAutoHits(hits)
       if (hits.length === 0) {
         setScanError(
-          `No matches at NCC ≥ ${threshold} — pick a tighter box around ONE symbol instance (blank margin included helps), or lower the threshold.`,
+          `No matches at NCC ≥ ${threshold}${autoMultiScale ? ` across the ${DEFAULT_SCALE_LADDER.length}-rung scale ladder` : ""} — pick a tighter box around ONE symbol instance (blank margin included helps), or lower the threshold.`,
         )
       } else {
+        const scales = new Set(hits.map((h) => h.scale ?? 1))
         toast.success(
-          `${hits.length} symbol${hits.length === 1 ? "" : "s"} matched at NCC ≥ ${threshold} — review the boxes, then Accept.`,
+          `${hits.length} symbol${hits.length === 1 ? "" : "s"} matched at NCC ≥ ${threshold}${autoMultiScale ? ` across ${scales.size} scale${scales.size === 1 ? "" : "s"} (ladder 0.5×–2×)` : ""} — review the boxes, then Accept.`,
         )
       }
     } catch (err) {
@@ -1068,7 +1095,7 @@ export function SheetMeasure({
     } finally {
       setScanning(false)
     }
-  }, [autoPicks, autoThreshold, pageNumber, pageDims, scanning])
+  }, [autoPicks, autoThreshold, autoMultiScale, pageNumber, pageDims, scanning])
 
   /** Accept the reviewed hits as the finished count measurement (save panel). */
   const acceptAutoHits = useCallback(() => {
@@ -1088,9 +1115,18 @@ export function SheetMeasure({
         threshold: Math.min(0.99, Math.max(0.5, autoThreshold)),
         templateWpt: maxX - minX,
         templateHpt: maxY - minY,
+        ...(autoMultiScale
+          ? {
+              multiScale: {
+                rungs: DEFAULT_SCALE_LADDER.length,
+                lo: DEFAULT_SCALE_LADDER[0],
+                hi: DEFAULT_SCALE_LADDER[DEFAULT_SCALE_LADDER.length - 1],
+              },
+            }
+          : {}),
       },
     })
-  }, [autoHits, autoPicks, autoThreshold, finished])
+  }, [autoHits, autoPicks, autoThreshold, autoMultiScale, finished])
 
   // -- Slice 16-B: the OCR region read + accept -------------------------------
 
@@ -1771,7 +1807,9 @@ export function SheetMeasure({
         scale: calib !== null ? calib.scaleRecord : undefined,
         quantityMethod:
           finished.provenance === "template"
-            ? `eos-symbol-template/1 (NCC ≥ ${finished.templateInfo?.threshold ?? "0.85"})`
+            ? finished.templateInfo?.multiScale
+              ? `eos-symbol-template/2 (NCC ≥ ${finished.templateInfo.threshold} · scales ${finished.templateInfo.multiScale.lo}–${finished.templateInfo.multiScale.hi})`
+              : `eos-symbol-template/1 (NCC ≥ ${finished.templateInfo?.threshold ?? "0.85"})`
             : finished.cutouts !== undefined && finished.cutouts.length > 0
               ? "eos-pdf-measure/2 (browser-calibrated, region cutouts)"
               : "eos-pdf-measure/1 (browser-calibrated)",
@@ -1874,7 +1912,7 @@ export function SheetMeasure({
       parts.push(`Calibrate tool active, ${calibPicks.length} of 2 scale picks set.`)
     } else if (tool === "autocount") {
       parts.push(
-        `Symbol auto-count active, ${autoPicks.length} of 2 template corners set${autoHits !== null ? `, ${autoHits.length} hits` : ""}.`,
+        `Symbol auto-count active, ${autoPicks.length} of 2 template corners set${autoHits !== null ? `, ${autoHits.length} hits` : ""}${autoMultiScale ? ", multi-scale ladder on" : ""}.`,
       )
     } else {
       parts.push(`${tool} tool active, ${points.length} points.`)
@@ -1893,7 +1931,9 @@ export function SheetMeasure({
     // recomputed only when liveReadout's identity changed, i.e. at 3+ points
     // when the draft's area becomes readable); a screen reader must hear the
     // first pick land, so both cutout states belong in the dependency list.
-  }, [selected, pageNumber, pageCount, tool, calibPicks.length, points.length, liveReadout, autoPicks.length, autoHits, cutoutActive, cutoutDraft.length])
+    // Slice 20: autoMultiScale is a dep for the same reason — the aria must
+    // announce the ladder the moment the operator flips it, not at scan time.
+  }, [selected, pageNumber, pageCount, tool, calibPicks.length, points.length, liveReadout, autoPicks.length, autoHits, cutoutActive, cutoutDraft.length, autoMultiScale])
 
   // ---------------------------------------------------------------------------
   // Render
@@ -2251,6 +2291,35 @@ export function SheetMeasure({
                     aria-label="Minimum NCC correlation score for a symbol match (0.5 to 0.99)"
                   />
                 </div>
+                {/* Slice 20: the scale-ladder toggle — OFF = the v1 lane
+                    (single scale, bit-identical to Slice 13); ON = the pinned
+                    12-rung 0.5×–2× ladder in ONE pass. The honest cost rides
+                    the label: every rung is a full stride-1 scan. */}
+                <div className="flex flex-col gap-1">
+                  <Label
+                    htmlFor="sm-auto-multiscale"
+                    className="text-xs text-emerald-900 dark:text-emerald-200"
+                  >
+                    Match other sizes
+                  </Label>
+                  <button
+                    type="button"
+                    id="sm-auto-multiscale"
+                    role="switch"
+                    aria-checked={autoMultiScale}
+                    disabled={scanning || finished !== null}
+                    onClick={() => setAutoMultiScale((v) => !v)}
+                    className={cn(
+                      "inline-flex h-10 items-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors",
+                      "disabled:cursor-not-allowed disabled:opacity-50",
+                      autoMultiScale
+                        ? "border-emerald-600 bg-emerald-600 text-white"
+                        : "border-emerald-300 bg-white text-emerald-900 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900",
+                    )}
+                  >
+                    {autoMultiScale ? "12 scales 0.5×–2× · on" : "single scale · off"}
+                  </button>
+                </div>
                 <Button
                   type="button"
                   className="h-10"
@@ -2281,10 +2350,12 @@ export function SheetMeasure({
                 {autoPicks.length < 2
                   ? `Template box: ${autoPicks.length} of 2 corners picked — draw it around ONE symbol instance, including a little blank margin.`
                   : autoHits === null
-                    ? "Template box ready — Scan renders the page at a fixed 2× scale (independent of your zoom) and matches every instance above the threshold."
+                    ? autoMultiScale
+                      ? `Template box ready — multi-scale scan renders the page at a fixed 2× scale and matches instances at ${DEFAULT_SCALE_LADDER.length} ladder scales (0.5×–2×) in one pass, roughly ${DEFAULT_SCALE_LADDER.length}× the single-scale time.`
+                      : "Template box ready — Scan renders the page at a fixed 2× scale (independent of your zoom) and matches every instance above the threshold."
                     : autoHits.length === 0
                       ? "Scan complete — no matches. Check the message below the toolbar."
-                      : `Scan complete — ${autoHits.length} instance${autoHits.length === 1 ? "" : "s"} boxed in emerald. Review them on the sheet, then Accept (or adjust the threshold and Rescan).`}
+                      : `Scan complete — ${autoHits.length} instance${autoHits.length === 1 ? "" : "s"} boxed in emerald${autoMultiScale ? ` across ${new Set(autoHits.map((h) => h.scale ?? 1)).size} scale${new Set(autoHits.map((h) => h.scale ?? 1)).size === 1 ? "" : "s"}` : ""}. Review them on the sheet, then Accept (or adjust the threshold and Rescan).`}
               </p>
               {scanError !== null ? (
                 <p role="alert" className="text-xs font-medium text-emerald-900 dark:text-emerald-200">
@@ -2592,6 +2663,9 @@ export function SheetMeasure({
                     title="Counted by the deterministic NCC template scan, not by hand"
                   >
                     symbol auto-count · NCC ≥ {finished.templateInfo?.threshold ?? "0.85"}
+                    {finished.templateInfo?.multiScale
+                      ? ` · ${finished.templateInfo.multiScale.rungs} scales ${finished.templateInfo.multiScale.lo}–${finished.templateInfo.multiScale.hi}`
+                      : ""}
                   </Badge>
                 ) : null}
                 {finished.cutouts !== undefined && finished.cutouts.length > 0 ? (
@@ -2706,7 +2780,9 @@ export function SheetMeasure({
                 The quantityMethod will read{" "}
                 <span className="font-mono">
                   {finished.provenance === "template"
-                    ? `eos-symbol-template/1 (NCC ≥ ${finished.templateInfo?.threshold ?? "0.85"})`
+                    ? finished.templateInfo?.multiScale
+                      ? `eos-symbol-template/2 (NCC ≥ ${finished.templateInfo.threshold} · scales ${finished.templateInfo.multiScale.lo}–${finished.templateInfo.multiScale.hi})`
+                      : `eos-symbol-template/1 (NCC ≥ ${finished.templateInfo?.threshold ?? "0.85"})`
                     : finished.cutouts !== undefined && finished.cutouts.length > 0
                       ? "eos-pdf-measure/2 (browser-calibrated, region cutouts)"
                       : "eos-pdf-measure/1 (browser-calibrated)"}

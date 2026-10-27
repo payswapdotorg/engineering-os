@@ -197,7 +197,7 @@ jobs:
           done
           echo "dev server did not come up"; tail -60 dev.log; exit 1
 
-      - name: "e2e-takeoff (81 PASS expected — Slice 15 vector takeoff +11 AC-VT-01…09, Slice 16-D future-dated-rate +9 AC-FR-01, Slice 18 region cutouts +10 AC-VT-10a…j)"
+      - name: "e2e-takeoff (95 PASS expected — Slice 18 region cutouts AC-VT-10a…j, Slice 19 v2 clip AC-VT-11a…h, Slice 20 scale-invariant auto-count AC-AC-04a…f)"
         run: |
           set -o pipefail
           bun scripts/dev-db-cleanup.ts --all
