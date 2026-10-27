@@ -197,6 +197,20 @@ jobs:
           done
           echo "dev server did not come up"; tail -60 dev.log; exit 1
 
+      # Run-42/43/44 lesson (the compile-deadlock class, named): GET
+      # /api/plans/[id] wedged its on-demand Turbopack compile on THREE
+      # CI runners across three runs — always this route, always 0 bytes at
+      # the suites' 180s ceiling (twice per affected runner), same product
+      # code green in 12s elsewhere and 40/0 on the dev host. Warm it EARLY
+      # (fresh worker pool, before six suites of compiles), and if the wedge
+      # strikes anyway, fail HERE — named, cheap, with one fresh-server
+      # retry — instead of burning 360s inside p7's assertions.
+      - name: "Warm the plan-detail route (the run-42/43/44 compile-deadlock class)"
+        run: |
+          set -euo pipefail
+          bash scripts/warm-plan-route.sh http://localhost:3000 --restart-cmd \
+            'pkill -f "next dev" || true; pkill -f "bun run dev" || true; sleep 3; nohup bash scripts/dev-server.sh > dev.log 2>&1 &'
+
       - name: "e2e-takeoff (95 PASS expected — Slice 18 region cutouts AC-VT-10a…j, Slice 19 v2 clip AC-VT-11a…h, Slice 20 scale-invariant auto-count AC-AC-04a…f)"
         run: |
           set -o pipefail

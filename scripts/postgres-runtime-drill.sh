@@ -184,6 +184,14 @@ PROVIDER=$(python3 -c 'import json; print(json.load(open("/tmp/drill-status.json
 [ "$PROVIDER" = "postgresql" ] \
   || die "/api/status reports dbProvider '$PROVIDER' — refusing to drill against a non-postgres runtime (restart the server against the switched .env first)"
 
+# Run-42/43/44 lesson (the compile-deadlock class, named): warm the plan-detail
+# route BEFORE the battery — run 43 wedged HERE on this very drill (p7 32/2,
+# one 180s hang) while the same code was green in 12s on the sqlite runner of
+# the same run. A restart via dev-server.sh re-reads the SWITCHED postgres .env.
+bash scripts/warm-plan-route.sh http://localhost:3000 --restart-cmd \
+  'pkill -f "next dev" || true; pkill -f "bun run dev" || true; sleep 3; nohup bash scripts/dev-server.sh > dev.log 2>&1 &' \
+  || die "the plan-detail route compile wedged on this runner (the run-42/43/44 class) — re-run the job for a fresh runner"
+
 # ------------------------------------------------------------- 4) battery --
 say "the runtime battery: pre-clean + ALL SEVEN e2e suites (CI order + keep-name discipline)"
 export DATABASE_URL="$PGURL"   # process env beats bun's .env auto-load for the cleanup tool
