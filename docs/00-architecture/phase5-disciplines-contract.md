@@ -319,3 +319,107 @@ Audit action `fea.solved`; every BrokerOutcome field per §4's rules.
   future lane).
 - OpenSees/Code_Aster/Elmer: rejected on license (14.1); not revisited
   without a license change upstream.
+
+## 15. Slice-23 addendum — Stormwater drainage v1: SWMM5 via pyswmm (BSD-2 + CC0/MIT)
+
+The Phase-5 long tail's named clean-license GIS candidate opens: a **linear
+drainage-network simulation** (impervious catchment → junction → rectangular
+conduit → free outfall under one uniform rain event). The engine is EPA SWMM5
+(public domain per the USEPA repo, CC0-dedicated in the OWA distribution) driven
+in-process by **pyswmm 2.2.0 + swmm-toolkit 0.17.0** (wheel-verified 2026-10-28:
+pyswmm `License-Expression: BSD-2-Clause` + OSI classifier; swmm-toolkit
+`CC0-1.0 AND (MIT OR Apache-2.0)` with the bundled engine LICENSE.md naming the
+MIT/Apache split — NO cloud-service restriction clause anywhere, contrast
+14.1's openseespy rejection). Amendments are ADDITIVE to §2/§3/§4/§5/§8/§12;
+nothing frozen above changes.
+
+### 15.1 Verified engine reality (TL probes, 2026-10-28, dev host)
+
+| Probe | Result |
+|---|---|
+| pip coexistence dry-run + install | adds ONLY aenum 3.1.17 + julian 0.14 + swmm-toolkit 0.17.0 (compiled manylinux, self-contained — no GLU bridge needed); numpy/scipy/pandas untouched; all six existing engine pins re-import OK (the openseespy wipe class does not recur) |
+| Volume conservation (1 ha, 100% impervious, Dstore 0, uniform 25 mm/hr × 2 h, kinematic wave, 10 s routing step) | outfall volume **500.0219 m³ vs the hand truth 500 m³ (rel 4.4e-5)** through the whole nonlinear-reservoir + kinematic-wave chain; peak runoff 0.0694522 vs the i·A asymptote 0.0694444 (rel 1.1e-4) |
+| Manning equilibrium (B=0.5 m, n=0.015, S=0.005, RECT_CLOSED) | max depth **0.14486048 m vs the hand-solved normal-depth cubic 0.144866657 m (rel 4.3e-5)** — the kinematic-wave equilibrium reproduces the Manning closed form to 4 decimals |
+| Engine continuity (parsed from the .rpt) | runoff −0.012 % · routing −0.055 % (SWMM's own honesty check, both far under its 1 % warning) |
+| Determinism | double-run **byte-identical** (fixed steps, no RNG anywhere) |
+| **INP-generation truth 1 — the recording-interval trap** | an `INTENSITY` rain gage consumes its TIMESERIES **per recording interval**: a two-entry series (25 then 0) rains for exactly ONE 5-minute interval (observed 20.9 m³ = 2.083 mm — rel error 0.96 caught by the volume balance). The adapter spreads a uniform event as per-interval entries at the gage's fixed 5-minute cadence — deterministic by construction. |
+| **INP-generation truth 2 — [SUBAREA] arity** | swmm 5.2.4 (via swmm-toolkit 0.17.0) rejects the 6-token [SUBAREA] line with `ERROR 203: too few items`; the 7-token form (with RouteTo `OUTLET`) parses. Recorded from the live engine, not inferred from docs. |
+
+### 15.2 Input schema `eos-swmm-model/1` (amends §3; zod in `src/core/analysis-schemas.ts`, adapter mirrors)
+
+```json
+{ "format": "eos-swmm-model/1", "name": "string 1..200",
+  "simulation": { "durationMin": "int 1..1440 (post-rain drainage included)" },
+  "rainfall": { "intensityMMperHr": "number > 0", "durationMin": "int 5..720, multiple of 5 (the gage cadence)" },
+  "subcatchments": [ { "id": "string 1..32", "outletNodeId": "node id",
+      "areaHA": "number 0.0001..1000", "widthM": "number 0.1..10000",
+      "slopePct": "number 0.01..100", "manningNImperv": "number 0.001..1",
+      "depressionStorageMM": "number 0..500" } ],
+  "nodes": [ { "kind": "junction", "id": "…", "invertElevM": "number", "maxDepthM": "number > 0" }
+           | { "kind": "outfall", "id": "…", "invertElevM": "number" } ],
+  "conduits": [ { "id": "…", "fromNodeId": "…", "toNodeId": "…",
+      "lengthM": "number 1..100000", "manningN": "number 0.001..1",
+      "slopePct": "number > 0 (drives the inverts the engine sees)",
+      "heightM": "number 0.01..20", "widthM": "number 0.01..50" } ] }
+```
+
+1..50 subcatchments, 1..200 nodes, 0..250 conduits. Refused before the engine:
+zero-intensity storms ("produces no runoff — and simulated results are not an
+option", the §14.2 zero-load precedent), duplicate ids, dangling
+subcatchment/conduit references, and **a network with no outfall** (the
+rigid-mode analog: "the network has no outfall - runoff cannot leave the model
+(and simulated results are not an option)"). Zero conduits is legal (a catchment
+can outlet directly to an outfall). Verbatim joined error style
+`invalid SWMM model: path: msg; …`.
+
+### 15.3 Broker op (amends §4)
+
+| op | inputs | parameters (defaults) | output kind + format | engineKey |
+|---|---|---|---|---|
+| `run_swmm` | `{artifactId}` (eos-swmm-model/1 JSON dataset) | `{routingStepSec: 10}` (int 1..60 — the kinematic-wave routing step, the numerical-refinement dial) | `"analysis"` / `eos-swmm/1` | `"pyswmm"` |
+
+Audit action `swmm.ran`; every BrokerOutcome field per §4's rules.
+
+### 15.4 Output document `eos-swmm/1` (amends §2; byte-deterministic by construction)
+
+`{format, sourceArtifactName, analysis:"drainage", rain:{intensityMMperHr, durationMin, totalDepthMm, totalVolumeM3}, routing:{model:"kinematic_wave", routingStepSec}, continuity:{runoffErrorPct, routingErrorPct} (parsed from the engine's own .rpt), outfallVolumeM3 (trapezoid-integrated over the stepping loop), volumeBalancePct (our honesty metric: 100·(outfall−rain)/rain), peaks:{maxRunoffCms (largest subcatchment runoff), maxConduitFlowCms}, depths:[{id, maxDepthM}] (every node + conduit, ascending id — the Manning pin rides here), generatedBy:{engineKey,engineVersion,adapterScript,adapterHash}}`
+
+### 15.5 Adapter spec (amends §5; `src/engines/adapters/swmm_run.py` + `swmm.ts`)
+
+- Same stdin/argv JSON protocol as §5.2: argv[1] = stored model path; the model
+  is validated (§15.2 mirrored) + graph-checked (references, ≥1 outfall) BEFORE
+  the engine opens; `swmm_open` failures map to the honest engine-refusal
+  envelope, never a raw traceback.
+- The adapter WRITES a canonical INP into a temp dir (never the repo): fixed
+  start date, fixed options (KINWAVE, SI/CMS, 60 s wet step, parameters'
+  routing step), the [SUBAREA]/[INFILTRATION] constants pinned (100% impervious
+  — the §15.6 exclusion), conduit inverts DERIVED from slopePct (to-node
+  invert = from-node invert − length·slope; the from-node invert defaults so
+  the outfall sits at 0), the uniform rain spread per 15.1-truth-1.
+- Stepping loop over `pyswmm.Simulation` with trapezoid volume integration of
+  outfall inflow (first sample carries no dt); peaks/max depths tracked in
+  doubles; continuity parsed from the .rpt text; temp dir removed after parse.
+- Determinism: fixed everything; the harness double-run pins byte-identity.
+
+### 15.6 Acceptance (amends §12)
+
+| ID | Item |
+|---|---|
+| AC-SW-01 | Runoff-balance harness case: outfall volume vs the hand truth `i·A·t` (rel ≤ 1e-3; probe-observed 4.4e-5), peak runoff vs the i·A asymptote (rel ≤ 1e-2; observed 1.1e-4), engine continuity magnitudes ≤ 0.5 %, double-run byte-identical |
+| AC-SW-02 | Manning-equilibrium harness case (steeper network: 50 mm/hr × 2 ha, B=0.8, n=0.013, S=1 %): the node max-depth pin vs the hand-solved normal-depth cubic 0.1809516 m (abs ≤ 0.005; the kinematic-wave equilibrium), peak conduit flow vs i·A (rel ≤ 3 %, the surge allowance), volume balance rel ≤ 1e-3 |
+| AC-SW-03 | Honest refusals: no-outfall network (the §15.2 refusal verbatim), zero-intensity storm, wrong-format dataset (zod 422 verbatim), non-JSON/absent engine (EngineUnavailableError class) |
+| AC-SW-04 | e2e p5 block: fixture upload → POST …/swmm → 201 with pinned document fields; the two 422 gates + 401 gate; exactly one `swmm.ran` audit event; the analysis artifact registers in the Simulation workspace |
+| AC-SW-05 | Registry: pyswmm row (BSD-2, gis domain) reaches `tested` with the probe evidence + validation block; the swmm (EPA) row's note records the in-process lane; engines-requirements pins pyswmm==2.2.0 + swmm-toolkit==0.17.0 |
+
+### 15.7 Honest exclusions (extends §10)
+
+- Pervious-area hydrology (infiltration Horton/Green-Ampt, evaporation,
+  groundwater): out of scope v1 — the subcatchments are 100 % impervious
+  (the closed forms live there; a pervious lane gets its own addendum).
+- Non-uniform rainfall (hyetographs), multiple rain gages, snowmelt: out of
+  scope (one uniform event per run, by construction).
+- Dynamic-wave routing, surcharge/pressurization, pumps, orifices/weirs,
+  storage/treatment nodes, water quality: out of scope v1.
+- Non-rectangular cross-sections (circular/trapezoid), multiple outfall types
+  (FIXED/NORMAL/TAPE), US units: out of scope v1 (RECT_CLOSED under open-
+  channel depth + FREE outfalls + SI only — each its own future lane).

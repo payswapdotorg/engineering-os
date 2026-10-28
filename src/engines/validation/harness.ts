@@ -78,6 +78,7 @@ import { defaultFeMeshParameters, femeshLdLibraryPath, feMeshFromFile, validateF
 import { runPowerflowFromFile, type PowerflowResult } from "../adapters/powerflow"
 import { runDesFromFile, type DesResult } from "../adapters/des"
 import { runFeaFromFile, validateFeaParameters, type FeaParameters, type FeaResult } from "../adapters/fea"
+import { runSwmmFromFile, validateSwmmParameters, type SwmmParameters, type SwmmResult } from "../adapters/swmm"
 import { convertDocumentToFile, type ConversionResult } from "../adapters/convert-document"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "../adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "../adapters/dxf_takeoff"
@@ -96,6 +97,7 @@ import {
   buildCpmAnalysisDocument,
   buildDesDocument,
   buildFeaDocument,
+  buildSwmmDocument,
   buildFeMeshDocument,
   buildPowerflowDocument,
   validateScheduleDocument,
@@ -112,6 +114,7 @@ export type AdapterKind =
   | "powerflow"
   | "des"
   | "fea"
+  | "swmm"
   | "cpm"
   | "libreoffice"
   | "sheet"
@@ -129,6 +132,7 @@ export type DisciplineAdapter =
   | "powerflow"
   | "des"
   | "fea"
+  | "swmm"
   | "cpm"
   | "libreoffice"
   | "sheet"
@@ -172,6 +176,7 @@ export interface CorpusCase {
   powerflow?: DisciplineExpectation
   des?: DisciplineExpectation
   fea?: DisciplineExpectation
+  swmm?: DisciplineExpectation
   cpm?: DisciplineExpectation
   libreoffice?: DisciplineExpectation
   /** 16-V: the per-adapter expectation block for the takeoff kinds — `sheet`
@@ -222,8 +227,12 @@ export interface DisciplineExpectation {
   /** femesh only: the broker-style model-kind detection input (default "step") */
   kind?: "step" | "ifc"
   /** femesh: mesh parameters override (defaults per contract §4); fea: the
-   * meshRefinement override (Slice 22, contract §14.3 — default 4) */
-  parameters?: { meshSizeMin: number; meshSizeMax: number; elementOrder: number } | { meshRefinement: number }
+   * meshRefinement override (Slice 22, contract §14.3 — default 4); swmm: the
+   * routingStepSec override (Slice 23, contract §15.3 — default 10) */
+  parameters?:
+    | { meshSizeMin: number; meshSizeMax: number; elementOrder: number }
+    | { meshRefinement: number }
+    | { routingStepSec: number }
   /** success cases only: the pinned expectation set (every entry carries a derivation) */
   pins?: DisciplinePin[]
   /** honest routing/limitation note, rendered into the case notes */
@@ -516,7 +525,7 @@ const LIBREOFFICE_BIN = process.env.EOS_LIBREOFFICE ?? "/usr/bin/libreoffice"
 
 /** Python engines per adapter kind (cpm/libreoffice/ocr are probed differently). */
 const PYTHON_ENGINE_MODULES: Record<
-  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "sheet" | "dxf" | "parametric",
+  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "swmm" | "sheet" | "dxf" | "parametric",
   string
 > = {
   step: "cadquery",
@@ -525,6 +534,7 @@ const PYTHON_ENGINE_MODULES: Record<
   powerflow: "pandapower",
   des: "simpy",
   fea: "skfem",
+  swmm: "pyswmm",
   sheet: "pdfplumber",
   dxf: "ezdxf",
   parametric: "cadquery",
@@ -547,6 +557,7 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   powerflow: "pandapower (power flow)",
   des: "simpy (discrete-event)",
   fea: "scikit-fem (plane-stress FEA)",
+  swmm: "pyswmm/SWMM5 (stormwater drainage)",
   cpm: "platform CPM core (no engine)",
   libreoffice: "libreoffice (document conversion)",
   sheet: "pdfplumber (vector sheet takeoff)",
@@ -790,6 +801,19 @@ function parseDisciplineExpectation(
         )
       }
       block.parameters = { meshRefinement }
+    } else if (blockName === "swmm") {
+      // Slice 23 (contract §15.3): the ONLY parameter is the routing step.
+      const { routingStepSec } = parameters
+      if (
+        typeof routingStepSec !== "number" ||
+        !Number.isInteger(routingStepSec) ||
+        !(routingStepSec >= 1 && routingStepSec <= 60)
+      ) {
+        throw new Error(
+          `manifest case ${caseId}: ${blockName}.parameters.routingStepSec must be an integer between 1 and 60`,
+        )
+      }
+      block.parameters = { routingStepSec }
     } else {
       const { meshSizeMin, meshSizeMax, elementOrder } = parameters
       if (typeof meshSizeMin !== "number" || !(meshSizeMin > 0)) {
@@ -1153,7 +1177,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
     if (!isPlainObject(c)) {
       throw new Error(`manifest case [${i}] is not an object`)
     }
-    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, fea, cpm, libreoffice, sheet, dxf, parametric, ocr } =
+    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, fea, swmm, cpm, libreoffice, sheet, dxf, parametric, ocr } =
       c
     if (typeof caseId !== "string" || caseId.length === 0) {
       throw new Error(`manifest case [${i}] has no caseId`)
@@ -1168,6 +1192,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "powerflow" ||
       adapter === "des" ||
       adapter === "fea" ||
+      adapter === "swmm" ||
       adapter === "cpm" ||
       adapter === "libreoffice" ||
       adapter === "sheet" ||
@@ -1176,7 +1201,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "ocr"
     if (!isModelAdapter && !isDisciplineAdapter) {
       throw new Error(
-        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr" (got ${JSON.stringify(adapter)})`,
+        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"swmm"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr" (got ${JSON.stringify(adapter)})`,
       )
     }
     if (typeof fixture !== "string" || fixture.length === 0) {
@@ -2075,6 +2100,45 @@ function feaObserved(r: FeaResult, pin: DisciplinePin): unknown {
   return pin.field === "ux" || pin.field === "uy" ? sampleRecord[pin.field] : undefined
 }
 
+/** Resolve a pin's observed value on a SWMM result (Slice 23 — the depth
+ * locator ref is the node/conduit id, e.g. "C1" or "J1"). */
+function swmmObserved(r: SwmmResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "analysis":
+      return r.analysis
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "routingStepSec":
+      return r.routing.routingStepSec
+    case "routingModel":
+      return r.routing.model
+    case "outfallVolumeM3":
+      return r.outfallVolumeM3
+    case "volumeBalancePct":
+      return r.volumeBalancePct
+    case "runoffErrorPct":
+      return r.continuity.runoffErrorPct
+    case "routingErrorPct":
+      return r.continuity.routingErrorPct
+    case "maxRunoffCms":
+      return r.peaks.maxRunoffCms
+    case "maxConduitFlowCms":
+      return r.peaks.maxConduitFlowCms
+    case "rainVolumeM3":
+      return r.rain.totalVolumeM3
+    case "rainDepthMm":
+      return r.rain.totalDepthMm
+    default:
+      break
+  }
+  if (pin.ref === null) return undefined
+  const entry = r.depths.find((d) => d.id === pin.ref)
+  if (entry === undefined) return undefined
+  return pin.field === "maxDepthM" ? entry.maxDepthM : undefined
+}
+
 function libreOfficeObserved(r: ConversionResult, pin: DisciplinePin): unknown {
   switch (pin.field) {
     case "pdfMagic":
@@ -2221,6 +2285,8 @@ async function runDisciplineChecks(
         await runDesFromFile(fixturePath)
       } else if (adapter === "fea") {
         await runFeaFromFile(fixturePath, block.parameters ?? {})
+      } else if (adapter === "swmm") {
+        await runSwmmFromFile(fixturePath, block.parameters ?? {})
       } else {
         r.problems.push(`adapter "${adapter}" has no error-case bridge path (honest harness bug — fix the manifest)`)
         r.status = "fail"
@@ -2350,6 +2416,33 @@ async function runDisciplineChecks(
       }
       for (const pin of block.pins ?? []) {
         r.comparisons.push(compareDisciplinePin(pin, feaObserved(first, pin)))
+      }
+    } else if (adapter === "swmm") {
+      let params: SwmmParameters
+      try {
+        params = validateSwmmParameters(block.parameters ?? {})
+      } catch (err) {
+        r.problems.push(`manifest swmm parameters failed bridge validation: ${(err as Error).message}`)
+        r.status = "fail"
+        return r
+      }
+      const first = await runSwmmFromFile(fixturePath, block.parameters ?? {})
+      const second = await runSwmmFromFile(fixturePath, block.parameters ?? {})
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      const documentOf = (res: SwmmResult) => buildSwmmDocument(sourceName, res)
+      r.determinism = documentOf(first) === documentOf(second)
+      if (!r.determinism) {
+        r.problems.push("two consecutive real runs produced different eos-swmm/1 document bytes — the stored artifact would not be byte-deterministic")
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, swmmObserved(first, pin)))
       }
     } else if (adapter === "cpm") {
       // The EXACT pure pipeline the analyze_schedule broker core runs — the
@@ -3164,6 +3257,7 @@ export async function runHarness(): Promise<HarnessReport> {
         powerflow: probeEngine("powerflow"),
         des: probeEngine("des"),
         fea: probeEngine("fea"),
+        swmm: probeEngine("swmm"),
         cpm: probeEngine("cpm"),
         libreoffice: probeEngine("libreoffice"),
         sheet: probeEngine("sheet"),

@@ -34,6 +34,7 @@
 import {
   Boxes,
   ChevronDown,
+  Droplets,
   FlaskConical,
   Hourglass,
   Info,
@@ -55,6 +56,7 @@ import {
   runFeMesh,
   runFea,
   runPowerFlow,
+  runSwmm,
   useApi,
   type ArtifactListItem,
   type CpmAnalysisPayload,
@@ -62,6 +64,7 @@ import {
   type DesPayload,
   type FeMeshPayload,
   type FeaPayload,
+  type SwmmPayload,
   type PowerFlowPayload,
 } from "@/components/product/api"
 import { ApprovalBadge, KindBadge, StalenessBadge } from "@/components/product/badges"
@@ -89,13 +92,14 @@ import { deriveKind } from "@/engines/adapters/derive-kind"
 // ---------------------------------------------------------------------------
 
 /** Which §8 route a register row was produced by (Regenerate needs it). */
-type SimOp = "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "analyze-schedule"
+type SimOp = "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "run-swmm" | "analyze-schedule"
 
 const OP_RUN_LABEL: Record<SimOp, string> = {
   "fe-mesh": "Meshing…",
   powerflow: "Solving power flow…",
   simulate: "Running simulation…",
   "solve-fea": "Solving plane-stress FEA…",
+  "run-swmm": "Running stormwater drainage…",
   "analyze-schedule": "Analyzing schedule…",
 }
 
@@ -105,6 +109,7 @@ const FORMAT_ENGINE: Record<string, { engineKey: string; platform: boolean }> = 
   "eos-powerflow/1": { engineKey: "pandapower", platform: false },
   "eos-des/1": { engineKey: "simpy", platform: false },
   "eos-fea/1": { engineKey: "scikit-fem", platform: false },
+  "eos-swmm/1": { engineKey: "pyswmm", platform: false },
   "eos-cpm/1": { engineKey: "platform core", platform: true },
 }
 
@@ -113,6 +118,7 @@ const FORMAT_OP: Record<string, SimOp> = {
   "eos-powerflow/1": "powerflow",
   "eos-des/1": "simulate",
   "eos-fea/1": "solve-fea",
+  "eos-swmm/1": "run-swmm",
   "eos-cpm/1": "analyze-schedule",
 }
 
@@ -134,7 +140,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /** Union of every §2 payload this workspace can render. */
-type DerivedPayload = FeMeshPayload | PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload
+type DerivedPayload = FeMeshPayload | PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload | SwmmPayload
 
 /**
  * Read a stored derived payload (§2 formats) from an already-parsed object.
@@ -279,6 +285,50 @@ function readDerivedPayload(parsed: unknown): DerivedPayload | null {
         : undefined,
     } satisfies FeaPayload
   }
+  if (format === "eos-swmm/1") {
+    const rain = isRecord(parsed.rain) ? parsed.rain : {}
+    const routing = isRecord(parsed.routing) ? parsed.routing : {}
+    const continuity = isRecord(parsed.continuity) ? parsed.continuity : {}
+    const peaks = isRecord(parsed.peaks) ? parsed.peaks : {}
+    const depths = Array.isArray(parsed.depths) ? parsed.depths.filter(isRecord) : []
+    return {
+      format,
+      sourceArtifactName: typeof parsed.sourceArtifactName === "string" ? parsed.sourceArtifactName : "—",
+      analysis: "drainage",
+      rain: {
+        intensityMMperHr: Number(rain.intensityMMperHr ?? NaN),
+        durationMin: Number(rain.durationMin ?? NaN),
+        totalDepthMm: Number(rain.totalDepthMm ?? NaN),
+        totalVolumeM3: Number(rain.totalVolumeM3 ?? NaN),
+      },
+      routing: {
+        model: "kinematic_wave",
+        routingStepSec: Number(routing.routingStepSec ?? NaN),
+      },
+      continuity: {
+        runoffErrorPct: Number(continuity.runoffErrorPct ?? NaN),
+        routingErrorPct: Number(continuity.routingErrorPct ?? NaN),
+      },
+      outfallVolumeM3: Number(parsed.outfallVolumeM3 ?? NaN),
+      volumeBalancePct: Number(parsed.volumeBalancePct ?? NaN),
+      peaks: {
+        maxRunoffCms: Number(peaks.maxRunoffCms ?? NaN),
+        maxConduitFlowCms: Number(peaks.maxConduitFlowCms ?? NaN),
+      },
+      depths: depths.map((d) => ({
+        id: String(d.id ?? "—"),
+        maxDepthM: Number(d.maxDepthM ?? NaN),
+      })),
+      generatedBy: isRecord(parsed.generatedBy)
+        ? {
+            engineKey: String(parsed.generatedBy.engineKey ?? "—"),
+            engineVersion: String(parsed.generatedBy.engineVersion ?? "—"),
+            adapterScript: String(parsed.generatedBy.adapterScript ?? "—"),
+            adapterHash: String(parsed.generatedBy.adapterHash ?? "—"),
+          }
+        : undefined,
+    } satisfies SwmmPayload
+  }
   return null
 }
 
@@ -287,7 +337,7 @@ function readDerivedPayload(parsed: unknown): DerivedPayload | null {
 // ---------------------------------------------------------------------------
 
 interface CapabilitySpec {
-  op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea">
+  op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "run-swmm">
   title: string
   engineKey: string
   icon: typeof Boxes
@@ -378,6 +428,24 @@ const CAPABILITIES: CapabilitySpec[] = [
       "No .json dataset artifacts in this project yet — upload an eos-fea-model/1 JSON (kind " +
       "`dataset`). The route validates the model shape and refuses it honestly otherwise.",
   },
+  {
+    op: "run-swmm",
+    title: "Stormwater drainage",
+    engineKey: "pyswmm",
+    icon: Droplets,
+    blurb:
+      "Runs an EPA SWMM5 drainage simulation (pyswmm, BSD-2 + CC0/MIT) of an " +
+      "eos-swmm-model/1 JSON dataset — impervious catchments routing one uniform rain event " +
+      "through junctions and rectangular conduits to free outfalls; outfall volume, peak flows, " +
+      "per-node/conduit max depths and the engine's own continuity errors land in an `analysis` " +
+      "artifact. Networks without an outfall are refused honestly, never solved by guessing.",
+    pickerLabel: "SWMM model JSON artifact (kind dataset)",
+    runLabel: "Run drainage",
+    eligible: jsonDatasetEligible,
+    emptyNote:
+      "No .json dataset artifacts in this project yet — upload an eos-swmm-model/1 JSON (kind " +
+      "`dataset`). The route validates the model shape and refuses it honestly otherwise.",
+  },
 ]
 
 function CapabilityCard({
@@ -395,7 +463,7 @@ function CapabilityCard({
   artifactsLoading: boolean
   onRetryArtifacts: () => void
   running: SimOp | null
-  onRun: (op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea">, artifactId: string) => void
+  onRun: (op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "run-swmm">, artifactId: string) => void
 }) {
   const eligible = useMemo(() => rows.filter(spec.eligible), [rows, spec])
   // The picked id is DERIVED at render time (the react-hooks/set-state-in-effect
@@ -661,7 +729,7 @@ function ExecutionRecordSection({ run }: { run: DeriveRunResult | null }) {
 function PayloadSection({
   payload,
 }: {
-  payload: FeMeshPayload | PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload
+  payload: DerivedPayload
 }) {
   if (payload.format === "eos-femesh/1") {
     const p = payload
@@ -874,6 +942,64 @@ function PayloadSection({
           Linear plane-stress solve (scikit-fem) — sample displacements at the 4 domain corners + center;
           stress stats are per-element means (a P0 mass-lumped projection of C·ε(u)); every number is
           copied verbatim from the engine. Under-constrained models are refused, never guessed.
+        </InfoNote>
+      </div>
+    )
+  }
+  if (payload.format === "eos-swmm/1") {
+    const p = payload
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
+          <Badge className="border-transparent bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300">
+            drainage
+          </Badge>
+          <span className="font-mono tabular-nums" title="trapezoid-integrated outfall volume over the run">
+            outfall {Number.isFinite(p.outfallVolumeM3) ? p.outfallVolumeM3.toFixed(2) : "—"} m³
+          </span>
+          <span
+            className="font-mono tabular-nums"
+            title="our honesty metric: 100·(outfall − rainfall)/rainfall — the engine must not lose water"
+          >
+            rain {Number.isFinite(p.rain.totalVolumeM3) ? p.rain.totalVolumeM3.toFixed(2) : "—"} m³ · balance{" "}
+            {Number.isFinite(p.volumeBalancePct) ? (p.volumeBalancePct >= 0 ? "+" : "") + p.volumeBalancePct.toFixed(3) : "—"}%
+          </span>
+          <span className="font-mono tabular-nums" title="the engine's own .rpt continuity errors">
+            continuity {Number.isFinite(p.continuity.runoffErrorPct) ? p.continuity.runoffErrorPct : "—"}% /{" "}
+            {Number.isFinite(p.continuity.routingErrorPct) ? p.continuity.routingErrorPct : "—"}%
+          </span>
+          <span className="font-mono tabular-nums" title="peak conduit flow (kinematic wave)">
+            peak Q {Number.isFinite(p.peaks.maxConduitFlowCms) ? p.peaks.maxConduitFlowCms : "—"} m³/s
+          </span>
+        </div>
+        <div className="eos-scroll max-h-72 overflow-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <caption className="sr-only">
+              Drainage results — per-node and per-conduit maximum depths, verbatim from the engine
+            </caption>
+            <thead className="sticky top-0 bg-muted">
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th scope="col" className="px-3 py-2 font-medium">Node / conduit</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">Max depth (m)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.depths.map((d) => (
+                <tr key={d.id} className="border-b last:border-0">
+                  <td className="px-3 py-2 font-mono text-xs">{d.id}</td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(d.maxDepthM) ? d.maxDepthM : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <InfoNote>
+          Stormwater drainage (EPA SWMM5 via pyswmm, kinematic wave, {p.routing.routingStepSec}s routing step) —
+          impervious catchments under one uniform rain event; every number is copied verbatim from the
+          engine, whose own .rpt continuity errors ride along. Networks without an outfall are refused,
+          never guessed.
         </InfoNote>
       </div>
     )
@@ -1091,9 +1217,10 @@ export function SimWorkspace({
       else if (op === "powerflow") result = (await runPowerFlow(projectId, artifactId)).powerflow
       else if (op === "simulate") result = (await runDiscreteEvent(projectId, artifactId)).sim
       else if (op === "solve-fea") result = (await runFea(projectId, artifactId)).fea
+      else if (op === "run-swmm") result = (await runSwmm(projectId, artifactId)).swmm
       else result = (await analyzeSchedule(projectId, artifactId)).analysis
       toast.success(
-        `${op === "fe-mesh" ? "FE mesh" : op === "powerflow" ? "Power flow" : op === "simulate" ? "Simulation" : op === "solve-fea" ? "FEA solve" : "Schedule analysis"} complete — ${result.name}${result.revisionNumber ? ` r${result.revisionNumber}` : ""} stored as a derived artifact`,
+        `${op === "fe-mesh" ? "FE mesh" : op === "powerflow" ? "Power flow" : op === "simulate" ? "Simulation" : op === "solve-fea" ? "FEA solve" : op === "run-swmm" ? "Drainage simulation" : "Schedule analysis"} complete — ${result.name}${result.revisionNumber ? ` r${result.revisionNumber}` : ""} stored as a derived artifact`,
       )
       setRunByArtifact((prev) => ({ ...prev, [result.artifactId]: { op, result } }))
       setSelectedId(result.artifactId)

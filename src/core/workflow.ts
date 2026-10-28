@@ -28,8 +28,9 @@ import { WORKFLOW_STATES, isWorkflowState, type WorkflowState } from "./index"
  * definition schema validates without importing the engines.
  *
  * Phase 5 (extended-disciplines contract §4) grows the vocabulary by five ops:
- * fe_mesh / run_powerflow / run_des / solve_fea / convert_document (engine
- * ops — solve_fea is the Slice-22 FEA lane, phase5 contract §14.3) and
+ * fe_mesh / run_powerflow / run_des / solve_fea / run_swmm /
+ * convert_document (engine ops — solve_fea is the Slice-22 FEA lane, phase5
+ * contract §14.3; run_swmm is the Slice-23 drainage lane, §15.3) and
  * analyze_schedule (platform core — engineKey honestly ABSENT in its
  * execution records). All five take exactly one input artifact.
  *
@@ -46,6 +47,7 @@ export const BROKER_OPERATIONS = [
   "run_powerflow",
   "run_des",
   "solve_fea",
+  "run_swmm",
   "convert_document",
   "analyze_schedule",
   "takeoff_sheet",
@@ -173,8 +175,8 @@ const stepSchema = z
     // Input shape is per-op (contract §2 + Phase-5 contract §4): build_report
     // takes 1..4 artifact ids; every other operation — the Phase-4 derive ops
     // AND the Phase-5 ops (fe_mesh / run_powerflow / run_des / solve_fea /
-    // convert_document / analyze_schedule + the Slice-15/16 additions) —
-    // takes exactly one input artifact.
+    // run_swmm / convert_document / analyze_schedule + the Slice-15/16
+    // additions) — takes exactly one input artifact.
     if (step.operation === "build_report") {
       if (step.inputs.artifactIds === undefined) {
         ctx.addIssue({

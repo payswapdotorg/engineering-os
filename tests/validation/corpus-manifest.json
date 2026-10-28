@@ -1978,5 +1978,168 @@
       "errorContains": "the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z)",
       "note": "ux-only supports on the bottom edge: y-translation has no ux OR uy anchor anywhere (no fixed u^2 dof exists), and z-rotation survives because every fixed u^1 dof sits at y = 0 (r_rot(u1) = −y = 0 there). The rigid-mode check is pure math on the fixed DOF set BEFORE any solve (contract §14.5) — an unconstrained model is refused, never solved by guessing."
     }
+  },
+  {
+    "caseId": "swmm-runoff-balance",
+    "adapter": "swmm",
+    "fixture": "swmm-runoff-balance.json",
+    "expect": "success",
+    "swmm": {
+      "expect": "success",
+      "note": "Mass conservation through the whole nonlinear-reservoir + kinematic-wave chain: 1 ha, 100% impervious, depression storage 0, uniform 25 mm/hr x 2 h over one subcatchment -> one junction -> one rectangular conduit (B=0.5 m, n=0.015, S=0.005) -> one FREE outfall. Rain volume = i.A.t = 500 m3 (exact, hand-derived); the outfall volume is trapezoid-integrated over the stepping loop (probe-observed rel 4.4e-5 -- the pin allows 1e-3, the engine's own .rpt continuity errors are pinned as magnitudes <= 0.5%). Equilibrium runoff = i.A = 0.0694444 m3/s (approached asymptotically, probe-observed rel 1.1e-4 -- pin 1e-2); peak conduit flow carries the kinematic-wave numerical surge (probe-observed +1.6%, pin 3%). The conduit's equilibrium depth is the hand-solved Manning normal-depth cubic Q = (1/n).B.y.(B.y/(B+2y))^(2/3).sqrt(S) -> y_N = 0.144866657 m (probe-observed abs 6.2e-6; pin 0.005). Every pin is the hand-derived closed form, never a value copied from the engine.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "analysis",
+          "value": "drainage",
+          "derivation": "the only analysis shipped this phase (contract §15.4)"
+        },
+        {
+          "ref": null,
+          "field": "engineKey",
+          "value": "pyswmm",
+          "derivation": "the pip-pinned pyswmm distribution drives the EPA SWMM5 engine in-process (contract §15.5)"
+        },
+        {
+          "ref": null,
+          "field": "routingStepSec",
+          "value": 10,
+          "derivation": "the default routingStepSec parameter (contract §15.3)"
+        },
+        {
+          "ref": null,
+          "field": "rainVolumeM3",
+          "value": 500.0,
+          "derivation": "i.A.t = 0.025 m/hr x 2 hr x 10 000 m2 = 500 m3 -- the adapter's own rain block must agree exactly"
+        },
+        {
+          "ref": null,
+          "field": "outfallVolumeM3",
+          "value": 500.0,
+          "relTolerance": 0.001,
+          "derivation": "mass conservation: all rain that fell drains by end of window (probe-observed rel 4.4e-5)"
+        },
+        {
+          "ref": null,
+          "field": "maxRunoffCms",
+          "value": 0.06944444444444443,
+          "relTolerance": 0.01,
+          "derivation": "equilibrium runoff = i.A = 25/1000/3600 x 10 000 = 0.0694444 m3/s, approached asymptotically (observed rel 1.1e-4)"
+        },
+        {
+          "ref": null,
+          "field": "maxConduitFlowCms",
+          "value": 0.06944444444444443,
+          "relTolerance": 0.03,
+          "derivation": "equilibrium flow + the kinematic-wave numerical surge (probe-observed +1.6%)"
+        },
+        {
+          "ref": "C1",
+          "field": "maxDepthM",
+          "value": 0.14486665688316655,
+          "absTolerance": 0.005,
+          "derivation": "Manning normal depth: (1/0.015).0.5.y.(0.5y/(0.5+2y))^(2/3).sqrt(0.005) = 0.0694444 -> y_N = 0.144866657 m (observed abs 6.2e-6)"
+        },
+        {
+          "ref": "J1",
+          "field": "maxDepthM",
+          "value": 0.14486665688316655,
+          "absTolerance": 0.005,
+          "derivation": "the junction's max depth equals the conduit's equilibrium depth (observed abs 6.2e-6)"
+        },
+        {
+          "ref": null,
+          "field": "runoffErrorPct",
+          "value": 0.0,
+          "absTolerance": 0.5,
+          "derivation": "the engine's own .rpt runoff continuity error, pinned as a magnitude bound (observed -0.012%)"
+        },
+        {
+          "ref": null,
+          "field": "routingErrorPct",
+          "value": 0.0,
+          "absTolerance": 0.5,
+          "derivation": "the engine's own .rpt flow-routing continuity error, pinned as a magnitude bound (observed -0.055%)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "swmm-manning-conduit",
+    "adapter": "swmm",
+    "fixture": "swmm-manning-conduit.json",
+    "expect": "success",
+    "swmm": {
+      "expect": "success",
+      "note": "The steeper Manning-equilibrium network: 2 ha, 50 mm/hr x 2 h (rain volume 2 000 m3), conduit B=0.8 m, n=0.013, S=1%. Equilibrium flow = i.A = 0.2777778 m3/s; hand-solved normal depth y_N = 0.180951636 m (probe-observed 0.18094179, abs 9.8e-6 -- the kinematic-wave equilibrium reproduces the hand cubic to 5 decimals). Volume conservation rel <= 1e-3 (observed 1.1e-4); peak conduit flow within 3% (the surge allowance, observed +1.0%). The engine's own continuity: runoff -0.015% / routing -0.02%.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "rainVolumeM3",
+          "value": 2000.0,
+          "derivation": "i.A.t = 0.05 x 2 x 20 000 = 2 000 m3"
+        },
+        {
+          "ref": null,
+          "field": "outfallVolumeM3",
+          "value": 2000.0,
+          "relTolerance": 0.001,
+          "derivation": "mass conservation on the bigger storm (probe-observed rel 1.1e-4)"
+        },
+        {
+          "ref": null,
+          "field": "maxRunoffCms",
+          "value": 0.2777777777777778,
+          "relTolerance": 0.01,
+          "derivation": "equilibrium runoff = i.A = 50/1000/3600 x 20 000 = 0.2777778 m3/s (observed rel 1.1e-4)"
+        },
+        {
+          "ref": null,
+          "field": "maxConduitFlowCms",
+          "value": 0.2777777777777778,
+          "relTolerance": 0.03,
+          "derivation": "equilibrium + surge (probe-observed +1.0%)"
+        },
+        {
+          "ref": "J1",
+          "field": "maxDepthM",
+          "value": 0.1809516359327449,
+          "absTolerance": 0.005,
+          "derivation": "Manning cubic: (1/0.013).0.8.y.(0.8y/(0.8+2y))^(2/3).sqrt(0.01) = 0.2777778 -> y_N = 0.180951636 m (observed abs 9.8e-6)"
+        },
+        {
+          "ref": "C1",
+          "field": "maxDepthM",
+          "value": 0.1809516359327449,
+          "absTolerance": 0.005,
+          "derivation": "the conduit's own equilibrium depth mirrors the junction (observed abs 9.8e-6)"
+        },
+        {
+          "ref": null,
+          "field": "runoffErrorPct",
+          "value": 0.0,
+          "absTolerance": 0.5,
+          "derivation": "engine .rpt runoff continuity magnitude bound (observed -0.015%)"
+        },
+        {
+          "ref": null,
+          "field": "routingErrorPct",
+          "value": 0.0,
+          "absTolerance": 0.5,
+          "derivation": "engine .rpt routing continuity magnitude bound (observed -0.02%)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "swmm-no-outfall",
+    "adapter": "swmm",
+    "fixture": "swmm-no-outfall.json",
+    "expect": "error",
+    "swmm": {
+      "expect": "error",
+      "errorContains": "the network has no outfall - runoff cannot leave the model, and simulated results are not an option",
+      "note": "Two junctions + one conduit, no outfall node: water cannot leave the network. The no-outfall check is the rigid-mode analog -- pure graph math on the node kinds BEFORE the engine opens (contract §15.2/§15.5) -- an undrainable model is refused, never solved by guessing."
+    }
   }
 ]

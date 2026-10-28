@@ -23,3 +23,12 @@ ezdxf==1.4.5
 # written license for cloud-service use) — do not add it to this venv: its dependency
 # pins conflict with ifcopenshell/gmsh/pandapower/simpy coexistence (observed live).
 scikit-fem==12.0.2
+# Slice 23 (2026-10-28, contract §15): pyswmm — stormwater drainage via EPA SWMM5.
+# BSD-2-Clause (wheel METADATA License-Expression + OSI classifier); the bundled
+# swmm-toolkit 0.17.0 wheel is CC0-1.0 AND (MIT OR Apache-2.0) — no cloud-service
+# restriction anywhere. Adds only aenum + julian transitively (coexistence-clean;
+# the openseespy wipe class does not recur — re-verified on install).
+pyswmm==2.2.0
+swmm-toolkit==0.17.0
+aenum==3.1.17
+julian==0.14

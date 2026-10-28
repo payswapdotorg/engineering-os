@@ -78,7 +78,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
-          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem' 2>/dev/null; then
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else
             rm -rf /tmp/eos-engines
@@ -86,7 +86,7 @@ jobs:
             /tmp/eos-engines/bin/pip install --quiet --upgrade pip
             /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
           fi
-          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem; print("engines importable")'
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm; print("engines importable")'
           soffice --version
 
       - name: Install dependencies
@@ -156,7 +156,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
-          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem' 2>/dev/null; then
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else
             rm -rf /tmp/eos-engines
@@ -164,7 +164,7 @@ jobs:
             /tmp/eos-engines/bin/pip install --quiet --upgrade pip
             /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
           fi
-          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem; print("engines importable")'
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm; print("engines importable")'
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -331,7 +331,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
-          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem' 2>/dev/null; then
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else
             rm -rf /tmp/eos-engines
@@ -339,7 +339,7 @@ jobs:
             /tmp/eos-engines/bin/pip install --quiet --upgrade pip
             /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
           fi
-          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem; print("engines importable")'
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm; print("engines importable")'
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

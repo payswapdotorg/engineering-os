@@ -1124,6 +1124,21 @@ export interface DesPayload {
   jobs: Array<{ id: string; startAt: number; endAt: number }>
 }
 
+/** eos-swmm/1 — pyswmm/SWMM5 drainage simulation (Slice 23, contract §15.4). */
+export interface SwmmPayload {
+  format: "eos-swmm/1"
+  sourceArtifactName: string
+  analysis: "drainage"
+  rain: { intensityMMperHr: number; durationMin: number; totalDepthMm: number; totalVolumeM3: number }
+  routing: { model: "kinematic_wave"; routingStepSec: number }
+  continuity: { runoffErrorPct: number; routingErrorPct: number }
+  outfallVolumeM3: number
+  volumeBalancePct: number
+  peaks: { maxRunoffCms: number; maxConduitFlowCms: number }
+  depths: Array<{ id: string; maxDepthM: number }>
+  generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string }
+}
+
 /** eos-cpm/1 — platform-core critical-path result (no engine). */
 export interface CpmAnalysisPayload {
   format: "eos-cpm/1"
@@ -1287,6 +1302,15 @@ export async function runDiscreteEvent(projectId: string, artifactId: string) {
 export async function runFea(projectId: string, artifactId: string) {
   return apiJson<{ fea: DeriveRunResult }>(
     `/api/projects/${projectId}/artifacts/${artifactId}/fea`,
+    "POST",
+    {},
+  )
+}
+
+/** POST /api/projects/[id]/artifacts/[aid]/swmm — 201 {swmm} (Slice 23). */
+export async function runSwmm(projectId: string, artifactId: string) {
+  return apiJson<{ swmm: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/swmm`,
     "POST",
     {},
   )

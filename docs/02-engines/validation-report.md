@@ -29,7 +29,7 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-28T13:32:14.007Z`
+- Ran at (UTC): `2026-10-28T15:52:28.352Z`
 - Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
@@ -38,13 +38,14 @@
 - Engine availability probe — pandapower (power flow): available
 - Engine availability probe — simpy (discrete-event): available
 - Engine availability probe — scikit-fem (plane-stress FEA): available
+- Engine availability probe — pyswmm/SWMM5 (stormwater drainage): available
 - Engine availability probe — platform CPM core (no engine): available
 - Engine availability probe — libreoffice (document conversion): available
 - Engine availability probe — pdfplumber (vector sheet takeoff): available
 - Engine availability probe — ezdxf (DXF takeoff): available
 - Engine availability probe — cadquery (parametric rebuild): available
 - Engine availability probe — tesseract (sheet-text OCR): available
-- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · libreoffice 25.2.3.2 · pdfplumber 0.11.9 · ezdxf 1.4.3 · tesseract 5.5.0
+- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · libreoffice 25.2.3.2 · pdfplumber 0.11.9 · ezdxf 1.4.3 · tesseract 5.5.0 · pyswmm 2.2.0
 - Adapter `step_quantities.py` sha256: `950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d`
 - Adapter `ifc_quantities.py` sha256: `68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78`
 - Adapter `step_mesh.py` sha256: `e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c`
@@ -58,7 +59,8 @@
 - Adapter `parametric_rebuild.py` sha256: `7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9`
 - Adapter `sheet_ocr.ts` sha256: `b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45`
 - Adapter `fea_solve.py` sha256: `86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef`
-- Corpus: `tests/validation/corpus-manifest.json` — 33 cases
+- Adapter `swmm_run.py` sha256: `6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d`
+- Corpus: `tests/validation/corpus-manifest.json` — 36 cases
 
 ## Tolerance policy (pinned)
 
@@ -68,7 +70,7 @@
 | `analytic` | \|obs − exp\| ≤ 1e-9 · max(1, \|exp\|) | exact-engine value vs closed form; also used for the PLANAR mesh case, where the divergence-theorem volume / triangle-sum area are mathematically exact (only IEEE rounding remains) |
 | `mesh` | \|obs − exp\| ≤ 1e-2 · \|exp\| | pinned 1% engineering tolerance for triangulated CURVED surfaces (ifcopenshell PyPI wheel has no OCCT backend, `has_occ=False`); the observed relative error is recorded below — the limitation is quantified, not hidden |
 
-## Results — 33 cases: 33 pass / 0 fail / 0 skip
+## Results — 36 cases: 36 pass / 0 fail / 0 skip
 
 | Case | Adapter | Fixture | Expect | Status | Determinism | Quantities (obs / pinned) | Max observed rel error | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -105,6 +107,9 @@
 | `fea-uniform-tension` | fea | `fea-uniform-tension.json` | success | pass | — | — / — | — | fea: 16 pin(s) · scikit-fem 12.0.2 · doc byte-determinism ✅ · max pin rel error 1.713e-13 |
 | `fea-cantilever-end-shear` | fea | `fea-cantilever-plate.json` | success | pass | — | — / — | — | fea: 3 pin(s) · scikit-fem 12.0.2 · doc byte-determinism ✅ · max pin rel error 4.684e-3 |
 | `fea-underconstrained` | fea | `fea-underconstrained.json` | error | pass | — | — | — | fea: threw honest error: `the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z) - an unconstraine` · threw honest error: `` |
+| `swmm-runoff-balance` | swmm | `swmm-runoff-balance.json` | success | pass | — | — / — | — | swmm: 11 pin(s) · pyswmm 2.2.0 · doc byte-determinism ✅ · max pin rel error 1.652e-2 |
+| `swmm-manning-conduit` | swmm | `swmm-manning-conduit.json` | success | pass | — | — / — | — | swmm: 8 pin(s) · pyswmm 2.2.0 · doc byte-determinism ✅ · max pin rel error 9.948e-3 |
+| `swmm-no-outfall` | swmm | `swmm-no-outfall.json` | error | pass | — | — | — | swmm: threw honest error: `the network has no outfall - runoff cannot leave the model, and simulated results are not an option` · threw honest error: `` |
 
 ## Mesh tessellation validation (W2-d — the eos-mesh/1 bridge)
 
@@ -204,6 +209,9 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 | `fea-uniform-tension` | fea | `fea-uniform-tension.json` | success | scikit-fem 12.0.2 | ✅ true | 16 | pass |
 | `fea-cantilever-end-shear` | fea | `fea-cantilever-plate.json` | success | scikit-fem 12.0.2 | ✅ true | 3 | pass |
 | `fea-underconstrained` | fea | `fea-underconstrained.json` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `swmm-runoff-balance` | swmm | `swmm-runoff-balance.json` | success | pyswmm 2.2.0 | ✅ true | 11 | pass |
+| `swmm-manning-conduit` | swmm | `swmm-manning-conduit.json` | success | pyswmm 2.2.0 | ✅ true | 8 | pass |
+| `swmm-no-outfall` | swmm | `swmm-no-outfall.json` | error | — (platform core, honestly absent) | — | 0 | pass |
 
 ### Discipline pin comparisons (observed vs hand-derived)
 
@@ -376,6 +384,26 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `fea-cantilever-end-shear` uy @ 2000x0: observed **-1.336151125569775** vs pinned -1.3424 [bound rel:0.01] → rel error 4.655e-3 (0.4655%) · Timoshenko tip deflection at the bottom-right corner: PL³/3EI + PL/κGA = 1.28 + 0.0624 = 1.3424 mm (positive shear acts along the CCW tangent = −y on the right edge, so the plate bends DOWN); the corner carries the centerline deflection (the section rotation displaces the tip corners horizontally, not vertically)
 - `fea-cantilever-end-shear` uy @ 2000x500: observed **-1.3361125402122764** vs pinned -1.3424 [bound rel:0.01] → rel error 4.684e-3 (0.4684%) · the top-right corner mirrors the bottom within the solver's clamp-boundary-layer difference — both carry the Timoshenko centerline value (observed 1.3361 vs 1.3362)
 - `fea-underconstrained` (fea) threw the honest error: `the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z) - an unconstrained model cannot be solved, and simulated `
+- `swmm-runoff-balance` analysis: observed **"drainage"** vs pinned "drainage" [bound structural] · the only analysis shipped this phase (contract §15.4)
+- `swmm-runoff-balance` engineKey: observed **"pyswmm"** vs pinned "pyswmm" [bound structural] · the pip-pinned pyswmm distribution drives the EPA SWMM5 engine in-process (contract §15.5)
+- `swmm-runoff-balance` routingStepSec: observed **10** vs pinned 10 [bound abs:0] → rel error 0 (bitwise) · the default routingStepSec parameter (contract §15.3)
+- `swmm-runoff-balance` rainVolumeM3: observed **500** vs pinned 500 [bound abs:0] → rel error 0 (bitwise) · i.A.t = 0.025 m/hr x 2 hr x 10 000 m2 = 500 m3 -- the adapter's own rain block must agree exactly
+- `swmm-runoff-balance` outfallVolumeM3: observed **500.02193805825715** vs pinned 500 [bound rel:0.001] → rel error 4.388e-5 · mass conservation: all rain that fell drains by end of window (probe-observed rel 4.4e-5)
+- `swmm-runoff-balance` maxRunoffCms: observed **0.06945220755175956** vs pinned 0.06944444444444443 [bound rel:0.01] → rel error 1.118e-4 (0.0112%) · equilibrium runoff = i.A = 25/1000/3600 x 10 000 = 0.0694444 m3/s, approached asymptotically (observed rel 1.1e-4)
+- `swmm-runoff-balance` maxConduitFlowCms: observed **0.07059164318103153** vs pinned 0.06944444444444443 [bound rel:0.03] → rel error 1.652e-2 (1.6520%) · equilibrium flow + the kinematic-wave numerical surge (probe-observed +1.6%)
+- `swmm-runoff-balance` maxDepthM @ C1: observed **0.14486048192340867** vs pinned 0.14486665688316655 [bound abs:0.005] → rel error 4.263e-5 · Manning normal depth: (1/0.015).0.5.y.(0.5y/(0.5+2y))^(2/3).sqrt(0.005) = 0.0694444 -> y_N = 0.144866657 m (observed abs 6.2e-6)
+- `swmm-runoff-balance` maxDepthM @ J1: observed **0.14486048196573673** vs pinned 0.14486665688316655 [bound abs:0.005] → rel error 4.262e-5 · the junction's max depth equals the conduit's equilibrium depth (observed abs 6.2e-6)
+- `swmm-runoff-balance` runoffErrorPct: observed **-0.012** vs pinned 0 [bound abs:0.5] · the engine's own .rpt runoff continuity error, pinned as a magnitude bound (observed -0.012%)
+- `swmm-runoff-balance` routingErrorPct: observed **-0.055** vs pinned 0 [bound abs:0.5] · the engine's own .rpt flow-routing continuity error, pinned as a magnitude bound (observed -0.055%)
+- `swmm-manning-conduit` rainVolumeM3: observed **2000** vs pinned 2000 [bound abs:0] → rel error 0 (bitwise) · i.A.t = 0.05 x 2 x 20 000 = 2 000 m3
+- `swmm-manning-conduit` outfallVolumeM3: observed **2000.2177313394764** vs pinned 2000 [bound rel:0.001] → rel error 1.089e-4 (0.0109%) · mass conservation on the bigger storm (probe-observed rel 1.1e-4)
+- `swmm-manning-conduit` maxRunoffCms: observed **0.2778088311533788** vs pinned 0.2777777777777778 [bound rel:0.01] → rel error 1.118e-4 (0.0112%) · equilibrium runoff = i.A = 50/1000/3600 x 20 000 = 0.2777778 m3/s (observed rel 1.1e-4)
+- `swmm-manning-conduit` maxConduitFlowCms: observed **0.28054116263223894** vs pinned 0.2777777777777778 [bound rel:0.03] → rel error 9.948e-3 (0.9948%) · equilibrium + surge (probe-observed +1.0%)
+- `swmm-manning-conduit` maxDepthM @ J1: observed **0.18094179310931605** vs pinned 0.1809516359327449 [bound abs:0.005] → rel error 5.439e-5 · Manning cubic: (1/0.013).0.8.y.(0.8y/(0.8+2y))^(2/3).sqrt(0.01) = 0.2777778 -> y_N = 0.180951636 m (observed abs 9.8e-6)
+- `swmm-manning-conduit` maxDepthM @ C1: observed **0.18094179310920122** vs pinned 0.1809516359327449 [bound abs:0.005] → rel error 5.439e-5 · the conduit's own equilibrium depth mirrors the junction (observed abs 9.8e-6)
+- `swmm-manning-conduit` runoffErrorPct: observed **-0.015** vs pinned 0 [bound abs:0.5] · engine .rpt runoff continuity magnitude bound (observed -0.015%)
+- `swmm-manning-conduit` routingErrorPct: observed **-0.02** vs pinned 0 [bound abs:0.5] · engine .rpt routing continuity magnitude bound (observed -0.02%)
+- `swmm-no-outfall` (swmm) threw the honest error: `the network has no outfall - runoff cannot leave the model, and simulated results are not an option`
 
 ## Regenerate
 

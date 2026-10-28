@@ -108,6 +108,15 @@ export const DERIVE_SUMMARIES = {
       vonMisesMaxMpa: numberField(field(document, "stress"), "vonMisesMaxMpa"),
     }
   },
+  /** eos-swmm/1 → outfallVolumeM3 / volumeBalancePct / peak flows (Slice 23) */
+  swmm(document: unknown): Record<string, unknown> {
+    return {
+      outfallVolumeM3: numberField(document, "outfallVolumeM3"),
+      volumeBalancePct: numberField(document, "volumeBalancePct"),
+      maxRunoffCms: numberField(field(document, "peaks"), "maxRunoffCms"),
+      maxConduitFlowCms: numberField(field(document, "peaks"), "maxConduitFlowCms"),
+    }
+  },
   /** eos-cpm/1 → activityCount / criticalPathCount / durationDays */
   analysis(document: unknown): Record<string, unknown> {
     return {

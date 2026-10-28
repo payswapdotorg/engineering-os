@@ -231,6 +231,47 @@ assert_eq "unauthenticated FEA solve → 401 envelope verbatim (the op rides the
   "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
 
 # ===========================================================================
+# AC-SW-04 — stormwater drainage (REAL pyswmm/SWMM5; the mass-conservation
+# closed form + the two honest 422 gates + the audit event; contract §15.6)
+# ===========================================================================
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/swmm-runoff-balance.json" "SWMM runoff balance"
+SWMM_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$SWMM_ID/swmm" -H 'Content-Type: application/json' -d '{}'
+assert_eq "SWMM model JSON → drainage run by REAL pyswmm/SWMM5 (kind analysis, eos-swmm/1, kinematic wave, engine 2.2.0)" \
+  "201|analysis|eos-swmm/1|drainage|kinematic_wave|10|pyswmm|2.2.0" \
+  "$STATUS|$(j "$BODY" '.data.swmm.kind')|$(j "$BODY" '.data.swmm.document.format')|$(j "$BODY" '.data.swmm.document.analysis')|$(j "$BODY" '.data.swmm.document.routing.model')|$(j "$BODY" '.data.swmm.document.routing.routingStepSec')|$(j "$BODY" '.data.swmm.engineKey')|$(j "$BODY" '.data.swmm.engineVersion')"
+near "closed-form pin: outfall volume = i·A·t = 500 m³ (mass conservation through the nonlinear-reservoir + kinematic-wave chain; harness-pinned rel 4.4e-5)" \
+  "500" "$(j "$BODY" '.data.swmm.document.outfallVolumeM3')" "0.5"
+near "closed-form pin: our honesty metric volumeBalancePct ≈ 0 (the engine must not lose water)" \
+  "0" "$(j "$BODY" '.data.swmm.document.volumeBalancePct')" "0.1"
+near "closed-form pin: equilibrium runoff = i·A = 0.0694444 m³/s" \
+  "0.0694444444444444" "$(j "$BODY" '.data.swmm.document.peaks.maxRunoffCms')" "0.001"
+near "closed-form pin: the conduit's equilibrium depth = the hand-solved Manning normal-depth cubic 0.144866657 m" \
+  "0.14486665688316655" "$(j "$BODY" '.data.swmm.document.depths[] | select(.id == "C1") | .maxDepthM')" "0.005"
+assert_eq "the depths array carries every node + conduit, ascending id (C1, J1, OUT1)" \
+  "C1|J1|OUT1" \
+  "$(j "$BODY" '.data.swmm.document.depths | map(.id) | join("|")')"
+http GET "/api/events?projectId=$PROBE_ID&limit=200"
+assert_eq "exactly ONE swmm.ran audit event for the run, engine pyswmm recorded" \
+  "1|pyswmm" "$(j "$BODY" '[.data.events[] | select(.action == "swmm.ran")] | length')|$(j "$BODY" '[.data.events[] | select(.action == "swmm.ran")][0].detail | fromjson | .engineKey')"
+http POST "/api/projects/$PROBE_ID/artifacts/$DESW_ID/swmm" -H 'Content-Type: application/json' -d '{}'
+assert_contains "wrong-format JSON → 422 (the ROUTE zod refuses alien content before the broker — defense-in-depth)" \
+  'format must be "eos-swmm-model/1"' \
+  "$(j "$BODY" '.error.message')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/swmm-no-outfall.json" "SWMM no outfall"
+SWMMU_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$SWMMU_ID/swmm" -H 'Content-Type: application/json' -d '{}'
+assert_contains "no-outfall network → the honest drainage refusal (the rigid-mode analog — an undrainable model is refused, never solved by guessing)" \
+  "the network has no outfall - runoff cannot leave the model, and simulated results are not an option" \
+  "$(j "$BODY" '.error.message')"
+: > "$WORK/http.body"
+STATUS_NOAUTH=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/projects/$PROBE_ID/artifacts/$SWMMU_ID/swmm") || STATUS_NOAUTH="000"
+BODY_NOAUTH=$(cat "$WORK/http.body")
+assert_eq "unauthenticated drainage run → 401 envelope verbatim (the op rides the same session gate)" \
+  "401|sign in required" \
+  "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
+
+# ===========================================================================
 # AC-P5-04 — document conversion (REAL headless LibreOffice)
 # ===========================================================================
 upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/cover-sheet.fodt" "Cover sheet"
@@ -438,8 +479,14 @@ assert_eq "/api/engines serves harness validation fields for the seven 16-D-reco
 assert_eq "Slice-22 addendum: the scikit-fem registry row carries its validation block too (3 fea harness cases, pass)" \
   "pass|3|tested" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "scikit-fem")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "scikit-fem")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "scikit-fem")][0].state')"
-assert_eq "registry reconciliation: ten harness-validated engines (the nine 16-D set + scikit-fem) carry state 'tested', registry total 39 — the OpenSees row stays 'planned' with the license review closed REJECTED" \
-  "10|39|planned" \
+assert_eq "Slice-23 addendum: the pyswmm registry row carries its validation block too (3 swmm harness cases, pass)" \
+  "pass|3|tested" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "pyswmm")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "pyswmm")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "pyswmm")][0].state')"
+assert_contains "Slice-23 addendum: the EPA swmm row records the in-process lane (pyswmm + swmm-toolkit, CC0-dedicated — no system binary required by the product)" \
+  "the in-process lane ships via pyswmm + swmm-toolkit" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "swmm")][0].integration.notes')"
+assert_eq "registry reconciliation: eleven harness-validated engines (the nine 16-D set + scikit-fem + pyswmm) carry state 'tested', registry total 39 — the OpenSees row stays 'planned' with the license review closed REJECTED" \
+  "11|39|planned" \
   "$(j "$BODY" '[.data.registry[] | select(.state == "tested")] | length')|$(j "$BODY" '.data.registry | length')|$(j "$BODY" '[.data.registry[] | select(.key == "opensees")][0].state')"
 
 # ===========================================================================

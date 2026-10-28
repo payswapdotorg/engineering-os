@@ -412,7 +412,7 @@
         "mechanisms": [
           "cli"
         ],
-        "notes": "Solver-only CLI (runswmm/swmm5) driven for drainage analysis; python-level via pyswmm (separate row)."
+        "notes": "Solver-only CLI (runswmm/swmm5) driven for drainage analysis; python-level via pyswmm (separate row). Slice 23 update: the in-process lane ships via pyswmm + swmm-toolkit (the OWA distribution of this engine, CC0-dedicated) — no system binary is required by the product"
       },
       "probes": [
         {
@@ -443,26 +443,36 @@
         "licenseSpdx": "BSD-2-Clause",
         "latestStable": "2.2.0",
         "verified": true,
-        "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/pyswmm/pyswmm (license field NOASSERTION) + repo LICENSE.txt text (BSD-2-Clause) + releases/latest tag v2.2.0"
+        "verifiedAt": "2026-10-28",
+        "verifiedMethod": "github-api /repos/pyswmm/pyswmm (license field NOASSERTION) + repo LICENSE.txt text (BSD-2-Clause) + releases/latest tag v2.2.0; RE-VERIFIED ON THE WHEEL 2026-10-28: METADATA License-Expression BSD-2-Clause + OSI classifier, and the bundled swmm-toolkit 0.17.0 wheel carries 'CC0-1.0 AND (MIT OR Apache-2.0)' with the OWA engine LICENSE.md naming the MIT/Apache split — NO cloud-service restriction clause anywhere (the openseespy contrast)"
       },
       "integration": {
         "mechanisms": [
           "python-module"
         ],
-        "notes": "Python-level drainage analysis in-process (BSD-2; ADR-0004 exception path — python-module mechanism, no modification)."
+        "notes": "Stormwater drainage simulation service (Slice 23, phase5 contract §15) — the run_swmm broker op's engine, driving the EPA SWMM5 engine (public domain, CC0-dedicated in the OWA distribution) in-process via swmm-toolkit; adds only aenum + julian transitively (coexistence-clean)"
       },
       "probes": [
         {
           "kind": "python-module",
           "module": "pyswmm",
-          "moduleVersionExpr": "import pyswmm; print(pyswmm.__version__)"
+          "moduleVersionExpr": "([0-9][0-9.]*)"
         }
       ],
-      "state": "planned",
+      "state": "tested",
       "limitations": [
-        "Bundles its own compiled SWMM engine — version may differ from a system-installed EPA SWMM binary"
-      ]
+        "Bundles its own compiled SWMM engine (swmm-toolkit 0.17.0) — version may differ from a system-installed EPA SWMM binary",
+        "v1 scope (contract §15.7): impervious catchments, one uniform rain event, kinematic-wave routing, rectangular conduits, FREE outfalls, SI — no pervious infiltration, no dynamic wave, no pumps/regulators, no water quality",
+        "The INTENSITY rain-gage consumes its TIMESERIES per recording interval — the adapter spreads uniform events at the fixed 5-minute cadence (the §15.1 probe record: a two-entry series rains exactly one interval)",
+        "Upstream is a small-maintainer project — pin the exact version (tests/validation/engines-requirements.txt: pyswmm==2.2.0 + swmm-toolkit==0.17.0) and re-verify the analytic pins on any bump"
+      ],
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 3,
+        "lastRun": "2026-10-28",
+        "result": "pass",
+        "note": "swmm cases: runoff-balance MASS CONSERVATION (11 pins — outfall volume vs i.A.t rel 4.4e-5 observed / 1e-3 pinned, equilibrium runoff = i.A, Manning normal-depth cubic abs 6.2e-6 observed / 0.005 pinned, engine .rpt continuity magnitudes <= 0.5%), manning-conduit on the steeper network (8 pins, depth abs 9.8e-6 observed, peak flow within the 3% surge allowance), no-outfall refusal verbatim (the rigid-mode analog, pure graph math before the engine); double-run byte-identical documents"
+      }
     },
     {
       "key": "opentakeoff",

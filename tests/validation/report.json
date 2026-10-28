@@ -1,8 +1,8 @@
 {
-  "ranAt": "2026-10-28T13:32:14.007Z",
+  "ranAt": "2026-10-28T15:52:28.352Z",
   "pythonBin": "/home/z/.venv/bin/python",
   "manifestPath": "tests/validation/corpus-manifest.json",
-  "caseCount": 33,
+  "caseCount": 36,
   "environment": {
     "engineAvailability": {
       "step": {
@@ -21,6 +21,9 @@
         "available": true
       },
       "fea": {
+        "available": true
+      },
+      "swmm": {
         "available": true
       },
       "cpm": {
@@ -53,7 +56,8 @@
     "libreoffice": "25.2.3.2",
     "pdfplumber": "0.11.9",
     "ezdxf": "1.4.3",
-    "tesseract": "5.5.0"
+    "tesseract": "5.5.0",
+    "pyswmm": "2.2.0"
   },
   "adapterHashes": {
     "step_quantities.py": "950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d",
@@ -68,7 +72,8 @@
     "dxf_takeoff.py": "07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329",
     "parametric_rebuild.py": "7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9",
     "sheet_ocr.ts": "b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45",
-    "fea_solve.py": "86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef"
+    "fea_solve.py": "86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef",
+    "swmm_run.py": "6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d"
   },
   "cases": [
     {
@@ -4268,14 +4273,340 @@
         "errorContains": "the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z)",
         "errorObserved": "the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z) - an unconstrained model cannot be solved, and simulated results are not an option"
       }
+    },
+    {
+      "caseId": "swmm-runoff-balance",
+      "adapter": "swmm",
+      "fixture": "swmm-runoff-balance.json",
+      "fixturePath": "tests/fixtures/swmm-runoff-balance.json",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "swmm",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
+          {
+            "field": "analysis",
+            "ref": null,
+            "expected": "drainage",
+            "observed": "drainage",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the only analysis shipped this phase (contract §15.4)"
+          },
+          {
+            "field": "engineKey",
+            "ref": null,
+            "expected": "pyswmm",
+            "observed": "pyswmm",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the pip-pinned pyswmm distribution drives the EPA SWMM5 engine in-process (contract §15.5)"
+          },
+          {
+            "field": "routingStepSec",
+            "ref": null,
+            "expected": 10,
+            "observed": 10,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the default routingStepSec parameter (contract §15.3)"
+          },
+          {
+            "field": "rainVolumeM3",
+            "ref": null,
+            "expected": 500,
+            "observed": 500,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "i.A.t = 0.025 m/hr x 2 hr x 10 000 m2 = 500 m3 -- the adapter's own rain block must agree exactly"
+          },
+          {
+            "field": "outfallVolumeM3",
+            "ref": null,
+            "expected": 500,
+            "observed": 500.02193805825715,
+            "unit": null,
+            "bound": "rel:0.001",
+            "absDiff": 0.021938058257148896,
+            "observedRelError": 0.000043876116514297794,
+            "ok": true,
+            "problem": "value",
+            "derivation": "mass conservation: all rain that fell drains by end of window (probe-observed rel 4.4e-5)"
+          },
+          {
+            "field": "maxRunoffCms",
+            "ref": null,
+            "expected": 0.06944444444444443,
+            "observed": 0.06945220755175956,
+            "unit": null,
+            "bound": "rel:0.01",
+            "absDiff": 0.000007763107315122975,
+            "observedRelError": 0.00011178874533777085,
+            "ok": true,
+            "problem": "value",
+            "derivation": "equilibrium runoff = i.A = 25/1000/3600 x 10 000 = 0.0694444 m3/s, approached asymptotically (observed rel 1.1e-4)"
+          },
+          {
+            "field": "maxConduitFlowCms",
+            "ref": null,
+            "expected": 0.06944444444444443,
+            "observed": 0.07059164318103153,
+            "unit": null,
+            "bound": "rel:0.03",
+            "absDiff": 0.001147198736587099,
+            "observedRelError": 0.016519661806854227,
+            "ok": true,
+            "problem": "value",
+            "derivation": "equilibrium flow + the kinematic-wave numerical surge (probe-observed +1.6%)"
+          },
+          {
+            "field": "maxDepthM",
+            "ref": "C1",
+            "expected": 0.14486665688316655,
+            "observed": 0.14486048192340867,
+            "unit": null,
+            "bound": "abs:0.005",
+            "absDiff": 0.000006174959757881959,
+            "observedRelError": 0.00004262512776050323,
+            "ok": true,
+            "problem": "value",
+            "derivation": "Manning normal depth: (1/0.015).0.5.y.(0.5y/(0.5+2y))^(2/3).sqrt(0.005) = 0.0694444 -> y_N = 0.144866657 m (observed abs 6.2e-6)"
+          },
+          {
+            "field": "maxDepthM",
+            "ref": "J1",
+            "expected": 0.14486665688316655,
+            "observed": 0.14486048196573673,
+            "unit": null,
+            "bound": "abs:0.005",
+            "absDiff": 0.000006174917429824234,
+            "observedRelError": 0.00004262483557416694,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the junction's max depth equals the conduit's equilibrium depth (observed abs 6.2e-6)"
+          },
+          {
+            "field": "runoffErrorPct",
+            "ref": null,
+            "expected": 0,
+            "observed": -0.012,
+            "unit": null,
+            "bound": "abs:0.5",
+            "absDiff": 0.012,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the engine's own .rpt runoff continuity error, pinned as a magnitude bound (observed -0.012%)"
+          },
+          {
+            "field": "routingErrorPct",
+            "ref": null,
+            "expected": 0,
+            "observed": -0.055,
+            "unit": null,
+            "bound": "abs:0.5",
+            "absDiff": 0.055,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the engine's own .rpt flow-routing continuity error, pinned as a magnitude bound (observed -0.055%)"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "pyswmm",
+          "engineVersion": "2.2.0",
+          "adapterScript": "swmm_run.py",
+          "adapterHash": "6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d"
+        }
+      }
+    },
+    {
+      "caseId": "swmm-manning-conduit",
+      "adapter": "swmm",
+      "fixture": "swmm-manning-conduit.json",
+      "fixturePath": "tests/fixtures/swmm-manning-conduit.json",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "swmm",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
+          {
+            "field": "rainVolumeM3",
+            "ref": null,
+            "expected": 2000,
+            "observed": 2000,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "i.A.t = 0.05 x 2 x 20 000 = 2 000 m3"
+          },
+          {
+            "field": "outfallVolumeM3",
+            "ref": null,
+            "expected": 2000,
+            "observed": 2000.2177313394764,
+            "unit": null,
+            "bound": "rel:0.001",
+            "absDiff": 0.2177313394763587,
+            "observedRelError": 0.00010886566973817935,
+            "ok": true,
+            "problem": "value",
+            "derivation": "mass conservation on the bigger storm (probe-observed rel 1.1e-4)"
+          },
+          {
+            "field": "maxRunoffCms",
+            "ref": null,
+            "expected": 0.2777777777777778,
+            "observed": 0.2778088311533788,
+            "unit": null,
+            "bound": "rel:0.01",
+            "absDiff": 0.00003105337560099786,
+            "observedRelError": 0.00011179215216359228,
+            "ok": true,
+            "problem": "value",
+            "derivation": "equilibrium runoff = i.A = 50/1000/3600 x 20 000 = 0.2777778 m3/s (observed rel 1.1e-4)"
+          },
+          {
+            "field": "maxConduitFlowCms",
+            "ref": null,
+            "expected": 0.2777777777777778,
+            "observed": 0.28054116263223894,
+            "unit": null,
+            "bound": "rel:0.03",
+            "absDiff": 0.0027633848544611483,
+            "observedRelError": 0.009948185476060134,
+            "ok": true,
+            "problem": "value",
+            "derivation": "equilibrium + surge (probe-observed +1.0%)"
+          },
+          {
+            "field": "maxDepthM",
+            "ref": "J1",
+            "expected": 0.1809516359327449,
+            "observed": 0.18094179310931605,
+            "unit": null,
+            "bound": "abs:0.005",
+            "absDiff": 0.00000984282342886278,
+            "observedRelError": 0.000054394774482840844,
+            "ok": true,
+            "problem": "value",
+            "derivation": "Manning cubic: (1/0.013).0.8.y.(0.8y/(0.8+2y))^(2/3).sqrt(0.01) = 0.2777778 -> y_N = 0.180951636 m (observed abs 9.8e-6)"
+          },
+          {
+            "field": "maxDepthM",
+            "ref": "C1",
+            "expected": 0.1809516359327449,
+            "observed": 0.18094179310920122,
+            "unit": null,
+            "bound": "abs:0.005",
+            "absDiff": 0.000009842823543687595,
+            "observedRelError": 0.000054394775117401655,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the conduit's own equilibrium depth mirrors the junction (observed abs 9.8e-6)"
+          },
+          {
+            "field": "runoffErrorPct",
+            "ref": null,
+            "expected": 0,
+            "observed": -0.015,
+            "unit": null,
+            "bound": "abs:0.5",
+            "absDiff": 0.015,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "engine .rpt runoff continuity magnitude bound (observed -0.015%)"
+          },
+          {
+            "field": "routingErrorPct",
+            "ref": null,
+            "expected": 0,
+            "observed": -0.02,
+            "unit": null,
+            "bound": "abs:0.5",
+            "absDiff": 0.02,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "engine .rpt routing continuity magnitude bound (observed -0.02%)"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "pyswmm",
+          "engineVersion": "2.2.0",
+          "adapterScript": "swmm_run.py",
+          "adapterHash": "6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d"
+        }
+      }
+    },
+    {
+      "caseId": "swmm-no-outfall",
+      "adapter": "swmm",
+      "fixture": "swmm-no-outfall.json",
+      "fixturePath": "tests/fixtures/swmm-no-outfall.json",
+      "expect": "error",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "swmm",
+        "expect": "error",
+        "status": "pass",
+        "determinism": null,
+        "comparisons": [],
+        "problems": [],
+        "errorContains": "the network has no outfall - runoff cannot leave the model, and simulated results are not an option",
+        "errorObserved": "the network has no outfall - runoff cannot leave the model, and simulated results are not an option"
+      }
     }
   ],
   "summary": {
-    "total": 33,
-    "pass": 33,
+    "total": 36,
+    "pass": 36,
     "fail": 0,
     "skip": 0,
-    "ran": 33,
+    "ran": 36,
     "notRun": false
   }
 }

@@ -566,3 +566,260 @@ export function parseFeaModelJsonText(text: string): ParseSchemaResult<FeaModelI
   if (!raw.ok) return { ok: false, error: `invalid FEA model: ${raw.error}` }
   return parseFeaModel(raw.value)
 }
+
+// ---------------------------------------------------------------------------
+// §15.2 SWMM model (eos-swmm-model/1 — Slice 23, drainage simulation)
+// ---------------------------------------------------------------------------
+
+const nodeIdPattern = /^[A-Za-z0-9_.-]{1,32}$/
+
+
+export const swmmModelSchema = z
+  .strictObject(
+    {
+      format: z.literal("eos-swmm-model/1", {
+        message: 'format must be "eos-swmm-model/1"',
+      }),
+      name: nameField(),
+      simulation: z.strictObject(
+        {
+          durationMin: z
+            .number({ message: "simulation.durationMin must be a number" })
+            .int("simulation.durationMin must be an integer")
+            .min(1, "simulation.durationMin must be at least 1 minute")
+            .max(1440, "simulation.durationMin must be at most 1440 minutes (24 h)"),
+        },
+        { message: "simulation must be a JSON object" },
+      ),
+      rainfall: z.strictObject(
+        {
+          intensityMMperHr: positiveNumber("rainfall.intensityMMperHr"),
+          durationMin: z
+            .number({ message: "rainfall.durationMin must be a number" })
+            .int("rainfall.durationMin must be an integer")
+            .min(5, "rainfall.durationMin must be at least 5 minutes (the gage cadence)")
+            .max(720, "rainfall.durationMin must be at most 720 minutes")
+            .refine((v) => v % 5 === 0, {
+              message: "rainfall.durationMin must be a multiple of 5 (the gage cadence)",
+            }),
+        },
+        { message: "rainfall must be a JSON object" },
+      ),
+      subcatchments: z
+        .array(
+          z.strictObject(
+            {
+              id: z
+                .string({ message: "subcatchments.id must be a string" })
+                .regex(nodeIdPattern, {
+                  message:
+                    "subcatchments.id must be 1..32 characters (letters, digits, dot, underscore, dash)",
+                }),
+              outletNodeId: z
+                .string({ message: "subcatchments.outletNodeId must be a string" })
+                .regex(nodeIdPattern, {
+                  message:
+                    "subcatchments.outletNodeId must be 1..32 characters (letters, digits, dot, underscore, dash)",
+                }),
+              areaHA: positiveNumber("subcatchments.areaHA").refine(
+                (v) => v <= 1000,
+                { message: "subcatchments.areaHA must be at most 1000 ha" },
+              ),
+              widthM: positiveNumber("subcatchments.widthM").refine((v) => v <= 10000, {
+                message: "subcatchments.widthM must be at most 10000 m",
+              }),
+              slopePct: positiveNumber("subcatchments.slopePct").refine((v) => v <= 100, {
+                message: "subcatchments.slopePct must be at most 100",
+              }),
+              manningNImperv: positiveNumber("subcatchments.manningNImperv").refine(
+                (v) => v <= 1,
+                { message: "subcatchments.manningNImperv must be at most 1" },
+              ),
+              depressionStorageMM: finiteNumber("subcatchments.depressionStorageMM").refine(
+                (v) => v >= 0 && v <= 500,
+                {
+                  message:
+                    "subcatchments.depressionStorageMM must be a finite number between 0 and 500 mm",
+                },
+              ),
+            },
+            { message: "each subcatchment must be a JSON object" },
+          ),
+        )
+        .min(1, "at least one subcatchment is required")
+        .max(50, "at most 50 subcatchments are allowed"),
+      nodes: z
+        .array(
+          z.discriminatedUnion("kind", [
+            z.strictObject(
+              {
+                kind: z.literal("junction", { message: 'nodes.kind must be "junction" or "outfall"' }),
+                id: z
+                  .string({ message: "nodes.id must be a string" })
+                  .regex(nodeIdPattern, {
+                    message:
+                      "nodes.id must be 1..32 characters (letters, digits, dot, underscore, dash)",
+                  }),
+                invertElevM: finiteNumber("nodes.invertElevM"),
+                maxDepthM: positiveNumber("nodes.maxDepthM"),
+              },
+              { message: "each junction must be a JSON object" },
+            ),
+            z.strictObject(
+              {
+                kind: z.literal("outfall", { message: 'nodes.kind must be "junction" or "outfall"' }),
+                id: z
+                  .string({ message: "nodes.id must be a string" })
+                  .regex(nodeIdPattern, {
+                    message:
+                      "nodes.id must be 1..32 characters (letters, digits, dot, underscore, dash)",
+                  }),
+                invertElevM: finiteNumber("nodes.invertElevM"),
+              },
+              { message: "each outfall must be a JSON object" },
+            ),
+          ]),
+        )
+        .min(1, "at least one node is required")
+        .max(200, "at most 200 nodes are allowed"),
+      conduits: z
+        .array(
+          z.strictObject(
+            {
+              id: z
+                .string({ message: "conduits.id must be a string" })
+                .regex(nodeIdPattern, {
+                  message:
+                    "conduits.id must be 1..32 characters (letters, digits, dot, underscore, dash)",
+                }),
+              fromNodeId: z
+                .string({ message: "conduits.fromNodeId must be a string" })
+                .regex(nodeIdPattern, {
+                  message:
+                    "conduits.fromNodeId must be 1..32 characters (letters, digits, dot, underscore, dash)",
+                }),
+              toNodeId: z
+                .string({ message: "conduits.toNodeId must be a string" })
+                .regex(nodeIdPattern, {
+                  message:
+                    "conduits.toNodeId must be 1..32 characters (letters, digits, dot, underscore, dash)",
+                }),
+              lengthM: positiveNumber("conduits.lengthM").refine((v) => v <= 100000, {
+                message: "conduits.lengthM must be at most 100000 m",
+              }),
+              manningN: positiveNumber("conduits.manningN").refine((v) => v <= 1, {
+                message: "conduits.manningN must be at most 1",
+              }),
+              slopePct: positiveNumber("conduits.slopePct").refine((v) => v <= 100, {
+                message: "conduits.slopePct must be at most 100",
+              }),
+              heightM: positiveNumber("conduits.heightM").refine((v) => v <= 20, {
+                message: "conduits.heightM must be at most 20 m",
+              }),
+              widthM: positiveNumber("conduits.widthM").refine((v) => v <= 50, {
+                message: "conduits.widthM must be at most 50 m",
+              }),
+            },
+            { message: "each conduit must be a JSON object" },
+          ),
+        )
+        .max(250, "at most 250 conduits are allowed"),
+    },
+    { message: "SWMM model must be a JSON object" },
+  )
+  .superRefine((model, ctx) => {
+    // Duplicate ids across every collection (subcatchments, nodes, conduits).
+    const seenSubcatchment = new Set<string>()
+    model.subcatchments.forEach((s, index) => {
+      if (seenSubcatchment.has(s.id)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["subcatchments", index],
+          message: `subcatchment id "${s.id}" is declared more than once`,
+        })
+      } else {
+        seenSubcatchment.add(s.id)
+      }
+    })
+    const nodeIds = new Set<string>()
+    model.nodes.forEach((n, index) => {
+      if (nodeIds.has(n.id)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["nodes", index],
+          message: `node id "${n.id}" is declared more than once`,
+        })
+      } else {
+        nodeIds.add(n.id)
+      }
+    })
+    const seenConduit = new Set<string>()
+    model.conduits.forEach((c, index) => {
+      if (seenConduit.has(c.id)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["conduits", index],
+          message: `conduit id "${c.id}" is declared more than once`,
+        })
+      } else {
+        seenConduit.add(c.id)
+      }
+      if (!nodeIds.has(c.fromNodeId)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["conduits", index],
+          message: `conduit "${c.id}" references unknown fromNode "${c.fromNodeId}"`,
+        })
+      }
+      if (!nodeIds.has(c.toNodeId)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["conduits", index],
+          message: `conduit "${c.id}" references unknown toNode "${c.toNodeId}"`,
+        })
+      }
+    })
+    model.subcatchments.forEach((s, index) => {
+      if (!nodeIds.has(s.outletNodeId)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["subcatchments", index],
+          message: `subcatchment "${s.id}" outlets into unknown node "${s.outletNodeId}"`,
+        })
+      }
+    })
+    // The rigid-mode analog: a network with no outfall cannot drain.
+    if (!model.nodes.some((n) => n.kind === "outfall")) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["nodes"],
+        message:
+          "the network has no outfall - runoff cannot leave the model, and simulated results are not an option",
+      })
+    }
+    // Simulation window must outlast the storm (post-rain drainage).
+    if (model.simulation.durationMin <= model.rainfall.durationMin) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["simulation", "durationMin"],
+        message:
+          "simulation.durationMin must exceed rainfall.durationMin (the network needs post-rain drainage time to reach a volume balance)",
+      })
+    }
+  })
+
+export type SwmmModelInput = z.infer<typeof swmmModelSchema>
+
+/** Parse an unknown value as an eos-swmm-model/1 document. */
+export function parseSwmmModel(input: unknown): ParseSchemaResult<SwmmModelInput> {
+  const parsed = swmmModelSchema.safeParse(input)
+  if (parsed.success) return { ok: true, value: parsed.data }
+  return { ok: false, error: joinZodIssues("invalid SWMM model", parsed.error) }
+}
+
+/** Parse stored artifact text as an eos-swmm-model/1 document (Slice 23). */
+export function parseSwmmModelJsonText(text: string): ParseSchemaResult<SwmmModelInput> {
+  const raw = parseJsonText(text)
+  if (!raw.ok) return { ok: false, error: `invalid SWMM model: ${raw.error}` }
+  return parseSwmmModel(raw.value)
+}

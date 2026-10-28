@@ -42,6 +42,7 @@ import { feMeshFromFile, type FeMeshParameters, type FeMeshResult } from "@/engi
 import { runPowerflowFromFile, type PowerflowBus, type PowerflowLine, type PowerflowTotals } from "@/engines/adapters/powerflow"
 import { runDesFromFile, type DesJob, type DesResource } from "@/engines/adapters/des"
 import { runFeaFromFile, type FeaSample } from "@/engines/adapters/fea"
+import { runSwmmFromFile, type SwmmDepthSample } from "@/engines/adapters/swmm"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "@/engines/adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "@/engines/adapters/dxf_takeoff"
 import {
@@ -97,6 +98,7 @@ export type BrokerOperation =
   | "run_powerflow"
   | "run_des"
   | "solve_fea"
+  | "run_swmm"
   | "convert_document"
   | "analyze_schedule"
   | "takeoff_sheet"
@@ -983,6 +985,8 @@ export const FEMESH_NO_REVISIONS_MESSAGE = "This artifact has no revisions to ge
 export const POWERFLOW_NO_REVISIONS_MESSAGE = "This artifact has no revisions to run a power flow on"
 export const DES_NO_REVISIONS_MESSAGE = "This artifact has no revisions to simulate"
 export const FEA_NO_REVISIONS_MESSAGE = "This artifact has no revisions to solve"
+
+export const SWMM_NO_REVISIONS_MESSAGE = "This artifact has no revisions to run"
 export const CONVERT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to convert"
 export const ANALYZE_NO_REVISIONS_MESSAGE = "This artifact has no revisions to analyze"
 
@@ -1200,6 +1204,67 @@ export function buildFeaDocument(
       sigmaXxMaxMpa: payload.stress.sigmaXxMaxMpa,
       vonMisesMaxMpa: payload.stress.vonMisesMaxMpa,
     },
+    generatedBy: {
+      engineKey: payload.engineKey,
+      engineVersion: payload.engineVersion,
+      adapterScript: payload.adapterScript,
+      adapterHash: payload.adapterHash,
+    },
+  })
+}
+
+/**
+ * Assemble the eos-swmm/1 document bytes (contract §15.4). PURE: pinned key
+ * order format → sourceArtifactName → analysis → rain → routing → continuity
+ * → outfall volume → volume balance → peaks → depths → generatedBy; every
+ * numeric is the engine's verbatim double (ADR-0006 §2 — nobody rounds "for
+ * presentation").
+ */
+export function buildSwmmDocument(
+  sourceArtifactName: string,
+  payload: {
+    analysis: "drainage"
+    rain: { intensityMMperHr: number; durationMin: number; totalDepthMm: number; totalVolumeM3: number }
+    routing: { model: "kinematic_wave"; routingStepSec: number }
+    continuity: { runoffErrorPct: number; routingErrorPct: number }
+    outfallVolumeM3: number
+    volumeBalancePct: number
+    peaks: { maxRunoffCms: number; maxConduitFlowCms: number }
+    depths: SwmmDepthSample[]
+    engineKey: string
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+  },
+): string {
+  return JSON.stringify({
+    format: "eos-swmm/1",
+    sourceArtifactName,
+    analysis: payload.analysis,
+    rain: {
+      intensityMMperHr: payload.rain.intensityMMperHr,
+      durationMin: payload.rain.durationMin,
+      totalDepthMm: payload.rain.totalDepthMm,
+      totalVolumeM3: payload.rain.totalVolumeM3,
+    },
+    routing: {
+      model: payload.routing.model,
+      routingStepSec: payload.routing.routingStepSec,
+    },
+    continuity: {
+      runoffErrorPct: payload.continuity.runoffErrorPct,
+      routingErrorPct: payload.continuity.routingErrorPct,
+    },
+    outfallVolumeM3: payload.outfallVolumeM3,
+    volumeBalancePct: payload.volumeBalancePct,
+    peaks: {
+      maxRunoffCms: payload.peaks.maxRunoffCms,
+      maxConduitFlowCms: payload.peaks.maxConduitFlowCms,
+    },
+    depths: payload.depths.map((sample) => ({
+      id: sample.id,
+      maxDepthM: sample.maxDepthM,
+    })),
     generatedBy: {
       engineKey: payload.engineKey,
       engineVersion: payload.engineVersion,
@@ -2873,6 +2938,128 @@ export async function brokerRunFeaCore(
   }
 }
 
+/** Pinned 201 `swmm` response object (exact key order — mirror of the fea 201). */
+export interface BrokerSwmmResponse {
+  artifactId: string
+  name: string
+  kind: "analysis"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-swmm/1"
+  analysis: "drainage"
+  outfallVolumeM3: number
+  volumeBalancePct: number
+  maxRunoffCms: number
+  maxConduitFlowCms: number
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerSwmmResult {
+  swmm: BrokerSwmmResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of run_swmm (contract §15.3/§15.5): gate the stored JSON as an
+ * eos-swmm-model/1 document, run the pyswmm bridge, assemble the
+ * byte-deterministic eos-swmm/1 document, find-or-create the kind-"analysis"
+ * artifact (DRAFT revision per run), exactly ONE `swmm.ran` audit event.
+ */
+export async function brokerRunSwmmCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerSwmmResult> {
+  const source = await readJsonArtifact(projectId, artifactId, "eos-swmm-model/1", SWMM_NO_REVISIONS_MESSAGE)
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof runSwmmFromFile>>
+  try {
+    result = await runSwmmFromFile(absPath, parameters)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildSwmmDocument(source.artifact.name, result)
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "run_swmm",
+    kind: "analysis",
+    format: "eos-swmm/1",
+    name: `${source.artifact.name} — drainage simulation`,
+    description: `Stormwater drainage simulation (${result.engineKey}/SWMM5, kinematic wave)`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "swmm.ran",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        analysis: result.analysis,
+        outfallVolumeM3: result.outfallVolumeM3,
+        volumeBalancePct: result.volumeBalancePct,
+        runoffErrorPct: result.continuity.runoffErrorPct,
+        routingErrorPct: result.continuity.routingErrorPct,
+      },
+    },
+  })
+
+  return {
+    swmm: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-swmm/1",
+      analysis: result.analysis,
+      outfallVolumeM3: result.outfallVolumeM3,
+      volumeBalancePct: result.volumeBalancePct,
+      maxRunoffCms: result.peaks.maxRunoffCms,
+      maxConduitFlowCms: result.peaks.maxConduitFlowCms,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
 /** Pinned 201 `pdf` response object (exact key order — mirror of the mesh 201). */
 export interface BrokerPdfResponse {
   artifactId: string
@@ -3427,6 +3614,32 @@ export async function runBrokerOperation(
           elementCount: core.fea.elementCount,
           nodeCount: core.fea.nodeCount,
           maxDisplacementMagnitudeMm: core.fea.maxDisplacementMagnitudeMm,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "run_swmm": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "run_swmm requires inputs.artifactId (one SWMM model artifact id)")
+      }
+      const core = await brokerRunSwmmCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.swmm.artifactId,
+          revisionNumber: core.swmm.revisionNumber,
+          contentHash: core.swmm.contentHash,
+          outfallVolumeM3: core.swmm.outfallVolumeM3,
+          volumeBalancePct: core.swmm.volumeBalancePct,
+          maxConduitFlowCms: core.swmm.maxConduitFlowCms,
         },
         outputArtifactRevisionId: core.outputArtifactRevisionId,
         engineKey: core.engineKey,

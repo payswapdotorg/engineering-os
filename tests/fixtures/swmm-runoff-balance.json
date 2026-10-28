@@ -1,0 +1,33 @@
+{
+  "format": "eos-swmm-model/1",
+  "name": "Runoff volume balance (exact closed form)",
+  "simulation": { "durationMin": 480 },
+  "rainfall": { "intensityMMperHr": 25.0, "durationMin": 120 },
+  "subcatchments": [
+    {
+      "id": "S1",
+      "outletNodeId": "J1",
+      "areaHA": 1.0,
+      "widthM": 100.0,
+      "slopePct": 1.0,
+      "manningNImperv": 0.015,
+      "depressionStorageMM": 0.0
+    }
+  ],
+  "nodes": [
+    { "kind": "junction", "id": "J1", "invertElevM": 0.5, "maxDepthM": 2.0 },
+    { "kind": "outfall", "id": "OUT1", "invertElevM": 0.0 }
+  ],
+  "conduits": [
+    {
+      "id": "C1",
+      "fromNodeId": "J1",
+      "toNodeId": "OUT1",
+      "lengthM": 100.0,
+      "manningN": 0.015,
+      "slopePct": 0.5,
+      "heightM": 1.0,
+      "widthM": 0.5
+    }
+  ]
+}
