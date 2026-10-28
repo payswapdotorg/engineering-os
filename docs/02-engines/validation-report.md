@@ -29,21 +29,22 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-27T21:18:37.890Z`
-- Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python`
+- Ran at (UTC): `2026-10-28T10:38:33.366Z`
+- Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python3`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
 - Engine availability probe — ifcopenshell (IFC quantities): available
 - Engine availability probe — gmsh (FE mesh): available
 - Engine availability probe — pandapower (power flow): available
 - Engine availability probe — simpy (discrete-event): available
+- Engine availability probe — scikit-fem (plane-stress FEA): available
 - Engine availability probe — platform CPM core (no engine): available
 - Engine availability probe — libreoffice (document conversion): available
 - Engine availability probe — pdfplumber (vector sheet takeoff): available
 - Engine availability probe — ezdxf (DXF takeoff): available
 - Engine availability probe — cadquery (parametric rebuild): available
 - Engine availability probe — tesseract (sheet-text OCR): available
-- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · libreoffice 25.2.3.2 · pdfplumber 0.11.9 · ezdxf 1.4.3 · tesseract 5.5.0
+- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · libreoffice 25.2.3.2 · pdfplumber 0.11.9 · ezdxf 1.4.3 · tesseract 5.5.0
 - Adapter `step_quantities.py` sha256: `950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d`
 - Adapter `ifc_quantities.py` sha256: `68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78`
 - Adapter `step_mesh.py` sha256: `e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c`
@@ -56,7 +57,8 @@
 - Adapter `dxf_takeoff.py` sha256: `07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329`
 - Adapter `parametric_rebuild.py` sha256: `7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9`
 - Adapter `sheet_ocr.ts` sha256: `b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45`
-- Corpus: `tests/validation/corpus-manifest.json` — 30 cases
+- Adapter `fea_solve.py` sha256: `86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef`
+- Corpus: `tests/validation/corpus-manifest.json` — 33 cases
 
 ## Tolerance policy (pinned)
 
@@ -66,7 +68,7 @@
 | `analytic` | \|obs − exp\| ≤ 1e-9 · max(1, \|exp\|) | exact-engine value vs closed form; also used for the PLANAR mesh case, where the divergence-theorem volume / triangle-sum area are mathematically exact (only IEEE rounding remains) |
 | `mesh` | \|obs − exp\| ≤ 1e-2 · \|exp\| | pinned 1% engineering tolerance for triangulated CURVED surfaces (ifcopenshell PyPI wheel has no OCCT backend, `has_occ=False`); the observed relative error is recorded below — the limitation is quantified, not hidden |
 
-## Results — 30 cases: 30 pass / 0 fail / 0 skip
+## Results — 33 cases: 33 pass / 0 fail / 0 skip
 
 | Case | Adapter | Fixture | Expect | Status | Determinism | Quantities (obs / pinned) | Max observed rel error | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -100,6 +102,9 @@
 | `parametric-edited` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 9 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ · max pin rel error 8.017e-16 |
 | `parametric-refusals` | parametric | `parametric-bracket.py` | error | pass | — | — | — | parametric: threw honest error: `parameter 'width' = 10 below minimum 20 \| unknown parameter(s) rejected: ['bogus'] \| hole does not fit inside the vertic` · threw honest error: `` |
 | `sheet-ocr-callout` | ocr | `ocr-callout.png` | success | pass | — | — / — | — | ocr: 9 pin(s) · tesseract 5.5.0 · doc byte-determinism ✅ |
+| `fea-uniform-tension` | fea | `fea-uniform-tension.json` | success | pass | — | — / — | — | fea: 16 pin(s) · scikit-fem 12.0.2 · doc byte-determinism ✅ · max pin rel error 1.713e-13 |
+| `fea-cantilever-end-shear` | fea | `fea-cantilever-plate.json` | success | pass | — | — / — | — | fea: 3 pin(s) · scikit-fem 12.0.2 · doc byte-determinism ✅ · max pin rel error 4.684e-3 |
+| `fea-underconstrained` | fea | `fea-underconstrained.json` | error | pass | — | — | — | fea: threw honest error: `the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z) - an unconstraine` · threw honest error: `` |
 
 ## Mesh tessellation validation (W2-d — the eos-mesh/1 bridge)
 
@@ -196,6 +201,9 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 | `parametric-edited` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 9 | pass |
 | `parametric-refusals` | parametric | `parametric-bracket.py` | error | — (platform core, honestly absent) | — | 0 | pass |
 | `sheet-ocr-callout` | ocr | `ocr-callout.png` | success | tesseract 5.5.0 | ✅ true | 9 | pass |
+| `fea-uniform-tension` | fea | `fea-uniform-tension.json` | success | scikit-fem 12.0.2 | ✅ true | 16 | pass |
+| `fea-cantilever-end-shear` | fea | `fea-cantilever-plate.json` | success | scikit-fem 12.0.2 | ✅ true | 3 | pass |
+| `fea-underconstrained` | fea | `fea-underconstrained.json` | error | — (platform core, honestly absent) | — | 0 | pass |
 
 ### Discipline pin comparisons (observed vs hand-derived)
 
@@ -348,6 +356,26 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `sheet-ocr-callout` word @ word 6: observed **"1200 (conf 96.0)"** vs pinned "1200 (conf ≥ 90)" [bound min 90] · the live tesseract read of the committed fixture with the vendored model
 - `sheet-ocr-callout` word @ word 7: observed **"GHS (conf 90.3)"** vs pinned "GHS (conf ≥ 85)" [bound min 85] · the live tesseract read of the committed fixture with the vendored model
 - `sheet-ocr-callout` word @ word 8: observed **"225.00 (conf 96.7)"** vs pinned "225.00 (conf ≥ 90)" [bound min 90] · the live tesseract read of the committed fixture with the vendored model
+- `fea-uniform-tension` analysis: observed **"plane_stress"** vs pinned "plane_stress" [bound structural] · the only analysis shipped this phase (contract §14.2)
+- `fea-uniform-tension` elementType: observed **"tri6"** vs pinned "tri6" [bound structural] · ElementVector(ElementTriP2()) — quadratic triangles, 6 nodes (contract §14.5)
+- `fea-uniform-tension` refinement: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the default meshRefinement parameter (contract §14.3)
+- `fea-uniform-tension` elementCount: observed **512** vs pinned 512 [bound abs:0] → rel error 0 (bitwise) · MeshTri().refined(4): the base 2 triangles × 4^4 = 512 — deterministic uniform mesh
+- `fea-uniform-tension` nodeCount: observed **2178** vs pinned 2178 [bound abs:0] → rel error 0 (bitwise) · P2 dof points of the refined(4) mesh: 81 vertices + 144 midside points × 2 components interleaved = 2178/2 scalar points… pinned as the deterministic dof-point count
+- `fea-uniform-tension` ux @ 0x0: observed **0** vs pinned 0 [bound abs:1e-9] · u_x = σx/E = 0 at x = 0 (the left edge ux support is exactly compatible)
+- `fea-uniform-tension` uy @ 0x0: observed **0** vs pinned 0 [bound abs:1e-9] · u_y = −νσy/E = 0 at y = 0 (the bottom edge uy support is exactly compatible)
+- `fea-uniform-tension` uy @ 0x200: observed **-0.003000000000000113** vs pinned -0.003 [bound abs:1e-9] → rel error 3.759e-14 · u_y(H) = −νσH/E = −0.3·10·200/200000 = −0.003 mm (Poisson contraction, free left-edge uy)
+- `fea-uniform-tension` ux @ 200x100: observed **0.01000000000000092** vs pinned 0.01 [bound abs:1e-9] → rel error 9.194e-14 · u_x(W/2) = σ(W/2)/E = 10·200/200000 = 0.01 mm
+- `fea-uniform-tension` uy @ 200x100: observed **-0.0014999999999999666** vs pinned -0.0015 [bound abs:1e-9] → rel error 2.226e-14 · u_y(H/2) = −νσ(H/2)/E = −0.0015 mm
+- `fea-uniform-tension` ux @ 400x0: observed **0.02000000000000134** vs pinned 0.02 [bound abs:1e-9] → rel error 6.696e-14 · u_x(W) = σW/E = 10·400/200000 = 0.02 mm — the Hooke's-law anchor
+- `fea-uniform-tension` ux @ 400x200: observed **0.02000000000000105** vs pinned 0.02 [bound abs:1e-9] → rel error 5.256e-14 · u_x(W) = σW/E = 0.02 mm at the far corner (uniform field: independent of y)
+- `fea-uniform-tension` uy @ 400x200: observed **-0.002999999999999486** vs pinned -0.003 [bound abs:1e-9] → rel error 1.713e-13 · u_y(H) = −νσH/E = −0.003 mm at the far corner
+- `fea-uniform-tension` sigmaXxMinMpa: observed **9.999999999999728** vs pinned 10 [bound abs:1e-9] → rel error 2.718e-14 · σ_xx = σ = 10 MPa uniform (plane stress, σ_yy = τ_xy = 0) — the per-element mean equals the constant exactly
+- `fea-uniform-tension` vonMisesMaxMpa: observed **10.000000000001068** vs pinned 10 [bound abs:1e-9] → rel error 1.068e-13 · von Mises of uniaxial σ: √(σ²) = σ = 10 MPa
+- `fea-uniform-tension` maxDisplacementMagnitudeMm: observed **0.02022374841615765** vs pinned 0.020223748416157 [bound abs:1e-9] → rel error 3.208e-14 · hypot(u_x(W), u_y(H)) = √(0.02² + 0.003²) = √0.000409 = 0.020223748416157 mm at the far corner
+- `fea-cantilever-end-shear` elementCount: observed **512** vs pinned 512 [bound abs:0] → rel error 0 (bitwise) · MeshTri().refined(4) on the scaled 2000×500 domain — same deterministic 512 tri6 elements
+- `fea-cantilever-end-shear` uy @ 2000x0: observed **-1.336151125569775** vs pinned -1.3424 [bound rel:0.01] → rel error 4.655e-3 (0.4655%) · Timoshenko tip deflection at the bottom-right corner: PL³/3EI + PL/κGA = 1.28 + 0.0624 = 1.3424 mm (positive shear acts along the CCW tangent = −y on the right edge, so the plate bends DOWN); the corner carries the centerline deflection (the section rotation displaces the tip corners horizontally, not vertically)
+- `fea-cantilever-end-shear` uy @ 2000x500: observed **-1.3361125402122764** vs pinned -1.3424 [bound rel:0.01] → rel error 4.684e-3 (0.4684%) · the top-right corner mirrors the bottom within the solver's clamp-boundary-layer difference — both carry the Timoshenko centerline value (observed 1.3361 vs 1.3362)
+- `fea-underconstrained` (fea) threw the honest error: `the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z) - an unconstrained model cannot be solved, and simulated `
 
 ## Regenerate
 

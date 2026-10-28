@@ -194,6 +194,43 @@ assert_contains "unknown resource → honest 422 (the ROUTE zod refuses first; t
   "$(j "$BODY" '.error.message')"
 
 # ===========================================================================
+# AC-FEA-04 — plane-stress FEA (REAL scikit-fem; the machine-precision
+# uniform-tension closed form + the two honest 422 gates + the audit event;
+# contract §14.6)
+# ===========================================================================
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/fea-uniform-tension.json" "FEA uniform tension"
+FEA_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$FEA_ID/fea" -H 'Content-Type: application/json' -d '{}'
+assert_eq "FEA model JSON → plane-stress solve by REAL scikit-fem (kind analysis, tri6/512/2178, max |u| closed form)" \
+  "201|analysis|eos-fea/1|plane_stress|tri6|512|2178|scikit-fem|12.0.2" \
+  "$STATUS|$(j "$BODY" '.data.fea.kind')|$(j "$BODY" '.data.fea.document.format')|$(j "$BODY" '.data.fea.document.analysis')|$(j "$BODY" '.data.fea.document.mesh.elementType')|$(j "$BODY" '.data.fea.elementCount')|$(j "$BODY" '.data.fea.nodeCount')|$(j "$BODY" '.data.fea.engineKey')|$(j "$BODY" '.data.fea.engineVersion')"
+near "closed-form pin: u_x(400,0) = σW/E = 0.02 mm at machine precision (the uniform field is exactly representable by tri6; harness-pinned rel 1.7e-13)" \
+  "0.02" "$(j "$BODY" '.data.fea.document.samples[] | select(.x == 400 and .y == 0) | .ux')" "0.000000001"
+near "closed-form pin: u_y(0,200) = −νσH/E = −0.003 mm at machine precision" \
+  "-0.003" "$(j "$BODY" '.data.fea.document.samples[] | select(.x == 0 and .y == 200) | .uy')" "0.000000001"
+near "von Mises max = σ = 10 MPa (uniaxial plane stress, machine precision)" \
+  "10" "$(j "$BODY" '.data.fea.document.stress.vonMisesMaxMpa')" "0.000000001"
+http GET "/api/events?projectId=$PROBE_ID&limit=200"
+assert_eq "exactly ONE fea.solved audit event for the run, engine scikit-fem recorded" \
+  "1|scikit-fem" "$(j "$BODY" '[.data.events[] | select(.action == "fea.solved")] | length')|$(j "$BODY" '[.data.events[] | select(.action == "fea.solved")][0].detail | fromjson | .engineKey')"
+http POST "/api/projects/$PROBE_ID/artifacts/$DESW_ID/fea" -H 'Content-Type: application/json' -d '{}'
+assert_contains "wrong-format JSON → 422 (the ROUTE zod refuses alien content before the broker — defense-in-depth)" \
+  'format must be "eos-fea-model/1"' \
+  "$(j "$BODY" '.error.message')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/fea-underconstrained.json" "FEA underconstrained"
+FEAU_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$FEAU_ID/fea" -H 'Content-Type: application/json' -d '{}'
+assert_contains "under-constrained model → the rigid-mode refusal naming the free modes (an unconstrained model is refused, never solved by guessing)" \
+  "the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z)" \
+  "$(j "$BODY" '.error.message')"
+: > "$WORK/http.body"
+STATUS_NOAUTH=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/projects/$PROBE_ID/artifacts/$FEAU_ID/fea") || STATUS_NOAUTH="000"
+BODY_NOAUTH=$(cat "$WORK/http.body")
+assert_eq "unauthenticated FEA solve → 401 envelope verbatim (the op rides the same session gate)" \
+  "401|sign in required" \
+  "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
+
+# ===========================================================================
 # AC-P5-04 — document conversion (REAL headless LibreOffice)
 # ===========================================================================
 upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/cover-sheet.fodt" "Cover sheet"
@@ -398,9 +435,12 @@ http GET /api/engines
 assert_eq "/api/engines serves harness validation fields for the seven 16-D-reconciled engines (gmsh/pandapower/simpy/libreoffice/pdfplumber/ezdxf/tesseract; cases 4/2/2/1/3/1/1)" \
   "pass|pass|pass|pass|pass|pass|pass|4|2|2|1|3|1|1" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "gmsh")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "pandapower")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "simpy")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "libreoffice")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "pdfplumber")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "ezdxf")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "tesseract")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "gmsh")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "pandapower")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "simpy")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "libreoffice")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "pdfplumber")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "ezdxf")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "tesseract")][0].validation.cases')"
-assert_eq "Slice 16-D reconciliation: exactly the nine harness-validated engines (cadquery/ifcopenshell + gmsh/pandapower/simpy/libreoffice + pdfplumber/ezdxf/tesseract) carry state 'tested', registry total 38 (35 audited + three takeoff engines added 2026-10-25)" \
-  "9|9|38" \
-  "$(j "$BODY" '[.data.registry[] | select(.state == "tested")] | length')|$(j "$BODY" '[.data.registry[] | select(.state == "tested" and (.key == "gmsh" or .key == "pandapower" or .key == "simpy" or .key == "libreoffice" or .key == "pdfplumber" or .key == "ezdxf" or .key == "tesseract" or .key == "cadquery" or .key == "ifcopenshell"))] | length')|$(j "$BODY" '.data.registry | length')"
+assert_eq "Slice-22 addendum: the scikit-fem registry row carries its validation block too (3 fea harness cases, pass)" \
+  "pass|3|tested" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "scikit-fem")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "scikit-fem")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "scikit-fem")][0].state')"
+assert_eq "registry reconciliation: ten harness-validated engines (the nine 16-D set + scikit-fem) carry state 'tested', registry total 39 — the OpenSees row stays 'planned' with the license review closed REJECTED" \
+  "10|39|planned" \
+  "$(j "$BODY" '[.data.registry[] | select(.state == "tested")] | length')|$(j "$BODY" '.data.registry | length')|$(j "$BODY" '[.data.registry[] | select(.key == "opensees")][0].state')"
 
 # ===========================================================================
 # AC-P5-09 — regression marker (byte-stability of untouched routes is proven by

@@ -1143,8 +1143,23 @@ export interface CpmAnalysisPayload {
   durationDays: number
 }
 
+/** eos-fea/1 — scikit-fem plane-stress solve (Slice 22, contract §14.4). */
+export interface FeaPayload {
+  format: "eos-fea/1"
+  sourceArtifactName: string
+  analysis: "plane_stress"
+  mesh: { elementType: string; refinement: number; elementCount: number; nodeCount: number }
+  thicknessMm: number
+  elasticModulusMpa: number
+  poissonRatio: number
+  samples: Array<{ x: number; y: number; ux: number; uy: number }>
+  maxDisplacementMagnitudeMm: number
+  stress: { sigmaXxMinMpa: number; sigmaXxMaxMpa: number; vonMisesMaxMpa: number }
+  generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string }
+}
+
 /** Which stored payload a derived artifact revision carries (discriminated by format). */
-export type AnalysisPayload = PowerFlowPayload | DesPayload | CpmAnalysisPayload
+export type AnalysisPayload = PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload
 
 // --- §8 routes (thin wrappers over broker cores; 422s verbatim) --------------
 
@@ -1263,6 +1278,15 @@ export async function runPowerFlow(projectId: string, artifactId: string) {
 export async function runDiscreteEvent(projectId: string, artifactId: string) {
   return apiJson<{ sim: DeriveRunResult }>(
     `/api/projects/${projectId}/artifacts/${artifactId}/simulate`,
+    "POST",
+    {},
+  )
+}
+
+/** POST /api/projects/[id]/artifacts/[aid]/fea — 201 {fea} (Slice 22). */
+export async function runFea(projectId: string, artifactId: string) {
+  return apiJson<{ fea: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/fea`,
     "POST",
     {},
   )

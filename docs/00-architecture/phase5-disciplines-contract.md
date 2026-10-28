@@ -216,3 +216,106 @@ Three new workspace components + `nav.tsx`/`project-workspace.tsx` wiring (plann
 - **W3-f** (data plane): §6 pure core (cpm.ts + tests, analysis-schemas.ts), §8 routes (incl. `POST …/schedules`), §9 recompute, `artifact-meta.ts` kind additions, workflow.ts zod/vocabulary extension to match §4 exactly.
 
 The existing dev-DB demo dataset ("Harbour View Extension") is NOT to be destroyed; acceptance scripts create and remove their own probe projects (`scripts/dev-db-cleanup.ts` pattern).
+
+## 14. Slice-22 addendum — Continuum FEA v1: plane-stress solving via scikit-fem (BSD-3)
+
+§10's "No FEA solver" exclusion closes for the PLANE-STRESS lane. The engine is
+**scikit-fem 12.0.2** (BSD-3-Clause, OSI-verified, pip-installable, numpy+scipy
+only — the clean-license path the GPL incumbents could not offer; probe record
+below). Amendments are ADDITIVE to §2/§3/§4/§5/§8/§12; nothing frozen above
+changes.
+
+### 14.1 Verified engine reality (TL probes, 2026-10-28, dev host)
+
+| Probe | Result |
+|---|---|
+| scikit-fem 12.0.2 import (venv python 3.12) | OK; deps numpy 2.1.3 + scipy 1.18.1 only |
+| Plane-stress uniform tension, roller BC (400×200×10 mm, E=200 000, ν=0.3, σ=10 MPa on the right edge; left edge ux fixed incl. midside dofs + one corner uy) | **machine-precision**: u_x(400,100) = 0.020000000000 vs σW/E = 0.02 (12-decimal match); u_y = −νσy/E exact — the uniform field is reproduced bit-for-bit by tri6 elements |
+| Poisson manufactured solution (sin πx sin πy, tri6, refined 5) | midpoint 1.0000009024 (rel 9.0e-7) → refined 6: 5.6e-8 — textbook P2 convergence |
+| Determinism | double-run solutions **array-identical** (direct sparse solve, no iteration) |
+| **REJECTED — OpenSeesPy 3.8.0.0/3.7.1.2 (the originally-probed FEA engine)** | the `elasticBeamColumn` lane is machine-precision (cantilever PL³/3EI = 16.000000000000004, end forces exact) BUT (a) the bundled LICENSE.md: "free for research, education, and internal use. Commercial redistribution … **such as … a cloud-based service that uses import openseespy, requires a license**" — this product is exactly that class; the registry's pending license review closes REJECTED (the bpy/PyMuPDF precedent discipline); (b) the `truss` element is broken in both builds on CPython 3.12 (canonical docs example → singular matrix; the element object exists but contributes zero stiffness) — recorded as upstream evidence, not ours to fix. The registry row keeps state `planned` with the rejection recorded; no adapter ships. |
+
+### 14.2 Input schema `eos-fea-model/1` (amends §3; zod in `src/core/analysis-schemas.ts`, adapter mirrors)
+
+```json
+{ "format": "eos-fea-model/1", "name": "string 1..200",
+  "thicknessMm": "number > 0",
+  "domain": { "widthMm": "number > 0", "heightMm": "number > 0" },
+  "material": { "elasticModulusMpa": "number > 0", "poissonRatio": "number 0..0.49" },
+  "supports": [ { "edge": "left|right|bottom|top", "ux": "bool", "uy": "bool" } ],
+  "loads": [ { "edge": "left|right|bottom|top", "tractionMPa": "number (uniform, outward normal)",
+                                            "shearMPa": "number (uniform, CCW tangent)" } ] }
+```
+
+1..4 supports (each must fix at least one DOF; duplicate edges refused), 1..8
+loads (duplicate edges refused). **Amended before first ship (TL escalation,
+recorded honestly): the original draft carried normal traction only — the
+probe's "cantilever" fixture exposed the gap (a normal traction on the tip
+edge is AXIAL, the plate never bends); each load now carries EITHER component
+(both optional) with at least one non-zero required.** Tangent convention:
+the CCW tangent per edge (left (0,+1) · right (0,−1) · bottom (+1,0) · top
+(−1,0)) — positive shear on the right edge points DOWN, the natural
+cantilever-tip reading. Verbatim joined error style `invalid FEA model: path:
+msg; …`. The rigid-body constraint check is DETERMINISTIC in the adapter
+(§14.4): a model whose supports do not kill all three 2D rigid modes is
+refused honestly, never solved.
+
+### 14.3 Broker op (amends §4)
+
+| op | inputs | parameters (defaults) | output kind + format | engineKey |
+|---|---|---|---|---|
+| `solve_fea` | `{artifactId}` (eos-fea-model/1 JSON dataset) | `{meshRefinement: 4}` (integer 1..7 — the uniform tri mesh refinement level) | `"analysis"` / `eos-fea/1` | `"scikit-fem"` |
+
+Audit action `fea.solved`; every BrokerOutcome field per §4's rules.
+
+### 14.4 Output document `eos-fea/1` (amends §2; byte-deterministic by construction)
+
+`{format, sourceArtifactName, analysis:"plane_stress", mesh:{elementType:"tri6", refinement, elementCount, nodeCount}, thicknessMm, elasticModulusMpa, poissonRatio, samples:[{x,y,ux,uy}] (the 4 domain corners + center, ascending x then y), maxDisplacementMagnitudeMm, stress:{sigmaXxMinMpa, sigmaXxMaxMpa, vonMisesMaxMpa} (per-element centroid statistics), generatedBy:{engineKey,engineVersion,adapterScript,adapterHash}}`
+
+### 14.5 Adapter spec (amends §5; `src/engines/adapters/fea_solve.py` + `fea.ts`)
+
+- Same stdin/argv JSON protocol as §5.2: argv[1] = stored model path; stdout
+  = the payload above or `{"error": …}` exit 1. The engine is honest about
+  under-constrained models: the rigid-mode check (the three 2D rigid
+  displacement fields evaluated against the fixed DOF set — pure math on the
+  mesh + support pattern) precedes the solve; a surviving rigid mode →
+  `the supports do not constrain the model's rigid-body motion (…naming the
+  free mode(s)…) - an unconstrained model cannot be solved, and simulated
+  results are not an option`.
+- Mesh: `MeshTri().refined(meshRefinement).scaled((widthMm, heightMm))` —
+  deterministic, no randomness anywhere in the pipeline (direct solver).
+- Element: `ElementVector(ElementTriP2())` (tri6); plane-stress Lamé
+  (λ_ps = 2μλ/(λ+2μ)); thickness multiplies BOTH stiffness and load
+  (thickness-consistent — the probe caught the 10× error class when only the
+  load carries t).
+- Supports: per-edge DOF sets (ALL dofs on the edge incl. midside — the
+  vertex-only variant leaves the edge free to breathe between nodes and
+  reads ~1% soft; the probe caught this class too).
+- Loads: uniform traction per edge: (tractionMPa·n̂ + shearMPa·t̂)·t·v on the
+  edge's facets (outward normal n̂, CCW tangent t̂; positive tractionMPa =
+  tension AWAY from the domain, positive shearMPa = the CCW tangent
+  direction).
+- Stress: per-element σ = C·B·u at the centroid, von Mises per element; the
+  document carries min/max σ_xx and max von Mises across elements.
+- Determinism: fixed everything; the harness double-run pins byte-identity.
+
+### 14.6 Acceptance (amends §12)
+
+| ID | Item |
+|---|---|
+| AC-FEA-01 | Uniform-tension harness case: machine-precision pins (sample ux/uy abs ≤ 1e-9 vs the closed form; vonMisesMax = σ), double-run byte-identical |
+| AC-FEA-02 | Cantilever-plate harness case (end SHEAR): tip sample vs the Timoshenko closed form (PL³/3EI + PL/κGA), rel tolerance pinned from the measured convergence (the gmsh-volume precedent — observed, derived, not hand-waved) |
+| AC-FEA-03 | Honest refusals: under-constrained model (rigid-mode refusal verbatim), wrong-format dataset (the §14.2 zod 422 verbatim), non-JSON/absent engine (EngineUnavailableError class) |
+| AC-FEA-04 | e2e p5 block: fixture upload → POST …/fea → 201 with pinned document fields; the two 422 gates + 401 gate; exactly one `fea.solved` audit event; the analysis artifact registers in the Simulation workspace |
+| AC-FEA-05 | Registry: scikit-fem row (BSD-3, simulation domain) reaches `tested` with the probe evidence; OpenSees row's license review closes REJECTED with the bundled-license quote; engines-requirements pins scikit-fem==12.0.2 |
+
+### 14.7 Honest exclusions (extends §10)
+
+- Plane STRAIN, 3D elasticity, von-Mises-plasticity, modal/buckling, mesh
+  adaptivity: out of scope (v1 is linear plane stress; each later lane gets
+  its own addendum).
+- Non-rectangular domains, holes, point/body loads: out of scope (the
+  rectangular plate is the v1 "drawn-room reality"; DXF-domain meshing is a
+  future lane).
+- OpenSees/Code_Aster/Elmer: rejected on license (14.1); not revisited
+  without a license change upstream.

@@ -405,6 +405,125 @@ export function parseDesScenario(input: unknown): ParseSchemaResult<DesScenarioI
 }
 
 // ---------------------------------------------------------------------------
+// §14.2 FEA model (eos-fea-model/1 — Slice 22, plane-stress solving)
+// ---------------------------------------------------------------------------
+
+const FEA_EDGES = ["left", "right", "bottom", "top"] as const
+
+
+export const feaModelSchema = z
+  .strictObject(
+    {
+      format: z.literal("eos-fea-model/1", {
+        message: 'format must be "eos-fea-model/1"',
+      }),
+      name: nameField(),
+      thicknessMm: positiveNumber("thicknessMm"),
+      domain: z.strictObject(
+        {
+          widthMm: positiveNumber("domain.widthMm"),
+          heightMm: positiveNumber("domain.heightMm"),
+        },
+        { message: "domain must be a JSON object" },
+      ),
+      material: z.strictObject(
+        {
+          elasticModulusMpa: positiveNumber("material.elasticModulusMpa"),
+          poissonRatio: finiteNumber("material.poissonRatio").refine(
+            (v) => Number.isFinite(v) && v >= 0 && v <= 0.49,
+            { message: "material.poissonRatio must be a finite number between 0 and 0.49" },
+          ),
+        },
+        { message: "material must be a JSON object" },
+      ),
+      supports: z
+        .array(
+          z.strictObject(
+            {
+              edge: z.enum(FEA_EDGES, {
+                message: 'supports.edge must be one of: left, right, bottom, top',
+              }),
+              ux: z.boolean({ message: "supports.ux must be a boolean" }),
+              uy: z.boolean({ message: "supports.uy must be a boolean" }),
+            },
+            { message: "each support must be a JSON object" },
+          ),
+        )
+        .min(1, "at least one support is required")
+        .max(4, "at most 4 supports are allowed (one per edge)"),
+      loads: z
+        .array(
+          z.strictObject(
+            {
+              edge: z.enum(FEA_EDGES, {
+                message: 'loads.edge must be one of: left, right, bottom, top',
+              }),
+              tractionMPa: finiteNumber("loads.tractionMPa").optional(),
+              shearMPa: finiteNumber("loads.shearMPa").optional(),
+            },
+            { message: "each load must be a JSON object" },
+          ),
+        )
+        .min(1, "at least one load is required")
+        .max(8, "at most 8 loads are allowed"),
+    },
+    { message: "FEA model must be a JSON object" },
+  )
+  .superRefine((model, ctx) => {
+    // Duplicate edges inside each collection + the all-free support refusal.
+    const seenSupport = new Set<string>()
+    model.supports.forEach((s, index) => {
+      if (seenSupport.has(s.edge)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["supports", index],
+          message: `support edge "${s.edge}" is declared more than once`,
+        })
+      } else {
+        seenSupport.add(s.edge)
+      }
+      if (!s.ux && !s.uy) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["supports", index],
+          message: `support on edge "${s.edge}" fixes no degree of freedom (set ux and/or uy)`,
+        })
+      }
+    })
+    const seenLoad = new Set<string>()
+    model.loads.forEach((l, index) => {
+      if (seenLoad.has(l.edge)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["loads", index],
+          message: `load edge "${l.edge}" is declared more than once`,
+        })
+      } else {
+        seenLoad.add(l.edge)
+      }
+      const traction = l.tractionMPa ?? 0
+      const shear = l.shearMPa ?? 0
+      if (traction === 0 && shear === 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["loads", index],
+          message:
+            `load on edge "${l.edge}" has no effect (set a non-zero tractionMPa and/or shearMPa)`,
+        })
+      }
+    })
+  })
+
+export type FeaModelInput = z.infer<typeof feaModelSchema>
+
+/** Parse an unknown value as an eos-fea-model/1 document. */
+export function parseFeaModel(input: unknown): ParseSchemaResult<FeaModelInput> {
+  const parsed = feaModelSchema.safeParse(input)
+  if (parsed.success) return { ok: true, value: parsed.data }
+  return { ok: false, error: joinZodIssues("invalid FEA model", parsed.error) }
+}
+
+// ---------------------------------------------------------------------------
 // Stored-content parse helpers (the derive routes read artifact bytes)
 // ---------------------------------------------------------------------------
 
@@ -439,4 +558,11 @@ export function parseDesScenarioJsonText(text: string): ParseSchemaResult<DesSce
   const raw = parseJsonText(text)
   if (!raw.ok) return { ok: false, error: `invalid DES scenario: ${raw.error}` }
   return parseDesScenario(raw.value)
+}
+
+/** Parse stored artifact text as an eos-fea-model/1 document (Slice 22). */
+export function parseFeaModelJsonText(text: string): ParseSchemaResult<FeaModelInput> {
+  const raw = parseJsonText(text)
+  if (!raw.ok) return { ok: false, error: `invalid FEA model: ${raw.error}` }
+  return parseFeaModel(raw.value)
 }

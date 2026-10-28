@@ -1,0 +1,13 @@
+{
+  "format": "eos-fea-model/1",
+  "name": "Under-constrained plate (free rigid modes)",
+  "thicknessMm": 10,
+  "domain": { "widthMm": 400, "heightMm": 200 },
+  "material": { "elasticModulusMpa": 200000, "poissonRatio": 0.3 },
+  "supports": [
+    { "edge": "bottom", "ux": true, "uy": false }
+  ],
+  "loads": [
+    { "edge": "right", "tractionMPa": 10 }
+  ]
+}

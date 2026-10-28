@@ -567,6 +567,7 @@ const OPERATION_LABELS: Record<PlannerOperation, string> = {
   fe_mesh: "Generate FE mesh",
   run_powerflow: "Run power flow",
   run_des: "Run discrete-event simulation",
+  solve_fea: "Solve plane-stress FEA",
   convert_document: "Convert document",
   analyze_schedule: "Analyze schedule",
   takeoff_sheet: "Vector-takeoff a PDF sheet",

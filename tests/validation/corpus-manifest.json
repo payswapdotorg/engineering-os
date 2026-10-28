@@ -1,1820 +1,1982 @@
 [
- {
-  "caseId": "step-bracket-solid",
-  "adapter": "step",
-  "fixture": "bracket-solid.step",
-  "expect": "success",
-  "groundTruth": [
-   {
-    "elementRef": "step:solid:0",
-    "quantityType": "volume",
-    "value": 32984.0710525538,
-    "unit": "mm³",
-    "tolerance": "analytic",
-    "derivation": "L-profile area (80·10 + 10·50 − 10·10) = 1200 mm² extruded 30 mm, minus two Ø8 through-holes: 36000 − 960π mm³"
-   },
-   {
-    "elementRef": "step:solids:all",
-    "quantityType": "area",
-    "value": 11506.902543893353,
-    "unit": "mm²",
-    "tolerance": "analytic",
-    "derivation": "2·(1200 − 2π·4²) + 2·(80+50)·30 + 2·(2π·4·30) = 10200 + 416π mm² (profile perimeter equals the 80×50 box: the L-notch removes and re-adds equal runs)"
-   },
-   {
-    "elementRef": "step:model:bbox",
-    "quantityType": "length",
-    "value": 98.99494936611666,
-    "unit": "mm",
-    "tolerance": "analytic",
-    "derivation": "bounding box 80 × 50 × 30 mm → diagonal √(80² + 50² + 30²) = √9800 mm"
-   }
-  ]
- },
- {
-  "caseId": "step-cylinder-solid",
-  "adapter": "step",
-  "fixture": "cylinder-solid.step",
-  "expect": "success",
-  "mesh": {
-   "expect": "success",
-   "upAxis": "z",
-   "tolerance": 0.0001,
-   "elementRefs": [
-    "step:solid:0"
-   ],
-   "elements": [
-    {
-     "elementRef": "step:solid:0",
-     "name": "Solid 1",
-     "vertexCount": 506,
-     "triangleCount": 500
-    }
-   ],
-   "volume": [
-    {
-     "elementRef": "step:solid:0",
-     "value": 0.0001256637061435917,
-     "unit": "m³",
-     "tolerance": "mesh",
-     "derivation": "π · 20² · 100 mm³ = 40000π mm³ = 4π×10⁻⁵ m³ (Ø40×100 mm cylinder). 'mesh' tolerance (pinned 1%): the divergence-theorem volume over the OCCT triangulation is an approximation on the CURVED lateral surface (the inscribed tessellation slightly underestimates) — the harness records the observed relative error per run"
-    }
-   ]
+  {
+    "caseId": "step-bracket-solid",
+    "adapter": "step",
+    "fixture": "bracket-solid.step",
+    "expect": "success",
+    "groundTruth": [
+      {
+        "elementRef": "step:solid:0",
+        "quantityType": "volume",
+        "value": 32984.0710525538,
+        "unit": "mm³",
+        "tolerance": "analytic",
+        "derivation": "L-profile area (80·10 + 10·50 − 10·10) = 1200 mm² extruded 30 mm, minus two Ø8 through-holes: 36000 − 960π mm³"
+      },
+      {
+        "elementRef": "step:solids:all",
+        "quantityType": "area",
+        "value": 11506.902543893353,
+        "unit": "mm²",
+        "tolerance": "analytic",
+        "derivation": "2·(1200 − 2π·4²) + 2·(80+50)·30 + 2·(2π·4·30) = 10200 + 416π mm² (profile perimeter equals the 80×50 box: the L-notch removes and re-adds equal runs)"
+      },
+      {
+        "elementRef": "step:model:bbox",
+        "quantityType": "length",
+        "value": 98.99494936611666,
+        "unit": "mm",
+        "tolerance": "analytic",
+        "derivation": "bounding box 80 × 50 × 30 mm → diagonal √(80² + 50² + 30²) = √9800 mm"
+      }
+    ]
   },
-  "groundTruth": [
-   {
-    "elementRef": "step:solid:0",
-    "quantityType": "volume",
-    "value": 125663.70614359173,
-    "unit": "mm³",
-    "tolerance": "analytic",
-    "derivation": "π · 20² · 100 = 40000π mm³ (Ø40 × 100 mm cylinder, exact OCCT BRepGProp path — no meshing)"
-   },
-   {
-    "elementRef": "step:solids:all",
-    "quantityType": "area",
-    "value": 15079.644737231007,
-    "unit": "mm²",
-    "tolerance": "analytic",
-    "derivation": "lateral 2π·20·100 = 4000π plus two caps 2·π·20² = 800π → 4800π mm² (curved surface through the EXACT OCCT integration path)"
-   },
-   {
-    "elementRef": "step:model:bbox",
-    "quantityType": "length",
-    "value": 114.89125293076057,
-    "unit": "mm",
-    "tolerance": "analytic",
-    "derivation": "bounding box 40 × 40 × 100 mm → diagonal √(40² + 40² + 100²) = √13200 mm"
-   }
-  ]
- },
- {
-  "caseId": "step-two-solids",
-  "adapter": "step",
-  "fixture": "two-solids.step",
-  "expect": "success",
-  "mesh": {
-   "expect": "success",
-   "upAxis": "z",
-   "tolerance": 0.0001,
-   "elementRefs": [
-    "step:solid:0",
-    "step:solid:1"
-   ],
-   "elements": [
-    {
-     "elementRef": "step:solid:0",
-     "name": "Solid 1",
-     "vertexCount": 24,
-     "triangleCount": 12
+  {
+    "caseId": "step-cylinder-solid",
+    "adapter": "step",
+    "fixture": "cylinder-solid.step",
+    "expect": "success",
+    "mesh": {
+      "expect": "success",
+      "upAxis": "z",
+      "tolerance": 0.0001,
+      "elementRefs": [
+        "step:solid:0"
+      ],
+      "elements": [
+        {
+          "elementRef": "step:solid:0",
+          "name": "Solid 1",
+          "vertexCount": 506,
+          "triangleCount": 500
+        }
+      ],
+      "volume": [
+        {
+          "elementRef": "step:solid:0",
+          "value": 0.0001256637061435917,
+          "unit": "m³",
+          "tolerance": "mesh",
+          "derivation": "π · 20² · 100 mm³ = 40000π mm³ = 4π×10⁻⁵ m³ (Ø40×100 mm cylinder). 'mesh' tolerance (pinned 1%): the divergence-theorem volume over the OCCT triangulation is an approximation on the CURVED lateral surface (the inscribed tessellation slightly underestimates) — the harness records the observed relative error per run"
+        }
+      ]
     },
-    {
-     "elementRef": "step:solid:1",
-     "name": "Solid 2",
-     "vertexCount": 24,
-     "triangleCount": 12
-    }
-   ],
-   "volume": [
-    {
-     "elementRef": "step:solid:0",
-     "value": 6e-06,
-     "unit": "m³",
-     "tolerance": "analytic",
-     "derivation": "box A 30 × 20 × 10 mm = 6000 mm³ = 6×10⁻⁶ m³ (PLANAR solid → divergence-theorem mesh volume is mathematically exact; only IEEE rounding remains, and the mesh elementRef set-equals the quantity ledger's per-solid refs)"
-    },
-    {
-     "elementRef": "step:solid:1",
-     "value": 9e-06,
-     "unit": "m³",
-     "tolerance": "analytic",
-     "derivation": "box B 15 × 15 × 40 mm = 9000 mm³ = 9×10⁻⁶ m³ (PLANAR solid → mesh volume exact)"
-    }
-   ]
+    "groundTruth": [
+      {
+        "elementRef": "step:solid:0",
+        "quantityType": "volume",
+        "value": 125663.70614359173,
+        "unit": "mm³",
+        "tolerance": "analytic",
+        "derivation": "π · 20² · 100 = 40000π mm³ (Ø40 × 100 mm cylinder, exact OCCT BRepGProp path — no meshing)"
+      },
+      {
+        "elementRef": "step:solids:all",
+        "quantityType": "area",
+        "value": 15079.644737231007,
+        "unit": "mm²",
+        "tolerance": "analytic",
+        "derivation": "lateral 2π·20·100 = 4000π plus two caps 2·π·20² = 800π → 4800π mm² (curved surface through the EXACT OCCT integration path)"
+      },
+      {
+        "elementRef": "step:model:bbox",
+        "quantityType": "length",
+        "value": 114.89125293076057,
+        "unit": "mm",
+        "tolerance": "analytic",
+        "derivation": "bounding box 40 × 40 × 100 mm → diagonal √(40² + 40² + 100²) = √13200 mm"
+      }
+    ]
   },
-  "groundTruth": [
-   {
-    "elementRef": "step:solid:0",
-    "quantityType": "volume",
-    "value": 6000,
-    "unit": "mm³",
-    "tolerance": "analytic",
-    "derivation": "box A 30 × 20 × 10 mm at the origin = 6000 mm³ (first solid written to the fixture file; OCCT enumerates it as solid 0 — enumeration order is pinned by the generator self-check and re-verified by the harness determinism double-run)"
-   },
-   {
-    "elementRef": "step:solid:1",
-    "quantityType": "volume",
-    "value": 9000,
-    "unit": "mm³",
-    "tolerance": "analytic",
-    "derivation": "box B 15 × 15 × 40 mm at (100, 0, 0) = 9000 mm³ (disjoint from box A, 70 mm gap)"
-   },
-   {
-    "elementRef": "step:solids:all",
-    "quantityType": "area",
-    "value": 5050,
-    "unit": "mm²",
-    "tolerance": "analytic",
-    "derivation": "S_A + S_B = 2·(30·20 + 30·10 + 20·10) + 2·(15·15 + 15·40 + 15·40) = 2200 + 2850 = 5050 mm²"
-   },
-   {
-    "elementRef": "step:model:bbox",
-    "quantityType": "length",
-    "value": 123.38962679253066,
-    "unit": "mm",
-    "tolerance": "analytic",
-    "derivation": "overall bounding box 115 × 20 × 40 mm (union of the two disjoint boxes) → diagonal √(115² + 20² + 40²) = √15225 mm"
-   }
-  ]
- },
- {
-  "caseId": "step-bracket-empty",
-  "adapter": "step",
-  "fixture": "bracket.step",
-  "expect": "error",
-  "errorContains": "no solid geometry",
-  "mesh": {
-   "expect": "error",
-   "errorContains": "no solid geometry"
-  }
- },
- {
-  "caseId": "step-nonmodel-file",
-  "adapter": "step",
-  "fixture": "site-notes.md",
-  "expect": "error",
-  "errorContains": "STEP import failed",
-  "mesh": {
-   "expect": "error",
-   "errorContains": "STEP import failed"
-  }
- },
- {
-  "caseId": "ifc-wall-quantities",
-  "adapter": "ifc",
-  "fixture": "wall-quantities.ifc",
-  "expect": "success",
-  "groundTruth": [
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "length",
-    "value": 3.0,
-    "unit": "m",
-    "tolerance": "exact",
-    "derivation": "declared BaseQuantities 'Length' — authored wall 3.0 × 0.2 × 2.0 m (closed form in make_fixture_wall.py)"
-   },
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "length",
-    "value": 0.2,
-    "unit": "m",
-    "tolerance": "exact",
-    "derivation": "declared BaseQuantities 'Width' = 0.2 m"
-   },
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "length",
-    "value": 2.0,
-    "unit": "m",
-    "tolerance": "exact",
-    "derivation": "declared BaseQuantities 'Height' = 2.0 m"
-   },
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "area",
-    "value": 12.8,
-    "unit": "m²",
-    "tolerance": "exact",
-    "derivation": "declared 'GrossSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
-   },
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "area",
-    "value": 12.8,
-    "unit": "m²",
-    "tolerance": "exact",
-    "derivation": "declared 'NetSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
-   },
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "area",
-    "value": 0.6,
-    "unit": "m²",
-    "tolerance": "exact",
-    "derivation": "declared 'GrossFootprintArea' = 3.0 · 0.2 = 0.6 m²"
-   },
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "area",
-    "value": 0.6,
-    "unit": "m²",
-    "tolerance": "exact",
-    "derivation": "declared 'NetFootprintArea' = 3.0 · 0.2 = 0.6 m²"
-   },
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "volume",
-    "value": 1.2,
-    "unit": "m³",
-    "tolerance": "exact",
-    "derivation": "declared 'GrossVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
-   },
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "volume",
-    "value": 1.2,
-    "unit": "m³",
-    "tolerance": "exact",
-    "derivation": "declared 'NetVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
-   },
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "count",
-    "value": 2,
-    "unit": "count",
-    "tolerance": "exact",
-    "derivation": "declared 'WallTieCount' = 2 (dimensionless IfcQuantityCount)"
-   }
-  ]
- },
- {
-  "caseId": "ifc-two-elements",
-  "adapter": "ifc",
-  "fixture": "two-elements.ifc",
-  "expect": "success",
-  "mesh": {
-   "expect": "success",
-   "upAxis": "z",
-   "tolerance": 0.001,
-   "elementRefs": [
-    "#3rUnE8CnPHBwLdZzIqZkf1",
-    "#3rUnE8CnPHBwLdZzIqZkf2",
-    "#3rUnE8CnPHBwLdZzIqZkf3"
-   ],
-   "elements": [
-    {
-     "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-     "name": "Wall A",
-     "vertexCount": 8,
-     "triangleCount": 12
+  {
+    "caseId": "step-two-solids",
+    "adapter": "step",
+    "fixture": "two-solids.step",
+    "expect": "success",
+    "mesh": {
+      "expect": "success",
+      "upAxis": "z",
+      "tolerance": 0.0001,
+      "elementRefs": [
+        "step:solid:0",
+        "step:solid:1"
+      ],
+      "elements": [
+        {
+          "elementRef": "step:solid:0",
+          "name": "Solid 1",
+          "vertexCount": 24,
+          "triangleCount": 12
+        },
+        {
+          "elementRef": "step:solid:1",
+          "name": "Solid 2",
+          "vertexCount": 24,
+          "triangleCount": 12
+        }
+      ],
+      "volume": [
+        {
+          "elementRef": "step:solid:0",
+          "value": 6e-06,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "box A 30 × 20 × 10 mm = 6000 mm³ = 6×10⁻⁶ m³ (PLANAR solid → divergence-theorem mesh volume is mathematically exact; only IEEE rounding remains, and the mesh elementRef set-equals the quantity ledger's per-solid refs)"
+        },
+        {
+          "elementRef": "step:solid:1",
+          "value": 9e-06,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "box B 15 × 15 × 40 mm = 9000 mm³ = 9×10⁻⁶ m³ (PLANAR solid → mesh volume exact)"
+        }
+      ]
     },
-    {
-     "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-     "name": "Wall B",
-     "vertexCount": 8,
-     "triangleCount": 12
-    },
-    {
-     "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-     "name": "Slab S",
-     "vertexCount": 8,
-     "triangleCount": 12
-    }
-   ],
-   "volume": [
-    {
-     "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-     "value": 2.8,
-     "unit": "m³",
-     "tolerance": "analytic",
-     "derivation": "Wall A 4.0 × 0.25 × 2.8 m = 2.8 m³ (PLANAR → divergence-theorem mesh volume exact; metres authored and verified)"
-    },
-    {
-     "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-     "value": 0.84,
-     "unit": "m³",
-     "tolerance": "analytic",
-     "derivation": "Wall B 2.0 × 0.15 × 2.8 m = 0.84 m³ (PLANAR → exact)"
-    },
-    {
-     "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-     "value": 3.0,
-     "unit": "m³",
-     "tolerance": "analytic",
-     "derivation": "Slab S 5.0 × 3.0 × 0.2 m = 3.0 m³ (PLANAR → exact)"
-    }
-   ]
+    "groundTruth": [
+      {
+        "elementRef": "step:solid:0",
+        "quantityType": "volume",
+        "value": 6000,
+        "unit": "mm³",
+        "tolerance": "analytic",
+        "derivation": "box A 30 × 20 × 10 mm at the origin = 6000 mm³ (first solid written to the fixture file; OCCT enumerates it as solid 0 — enumeration order is pinned by the generator self-check and re-verified by the harness determinism double-run)"
+      },
+      {
+        "elementRef": "step:solid:1",
+        "quantityType": "volume",
+        "value": 9000,
+        "unit": "mm³",
+        "tolerance": "analytic",
+        "derivation": "box B 15 × 15 × 40 mm at (100, 0, 0) = 9000 mm³ (disjoint from box A, 70 mm gap)"
+      },
+      {
+        "elementRef": "step:solids:all",
+        "quantityType": "area",
+        "value": 5050,
+        "unit": "mm²",
+        "tolerance": "analytic",
+        "derivation": "S_A + S_B = 2·(30·20 + 30·10 + 20·10) + 2·(15·15 + 15·40 + 15·40) = 2200 + 2850 = 5050 mm²"
+      },
+      {
+        "elementRef": "step:model:bbox",
+        "quantityType": "length",
+        "value": 123.38962679253066,
+        "unit": "mm",
+        "tolerance": "analytic",
+        "derivation": "overall bounding box 115 × 20 × 40 mm (union of the two disjoint boxes) → diagonal √(115² + 20² + 40²) = √15225 mm"
+      }
+    ]
   },
-  "groundTruth": [
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "length",
-    "value": 4.0,
-    "unit": "m",
-    "tolerance": "exact",
-    "derivation": "Wall A 'Length' — 4.0 × 0.25 × 2.8 m wall"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "length",
-    "value": 0.25,
-    "unit": "m",
-    "tolerance": "exact",
-    "derivation": "Wall A 'Width' = 0.25 m"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "length",
-    "value": 2.8,
-    "unit": "m",
-    "tolerance": "exact",
-    "derivation": "Wall A 'Height' = 2.8 m"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "area",
-    "value": 23.8,
-    "unit": "m²",
-    "tolerance": "exact",
-    "derivation": "Wall A 'GrossSideArea' = 2·(4.0 + 0.25)·2.8 = 23.8 m²"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "volume",
-    "value": 2.8,
-    "unit": "m³",
-    "tolerance": "exact",
-    "derivation": "Wall A 'NetVolume' = 4.0 · 0.25 · 2.8 = 2.8 m³"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-    "quantityType": "length",
-    "value": 2.0,
-    "unit": "m",
-    "tolerance": "exact",
-    "derivation": "Wall B 'Length' — 2.0 × 0.15 × 2.8 m wall"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-    "quantityType": "length",
-    "value": 0.15,
-    "unit": "m",
-    "tolerance": "exact",
-    "derivation": "Wall B 'Width' = 0.15 m"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-    "quantityType": "length",
-    "value": 2.8,
-    "unit": "m",
-    "tolerance": "exact",
-    "derivation": "Wall B 'Height' = 2.8 m"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-    "quantityType": "area",
-    "value": 12.04,
-    "unit": "m²",
-    "tolerance": "exact",
-    "derivation": "Wall B 'NetSideArea' = 2·(2.0 + 0.15)·2.8 = 12.04 m²"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-    "quantityType": "area",
-    "value": 0.3,
-    "unit": "m²",
-    "tolerance": "exact",
-    "derivation": "Wall B 'NetFootprintArea' = 2.0 · 0.15 = 0.3 m²"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-    "quantityType": "volume",
-    "value": 0.84,
-    "unit": "m³",
-    "tolerance": "exact",
-    "derivation": "Wall B 'NetVolume' = 2.0 · 0.15 · 2.8 = 0.84 m³"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-    "quantityType": "length",
-    "value": 5.0,
-    "unit": "m",
-    "tolerance": "exact",
-    "derivation": "Slab S 'Length' — 5.0 × 3.0 × 0.2 m slab"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-    "quantityType": "length",
-    "value": 3.0,
-    "unit": "m",
-    "tolerance": "exact",
-    "derivation": "Slab S 'Width' = 3.0 m"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-    "quantityType": "area",
-    "value": 15.0,
-    "unit": "m²",
-    "tolerance": "exact",
-    "derivation": "Slab S 'GrossArea' = 5.0 · 3.0 = 15.0 m²"
-   },
-   {
-    "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-    "quantityType": "volume",
-    "value": 3.0,
-    "unit": "m³",
-    "tolerance": "exact",
-    "derivation": "Slab S 'NetVolume' = 5.0 · 3.0 · 0.2 = 3.0 m³"
-   }
-  ]
- },
- {
-  "caseId": "ifc-wall-geometry-mesh",
-  "adapter": "ifc",
-  "fixture": "wall-geometry.ifc",
-  "expect": "success",
-  "mesh": {
-   "expect": "success",
-   "upAxis": "z",
-   "tolerance": 0.001,
-   "elementRefs": [
-    "#2rUnE8CnPHBwLdZzIqZkf1"
-   ],
-   "elements": [
-    {
-     "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-     "name": "Quantity Wall",
-     "vertexCount": 8,
-     "triangleCount": 12
+  {
+    "caseId": "step-bracket-empty",
+    "adapter": "step",
+    "fixture": "bracket.step",
+    "expect": "error",
+    "errorContains": "no solid geometry",
+    "mesh": {
+      "expect": "error",
+      "errorContains": "no solid geometry"
     }
-   ],
-   "volume": [
-    {
-     "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-     "value": 1.2,
-     "unit": "m³",
-     "tolerance": "analytic",
-     "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³ (PLANAR → divergence-theorem mesh volume is mathematically exact; the mesh elementRef set-equals the quantity ledger ref)"
-    }
-   ]
   },
-  "groundTruth": [
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "volume",
-    "value": 1.2,
-    "unit": "m³",
-    "tolerance": "analytic",
-    "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³. Tolerance 'analytic' (not 'mesh') is justified: the mesh path is divergence-theorem volume over planar triangles, which is mathematically EXACT for planar solids — only IEEE rounding remains (observed 1.2000000000000002, rel ≈ 2e-16)"
-   },
-   {
-    "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "area",
-    "value": 14.0,
-    "unit": "m²",
-    "tolerance": "analytic",
-    "derivation": "total box surface 2·(3·0.2) + 2·(3·2) + 2·(0.2·2) = 1.2 + 12 + 0.8 = 14.0 m². Tolerance 'analytic' justified: triangle-sum area over planar faces is exact in exact arithmetic (observed 14.000000000000002, rel ≈ 1e-16)"
-   }
-  ]
- },
- {
-  "caseId": "ifc-cylinder-geometry-mesh",
-  "adapter": "ifc",
-  "fixture": "cylinder-geometry.ifc",
-  "expect": "success",
-  "mesh": {
-   "expect": "success",
-   "upAxis": "z",
-   "tolerance": 0.001,
-   "elementRefs": [
-    "#4rUnE8CnPHBwLdZzIqZkf1"
-   ],
-   "elements": [
-    {
-     "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
-     "name": "Mesh Column",
-     "vertexCount": 90,
-     "triangleCount": 176
+  {
+    "caseId": "step-nonmodel-file",
+    "adapter": "step",
+    "fixture": "site-notes.md",
+    "expect": "error",
+    "errorContains": "STEP import failed",
+    "mesh": {
+      "expect": "error",
+      "errorContains": "STEP import failed"
     }
-   ],
-   "volume": [
-    {
-     "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
-     "value": 0.3769911184307752,
-     "unit": "m³",
-     "tolerance": "mesh",
-     "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance (pinned 1%): the default-settings triangulation (44 segments) is an APPROXIMATION on the curved surface — the harness records the observed relative error per run (same triangulation the quantity adapter's fallback reports on)"
-    }
-   ]
   },
-  "groundTruth": [
-   {
-    "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "volume",
-    "value": 0.3769911184307752,
-    "unit": "m³",
-    "tolerance": "mesh",
-    "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance: the PyPI ifcopenshell wheel has no OCCT backend (has_occ=False), so this curved surface is triangulated — an APPROXIMATION; the harness records the observed relative error to quantify that limitation honestly"
-   },
-   {
-    "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
-    "quantityType": "area",
-    "value": 4.0212385965949355,
-    "unit": "m²",
-    "tolerance": "mesh",
-    "derivation": "lateral 2π·0.2·3.0 = 1.2π plus two caps 2·π·0.2² = 0.08π → 1.28π m². 'mesh' tolerance (1% pinned): triangulated curved surface — observed relative error recorded per run"
-   }
-  ]
- },
- {
-  "caseId": "ifc-wall-stripped-empty",
-  "adapter": "ifc",
-  "fixture": "wall-stripped.ifc",
-  "expect": "success",
-  "groundTruth": [],
-  "mesh": {
-   "expect": "error",
-   "errorContains": "no meshable geometry"
-  }
- },
- {
-  "caseId": "ifc-nonmodel-file",
-  "adapter": "ifc",
-  "fixture": "site-notes.md",
-  "expect": "error",
-  "errorContains": "could not open the file",
-  "mesh": {
-   "expect": "error",
-   "errorContains": "could not open the file"
-  }
- },
- {
-  "caseId": "femesh-bracket-solid",
-  "adapter": "femesh",
-  "fixture": "bracket-solid.step",
-  "expect": "success",
-  "femesh": {
-   "expect": "success",
-   "kind": "step",
-   "note": "REAL gmsh bridge (venv + engine libs); live-observed pins 2026-10-22 (gmsh 4.15.2, defaults 2.0/4.0/1).",
-   "pins": [
-    {
-     "ref": null,
-     "field": "nodes",
-     "value": 1088,
-     "derivation": "live-observed node count at MeshSizeMin 2.0 / MeshSizeMax 4.0, gmsh 4.15.2 linear tets — pinned after the TL smoke run"
-    },
-    {
-     "ref": null,
-     "field": "elements",
-     "value": 3482,
-     "derivation": "live-observed tet4 count under the same pinned options"
-    },
-    {
-     "ref": null,
-     "field": "solidRefOrderOk",
-     "value": true,
-     "derivation": "solids[i].ref === step:solid:i for every index (the pinned ascending order)"
-    },
-    {
-     "ref": null,
-     "field": "tetSumOk",
-     "value": true,
-     "derivation": "sum of per-solid tetCounts === elements.count (payload self-consistency)"
-    },
-    {
-     "ref": null,
-     "field": "qualityRangeOk",
-     "value": true,
-     "derivation": "gmsh element qualities in (0,1] with min <= mean (observed min 0.2997 / mean 0.7848 live)"
-    },
-    {
-     "ref": "step:solid:0",
-     "field": "tetCount",
-     "value": 3482,
-     "derivation": "single-solid fixture: the whole tet count"
-    },
-    {
-     "ref": "step:solid:0",
-     "field": "meshVolume",
-     "value": 32984.071,
-     "unit": "mm3",
-     "relTolerance": 0.02,
-     "derivation": "closed form 36000 - 960*pi mm3 (40x30x30 block minus two r=4 h=30 through-holes; pi=3.14159265358979 -> 32984.07105). Linear tets under-trap the curved holes so the mesh volume runs HIGH: live-observed 33286.264 = +0.92%, the expected O(h^2) bias at these sizes; pinned at the contract's 2%"
-    }
-   ]
-  }
- },
- {
-  "caseId": "femesh-two-solids",
-  "adapter": "femesh",
-  "fixture": "two-solids.step",
-  "expect": "success",
-  "femesh": {
-   "expect": "success",
-   "kind": "step",
-   "note": "PLANAR solids -> the divergence-theorem sum of signed linear-tet volumes is the exact box volume up to IEEE rounding (interior faces cancel): the analytic tolerance is a mathematical pin, not an aspiration.",
-   "pins": [
-    {
-     "ref": null,
-     "field": "nodes",
-     "value": 479,
-     "derivation": "live-observed node count, gmsh 4.15.2 defaults"
-    },
-    {
-     "ref": null,
-     "field": "elements",
-     "value": 1378,
-     "derivation": "live-observed tet4 count"
-    },
-    {
-     "ref": "step:solid:0",
-     "field": "tetCount",
-     "value": 599,
-     "derivation": "live-observed per-solid split (599 + 779 = 1378)"
-    },
-    {
-     "ref": "step:solid:1",
-     "field": "tetCount",
-     "value": 779,
-     "derivation": "live-observed per-solid split"
-    },
-    {
-     "ref": "step:solid:0",
-     "field": "meshVolume",
-     "value": 6000,
-     "unit": "mm3",
-     "relTolerance": 1e-12,
-     "derivation": "closed form 30x20x10 mm = 6000 mm3 (make_fixture_step_solids.py); planar -> EXACT by divergence theorem"
-    },
-    {
-     "ref": "step:solid:1",
-     "field": "meshVolume",
-     "value": 9000,
-     "unit": "mm3",
-     "relTolerance": 1e-12,
-     "derivation": "closed form 15x15x40 mm = 9000 mm3; planar -> EXACT by divergence theorem"
-    }
-   ]
-  }
- },
- {
-  "caseId": "femesh-geometry-free",
-  "adapter": "femesh",
-  "fixture": "bracket.step",
-  "expect": "error",
-  "femesh": {
-   "expect": "error",
-   "kind": "step",
-   "errorContains": "no solid geometry found in STEP file",
-   "note": "valid STEP, zero solids after OCC import -> the pinned verbatim refusal, never an empty mesh"
-  }
- },
- {
-  "caseId": "femesh-ifc-refused",
-  "adapter": "femesh",
-  "fixture": "wall-quantities.ifc",
-  "expect": "error",
-  "femesh": {
-   "expect": "error",
-   "kind": "ifc",
-   "errorContains": "gmsh cannot import IFC geometry",
-   "note": "observed live on gmsh 4.15.2: .ifc falls through to the .geo parser and dies with a misleading error — the adapter refuses by name instead (honest absence)"
-  }
- },
- {
-  "caseId": "powerflow-2bus-closed-form",
-  "adapter": "powerflow",
-  "fixture": "powerflow-2bus.json",
-  "expect": "success",
-  "powerflow": {
-   "expect": "success",
-   "note": "2-bus LOSSLESS feeder: the Newton-Raphson solution has a closed form via the high-voltage branch of the quadratic V2^4 - V2^2 + (p*x)^2 = 0 (lossless line, Q=0 => cos(delta) = V2/V1).",
-   "pins": [
-    {
-     "ref": null,
-     "field": "converged",
-     "value": true,
-     "derivation": "lossless radial 2-bus with a light load: NR from a flat start converges to the high branch"
-    },
-    {
-     "ref": null,
-     "field": "busCount",
-     "value": 2,
-     "derivation": "fixture declares 2 buses"
-    },
-    {
-     "ref": null,
-     "field": "lineCount",
-     "value": 1,
-     "derivation": "fixture declares 1 line"
-    },
-    {
-     "ref": null,
-     "field": "lossMw",
-     "value": 0,
-     "absTolerance": 1e-09,
-     "derivation": "r = 0 ohm/km -> I^2*R losses are identically zero; pandapower's residual rounding pinned at 1e-9"
-    },
-    {
-     "ref": null,
-     "field": "loadMw",
-     "value": 2,
-     "absTolerance": 1e-09,
-     "derivation": "the single declared load (2 MW)"
-    },
-    {
-     "ref": "bus-1",
-     "field": "vmPu",
-     "value": 1.0,
-     "absTolerance": 1e-12,
-     "derivation": "slack bus holds the external-grid setpoint exactly"
-    },
-    {
-     "ref": "bus-2",
-     "field": "vmPu",
-     "value": 0.9999875,
-     "relTolerance": 1e-06,
-     "derivation": "V2 = sqrt((1 + sqrt(1 - 4*(p*x)^2)) / 2) with p = P/baseMva = 2/100 = 0.02 pu and x = Xohm/baseZ = (0.1 ohm/km * 10 km) / ((20 kV)^2 / 100 MVA) = 1 / 4 = 0.25 pu -> p*x = 5e-3 -> 4*(px)^2 = 1e-4 -> V2^2 = (1 + 0.99995)/2 = 0.999975 -> V2 = 0.9999875 (the high branch NR converges to). [An earlier draft of this derivation wrote 1/4 as 0.025 — the harness caught the 10x slip against the real engine, which is exactly its job.]"
-    },
-    {
-     "ref": "bus-2",
-     "field": "angleDeg",
-     "value": -0.28647895,
-     "absTolerance": 0.0001,
-     "derivation": "sin(delta) = p*x/V2 = 5.00000625e-3 rad = 0.28647895 degrees across the line (lossless: P = V1*V2*sin(delta)/X); bus-2 LAGS the slack reference so pandapower reports the negative angle; absTolerance 1e-4 deg absorbs NR's convergence residual (observed -0.28648367, residual 4.7e-6 deg — the solver's own tolerance, not a formula error)"
-    },
-    {
-     "ref": "bus-1>bus-2",
-     "field": "iKa",
-     "value": 0.057735749,
-     "relTolerance": 1e-05,
-     "derivation": "I = P / (sqrt(3) * V2_LL * ...) with the SOLVED V2: 2 MW / (1.7320508 * 20 kV * 0.9999875) = 0.05773575 kA (the current reflects the actual end-of-line voltage, not the nominal)"
-    },
-    {
-     "ref": "bus-1>bus-2",
-     "field": "pLossMw",
-     "value": 0,
-     "absTolerance": 1e-09,
-     "derivation": "r = 0 -> zero active loss on the line"
-    }
-   ]
-  }
- },
- {
-  "caseId": "powerflow-islanded",
-  "adapter": "powerflow",
-  "fixture": "powerflow-islanded.json",
-  "expect": "error",
-  "powerflow": {
-   "expect": "error",
-   "errorContains": "islanded network - buses with no path to the external grid",
-   "note": "observed live: pandapower 3.5.6 CONVERGES and reports NaN vm_pu for bus-3 (no line path) — NaN is not a result; the adapter refuses naming the island"
-  }
- },
- {
-  "caseId": "des-flowshop-makespan",
-  "adapter": "des",
-  "fixture": "des-flowshop.json",
-  "expect": "success",
-  "des": {
-   "expect": "success",
-   "note": "deterministic FIFO flow shop, hand-traced event by event.",
-   "pins": [
-    {
-     "ref": null,
-     "field": "policy",
-     "value": "fifo",
-     "derivation": "the only policy shipped (contract §3.3)"
-    },
-    {
-     "ref": null,
-     "field": "jobCount",
-     "value": 3,
-     "derivation": "fixture declares 3 jobs"
-    },
-    {
-     "ref": null,
-     "field": "resourceCount",
-     "value": 2,
-     "derivation": "fixture declares 2 machines"
-    },
-    {
-     "ref": null,
-     "field": "makespan",
-     "value": 13,
-     "derivation": "hand trace: m1 serves j1[0,2] j2[2,5] j3[5,6] (busy 6); m2 serves j1[2,6] then j2[6,8] (j2 arrives at 5, waits), then j3[8,13] -> last completion 13"
-    },
-    {
-     "ref": null,
-     "field": "utilizationInvariantOk",
-     "value": true,
-     "derivation": "utilization === busy/makespan for every resource (payload self-consistency)"
-    },
-    {
-     "ref": "m1",
-     "field": "busy",
-     "value": 6,
-     "derivation": "sum of m1 task durations 2+3+1"
-    },
-    {
-     "ref": "m2",
-     "field": "busy",
-     "value": 11,
-     "derivation": "sum of m2 task durations 4+2+5"
-    },
-    {
-     "ref": "m1",
-     "field": "utilization",
-     "value": 0.46153846153846156,
-     "absTolerance": 1e-12,
-     "derivation": "6/13 (busy/makespan)"
-    },
-    {
-     "ref": "m2",
-     "field": "utilization",
-     "value": 0.8461538461538461,
-     "absTolerance": 1e-12,
-     "derivation": "11/13"
-    },
-    {
-     "ref": "j1",
-     "field": "endAt",
-     "value": 6,
-     "derivation": "j1: m1 [0,2] then m2 [2,6]"
-    },
-    {
-     "ref": "j3",
-     "field": "endAt",
-     "value": 13,
-     "derivation": "j3: m1 [5,6] then m2 [8,13] (waits for m2 to clear j2 at 8)"
-    }
-   ]
-  }
- },
- {
-  "caseId": "des-invalid-resource",
-  "adapter": "des",
-  "fixture": "des-invalid-resource.json",
-  "expect": "error",
-  "des": {
-   "expect": "error",
-   "errorContains": "references unknown resource",
-   "note": "defense-in-depth: the route zod refuses first; the adapter still defends itself (never crashes on alien input)"
-  }
- },
- {
-  "caseId": "cpm-platform-rollout",
-  "adapter": "cpm",
-  "fixture": "schedule-cpm.json",
-  "expect": "success",
-  "cpm": {
-   "expect": "success",
-   "note": "PLATFORM CORE (no engine): the exact analyze_schedule pure pipeline (analyzeCpm + buildCpmAnalysisDocument); engineKey/adapterScript are ABSENT from the document — recorded honestly.",
-   "pins": [
-    {
-     "ref": null,
-     "field": "activityCount",
-     "value": 6,
-     "derivation": "fixture declares 6 activities"
-    },
-    {
-     "ref": null,
-     "field": "durationDays",
-     "value": 11,
-     "derivation": "longest path b(2)+d(5)+f(1)+e(3) = 11 days"
-    },
-    {
-     "ref": null,
-     "field": "criticalPathCount",
-     "value": 4,
-     "derivation": "critical activities: b, d, f, e"
-    },
-    {
-     "ref": null,
-     "field": "criticalPath",
-     "value": [
-      "b",
-      "d",
-      "f",
-      "e"
-     ],
-     "derivation": "the single zero-float chain b->d->f->e (a and c each carry 1 day float)"
-    },
-    {
-     "ref": null,
-     "field": "formatOk",
-     "value": true,
-     "derivation": "document starts with the pinned eos-cpm/1 prefix (byte-deterministic pure assembly)"
-    },
-    {
-     "ref": null,
-     "field": "engineKeyAbsent",
-     "value": true,
-     "derivation": "NO engineKey/adapterScript in the document — platform core honesty (contract §4)"
-    },
-    {
-     "ref": "a",
-     "field": "es",
-     "value": 0,
-     "derivation": "no predecessors -> starts day 0"
-    },
-    {
-     "ref": "a",
-     "field": "ef",
-     "value": 3,
-     "derivation": "0 + duration 3"
-    },
-    {
-     "ref": "a",
-     "field": "totalFloat",
-     "value": 1,
-     "derivation": "ls 4 - es 3... hand: a feeds c(e->8 chain: c.ls = e.ls - dur = 8-3? c: ls = min(successor e.ls) - 4 = 8-4 = 4 -> float = 4-3 = 1"
-    },
-    {
-     "ref": "a",
-     "field": "critical",
-     "value": false,
-     "derivation": "float 1 > 0"
-    },
-    {
-     "ref": "b",
-     "field": "es",
-     "value": 0,
-     "derivation": "no predecessors"
-    },
-    {
-     "ref": "b",
-     "field": "ef",
-     "value": 2,
-     "derivation": "0 + 2"
-    },
-    {
-     "ref": "b",
-     "field": "totalFloat",
-     "value": 0,
-     "derivation": "b->d->f->e is the critical chain -> b.ls = 0 = es"
-    },
-    {
-     "ref": "b",
-     "field": "critical",
-     "value": true,
-     "derivation": "zero float"
-    },
-    {
-     "ref": "c",
-     "field": "es",
-     "value": 3,
-     "derivation": "after a (ef 3)"
-    },
-    {
-     "ref": "c",
-     "field": "ef",
-     "value": 7,
-     "derivation": "3 + 4"
-    },
-    {
-     "ref": "c",
-     "field": "totalFloat",
-     "value": 1,
-     "derivation": "c.ls = e.ls(8) - 4 = 4 -> float 1"
-    },
-    {
-     "ref": "d",
-     "field": "es",
-     "value": 2,
-     "derivation": "after b (ef 2)"
-    },
-    {
-     "ref": "d",
-     "field": "ef",
-     "value": 7,
-     "derivation": "2 + 5"
-    },
-    {
-     "ref": "d",
-     "field": "ls",
-     "value": 2,
-     "derivation": "f.ls(7) - 5 = 2"
-    },
-    {
-     "ref": "d",
-     "field": "critical",
-     "value": true,
-     "derivation": "zero float"
-    },
-    {
-     "ref": "f",
-     "field": "es",
-     "value": 7,
-     "derivation": "after d (ef 7)"
-    },
-    {
-     "ref": "f",
-     "field": "ef",
-     "value": 8,
-     "derivation": "7 + 1"
-    },
-    {
-     "ref": "f",
-     "field": "critical",
-     "value": true,
-     "derivation": "zero float"
-    },
-    {
-     "ref": "e",
-     "field": "es",
-     "value": 8,
-     "derivation": "after max(c ef 7, f ef 8)"
-    },
-    {
-     "ref": "e",
-     "field": "ef",
-     "value": 11,
-     "derivation": "8 + 3 = project duration"
-    },
-    {
-     "ref": "e",
-     "field": "lf",
-     "value": 11,
-     "derivation": "terminal activity on the critical chain"
-    },
-    {
-     "ref": "e",
-     "field": "critical",
-     "value": true,
-     "derivation": "zero float"
-    }
-   ]
-  }
- },
- {
-  "caseId": "lo-cover-sheet-convert",
-  "adapter": "libreoffice",
-  "fixture": "cover-sheet.fodt",
-  "expect": "success",
-  "libreoffice": {
-   "expect": "success",
-   "note": "REAL headless soffice run, ONCE (byte-determinism NOT claimed — PDFs embed creation timestamps, contract §5.4). Structural pins only.",
-   "pins": [
-    {
-     "ref": null,
-     "field": "pdfMagic",
-     "value": "%PDF-",
-     "derivation": "a PDF must start with the %PDF- magic (the bridge also refuses non-PDF output)"
-    },
-    {
-     "ref": null,
-     "field": "sizeBytes",
-     "value": 1000,
-     "minBound": true,
-     "derivation": "the converted Writer document is a multi-digit-KB PDF (live-observed 26201 bytes) — a lower bound only, never an equality claim (timestamps affect exact bytes)"
-    },
-    {
-     "ref": null,
-     "field": "engineKey",
-     "value": "libreoffice",
-     "derivation": "the registry key of the converting engine"
-    },
-    {
-     "ref": null,
-     "field": "adapterScript",
-     "value": "convert-document.ts",
-     "derivation": "the TS-native bridge name (no python in the LO path)"
-    }
-   ]
-  }
- },
- {
-  "caseId": "sheet-vector-plan",
-  "adapter": "sheet",
-  "fixture": "sheet-a102-plan.pdf",
-  "expect": "success",
-  "groundTruth": "Slice-15 vector lane: pdfplumber over the pinned A-102 sheet (Slice-8/13/20 fixture, sha ed19c9c5… — Slice 20 added the page-3 two-size panel schedule; pages 1-2 streams byte-identical). Analytic truths from the builder constants: 1:100 A3 -> 1 pt = 25.4/72 x 100 = 35.277777… mm. Page 1: bar 283.464567 pt = 10 000 mm; wall 85.039370 pt = 3 000 mm; 3 ticks 12 pt = 423.333 mm each (lines total 14 270.000 mm); border rect 1143x794 pt + room rect 226.7717x141.7323 pt -> perimeters 3874 + 737.008 pt = 162 666.1156 mm, areas 907 542 + 32 139.36 pt2 = 1 169 455 639.25 mm2. Page 2: six 10 pt stroked + six 4 pt filled squares = 12 rects, 696 pt2 = 866 187.037 mm2. Page 3 (Slice 20, the two-size panel schedule): border + 6x2 small + 4x2 large squares = 21 rects, 909 282 pt2 = 1 131 621 093.98 mm2. Drawn coords carry the fixture's own 4-dp fmt rounding (rel ~1e-7), so pins use rel 1e-6.",
-  "sheet": {
-   "expect": "success",
-   "note": "both pages of the pinned sheet measured at the analytic 1:100 scale; the mm-per-pt value is the BUILDER truth (the click-calibration journey's 35.40 mm/pt carries the recorded 0.35% browser bias — limitation #16 — while vector extraction reads the drawn operators exactly)",
-   "runs": [
-    {
-     "parameters": {
-      "pageNo": 1,
-      "scaleMmPerPt": 35.27777777777778,
-      "flattenSegments": 32
-     },
-     "pins": [
+  {
+    "caseId": "ifc-wall-quantities",
+    "adapter": "ifc",
+    "fixture": "wall-quantities.ifc",
+    "expect": "success",
+    "groundTruth": [
       {
-       "ref": null,
-       "field": "pageCount",
-       "value": 3,
-       "derivation": "fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 3.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "declared BaseQuantities 'Length' — authored wall 3.0 × 0.2 × 2.0 m (closed form in make_fixture_wall.py)"
       },
       {
-       "ref": null,
-       "field": "pageNo",
-       "value": 1,
-       "derivation": "the requested page, echoed by the adapter"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 0.2,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "declared BaseQuantities 'Width' = 0.2 m"
       },
       {
-       "ref": null,
-       "field": "linesCount",
-       "value": 5,
-       "derivation": "page 1 drawn ops: bar + 2 end ticks + mid tick + wall = 5 lines (builder pin list)"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 2.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "declared BaseQuantities 'Height' = 2.0 m"
       },
       {
-       "ref": null,
-       "field": "rectsCount",
-       "value": 2,
-       "derivation": "page 1 drawn ops: sheet border + room outline = 2 rects (builder pin list)"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 12.8,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "declared 'GrossSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
       },
       {
-       "ref": null,
-       "field": "curvesCount",
-       "value": 0,
-       "derivation": "page 1 has no curve ops (builder pin list)"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 12.8,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "declared 'NetSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
       },
       {
-       "ref": null,
-       "field": "linesTotalLengthMm",
-       "value": 14270.0,
-       "relTolerance": 1e-06,
-       "unit": "mm",
-       "derivation": "(283.464567 + 85.039370 + 3 x 12) pt x 35.277777… mm/pt = 14 270.000 mm"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 0.6,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "declared 'GrossFootprintArea' = 3.0 · 0.2 = 0.6 m²"
       },
       {
-       "ref": null,
-       "field": "rectsTotalPerimeterMm",
-       "value": 162666.1156,
-       "relTolerance": 1e-06,
-       "unit": "mm",
-       "derivation": "(2x(1143+794) + 2x(226.7717+141.7323)) pt x 35.277777… = 162 666.1156 mm"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 0.6,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "declared 'NetFootprintArea' = 3.0 · 0.2 = 0.6 m²"
       },
       {
-       "ref": null,
-       "field": "rectsTotalAreaMm2",
-       "value": 1169455639.25,
-       "relTolerance": 1e-06,
-       "unit": "mm2",
-       "derivation": "(1143x794 + 226.7717x141.7323) pt2 x (35.277777…)2 = 1 169 455 639.25 mm2"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "volume",
+        "value": 1.2,
+        "unit": "m³",
+        "tolerance": "exact",
+        "derivation": "declared 'GrossVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
       },
       {
-       "ref": "eos demo sheet a-102",
-       "field": "textContains",
-       "value": true,
-       "derivation": "the sheet title text operator is drawn on page 1 (builder pin list)"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "volume",
+        "value": 1.2,
+        "unit": "m³",
+        "tolerance": "exact",
+        "derivation": "declared 'NetVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
       },
       {
-       "ref": "line@60,120",
-       "field": "itemLengthMm",
-       "value": 10000.0,
-       "relTolerance": 1e-06,
-       "unit": "mm",
-       "derivation": "bar span 343.4646 - 60 = 283.464567 pt = 10 000.000 mm @ 1:100"
-      },
-      {
-       "ref": "line@613.3858,400",
-       "field": "itemLengthMm",
-       "value": 3000.0,
-       "relTolerance": 1e-06,
-       "unit": "mm",
-       "derivation": "wall span 485.0394 - 400 = 85.039370 pt = 3 000.000 mm @ 1:100"
-      },
-      {
-       "ref": "rect@500,400",
-       "field": "itemPerimeterMm",
-       "value": 26000.0,
-       "relTolerance": 1e-06,
-       "unit": "mm",
-       "derivation": "2 x (226.7717 + 141.7323) pt = 737.008 pt = 26 000.000 mm @ 1:100"
-      },
-      {
-       "ref": "rect@500,400",
-       "field": "itemAreaMm2",
-       "value": 40000000.0,
-       "relTolerance": 1e-06,
-       "unit": "mm2",
-       "derivation": "226.7717 x 141.7323 pt2 = 32 139.36 pt2 = 40 000 000 mm2 @ 1:100"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "count",
+        "value": 2,
+        "unit": "count",
+        "tolerance": "exact",
+        "derivation": "declared 'WallTieCount' = 2 (dimensionless IfcQuantityCount)"
       }
-     ]
+    ]
+  },
+  {
+    "caseId": "ifc-two-elements",
+    "adapter": "ifc",
+    "fixture": "two-elements.ifc",
+    "expect": "success",
+    "mesh": {
+      "expect": "success",
+      "upAxis": "z",
+      "tolerance": 0.001,
+      "elementRefs": [
+        "#3rUnE8CnPHBwLdZzIqZkf1",
+        "#3rUnE8CnPHBwLdZzIqZkf2",
+        "#3rUnE8CnPHBwLdZzIqZkf3"
+      ],
+      "elements": [
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+          "name": "Wall A",
+          "vertexCount": 8,
+          "triangleCount": 12
+        },
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+          "name": "Wall B",
+          "vertexCount": 8,
+          "triangleCount": 12
+        },
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+          "name": "Slab S",
+          "vertexCount": 8,
+          "triangleCount": 12
+        }
+      ],
+      "volume": [
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+          "value": 2.8,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "Wall A 4.0 × 0.25 × 2.8 m = 2.8 m³ (PLANAR → divergence-theorem mesh volume exact; metres authored and verified)"
+        },
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+          "value": 0.84,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "Wall B 2.0 × 0.15 × 2.8 m = 0.84 m³ (PLANAR → exact)"
+        },
+        {
+          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+          "value": 3.0,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "Slab S 5.0 × 3.0 × 0.2 m = 3.0 m³ (PLANAR → exact)"
+        }
+      ]
     },
-    {
-     "parameters": {
-      "pageNo": 2,
-      "scaleMmPerPt": 35.27777777777778,
-      "flattenSegments": 32
-     },
-     "pins": [
+    "groundTruth": [
       {
-       "ref": null,
-       "field": "pageNo",
-       "value": 2,
-       "derivation": "the requested page, echoed by the adapter"
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 4.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall A 'Length' — 4.0 × 0.25 × 2.8 m wall"
       },
       {
-       "ref": null,
-       "field": "linesCount",
-       "value": 4,
-       "derivation": "page 2 is the self-contained calibration page: scale bar + 2 end ticks + mid tick = 4 lines (builder: page 2 carries scaleBarOps, NO wall)"
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 0.25,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall A 'Width' = 0.25 m"
       },
       {
-       "ref": null,
-       "field": "rectsCount",
-       "value": 13,
-       "derivation": "page 2: sheet border (borderOps) + 6 outer + 6 inner symbol squares = 13 rects (builder: buildSymbolPageContentStream)"
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "length",
+        "value": 2.8,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall A 'Height' = 2.8 m"
       },
       {
-       "ref": null,
-       "field": "rectsTotalAreaMm2",
-       "value": 1130321813.4259,
-       "relTolerance": 1e-06,
-       "unit": "mm2",
-       "derivation": "(1143x794 border + 6x10x10 + 6x4x4 symbols) pt2 = 908 238 pt2 x (35.277777…)2 = 1 130 321 8xx mm2"
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 23.8,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "Wall A 'GrossSideArea' = 2·(4.0 + 0.25)·2.8 = 23.8 m²"
       },
       {
-       "ref": null,
-       "field": "fixtureSha256",
-       "value": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
-       "derivation": "see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)"
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "volume",
+        "value": 2.8,
+        "unit": "m³",
+        "tolerance": "exact",
+        "derivation": "Wall A 'NetVolume' = 4.0 · 0.25 · 2.8 = 2.8 m³"
       },
       {
-       "ref": null,
-       "field": "linesTotalLengthMm",
-       "value": 11270.0,
-       "relTolerance": 1e-06,
-       "unit": "mm",
-       "derivation": "page-2 scale bar 283.464567 pt + 3 x 12 pt ticks = 319.464567 pt = 11 270.1 mm (same bar geometry as page 1, no wall)"
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "length",
+        "value": 2.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall B 'Length' — 2.0 × 0.15 × 2.8 m wall"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "length",
+        "value": 0.15,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall B 'Width' = 0.15 m"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "length",
+        "value": 2.8,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Wall B 'Height' = 2.8 m"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "area",
+        "value": 12.04,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "Wall B 'NetSideArea' = 2·(2.0 + 0.15)·2.8 = 12.04 m²"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "area",
+        "value": 0.3,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "Wall B 'NetFootprintArea' = 2.0 · 0.15 = 0.3 m²"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
+        "quantityType": "volume",
+        "value": 0.84,
+        "unit": "m³",
+        "tolerance": "exact",
+        "derivation": "Wall B 'NetVolume' = 2.0 · 0.15 · 2.8 = 0.84 m³"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+        "quantityType": "length",
+        "value": 5.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Slab S 'Length' — 5.0 × 3.0 × 0.2 m slab"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+        "quantityType": "length",
+        "value": 3.0,
+        "unit": "m",
+        "tolerance": "exact",
+        "derivation": "Slab S 'Width' = 3.0 m"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+        "quantityType": "area",
+        "value": 15.0,
+        "unit": "m²",
+        "tolerance": "exact",
+        "derivation": "Slab S 'GrossArea' = 5.0 · 3.0 = 15.0 m²"
+      },
+      {
+        "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
+        "quantityType": "volume",
+        "value": 3.0,
+        "unit": "m³",
+        "tolerance": "exact",
+        "derivation": "Slab S 'NetVolume' = 5.0 · 3.0 · 0.2 = 3.0 m³"
       }
-     ]
+    ]
+  },
+  {
+    "caseId": "ifc-wall-geometry-mesh",
+    "adapter": "ifc",
+    "fixture": "wall-geometry.ifc",
+    "expect": "success",
+    "mesh": {
+      "expect": "success",
+      "upAxis": "z",
+      "tolerance": 0.001,
+      "elementRefs": [
+        "#2rUnE8CnPHBwLdZzIqZkf1"
+      ],
+      "elements": [
+        {
+          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+          "name": "Quantity Wall",
+          "vertexCount": 8,
+          "triangleCount": 12
+        }
+      ],
+      "volume": [
+        {
+          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+          "value": 1.2,
+          "unit": "m³",
+          "tolerance": "analytic",
+          "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³ (PLANAR → divergence-theorem mesh volume is mathematically exact; the mesh elementRef set-equals the quantity ledger ref)"
+        }
+      ]
     },
-    {
-     "parameters": {
-      "pageNo": 3,
-      "scaleMmPerPt": 35.27777777777778,
-      "flattenSegments": 32
-     },
-     "pins": [
+    "groundTruth": [
       {
-       "ref": null,
-       "field": "pageNo",
-       "value": 3,
-       "derivation": "the requested page, echoed by the adapter"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "volume",
+        "value": 1.2,
+        "unit": "m³",
+        "tolerance": "analytic",
+        "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³. Tolerance 'analytic' (not 'mesh') is justified: the mesh path is divergence-theorem volume over planar triangles, which is mathematically EXACT for planar solids — only IEEE rounding remains (observed 1.2000000000000002, rel ≈ 2e-16)"
       },
       {
-       "ref": null,
-       "field": "pageCount",
-       "value": 3,
-       "derivation": "fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)"
-      },
-      {
-       "ref": null,
-       "field": "linesCount",
-       "value": 4,
-       "derivation": "page 3 is self-contained like page 2: scale bar + 2 end ticks + mid tick = 4 lines (builder: buildPanelScheduleContentStream)"
-      },
-      {
-       "ref": null,
-       "field": "rectsCount",
-       "value": 21,
-       "derivation": "page 3: border + 6 outer 10 pt + 6 inner 4 pt small sockets + 4 outer 15 pt + 4 inner 6 pt large sockets = 21 rects (the Slice-20 two-size field)"
-      },
-      {
-       "ref": null,
-       "field": "rectsTotalAreaMm2",
-       "value": 1131621093.9815,
-       "relTolerance": 1e-06,
-       "unit": "mm2",
-       "derivation": "(1143x794 border + 6x(100+16) small + 4x(225+36) large) pt2 = 909 282 pt2 x (35.277777…)2 = 1 131 621 093.98 mm2"
-      },
-      {
-       "ref": null,
-       "field": "fixtureSha256",
-       "value": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
-       "derivation": "see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)"
-      },
-      {
-       "ref": null,
-       "field": "linesTotalLengthMm",
-       "value": 11270.0,
-       "relTolerance": 1e-06,
-       "unit": "mm",
-       "derivation": "page-3 scale bar 283.464567 pt + 3 x 12 pt ticks = 319.464567 pt = 11 270.000 mm (same furniture as page 2)"
+        "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 14.0,
+        "unit": "m²",
+        "tolerance": "analytic",
+        "derivation": "total box surface 2·(3·0.2) + 2·(3·2) + 2·(0.2·2) = 1.2 + 12 + 0.8 = 14.0 m². Tolerance 'analytic' justified: triangle-sum area over planar faces is exact in exact arithmetic (observed 14.000000000000002, rel ≈ 1e-16)"
       }
-     ]
-    }
-   ]
-  }
- },
- {
-  "caseId": "sheet-vector-curve",
-  "adapter": "sheet",
-  "fixture": "sheet-curve-arc.pdf",
-  "expect": "success",
-  "groundTruth": "Slice-15 vector lane: ONE kappa-approximated quarter-arc bezier (r=100 pt, analytic length 100 x pi/2 = 157.0796327 pt) + ONE 50x30 pt rect. Flatten at N=32 converges at rel 4.0e-5 (16-R1 research); scale 1.0 so mm == pt and the rect is exact: perimeter 160, area 1500.",
-  "sheet": {
-   "expect": "success",
-   "note": "curve length pinned against the ANALYTIC quarter-arc at rel 1e-3 (the pinned N=32 flattening reads rel ~4e-5 low — honest flattening error, recorded; rect pins are exact)",
-   "runs": [
-    {
-     "parameters": {
-      "pageNo": 1,
-      "scaleMmPerPt": 1.0,
-      "flattenSegments": 32
-     },
-     "pins": [
-      {
-       "ref": null,
-       "field": "curvesCount",
-       "value": 1,
-       "derivation": "page 1 has no curve ops (builder pin list)"
-      },
-      {
-       "ref": null,
-       "field": "curvesTotalLengthMm",
-       "value": 157.0796327,
-       "relTolerance": 0.001,
-       "unit": "mm",
-       "derivation": "analytic quarter-arc r x pi/2 = 100 x pi/2 = 157.0796327 pt; N=32 flattening rel ~4e-5 (16-R1)"
-      },
-      {
-       "ref": null,
-       "field": "rectsCount",
-       "value": 1,
-       "derivation": "page 1 drawn ops: sheet border + room outline = 2 rects (builder pin list)"
-      },
-      {
-       "ref": null,
-       "field": "rectsTotalPerimeterMm",
-       "value": 160.0,
-       "relTolerance": 1e-09,
-       "unit": "mm",
-       "derivation": "(2x(1143+794) + 2x(226.7717+141.7323)) pt x 35.277777… = 162 666.1156 mm"
-      },
-      {
-       "ref": null,
-       "field": "rectsTotalAreaMm2",
-       "value": 1500.0,
-       "relTolerance": 1e-09,
-       "unit": "mm2",
-       "derivation": "(1143x794 + 226.7717x141.7323) pt2 x (35.277777…)2 = 1 169 455 639.25 mm2"
-      },
-      {
-       "ref": null,
-       "field": "fixtureSha256",
-       "value": "e690f692d1484c2a558d99d0e8181868dd828ba0ad191614662f1bc932d20557",
-       "derivation": "see case groundTruth"
-      }
-     ]
-    }
-   ]
-  }
- },
- {
-  "caseId": "sheet-vector-refusal",
-  "adapter": "sheet",
-  "fixture": "sheet-scan-like.pdf",
-  "expect": "error",
-  "sheet": {
-   "expect": "error",
-   "errorContains": "no vector path operators",
-   "runs": [
-    {
-     "parameters": {
-      "pageNo": 1,
-      "scaleMmPerPt": 1.0
-     }
-    }
-   ],
-   "note": "the verbatim refusal names the scan/raster reality and the no-simulation rule"
-  }
- },
- {
-  "caseId": "dxf-takeoff-room",
-  "adapter": "dxf",
-  "fixture": "takeoff-room.dxf",
-  "expect": "success",
-  "groundTruth": "Slice-15 vector lane: ezdxf over the committed deterministic fixture (make_fixture_takeoff_room.py, write_fixed_meta_data_for_testing). $INSUNITS=4 (mm). WALLS: closed LWPOLYLINE 4000x3000 -> perimeter 14 000 mm, area 12 000 000 mm2 (exact). DIM: LINE 2000 mm + ARC r=900 0..90deg = 900 x pi/2 = 1413.716694 mm (EXACT arc math, no flattening) -> 3413.716694 mm. FURN: CIRCLE r=100 -> 628.318531 mm. Regeneration must be byte-identical to the committed fixture.",
-  "dxf": {
-   "expect": "success",
-   "note": "fixture regen byte-identity is enforced by the harness probe; per-layer pins are analytic-exact (rel 1e-9)",
-   "runs": [
-    {
-     "parameters": {},
-     "pins": [
-      {
-       "ref": null,
-       "field": "unitsMm",
-       "value": true,
-       "derivation": "$INSUNITS = 4 (mm) set by the fixture generator"
-      },
-      {
-       "ref": null,
-       "field": "layerCount",
-       "value": 3,
-       "derivation": "WALLS + DIM + FURN layers authored by the generator"
-      },
-      {
-       "ref": null,
-       "field": "entityCount",
-       "value": 4,
-       "derivation": "1 polyline + 1 line + 1 arc + 1 circle = 4 supported entities"
-      },
-      {
-       "ref": null,
-       "field": "fixtureSha256",
-       "value": "c97db72ff09d8e862529422883d164a4d7feca3a41f1aac985a484704c40ed8b",
-       "derivation": "see case groundTruth"
-      },
-      {
-       "ref": null,
-       "field": "fixtureRegenByteIdentical",
-       "value": true,
-       "derivation": "two fresh make_fixture_takeoff_room.py runs == committed bytes (ezdxf write_fixed_meta_data_for_testing)"
-      },
-      {
-       "ref": "WALLS",
-       "field": "layerPolylinesCount",
-       "value": 1,
-       "derivation": "WALLS carries the one closed rectangle LWPOLYLINE"
-      },
-      {
-       "ref": "WALLS",
-       "field": "layerTotalLengthMm",
-       "value": 14000.0,
-       "relTolerance": 1e-09,
-       "unit": "mm",
-       "derivation": "closed rectangle 4000x3000 mm -> 2x(4000+3000) = 14 000 mm exact"
-      },
-      {
-       "ref": "WALLS",
-       "field": "layerTotalClosedAreaMm2",
-       "value": 12000000.0,
-       "relTolerance": 1e-09,
-       "unit": "mm2",
-       "derivation": "closed rectangle 4000x3000 mm -> 12 000 000 mm2 exact"
-      },
-      {
-       "ref": "DIM",
-       "field": "layerLinesCount",
-       "value": 1,
-       "derivation": "DIM carries the one vertical LINE"
-      },
-      {
-       "ref": "DIM",
-       "field": "layerArcsCount",
-       "value": 1,
-       "derivation": "DIM carries the one quarter ARC"
-      },
-      {
-       "ref": "DIM",
-       "field": "layerTotalLengthMm",
-       "value": 3413.716694115407,
-       "relTolerance": 1e-09,
-       "unit": "mm",
-       "derivation": "LINE 2000 mm + ARC 900 x pi/2 = 1413.716694 mm -> 3413.716694 mm exact (no flattening)"
-      },
-      {
-       "ref": "FURN",
-       "field": "layerCirclesCount",
-       "value": 1,
-       "derivation": "FURN carries the one CIRCLE"
-      },
-      {
-       "ref": "FURN",
-       "field": "layerTotalLengthMm",
-       "value": 628.3185307179587,
-       "relTolerance": 1e-09,
-       "unit": "mm",
-       "derivation": "circle circumference 2 x pi x 100 = 628.318531 mm exact"
-      }
-     ]
-    }
-   ]
-  }
- },
- {
-  "caseId": "parametric-schema",
-  "adapter": "parametric",
-  "fixture": "parametric-bracket.py",
-  "expect": "success",
-  "groundTruth": "Slice-15 parametric lane (16-P, design proven in 16-R3): the committed parametric model declares PARAM_SCHEMA with five numeric parameters (width 20..300, depth 20..200, thickness 2..40, height 20..300, holeDia 0..60; additionalProperties: false) and DEFAULT_PARAMS w80-d50-t8-h60-hd10. Schema mode reads the module SAFELY (bytes read once, compiled once, exec'd in a fresh namespace — never executed standalone) and emits schema + defaults verbatim with the sha256 of the model bytes (the artifact-revision identity).",
-  "parametric": {
-   "expect": "success",
-   "note": "the Design Studio form source: schema mode answers from the module bytes alone (no parameters, no STEP); the adapter refuses a script without PARAM_SCHEMA/DEFAULT_PARAMS with the pinned authoring-docs message",
-   "runs": [
-    {
-     "mode": "schema",
-     "pins": [
-      {
-       "ref": null,
-       "field": "engineKey",
-       "value": "cadquery",
-       "derivation": "the adapter's declared engine — cadquery is the pinned BREP kernel (16-R3: the only STEP-authoring engine in the pinned set, zero new dependencies)"
-      },
-      {
-       "ref": null,
-       "field": "adapterScript",
-       "value": "parametric_rebuild.py",
-       "derivation": "the adapter names itself in the envelope (the step_femesh.py protocol contract)"
-      },
-      {
-       "ref": null,
-       "field": "schemaKeysCount",
-       "value": 5,
-       "derivation": "the committed model declares exactly five numeric parameters: width, depth, thickness, height, holeDia"
-      },
-      {
-       "ref": null,
-       "field": "defaultsCount",
-       "value": 5,
-       "derivation": "DEFAULT_PARAMS pins one authored default per declared parameter (w80-d50-t8-h60-hd10)"
-      },
-      {
-       "ref": null,
-       "field": "modelScriptHash",
-       "value": "fcfb7185b7cfc75f5211b17c763df3919f602f4c344c405172f551756463ea82",
-       "derivation": "sha256 of the committed tests/fixtures/parametric-bracket.py bytes — the artifact-revision identity the broker pins to the parametric-model revision"
-      }
-     ]
-    }
-   ]
-  }
- },
- {
-  "caseId": "parametric-defaults",
-  "adapter": "parametric",
-  "fixture": "parametric-bracket.py",
-  "expect": "success",
-  "groundTruth": "Slice-15 parametric lane: rebuild at the authored defaults (the 16-R3 RUN A). Analytic ground truth V = w*d*t + w*t*(h-t) - pi*hd^2/4*t = 32000 + 33280 - 200*pi = 64651.68146928204 mm3; the STEP re-import read 64651.68146928197 mm3 (rel 1.13e-15) — the pinned value. Surface area A = w*d + w*(d-t) + 3*w*t + 2*t*(d+h-t) + 2*w*(h-t) - pi*hd^2/2 + pi*hd*t = 19232 + 30*pi = 19326.247779607693 mm2 (the hand-derived face sum INCLUDING the internal shared face w*t that OCCT retains in the fused solid and counts in Area(); verified rel 7e-16 against the re-imported solid). bbox = the drawn extents 80 x 50 x 60 mm (the through-hole never reaches the bounding box).",
-  "parametric": {
-   "expect": "success",
-   "note": "the adapter gates the built volume against analytic_volume_mm3 at rel 1e-9 BEFORE writing any STEP, then re-imports the STEP in the same process and emits the round-trip properties; per-run determinism compares the GEOMETRY PROPERTIES, never the STEP bytes (OCCT stamps an export timestamp into FILE_NAME — the 16-R3 finding)",
-   "runs": [
-    {
-     "mode": "build",
-     "parameters": {},
-     "pins": [
-      {
-       "ref": null,
-       "field": "engineKey",
-       "value": "cadquery",
-       "derivation": "the adapter's declared engine (cadquery, the pinned BREP kernel)"
-      },
-      {
-       "ref": null,
-       "field": "paramKeys",
-       "value": "depth,height,holeDia,thickness,width",
-       "derivation": "paramsUsed = the authored defaults merged over the empty edit set — five keys, sorted, comma-joined"
-      },
-      {
-       "ref": null,
-       "field": "paramVolumeMm3",
-       "value": 64651.68146928197,
-       "relTolerance": 1e-09,
-       "unit": "mm3",
-       "derivation": "V = 80*50*8 + 80*8*(60-8) - pi*10^2/4*8 = 65280 - 200*pi = 64651.68146928204 mm3 analytic; pinned value = the 16-R3 RUN A STEP re-import (rel 1.13e-15 vs analytic)"
-      },
-      {
-       "ref": null,
-       "field": "paramAreaMm2",
-       "value": 19326.247779607693,
-       "relTolerance": 1e-09,
-       "unit": "mm2",
-       "derivation": "A = w*d + w*(d-t) + 3*w*t + 2*t*(d+h-t) + 2*w*(h-t) - pi*hd^2/2 + pi*hd*t = 19232 + 30*pi mm2 (incl. the internal shared face OCCT retains in the fused solid; verified rel 7e-16)"
-      },
-      {
-       "ref": null,
-       "field": "paramBboxW",
-       "value": 80,
-       "derivation": "the re-imported solid spans x in [0, 80] — the drawn base width, uncut by the through-hole"
-      },
-      {
-       "ref": null,
-       "field": "paramBboxD",
-       "value": 50,
-       "derivation": "the re-imported solid spans y in [0, 50] — the drawn base depth (the drill overshoots y but is a cut, adding no material)"
-      },
-      {
-       "ref": null,
-       "field": "paramBboxH",
-       "value": 60,
-       "derivation": "the re-imported solid spans z in [0, 60] — the drawn overall height"
-      },
-      {
-       "ref": null,
-       "field": "paramChecksRelErr",
-       "value": 0,
-       "absTolerance": 1e-09,
-       "derivation": "the adapter's own analytic gate: |re-imported - analytic| / analytic must be <= 1e-9 (16-R3 measured 1.1254e-15)"
-      },
-      {
-       "ref": null,
-       "field": "paramChecksPassed",
-       "value": true,
-       "derivation": "the STEP is emitted ONLY because the analytic gate passed — the gate result itself is pinned"
-      }
-     ]
-    }
-   ]
-  }
- },
- {
-  "caseId": "parametric-edited",
-  "adapter": "parametric",
-  "fixture": "parametric-bracket.py",
-  "expect": "success",
-  "groundTruth": "Slice-15 parametric lane: rebuild at edited parameters (the 16-R3 RUN B set, w120-d60-t10-h80-hd16). V = 120*60*10 + 120*10*(80-10) - pi*16^2/4*10 = 156000 - 640*pi = 153989.38070170252 mm3 analytic; the STEP re-import read 153989.38070170232 mm3 (rel 1.32e-15) — the pinned value. A = 36200 + 32*pi = 36300.53096491488 mm2 (same closed form as the defaults case). bbox 120 x 60 x 80 mm. The two parameter sets produce DISTINCT, analytically-exact volumes (ratio 2.382) — the parametric-editing loop's money evidence from 16-R3.",
-  "parametric": {
-   "expect": "success",
-   "note": "partial-edit semantics are exercised by the 16-R3 partial-fill probe (width=100, holeDia=12 -> 80695.2213 mm3, rel 1.8e-16); this case pins the full five-key edit so every parameter's analytic term is visible in one closed form",
-   "runs": [
-    {
-     "mode": "build",
-     "parameters": {
-      "width": 120,
-      "depth": 60,
-      "thickness": 10,
-      "height": 80,
-      "holeDia": 16
-     },
-     "pins": [
-      {
-       "ref": null,
-       "field": "engineKey",
-       "value": "cadquery",
-       "derivation": "the adapter's declared engine (cadquery, the pinned BREP kernel)"
-      },
-      {
-       "ref": null,
-       "field": "paramKeys",
-       "value": "depth,height,holeDia,thickness,width",
-       "derivation": "paramsUsed = the five edited values — the merged keys are exactly the schema's keys, sorted, comma-joined"
-      },
-      {
-       "ref": null,
-       "field": "paramVolumeMm3",
-       "value": 153989.38070170232,
-       "relTolerance": 1e-09,
-       "unit": "mm3",
-       "derivation": "V = 120*60*10 + 120*10*(80-10) - pi*16^2/4*10 = 156000 - 640*pi = 153989.38070170252 mm3 analytic; pinned value = the 16-R3 RUN B STEP re-import (rel 1.32e-15 vs analytic)"
-      },
-      {
-       "ref": null,
-       "field": "paramAreaMm2",
-       "value": 36300.53096491488,
-       "relTolerance": 1e-09,
-       "unit": "mm2",
-       "derivation": "A = w*d + w*(d-t) + 3*w*t + 2*t*(d+h-t) + 2*w*(h-t) - pi*hd^2/2 + pi*hd*t = 36200 + 32*pi mm2 (verified rel 7e-16 against the re-imported solid)"
-      },
-      {
-       "ref": null,
-       "field": "paramBboxW",
-       "value": 120,
-       "derivation": "the re-imported solid spans x in [0, 120] — the edited width"
-      },
-      {
-       "ref": null,
-       "field": "paramBboxD",
-       "value": 60,
-       "derivation": "the re-imported solid spans y in [0, 60] — the edited depth"
-      },
-      {
-       "ref": null,
-       "field": "paramBboxH",
-       "value": 80,
-       "derivation": "the re-imported solid spans z in [0, 80] — the edited height"
-      },
-      {
-       "ref": null,
-       "field": "paramChecksRelErr",
-       "value": 0,
-       "absTolerance": 1e-09,
-       "derivation": "the adapter's own analytic gate: |re-imported - analytic| / analytic must be <= 1e-9 (16-R3 measured 1.3230e-15)"
-      },
-      {
-       "ref": null,
-       "field": "paramChecksPassed",
-       "value": true,
-       "derivation": "the STEP is emitted ONLY because the analytic gate passed — the gate result itself is pinned"
-      }
-     ]
-    }
-   ]
-  }
- },
- {
-  "caseId": "parametric-refusals",
-  "adapter": "parametric",
-  "fixture": "parametric-bracket.py",
-  "expect": "error",
-  "parametric": {
-   "expect": "error",
-   "note": "the three refusal families pinned verbatim: schema range (width 10 < minimum 20), unknown key (additionalProperties: false), and the model-authored geometry contradiction (hole centre z = 8 + (24-8)/2 = 16, hole bottom 16 - 10 = 6 <= t = 8 -> the vertical leg cannot contain the hole). A refused build leaves NO output file behind (the adapter deletes it before exiting).",
-   "runs": [
-    {
-     "mode": "build",
-     "parameters": {
-      "width": 10
-     },
-     "errorContains": "parameter 'width' = 10 below minimum 20"
+    ]
+  },
+  {
+    "caseId": "ifc-cylinder-geometry-mesh",
+    "adapter": "ifc",
+    "fixture": "cylinder-geometry.ifc",
+    "expect": "success",
+    "mesh": {
+      "expect": "success",
+      "upAxis": "z",
+      "tolerance": 0.001,
+      "elementRefs": [
+        "#4rUnE8CnPHBwLdZzIqZkf1"
+      ],
+      "elements": [
+        {
+          "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+          "name": "Mesh Column",
+          "vertexCount": 90,
+          "triangleCount": 176
+        }
+      ],
+      "volume": [
+        {
+          "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+          "value": 0.3769911184307752,
+          "unit": "m³",
+          "tolerance": "mesh",
+          "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance (pinned 1%): the default-settings triangulation (44 segments) is an APPROXIMATION on the curved surface — the harness records the observed relative error per run (same triangulation the quantity adapter's fallback reports on)"
+        }
+      ]
     },
-    {
-     "mode": "build",
-     "parameters": {
-      "bogus": 1
-     },
-     "errorContains": "unknown parameter(s) rejected: ['bogus']"
-    },
-    {
-     "mode": "build",
-     "parameters": {
-      "height": 24,
-      "holeDia": 20
-     },
-     "errorContains": "hole does not fit inside the vertical leg"
-    }
-   ]
-  }
- },
- {
-  "caseId": "sheet-ocr-callout",
-  "adapter": "ocr",
-  "fixture": "ocr-callout.png",
-  "expect": "success",
-  "groundTruth": "Slice 16-B sheet-text OCR lane (16-R2 research, live-verified): the committed fixture renders LOADING BAY PLAN / 2400 / Ø400 / 1200 / GHS 225.00 at 44 px DejaVuSans; tesseract 5.5.0 with the VENDORED sha-pinned eng model (7d4322bd…, byte-identical to the ubuntu-24.04 tesseract-ocr package) reads every word at psm 6. The Ø GLYPH NEVER transcribes natively — Ø400 comes back as @400 at ~55% conf (the number is always right) and the diameter-glyph rule maps it to Ø400 with the raw preserved. Conf floors are live-observed values minus margin; determinism is the full word list (text+conf+boxes) across two consecutive reads.",
-  "ocr": {
-   "expect": "success",
-   "runs": [
-    {
-     "parameters": {
-      "psm": 6
-     },
-     "expectedWords": [
+    "groundTruth": [
       {
-       "text": "LOADING",
-       "confFloor": 90
+        "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "volume",
+        "value": 0.3769911184307752,
+        "unit": "m³",
+        "tolerance": "mesh",
+        "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance: the PyPI ifcopenshell wheel has no OCCT backend (has_occ=False), so this curved surface is triangulated — an APPROXIMATION; the harness records the observed relative error to quantify that limitation honestly"
       },
       {
-       "text": "BAY",
-       "confFloor": 90
-      },
-      {
-       "text": "PLAN",
-       "confFloor": 90
-      },
-      {
-       "text": "2400",
-       "confFloor": 90
-      },
-      {
-       "text": "@400",
-       "confFloor": 40,
-       "normalized": "Ø400"
-      },
-      {
-       "text": "1200",
-       "confFloor": 90
-      },
-      {
-       "text": "GHS",
-       "confFloor": 85
-      },
-      {
-       "text": "225.00",
-       "confFloor": 90
+        "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
+        "quantityType": "area",
+        "value": 4.0212385965949355,
+        "unit": "m²",
+        "tolerance": "mesh",
+        "derivation": "lateral 2π·0.2·3.0 = 1.2π plus two caps 2·π·0.2² = 0.08π → 1.28π m². 'mesh' tolerance (1% pinned): triangulated curved surface — observed relative error recorded per run"
       }
-     ]
+    ]
+  },
+  {
+    "caseId": "ifc-wall-stripped-empty",
+    "adapter": "ifc",
+    "fixture": "wall-stripped.ifc",
+    "expect": "success",
+    "groundTruth": [],
+    "mesh": {
+      "expect": "error",
+      "errorContains": "no meshable geometry"
     }
-   ],
-   "note": "the committed fixture + the vendored sha-pinned eng.traineddata make the read model-deterministic in CI; the @400→Ø400 row pins the 16-R2 finding with the raw transcript preserved"
+  },
+  {
+    "caseId": "ifc-nonmodel-file",
+    "adapter": "ifc",
+    "fixture": "site-notes.md",
+    "expect": "error",
+    "errorContains": "could not open the file",
+    "mesh": {
+      "expect": "error",
+      "errorContains": "could not open the file"
+    }
+  },
+  {
+    "caseId": "femesh-bracket-solid",
+    "adapter": "femesh",
+    "fixture": "bracket-solid.step",
+    "expect": "success",
+    "femesh": {
+      "expect": "success",
+      "kind": "step",
+      "note": "REAL gmsh bridge (venv + engine libs); live-observed pins 2026-10-22 (gmsh 4.15.2, defaults 2.0/4.0/1).",
+      "pins": [
+        {
+          "ref": null,
+          "field": "nodes",
+          "value": 1088,
+          "derivation": "live-observed node count at MeshSizeMin 2.0 / MeshSizeMax 4.0, gmsh 4.15.2 linear tets — pinned after the TL smoke run"
+        },
+        {
+          "ref": null,
+          "field": "elements",
+          "value": 3482,
+          "derivation": "live-observed tet4 count under the same pinned options"
+        },
+        {
+          "ref": null,
+          "field": "solidRefOrderOk",
+          "value": true,
+          "derivation": "solids[i].ref === step:solid:i for every index (the pinned ascending order)"
+        },
+        {
+          "ref": null,
+          "field": "tetSumOk",
+          "value": true,
+          "derivation": "sum of per-solid tetCounts === elements.count (payload self-consistency)"
+        },
+        {
+          "ref": null,
+          "field": "qualityRangeOk",
+          "value": true,
+          "derivation": "gmsh element qualities in (0,1] with min <= mean (observed min 0.2997 / mean 0.7848 live)"
+        },
+        {
+          "ref": "step:solid:0",
+          "field": "tetCount",
+          "value": 3482,
+          "derivation": "single-solid fixture: the whole tet count"
+        },
+        {
+          "ref": "step:solid:0",
+          "field": "meshVolume",
+          "value": 32984.071,
+          "unit": "mm3",
+          "relTolerance": 0.02,
+          "derivation": "closed form 36000 - 960*pi mm3 (40x30x30 block minus two r=4 h=30 through-holes; pi=3.14159265358979 -> 32984.07105). Linear tets under-trap the curved holes so the mesh volume runs HIGH: live-observed 33286.264 = +0.92%, the expected O(h^2) bias at these sizes; pinned at the contract's 2%"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "femesh-two-solids",
+    "adapter": "femesh",
+    "fixture": "two-solids.step",
+    "expect": "success",
+    "femesh": {
+      "expect": "success",
+      "kind": "step",
+      "note": "PLANAR solids -> the divergence-theorem sum of signed linear-tet volumes is the exact box volume up to IEEE rounding (interior faces cancel): the analytic tolerance is a mathematical pin, not an aspiration.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "nodes",
+          "value": 479,
+          "derivation": "live-observed node count, gmsh 4.15.2 defaults"
+        },
+        {
+          "ref": null,
+          "field": "elements",
+          "value": 1378,
+          "derivation": "live-observed tet4 count"
+        },
+        {
+          "ref": "step:solid:0",
+          "field": "tetCount",
+          "value": 599,
+          "derivation": "live-observed per-solid split (599 + 779 = 1378)"
+        },
+        {
+          "ref": "step:solid:1",
+          "field": "tetCount",
+          "value": 779,
+          "derivation": "live-observed per-solid split"
+        },
+        {
+          "ref": "step:solid:0",
+          "field": "meshVolume",
+          "value": 6000,
+          "unit": "mm3",
+          "relTolerance": 1e-12,
+          "derivation": "closed form 30x20x10 mm = 6000 mm3 (make_fixture_step_solids.py); planar -> EXACT by divergence theorem"
+        },
+        {
+          "ref": "step:solid:1",
+          "field": "meshVolume",
+          "value": 9000,
+          "unit": "mm3",
+          "relTolerance": 1e-12,
+          "derivation": "closed form 15x15x40 mm = 9000 mm3; planar -> EXACT by divergence theorem"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "femesh-geometry-free",
+    "adapter": "femesh",
+    "fixture": "bracket.step",
+    "expect": "error",
+    "femesh": {
+      "expect": "error",
+      "kind": "step",
+      "errorContains": "no solid geometry found in STEP file",
+      "note": "valid STEP, zero solids after OCC import -> the pinned verbatim refusal, never an empty mesh"
+    }
+  },
+  {
+    "caseId": "femesh-ifc-refused",
+    "adapter": "femesh",
+    "fixture": "wall-quantities.ifc",
+    "expect": "error",
+    "femesh": {
+      "expect": "error",
+      "kind": "ifc",
+      "errorContains": "gmsh cannot import IFC geometry",
+      "note": "observed live on gmsh 4.15.2: .ifc falls through to the .geo parser and dies with a misleading error — the adapter refuses by name instead (honest absence)"
+    }
+  },
+  {
+    "caseId": "powerflow-2bus-closed-form",
+    "adapter": "powerflow",
+    "fixture": "powerflow-2bus.json",
+    "expect": "success",
+    "powerflow": {
+      "expect": "success",
+      "note": "2-bus LOSSLESS feeder: the Newton-Raphson solution has a closed form via the high-voltage branch of the quadratic V2^4 - V2^2 + (p*x)^2 = 0 (lossless line, Q=0 => cos(delta) = V2/V1).",
+      "pins": [
+        {
+          "ref": null,
+          "field": "converged",
+          "value": true,
+          "derivation": "lossless radial 2-bus with a light load: NR from a flat start converges to the high branch"
+        },
+        {
+          "ref": null,
+          "field": "busCount",
+          "value": 2,
+          "derivation": "fixture declares 2 buses"
+        },
+        {
+          "ref": null,
+          "field": "lineCount",
+          "value": 1,
+          "derivation": "fixture declares 1 line"
+        },
+        {
+          "ref": null,
+          "field": "lossMw",
+          "value": 0,
+          "absTolerance": 1e-09,
+          "derivation": "r = 0 ohm/km -> I^2*R losses are identically zero; pandapower's residual rounding pinned at 1e-9"
+        },
+        {
+          "ref": null,
+          "field": "loadMw",
+          "value": 2,
+          "absTolerance": 1e-09,
+          "derivation": "the single declared load (2 MW)"
+        },
+        {
+          "ref": "bus-1",
+          "field": "vmPu",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "slack bus holds the external-grid setpoint exactly"
+        },
+        {
+          "ref": "bus-2",
+          "field": "vmPu",
+          "value": 0.9999875,
+          "relTolerance": 1e-06,
+          "derivation": "V2 = sqrt((1 + sqrt(1 - 4*(p*x)^2)) / 2) with p = P/baseMva = 2/100 = 0.02 pu and x = Xohm/baseZ = (0.1 ohm/km * 10 km) / ((20 kV)^2 / 100 MVA) = 1 / 4 = 0.25 pu -> p*x = 5e-3 -> 4*(px)^2 = 1e-4 -> V2^2 = (1 + 0.99995)/2 = 0.999975 -> V2 = 0.9999875 (the high branch NR converges to). [An earlier draft of this derivation wrote 1/4 as 0.025 — the harness caught the 10x slip against the real engine, which is exactly its job.]"
+        },
+        {
+          "ref": "bus-2",
+          "field": "angleDeg",
+          "value": -0.28647895,
+          "absTolerance": 0.0001,
+          "derivation": "sin(delta) = p*x/V2 = 5.00000625e-3 rad = 0.28647895 degrees across the line (lossless: P = V1*V2*sin(delta)/X); bus-2 LAGS the slack reference so pandapower reports the negative angle; absTolerance 1e-4 deg absorbs NR's convergence residual (observed -0.28648367, residual 4.7e-6 deg — the solver's own tolerance, not a formula error)"
+        },
+        {
+          "ref": "bus-1>bus-2",
+          "field": "iKa",
+          "value": 0.057735749,
+          "relTolerance": 1e-05,
+          "derivation": "I = P / (sqrt(3) * V2_LL * ...) with the SOLVED V2: 2 MW / (1.7320508 * 20 kV * 0.9999875) = 0.05773575 kA (the current reflects the actual end-of-line voltage, not the nominal)"
+        },
+        {
+          "ref": "bus-1>bus-2",
+          "field": "pLossMw",
+          "value": 0,
+          "absTolerance": 1e-09,
+          "derivation": "r = 0 -> zero active loss on the line"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "powerflow-islanded",
+    "adapter": "powerflow",
+    "fixture": "powerflow-islanded.json",
+    "expect": "error",
+    "powerflow": {
+      "expect": "error",
+      "errorContains": "islanded network - buses with no path to the external grid",
+      "note": "observed live: pandapower 3.5.6 CONVERGES and reports NaN vm_pu for bus-3 (no line path) — NaN is not a result; the adapter refuses naming the island"
+    }
+  },
+  {
+    "caseId": "des-flowshop-makespan",
+    "adapter": "des",
+    "fixture": "des-flowshop.json",
+    "expect": "success",
+    "des": {
+      "expect": "success",
+      "note": "deterministic FIFO flow shop, hand-traced event by event.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "policy",
+          "value": "fifo",
+          "derivation": "the only policy shipped (contract §3.3)"
+        },
+        {
+          "ref": null,
+          "field": "jobCount",
+          "value": 3,
+          "derivation": "fixture declares 3 jobs"
+        },
+        {
+          "ref": null,
+          "field": "resourceCount",
+          "value": 2,
+          "derivation": "fixture declares 2 machines"
+        },
+        {
+          "ref": null,
+          "field": "makespan",
+          "value": 13,
+          "derivation": "hand trace: m1 serves j1[0,2] j2[2,5] j3[5,6] (busy 6); m2 serves j1[2,6] then j2[6,8] (j2 arrives at 5, waits), then j3[8,13] -> last completion 13"
+        },
+        {
+          "ref": null,
+          "field": "utilizationInvariantOk",
+          "value": true,
+          "derivation": "utilization === busy/makespan for every resource (payload self-consistency)"
+        },
+        {
+          "ref": "m1",
+          "field": "busy",
+          "value": 6,
+          "derivation": "sum of m1 task durations 2+3+1"
+        },
+        {
+          "ref": "m2",
+          "field": "busy",
+          "value": 11,
+          "derivation": "sum of m2 task durations 4+2+5"
+        },
+        {
+          "ref": "m1",
+          "field": "utilization",
+          "value": 0.46153846153846156,
+          "absTolerance": 1e-12,
+          "derivation": "6/13 (busy/makespan)"
+        },
+        {
+          "ref": "m2",
+          "field": "utilization",
+          "value": 0.8461538461538461,
+          "absTolerance": 1e-12,
+          "derivation": "11/13"
+        },
+        {
+          "ref": "j1",
+          "field": "endAt",
+          "value": 6,
+          "derivation": "j1: m1 [0,2] then m2 [2,6]"
+        },
+        {
+          "ref": "j3",
+          "field": "endAt",
+          "value": 13,
+          "derivation": "j3: m1 [5,6] then m2 [8,13] (waits for m2 to clear j2 at 8)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "des-invalid-resource",
+    "adapter": "des",
+    "fixture": "des-invalid-resource.json",
+    "expect": "error",
+    "des": {
+      "expect": "error",
+      "errorContains": "references unknown resource",
+      "note": "defense-in-depth: the route zod refuses first; the adapter still defends itself (never crashes on alien input)"
+    }
+  },
+  {
+    "caseId": "cpm-platform-rollout",
+    "adapter": "cpm",
+    "fixture": "schedule-cpm.json",
+    "expect": "success",
+    "cpm": {
+      "expect": "success",
+      "note": "PLATFORM CORE (no engine): the exact analyze_schedule pure pipeline (analyzeCpm + buildCpmAnalysisDocument); engineKey/adapterScript are ABSENT from the document — recorded honestly.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "activityCount",
+          "value": 6,
+          "derivation": "fixture declares 6 activities"
+        },
+        {
+          "ref": null,
+          "field": "durationDays",
+          "value": 11,
+          "derivation": "longest path b(2)+d(5)+f(1)+e(3) = 11 days"
+        },
+        {
+          "ref": null,
+          "field": "criticalPathCount",
+          "value": 4,
+          "derivation": "critical activities: b, d, f, e"
+        },
+        {
+          "ref": null,
+          "field": "criticalPath",
+          "value": [
+            "b",
+            "d",
+            "f",
+            "e"
+          ],
+          "derivation": "the single zero-float chain b->d->f->e (a and c each carry 1 day float)"
+        },
+        {
+          "ref": null,
+          "field": "formatOk",
+          "value": true,
+          "derivation": "document starts with the pinned eos-cpm/1 prefix (byte-deterministic pure assembly)"
+        },
+        {
+          "ref": null,
+          "field": "engineKeyAbsent",
+          "value": true,
+          "derivation": "NO engineKey/adapterScript in the document — platform core honesty (contract §4)"
+        },
+        {
+          "ref": "a",
+          "field": "es",
+          "value": 0,
+          "derivation": "no predecessors -> starts day 0"
+        },
+        {
+          "ref": "a",
+          "field": "ef",
+          "value": 3,
+          "derivation": "0 + duration 3"
+        },
+        {
+          "ref": "a",
+          "field": "totalFloat",
+          "value": 1,
+          "derivation": "ls 4 - es 3... hand: a feeds c(e->8 chain: c.ls = e.ls - dur = 8-3? c: ls = min(successor e.ls) - 4 = 8-4 = 4 -> float = 4-3 = 1"
+        },
+        {
+          "ref": "a",
+          "field": "critical",
+          "value": false,
+          "derivation": "float 1 > 0"
+        },
+        {
+          "ref": "b",
+          "field": "es",
+          "value": 0,
+          "derivation": "no predecessors"
+        },
+        {
+          "ref": "b",
+          "field": "ef",
+          "value": 2,
+          "derivation": "0 + 2"
+        },
+        {
+          "ref": "b",
+          "field": "totalFloat",
+          "value": 0,
+          "derivation": "b->d->f->e is the critical chain -> b.ls = 0 = es"
+        },
+        {
+          "ref": "b",
+          "field": "critical",
+          "value": true,
+          "derivation": "zero float"
+        },
+        {
+          "ref": "c",
+          "field": "es",
+          "value": 3,
+          "derivation": "after a (ef 3)"
+        },
+        {
+          "ref": "c",
+          "field": "ef",
+          "value": 7,
+          "derivation": "3 + 4"
+        },
+        {
+          "ref": "c",
+          "field": "totalFloat",
+          "value": 1,
+          "derivation": "c.ls = e.ls(8) - 4 = 4 -> float 1"
+        },
+        {
+          "ref": "d",
+          "field": "es",
+          "value": 2,
+          "derivation": "after b (ef 2)"
+        },
+        {
+          "ref": "d",
+          "field": "ef",
+          "value": 7,
+          "derivation": "2 + 5"
+        },
+        {
+          "ref": "d",
+          "field": "ls",
+          "value": 2,
+          "derivation": "f.ls(7) - 5 = 2"
+        },
+        {
+          "ref": "d",
+          "field": "critical",
+          "value": true,
+          "derivation": "zero float"
+        },
+        {
+          "ref": "f",
+          "field": "es",
+          "value": 7,
+          "derivation": "after d (ef 7)"
+        },
+        {
+          "ref": "f",
+          "field": "ef",
+          "value": 8,
+          "derivation": "7 + 1"
+        },
+        {
+          "ref": "f",
+          "field": "critical",
+          "value": true,
+          "derivation": "zero float"
+        },
+        {
+          "ref": "e",
+          "field": "es",
+          "value": 8,
+          "derivation": "after max(c ef 7, f ef 8)"
+        },
+        {
+          "ref": "e",
+          "field": "ef",
+          "value": 11,
+          "derivation": "8 + 3 = project duration"
+        },
+        {
+          "ref": "e",
+          "field": "lf",
+          "value": 11,
+          "derivation": "terminal activity on the critical chain"
+        },
+        {
+          "ref": "e",
+          "field": "critical",
+          "value": true,
+          "derivation": "zero float"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "lo-cover-sheet-convert",
+    "adapter": "libreoffice",
+    "fixture": "cover-sheet.fodt",
+    "expect": "success",
+    "libreoffice": {
+      "expect": "success",
+      "note": "REAL headless soffice run, ONCE (byte-determinism NOT claimed — PDFs embed creation timestamps, contract §5.4). Structural pins only.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "pdfMagic",
+          "value": "%PDF-",
+          "derivation": "a PDF must start with the %PDF- magic (the bridge also refuses non-PDF output)"
+        },
+        {
+          "ref": null,
+          "field": "sizeBytes",
+          "value": 1000,
+          "minBound": true,
+          "derivation": "the converted Writer document is a multi-digit-KB PDF (live-observed 26201 bytes) — a lower bound only, never an equality claim (timestamps affect exact bytes)"
+        },
+        {
+          "ref": null,
+          "field": "engineKey",
+          "value": "libreoffice",
+          "derivation": "the registry key of the converting engine"
+        },
+        {
+          "ref": null,
+          "field": "adapterScript",
+          "value": "convert-document.ts",
+          "derivation": "the TS-native bridge name (no python in the LO path)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "sheet-vector-plan",
+    "adapter": "sheet",
+    "fixture": "sheet-a102-plan.pdf",
+    "expect": "success",
+    "groundTruth": "Slice-15 vector lane: pdfplumber over the pinned A-102 sheet (Slice-8/13/20 fixture, sha ed19c9c5… — Slice 20 added the page-3 two-size panel schedule; pages 1-2 streams byte-identical). Analytic truths from the builder constants: 1:100 A3 -> 1 pt = 25.4/72 x 100 = 35.277777… mm. Page 1: bar 283.464567 pt = 10 000 mm; wall 85.039370 pt = 3 000 mm; 3 ticks 12 pt = 423.333 mm each (lines total 14 270.000 mm); border rect 1143x794 pt + room rect 226.7717x141.7323 pt -> perimeters 3874 + 737.008 pt = 162 666.1156 mm, areas 907 542 + 32 139.36 pt2 = 1 169 455 639.25 mm2. Page 2: six 10 pt stroked + six 4 pt filled squares = 12 rects, 696 pt2 = 866 187.037 mm2. Page 3 (Slice 20, the two-size panel schedule): border + 6x2 small + 4x2 large squares = 21 rects, 909 282 pt2 = 1 131 621 093.98 mm2. Drawn coords carry the fixture's own 4-dp fmt rounding (rel ~1e-7), so pins use rel 1e-6.",
+    "sheet": {
+      "expect": "success",
+      "note": "both pages of the pinned sheet measured at the analytic 1:100 scale; the mm-per-pt value is the BUILDER truth (the click-calibration journey's 35.40 mm/pt carries the recorded 0.35% browser bias — limitation #16 — while vector extraction reads the drawn operators exactly)",
+      "runs": [
+        {
+          "parameters": {
+            "pageNo": 1,
+            "scaleMmPerPt": 35.27777777777778,
+            "flattenSegments": 32
+          },
+          "pins": [
+            {
+              "ref": null,
+              "field": "pageCount",
+              "value": 3,
+              "derivation": "fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)"
+            },
+            {
+              "ref": null,
+              "field": "pageNo",
+              "value": 1,
+              "derivation": "the requested page, echoed by the adapter"
+            },
+            {
+              "ref": null,
+              "field": "linesCount",
+              "value": 5,
+              "derivation": "page 1 drawn ops: bar + 2 end ticks + mid tick + wall = 5 lines (builder pin list)"
+            },
+            {
+              "ref": null,
+              "field": "rectsCount",
+              "value": 2,
+              "derivation": "page 1 drawn ops: sheet border + room outline = 2 rects (builder pin list)"
+            },
+            {
+              "ref": null,
+              "field": "curvesCount",
+              "value": 0,
+              "derivation": "page 1 has no curve ops (builder pin list)"
+            },
+            {
+              "ref": null,
+              "field": "linesTotalLengthMm",
+              "value": 14270.0,
+              "relTolerance": 1e-06,
+              "unit": "mm",
+              "derivation": "(283.464567 + 85.039370 + 3 x 12) pt x 35.277777… mm/pt = 14 270.000 mm"
+            },
+            {
+              "ref": null,
+              "field": "rectsTotalPerimeterMm",
+              "value": 162666.1156,
+              "relTolerance": 1e-06,
+              "unit": "mm",
+              "derivation": "(2x(1143+794) + 2x(226.7717+141.7323)) pt x 35.277777… = 162 666.1156 mm"
+            },
+            {
+              "ref": null,
+              "field": "rectsTotalAreaMm2",
+              "value": 1169455639.25,
+              "relTolerance": 1e-06,
+              "unit": "mm2",
+              "derivation": "(1143x794 + 226.7717x141.7323) pt2 x (35.277777…)2 = 1 169 455 639.25 mm2"
+            },
+            {
+              "ref": "eos demo sheet a-102",
+              "field": "textContains",
+              "value": true,
+              "derivation": "the sheet title text operator is drawn on page 1 (builder pin list)"
+            },
+            {
+              "ref": "line@60,120",
+              "field": "itemLengthMm",
+              "value": 10000.0,
+              "relTolerance": 1e-06,
+              "unit": "mm",
+              "derivation": "bar span 343.4646 - 60 = 283.464567 pt = 10 000.000 mm @ 1:100"
+            },
+            {
+              "ref": "line@613.3858,400",
+              "field": "itemLengthMm",
+              "value": 3000.0,
+              "relTolerance": 1e-06,
+              "unit": "mm",
+              "derivation": "wall span 485.0394 - 400 = 85.039370 pt = 3 000.000 mm @ 1:100"
+            },
+            {
+              "ref": "rect@500,400",
+              "field": "itemPerimeterMm",
+              "value": 26000.0,
+              "relTolerance": 1e-06,
+              "unit": "mm",
+              "derivation": "2 x (226.7717 + 141.7323) pt = 737.008 pt = 26 000.000 mm @ 1:100"
+            },
+            {
+              "ref": "rect@500,400",
+              "field": "itemAreaMm2",
+              "value": 40000000.0,
+              "relTolerance": 1e-06,
+              "unit": "mm2",
+              "derivation": "226.7717 x 141.7323 pt2 = 32 139.36 pt2 = 40 000 000 mm2 @ 1:100"
+            }
+          ]
+        },
+        {
+          "parameters": {
+            "pageNo": 2,
+            "scaleMmPerPt": 35.27777777777778,
+            "flattenSegments": 32
+          },
+          "pins": [
+            {
+              "ref": null,
+              "field": "pageNo",
+              "value": 2,
+              "derivation": "the requested page, echoed by the adapter"
+            },
+            {
+              "ref": null,
+              "field": "linesCount",
+              "value": 4,
+              "derivation": "page 2 is the self-contained calibration page: scale bar + 2 end ticks + mid tick = 4 lines (builder: page 2 carries scaleBarOps, NO wall)"
+            },
+            {
+              "ref": null,
+              "field": "rectsCount",
+              "value": 13,
+              "derivation": "page 2: sheet border (borderOps) + 6 outer + 6 inner symbol squares = 13 rects (builder: buildSymbolPageContentStream)"
+            },
+            {
+              "ref": null,
+              "field": "rectsTotalAreaMm2",
+              "value": 1130321813.4259,
+              "relTolerance": 1e-06,
+              "unit": "mm2",
+              "derivation": "(1143x794 border + 6x10x10 + 6x4x4 symbols) pt2 = 908 238 pt2 x (35.277777…)2 = 1 130 321 8xx mm2"
+            },
+            {
+              "ref": null,
+              "field": "fixtureSha256",
+              "value": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
+              "derivation": "see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)"
+            },
+            {
+              "ref": null,
+              "field": "linesTotalLengthMm",
+              "value": 11270.0,
+              "relTolerance": 1e-06,
+              "unit": "mm",
+              "derivation": "page-2 scale bar 283.464567 pt + 3 x 12 pt ticks = 319.464567 pt = 11 270.1 mm (same bar geometry as page 1, no wall)"
+            }
+          ]
+        },
+        {
+          "parameters": {
+            "pageNo": 3,
+            "scaleMmPerPt": 35.27777777777778,
+            "flattenSegments": 32
+          },
+          "pins": [
+            {
+              "ref": null,
+              "field": "pageNo",
+              "value": 3,
+              "derivation": "the requested page, echoed by the adapter"
+            },
+            {
+              "ref": null,
+              "field": "pageCount",
+              "value": 3,
+              "derivation": "fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)"
+            },
+            {
+              "ref": null,
+              "field": "linesCount",
+              "value": 4,
+              "derivation": "page 3 is self-contained like page 2: scale bar + 2 end ticks + mid tick = 4 lines (builder: buildPanelScheduleContentStream)"
+            },
+            {
+              "ref": null,
+              "field": "rectsCount",
+              "value": 21,
+              "derivation": "page 3: border + 6 outer 10 pt + 6 inner 4 pt small sockets + 4 outer 15 pt + 4 inner 6 pt large sockets = 21 rects (the Slice-20 two-size field)"
+            },
+            {
+              "ref": null,
+              "field": "rectsTotalAreaMm2",
+              "value": 1131621093.9815,
+              "relTolerance": 1e-06,
+              "unit": "mm2",
+              "derivation": "(1143x794 border + 6x(100+16) small + 4x(225+36) large) pt2 = 909 282 pt2 x (35.277777…)2 = 1 131 621 093.98 mm2"
+            },
+            {
+              "ref": null,
+              "field": "fixtureSha256",
+              "value": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
+              "derivation": "see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)"
+            },
+            {
+              "ref": null,
+              "field": "linesTotalLengthMm",
+              "value": 11270.0,
+              "relTolerance": 1e-06,
+              "unit": "mm",
+              "derivation": "page-3 scale bar 283.464567 pt + 3 x 12 pt ticks = 319.464567 pt = 11 270.000 mm (same furniture as page 2)"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "sheet-vector-curve",
+    "adapter": "sheet",
+    "fixture": "sheet-curve-arc.pdf",
+    "expect": "success",
+    "groundTruth": "Slice-15 vector lane: ONE kappa-approximated quarter-arc bezier (r=100 pt, analytic length 100 x pi/2 = 157.0796327 pt) + ONE 50x30 pt rect. Flatten at N=32 converges at rel 4.0e-5 (16-R1 research); scale 1.0 so mm == pt and the rect is exact: perimeter 160, area 1500.",
+    "sheet": {
+      "expect": "success",
+      "note": "curve length pinned against the ANALYTIC quarter-arc at rel 1e-3 (the pinned N=32 flattening reads rel ~4e-5 low — honest flattening error, recorded; rect pins are exact)",
+      "runs": [
+        {
+          "parameters": {
+            "pageNo": 1,
+            "scaleMmPerPt": 1.0,
+            "flattenSegments": 32
+          },
+          "pins": [
+            {
+              "ref": null,
+              "field": "curvesCount",
+              "value": 1,
+              "derivation": "page 1 has no curve ops (builder pin list)"
+            },
+            {
+              "ref": null,
+              "field": "curvesTotalLengthMm",
+              "value": 157.0796327,
+              "relTolerance": 0.001,
+              "unit": "mm",
+              "derivation": "analytic quarter-arc r x pi/2 = 100 x pi/2 = 157.0796327 pt; N=32 flattening rel ~4e-5 (16-R1)"
+            },
+            {
+              "ref": null,
+              "field": "rectsCount",
+              "value": 1,
+              "derivation": "page 1 drawn ops: sheet border + room outline = 2 rects (builder pin list)"
+            },
+            {
+              "ref": null,
+              "field": "rectsTotalPerimeterMm",
+              "value": 160.0,
+              "relTolerance": 1e-09,
+              "unit": "mm",
+              "derivation": "(2x(1143+794) + 2x(226.7717+141.7323)) pt x 35.277777… = 162 666.1156 mm"
+            },
+            {
+              "ref": null,
+              "field": "rectsTotalAreaMm2",
+              "value": 1500.0,
+              "relTolerance": 1e-09,
+              "unit": "mm2",
+              "derivation": "(1143x794 + 226.7717x141.7323) pt2 x (35.277777…)2 = 1 169 455 639.25 mm2"
+            },
+            {
+              "ref": null,
+              "field": "fixtureSha256",
+              "value": "e690f692d1484c2a558d99d0e8181868dd828ba0ad191614662f1bc932d20557",
+              "derivation": "see case groundTruth"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "sheet-vector-refusal",
+    "adapter": "sheet",
+    "fixture": "sheet-scan-like.pdf",
+    "expect": "error",
+    "sheet": {
+      "expect": "error",
+      "errorContains": "no vector path operators",
+      "runs": [
+        {
+          "parameters": {
+            "pageNo": 1,
+            "scaleMmPerPt": 1.0
+          }
+        }
+      ],
+      "note": "the verbatim refusal names the scan/raster reality and the no-simulation rule"
+    }
+  },
+  {
+    "caseId": "dxf-takeoff-room",
+    "adapter": "dxf",
+    "fixture": "takeoff-room.dxf",
+    "expect": "success",
+    "groundTruth": "Slice-15 vector lane: ezdxf over the committed deterministic fixture (make_fixture_takeoff_room.py, write_fixed_meta_data_for_testing). $INSUNITS=4 (mm). WALLS: closed LWPOLYLINE 4000x3000 -> perimeter 14 000 mm, area 12 000 000 mm2 (exact). DIM: LINE 2000 mm + ARC r=900 0..90deg = 900 x pi/2 = 1413.716694 mm (EXACT arc math, no flattening) -> 3413.716694 mm. FURN: CIRCLE r=100 -> 628.318531 mm. Regeneration must be byte-identical to the committed fixture.",
+    "dxf": {
+      "expect": "success",
+      "note": "fixture regen byte-identity is enforced by the harness probe; per-layer pins are analytic-exact (rel 1e-9)",
+      "runs": [
+        {
+          "parameters": {},
+          "pins": [
+            {
+              "ref": null,
+              "field": "unitsMm",
+              "value": true,
+              "derivation": "$INSUNITS = 4 (mm) set by the fixture generator"
+            },
+            {
+              "ref": null,
+              "field": "layerCount",
+              "value": 3,
+              "derivation": "WALLS + DIM + FURN layers authored by the generator"
+            },
+            {
+              "ref": null,
+              "field": "entityCount",
+              "value": 4,
+              "derivation": "1 polyline + 1 line + 1 arc + 1 circle = 4 supported entities"
+            },
+            {
+              "ref": null,
+              "field": "fixtureSha256",
+              "value": "c97db72ff09d8e862529422883d164a4d7feca3a41f1aac985a484704c40ed8b",
+              "derivation": "see case groundTruth"
+            },
+            {
+              "ref": null,
+              "field": "fixtureRegenByteIdentical",
+              "value": true,
+              "derivation": "two fresh make_fixture_takeoff_room.py runs == committed bytes (ezdxf write_fixed_meta_data_for_testing)"
+            },
+            {
+              "ref": "WALLS",
+              "field": "layerPolylinesCount",
+              "value": 1,
+              "derivation": "WALLS carries the one closed rectangle LWPOLYLINE"
+            },
+            {
+              "ref": "WALLS",
+              "field": "layerTotalLengthMm",
+              "value": 14000.0,
+              "relTolerance": 1e-09,
+              "unit": "mm",
+              "derivation": "closed rectangle 4000x3000 mm -> 2x(4000+3000) = 14 000 mm exact"
+            },
+            {
+              "ref": "WALLS",
+              "field": "layerTotalClosedAreaMm2",
+              "value": 12000000.0,
+              "relTolerance": 1e-09,
+              "unit": "mm2",
+              "derivation": "closed rectangle 4000x3000 mm -> 12 000 000 mm2 exact"
+            },
+            {
+              "ref": "DIM",
+              "field": "layerLinesCount",
+              "value": 1,
+              "derivation": "DIM carries the one vertical LINE"
+            },
+            {
+              "ref": "DIM",
+              "field": "layerArcsCount",
+              "value": 1,
+              "derivation": "DIM carries the one quarter ARC"
+            },
+            {
+              "ref": "DIM",
+              "field": "layerTotalLengthMm",
+              "value": 3413.716694115407,
+              "relTolerance": 1e-09,
+              "unit": "mm",
+              "derivation": "LINE 2000 mm + ARC 900 x pi/2 = 1413.716694 mm -> 3413.716694 mm exact (no flattening)"
+            },
+            {
+              "ref": "FURN",
+              "field": "layerCirclesCount",
+              "value": 1,
+              "derivation": "FURN carries the one CIRCLE"
+            },
+            {
+              "ref": "FURN",
+              "field": "layerTotalLengthMm",
+              "value": 628.3185307179587,
+              "relTolerance": 1e-09,
+              "unit": "mm",
+              "derivation": "circle circumference 2 x pi x 100 = 628.318531 mm exact"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "parametric-schema",
+    "adapter": "parametric",
+    "fixture": "parametric-bracket.py",
+    "expect": "success",
+    "groundTruth": "Slice-15 parametric lane (16-P, design proven in 16-R3): the committed parametric model declares PARAM_SCHEMA with five numeric parameters (width 20..300, depth 20..200, thickness 2..40, height 20..300, holeDia 0..60; additionalProperties: false) and DEFAULT_PARAMS w80-d50-t8-h60-hd10. Schema mode reads the module SAFELY (bytes read once, compiled once, exec'd in a fresh namespace — never executed standalone) and emits schema + defaults verbatim with the sha256 of the model bytes (the artifact-revision identity).",
+    "parametric": {
+      "expect": "success",
+      "note": "the Design Studio form source: schema mode answers from the module bytes alone (no parameters, no STEP); the adapter refuses a script without PARAM_SCHEMA/DEFAULT_PARAMS with the pinned authoring-docs message",
+      "runs": [
+        {
+          "mode": "schema",
+          "pins": [
+            {
+              "ref": null,
+              "field": "engineKey",
+              "value": "cadquery",
+              "derivation": "the adapter's declared engine — cadquery is the pinned BREP kernel (16-R3: the only STEP-authoring engine in the pinned set, zero new dependencies)"
+            },
+            {
+              "ref": null,
+              "field": "adapterScript",
+              "value": "parametric_rebuild.py",
+              "derivation": "the adapter names itself in the envelope (the step_femesh.py protocol contract)"
+            },
+            {
+              "ref": null,
+              "field": "schemaKeysCount",
+              "value": 5,
+              "derivation": "the committed model declares exactly five numeric parameters: width, depth, thickness, height, holeDia"
+            },
+            {
+              "ref": null,
+              "field": "defaultsCount",
+              "value": 5,
+              "derivation": "DEFAULT_PARAMS pins one authored default per declared parameter (w80-d50-t8-h60-hd10)"
+            },
+            {
+              "ref": null,
+              "field": "modelScriptHash",
+              "value": "fcfb7185b7cfc75f5211b17c763df3919f602f4c344c405172f551756463ea82",
+              "derivation": "sha256 of the committed tests/fixtures/parametric-bracket.py bytes — the artifact-revision identity the broker pins to the parametric-model revision"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "parametric-defaults",
+    "adapter": "parametric",
+    "fixture": "parametric-bracket.py",
+    "expect": "success",
+    "groundTruth": "Slice-15 parametric lane: rebuild at the authored defaults (the 16-R3 RUN A). Analytic ground truth V = w*d*t + w*t*(h-t) - pi*hd^2/4*t = 32000 + 33280 - 200*pi = 64651.68146928204 mm3; the STEP re-import read 64651.68146928197 mm3 (rel 1.13e-15) — the pinned value. Surface area A = w*d + w*(d-t) + 3*w*t + 2*t*(d+h-t) + 2*w*(h-t) - pi*hd^2/2 + pi*hd*t = 19232 + 30*pi = 19326.247779607693 mm2 (the hand-derived face sum INCLUDING the internal shared face w*t that OCCT retains in the fused solid and counts in Area(); verified rel 7e-16 against the re-imported solid). bbox = the drawn extents 80 x 50 x 60 mm (the through-hole never reaches the bounding box).",
+    "parametric": {
+      "expect": "success",
+      "note": "the adapter gates the built volume against analytic_volume_mm3 at rel 1e-9 BEFORE writing any STEP, then re-imports the STEP in the same process and emits the round-trip properties; per-run determinism compares the GEOMETRY PROPERTIES, never the STEP bytes (OCCT stamps an export timestamp into FILE_NAME — the 16-R3 finding)",
+      "runs": [
+        {
+          "mode": "build",
+          "parameters": {},
+          "pins": [
+            {
+              "ref": null,
+              "field": "engineKey",
+              "value": "cadquery",
+              "derivation": "the adapter's declared engine (cadquery, the pinned BREP kernel)"
+            },
+            {
+              "ref": null,
+              "field": "paramKeys",
+              "value": "depth,height,holeDia,thickness,width",
+              "derivation": "paramsUsed = the authored defaults merged over the empty edit set — five keys, sorted, comma-joined"
+            },
+            {
+              "ref": null,
+              "field": "paramVolumeMm3",
+              "value": 64651.68146928197,
+              "relTolerance": 1e-09,
+              "unit": "mm3",
+              "derivation": "V = 80*50*8 + 80*8*(60-8) - pi*10^2/4*8 = 65280 - 200*pi = 64651.68146928204 mm3 analytic; pinned value = the 16-R3 RUN A STEP re-import (rel 1.13e-15 vs analytic)"
+            },
+            {
+              "ref": null,
+              "field": "paramAreaMm2",
+              "value": 19326.247779607693,
+              "relTolerance": 1e-09,
+              "unit": "mm2",
+              "derivation": "A = w*d + w*(d-t) + 3*w*t + 2*t*(d+h-t) + 2*w*(h-t) - pi*hd^2/2 + pi*hd*t = 19232 + 30*pi mm2 (incl. the internal shared face OCCT retains in the fused solid; verified rel 7e-16)"
+            },
+            {
+              "ref": null,
+              "field": "paramBboxW",
+              "value": 80,
+              "derivation": "the re-imported solid spans x in [0, 80] — the drawn base width, uncut by the through-hole"
+            },
+            {
+              "ref": null,
+              "field": "paramBboxD",
+              "value": 50,
+              "derivation": "the re-imported solid spans y in [0, 50] — the drawn base depth (the drill overshoots y but is a cut, adding no material)"
+            },
+            {
+              "ref": null,
+              "field": "paramBboxH",
+              "value": 60,
+              "derivation": "the re-imported solid spans z in [0, 60] — the drawn overall height"
+            },
+            {
+              "ref": null,
+              "field": "paramChecksRelErr",
+              "value": 0,
+              "absTolerance": 1e-09,
+              "derivation": "the adapter's own analytic gate: |re-imported - analytic| / analytic must be <= 1e-9 (16-R3 measured 1.1254e-15)"
+            },
+            {
+              "ref": null,
+              "field": "paramChecksPassed",
+              "value": true,
+              "derivation": "the STEP is emitted ONLY because the analytic gate passed — the gate result itself is pinned"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "parametric-edited",
+    "adapter": "parametric",
+    "fixture": "parametric-bracket.py",
+    "expect": "success",
+    "groundTruth": "Slice-15 parametric lane: rebuild at edited parameters (the 16-R3 RUN B set, w120-d60-t10-h80-hd16). V = 120*60*10 + 120*10*(80-10) - pi*16^2/4*10 = 156000 - 640*pi = 153989.38070170252 mm3 analytic; the STEP re-import read 153989.38070170232 mm3 (rel 1.32e-15) — the pinned value. A = 36200 + 32*pi = 36300.53096491488 mm2 (same closed form as the defaults case). bbox 120 x 60 x 80 mm. The two parameter sets produce DISTINCT, analytically-exact volumes (ratio 2.382) — the parametric-editing loop's money evidence from 16-R3.",
+    "parametric": {
+      "expect": "success",
+      "note": "partial-edit semantics are exercised by the 16-R3 partial-fill probe (width=100, holeDia=12 -> 80695.2213 mm3, rel 1.8e-16); this case pins the full five-key edit so every parameter's analytic term is visible in one closed form",
+      "runs": [
+        {
+          "mode": "build",
+          "parameters": {
+            "width": 120,
+            "depth": 60,
+            "thickness": 10,
+            "height": 80,
+            "holeDia": 16
+          },
+          "pins": [
+            {
+              "ref": null,
+              "field": "engineKey",
+              "value": "cadquery",
+              "derivation": "the adapter's declared engine (cadquery, the pinned BREP kernel)"
+            },
+            {
+              "ref": null,
+              "field": "paramKeys",
+              "value": "depth,height,holeDia,thickness,width",
+              "derivation": "paramsUsed = the five edited values — the merged keys are exactly the schema's keys, sorted, comma-joined"
+            },
+            {
+              "ref": null,
+              "field": "paramVolumeMm3",
+              "value": 153989.38070170232,
+              "relTolerance": 1e-09,
+              "unit": "mm3",
+              "derivation": "V = 120*60*10 + 120*10*(80-10) - pi*16^2/4*10 = 156000 - 640*pi = 153989.38070170252 mm3 analytic; pinned value = the 16-R3 RUN B STEP re-import (rel 1.32e-15 vs analytic)"
+            },
+            {
+              "ref": null,
+              "field": "paramAreaMm2",
+              "value": 36300.53096491488,
+              "relTolerance": 1e-09,
+              "unit": "mm2",
+              "derivation": "A = w*d + w*(d-t) + 3*w*t + 2*t*(d+h-t) + 2*w*(h-t) - pi*hd^2/2 + pi*hd*t = 36200 + 32*pi mm2 (verified rel 7e-16 against the re-imported solid)"
+            },
+            {
+              "ref": null,
+              "field": "paramBboxW",
+              "value": 120,
+              "derivation": "the re-imported solid spans x in [0, 120] — the edited width"
+            },
+            {
+              "ref": null,
+              "field": "paramBboxD",
+              "value": 60,
+              "derivation": "the re-imported solid spans y in [0, 60] — the edited depth"
+            },
+            {
+              "ref": null,
+              "field": "paramBboxH",
+              "value": 80,
+              "derivation": "the re-imported solid spans z in [0, 80] — the edited height"
+            },
+            {
+              "ref": null,
+              "field": "paramChecksRelErr",
+              "value": 0,
+              "absTolerance": 1e-09,
+              "derivation": "the adapter's own analytic gate: |re-imported - analytic| / analytic must be <= 1e-9 (16-R3 measured 1.3230e-15)"
+            },
+            {
+              "ref": null,
+              "field": "paramChecksPassed",
+              "value": true,
+              "derivation": "the STEP is emitted ONLY because the analytic gate passed — the gate result itself is pinned"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "parametric-refusals",
+    "adapter": "parametric",
+    "fixture": "parametric-bracket.py",
+    "expect": "error",
+    "parametric": {
+      "expect": "error",
+      "note": "the three refusal families pinned verbatim: schema range (width 10 < minimum 20), unknown key (additionalProperties: false), and the model-authored geometry contradiction (hole centre z = 8 + (24-8)/2 = 16, hole bottom 16 - 10 = 6 <= t = 8 -> the vertical leg cannot contain the hole). A refused build leaves NO output file behind (the adapter deletes it before exiting).",
+      "runs": [
+        {
+          "mode": "build",
+          "parameters": {
+            "width": 10
+          },
+          "errorContains": "parameter 'width' = 10 below minimum 20"
+        },
+        {
+          "mode": "build",
+          "parameters": {
+            "bogus": 1
+          },
+          "errorContains": "unknown parameter(s) rejected: ['bogus']"
+        },
+        {
+          "mode": "build",
+          "parameters": {
+            "height": 24,
+            "holeDia": 20
+          },
+          "errorContains": "hole does not fit inside the vertical leg"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "sheet-ocr-callout",
+    "adapter": "ocr",
+    "fixture": "ocr-callout.png",
+    "expect": "success",
+    "groundTruth": "Slice 16-B sheet-text OCR lane (16-R2 research, live-verified): the committed fixture renders LOADING BAY PLAN / 2400 / Ø400 / 1200 / GHS 225.00 at 44 px DejaVuSans; tesseract 5.5.0 with the VENDORED sha-pinned eng model (7d4322bd…, byte-identical to the ubuntu-24.04 tesseract-ocr package) reads every word at psm 6. The Ø GLYPH NEVER transcribes natively — Ø400 comes back as @400 at ~55% conf (the number is always right) and the diameter-glyph rule maps it to Ø400 with the raw preserved. Conf floors are live-observed values minus margin; determinism is the full word list (text+conf+boxes) across two consecutive reads.",
+    "ocr": {
+      "expect": "success",
+      "runs": [
+        {
+          "parameters": {
+            "psm": 6
+          },
+          "expectedWords": [
+            {
+              "text": "LOADING",
+              "confFloor": 90
+            },
+            {
+              "text": "BAY",
+              "confFloor": 90
+            },
+            {
+              "text": "PLAN",
+              "confFloor": 90
+            },
+            {
+              "text": "2400",
+              "confFloor": 90
+            },
+            {
+              "text": "@400",
+              "confFloor": 40,
+              "normalized": "Ø400"
+            },
+            {
+              "text": "1200",
+              "confFloor": 90
+            },
+            {
+              "text": "GHS",
+              "confFloor": 85
+            },
+            {
+              "text": "225.00",
+              "confFloor": 90
+            }
+          ]
+        }
+      ],
+      "note": "the committed fixture + the vendored sha-pinned eng.traineddata make the read model-deterministic in CI; the @400→Ø400 row pins the 16-R2 finding with the raw transcript preserved"
+    }
+  },
+  {
+    "caseId": "fea-uniform-tension",
+    "adapter": "fea",
+    "fixture": "fea-uniform-tension.json",
+    "expect": "success",
+    "fea": {
+      "expect": "success",
+      "note": "Uniform uniaxial tension, plane stress: the exact field u_x = σx/E, u_y = −νσy/E is LINEAR and satisfies both edge supports exactly (left ux at x=0, bottom uy at y=0), so tri6 elements reproduce it MACHINE-VERBATIM — every displacement/stress pin below is the hand-derived closed form, not an observed value.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "analysis",
+          "value": "plane_stress",
+          "derivation": "the only analysis shipped this phase (contract §14.2)"
+        },
+        {
+          "ref": null,
+          "field": "elementType",
+          "value": "tri6",
+          "derivation": "ElementVector(ElementTriP2()) — quadratic triangles, 6 nodes (contract §14.5)"
+        },
+        {
+          "ref": null,
+          "field": "refinement",
+          "value": 4,
+          "derivation": "the default meshRefinement parameter (contract §14.3)"
+        },
+        {
+          "ref": null,
+          "field": "elementCount",
+          "value": 512,
+          "derivation": "MeshTri().refined(4): the base 2 triangles × 4^4 = 512 — deterministic uniform mesh"
+        },
+        {
+          "ref": null,
+          "field": "nodeCount",
+          "value": 2178,
+          "derivation": "P2 dof points of the refined(4) mesh: 81 vertices + 144 midside points × 2 components interleaved = 2178/2 scalar points… pinned as the deterministic dof-point count"
+        },
+        {
+          "ref": "0x0",
+          "field": "ux",
+          "value": 0.0,
+          "absTolerance": 1e-09,
+          "derivation": "u_x = σx/E = 0 at x = 0 (the left edge ux support is exactly compatible)"
+        },
+        {
+          "ref": "0x0",
+          "field": "uy",
+          "value": 0.0,
+          "absTolerance": 1e-09,
+          "derivation": "u_y = −νσy/E = 0 at y = 0 (the bottom edge uy support is exactly compatible)"
+        },
+        {
+          "ref": "0x200",
+          "field": "uy",
+          "value": -0.003,
+          "absTolerance": 1e-09,
+          "derivation": "u_y(H) = −νσH/E = −0.3·10·200/200000 = −0.003 mm (Poisson contraction, free left-edge uy)"
+        },
+        {
+          "ref": "200x100",
+          "field": "ux",
+          "value": 0.01,
+          "absTolerance": 1e-09,
+          "derivation": "u_x(W/2) = σ(W/2)/E = 10·200/200000 = 0.01 mm"
+        },
+        {
+          "ref": "200x100",
+          "field": "uy",
+          "value": -0.0015,
+          "absTolerance": 1e-09,
+          "derivation": "u_y(H/2) = −νσ(H/2)/E = −0.0015 mm"
+        },
+        {
+          "ref": "400x0",
+          "field": "ux",
+          "value": 0.02,
+          "absTolerance": 1e-09,
+          "derivation": "u_x(W) = σW/E = 10·400/200000 = 0.02 mm — the Hooke's-law anchor"
+        },
+        {
+          "ref": "400x200",
+          "field": "ux",
+          "value": 0.02,
+          "absTolerance": 1e-09,
+          "derivation": "u_x(W) = σW/E = 0.02 mm at the far corner (uniform field: independent of y)"
+        },
+        {
+          "ref": "400x200",
+          "field": "uy",
+          "value": -0.003,
+          "absTolerance": 1e-09,
+          "derivation": "u_y(H) = −νσH/E = −0.003 mm at the far corner"
+        },
+        {
+          "ref": null,
+          "field": "sigmaXxMinMpa",
+          "value": 10.0,
+          "absTolerance": 1e-09,
+          "derivation": "σ_xx = σ = 10 MPa uniform (plane stress, σ_yy = τ_xy = 0) — the per-element mean equals the constant exactly"
+        },
+        {
+          "ref": null,
+          "field": "vonMisesMaxMpa",
+          "value": 10.0,
+          "absTolerance": 1e-09,
+          "derivation": "von Mises of uniaxial σ: √(σ²) = σ = 10 MPa"
+        },
+        {
+          "ref": null,
+          "field": "maxDisplacementMagnitudeMm",
+          "value": 0.020223748416157,
+          "absTolerance": 1e-09,
+          "derivation": "hypot(u_x(W), u_y(H)) = √(0.02² + 0.003²) = √0.000409 = 0.020223748416157 mm at the far corner"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "fea-cantilever-end-shear",
+    "adapter": "fea",
+    "fixture": "fea-cantilever-plate.json",
+    "expect": "success",
+    "fea": {
+      "expect": "success",
+      "note": "Cantilever plate under end shear (the Timoshenko closed form): P = 2 MPa × 25 mm × 500 mm = 25000 N down the right edge; I = t·H³/12 = 2.6041667e8 mm⁴; G = E/2(1+ν) = 76923.08 MPa; κ = 5/6. Tip δ = PL³/3EI + PL/κGA ≈ 1.28 + 0.0624 = 1.3424 mm. The tri6 solution converges to the 2D-elasticity limit from below; at refinement 4 the observed tip uy is 1.3362 (0.46% under) — the mesh-tolerance pin (1%) is the honest bound, the gmsh-volume precedent.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "elementCount",
+          "value": 512,
+          "derivation": "MeshTri().refined(4) on the scaled 2000×500 domain — same deterministic 512 tri6 elements"
+        },
+        {
+          "ref": "2000x0",
+          "field": "uy",
+          "value": -1.3424,
+          "relTolerance": 0.01,
+          "derivation": "Timoshenko tip deflection at the bottom-right corner: PL³/3EI + PL/κGA = 1.28 + 0.0624 = 1.3424 mm (positive shear acts along the CCW tangent = −y on the right edge, so the plate bends DOWN); the corner carries the centerline deflection (the section rotation displaces the tip corners horizontally, not vertically)"
+        },
+        {
+          "ref": "2000x500",
+          "field": "uy",
+          "value": -1.3424,
+          "relTolerance": 0.01,
+          "derivation": "the top-right corner mirrors the bottom within the solver's clamp-boundary-layer difference — both carry the Timoshenko centerline value (observed 1.3361 vs 1.3362)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "fea-underconstrained",
+    "adapter": "fea",
+    "fixture": "fea-underconstrained.json",
+    "expect": "error",
+    "fea": {
+      "expect": "error",
+      "errorContains": "the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z)",
+      "note": "ux-only supports on the bottom edge: y-translation has no ux OR uy anchor anywhere (no fixed u^2 dof exists), and z-rotation survives because every fixed u^1 dof sits at y = 0 (r_rot(u1) = −y = 0 there). The rigid-mode check is pure math on the fixed DOF set BEFORE any solve (contract §14.5) — an unconstrained model is refused, never solved by guessing."
+    }
   }
- }
 ]

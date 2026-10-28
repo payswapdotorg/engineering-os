@@ -41,6 +41,7 @@ import { tessellateFromFile } from "@/engines/adapters/mesh"
 import { feMeshFromFile, type FeMeshParameters, type FeMeshResult } from "@/engines/adapters/femesh"
 import { runPowerflowFromFile, type PowerflowBus, type PowerflowLine, type PowerflowTotals } from "@/engines/adapters/powerflow"
 import { runDesFromFile, type DesJob, type DesResource } from "@/engines/adapters/des"
+import { runFeaFromFile, type FeaSample } from "@/engines/adapters/fea"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "@/engines/adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "@/engines/adapters/dxf_takeoff"
 import {
@@ -95,6 +96,7 @@ export type BrokerOperation =
   | "fe_mesh"
   | "run_powerflow"
   | "run_des"
+  | "solve_fea"
   | "convert_document"
   | "analyze_schedule"
   | "takeoff_sheet"
@@ -980,6 +982,7 @@ export function femeshUnsupportedMessage(artifactName: string, storageKey: strin
 export const FEMESH_NO_REVISIONS_MESSAGE = "This artifact has no revisions to generate an FE mesh from"
 export const POWERFLOW_NO_REVISIONS_MESSAGE = "This artifact has no revisions to run a power flow on"
 export const DES_NO_REVISIONS_MESSAGE = "This artifact has no revisions to simulate"
+export const FEA_NO_REVISIONS_MESSAGE = "This artifact has no revisions to solve"
 export const CONVERT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to convert"
 export const ANALYZE_NO_REVISIONS_MESSAGE = "This artifact has no revisions to analyze"
 
@@ -1145,6 +1148,64 @@ export function buildDesDocument(
       startAt: job.startAt,
       endAt: job.endAt,
     })),
+  })
+}
+
+/**
+ * Assemble the eos-fea/1 document bytes (contract §14.4). PURE: pinned key
+ * order format → sourceArtifactName → analysis → mesh → material echo →
+ * samples → max displacement → stress → generatedBy; every numeric is the
+ * engine's verbatim solve double (ADR-0006 §2 — nobody rounds "for
+ * presentation").
+ */
+export function buildFeaDocument(
+  sourceArtifactName: string,
+  payload: {
+    analysis: "plane_stress"
+    mesh: { elementType: string; refinement: number; elementCount: number; nodeCount: number }
+    thicknessMm: number
+    elasticModulusMpa: number
+    poissonRatio: number
+    samples: FeaSample[]
+    maxDisplacementMagnitudeMm: number
+    stress: { sigmaXxMinMpa: number; sigmaXxMaxMpa: number; vonMisesMaxMpa: number }
+    engineKey: string
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+  },
+): string {
+  return JSON.stringify({
+    format: "eos-fea/1",
+    sourceArtifactName,
+    analysis: payload.analysis,
+    mesh: {
+      elementType: payload.mesh.elementType,
+      refinement: payload.mesh.refinement,
+      elementCount: payload.mesh.elementCount,
+      nodeCount: payload.mesh.nodeCount,
+    },
+    thicknessMm: payload.thicknessMm,
+    elasticModulusMpa: payload.elasticModulusMpa,
+    poissonRatio: payload.poissonRatio,
+    samples: payload.samples.map((sample) => ({
+      x: sample.x,
+      y: sample.y,
+      ux: sample.ux,
+      uy: sample.uy,
+    })),
+    maxDisplacementMagnitudeMm: payload.maxDisplacementMagnitudeMm,
+    stress: {
+      sigmaXxMinMpa: payload.stress.sigmaXxMinMpa,
+      sigmaXxMaxMpa: payload.stress.sigmaXxMaxMpa,
+      vonMisesMaxMpa: payload.stress.vonMisesMaxMpa,
+    },
+    generatedBy: {
+      engineKey: payload.engineKey,
+      engineVersion: payload.engineVersion,
+      adapterScript: payload.adapterScript,
+      adapterHash: payload.adapterHash,
+    },
   })
 }
 
@@ -2692,6 +2753,126 @@ export async function brokerRunDesCore(
   }
 }
 
+/** Pinned 201 `fea` response object (exact key order — mirror of the sim 201). */
+export interface BrokerFeaResponse {
+  artifactId: string
+  name: string
+  kind: "analysis"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-fea/1"
+  analysis: "plane_stress"
+  elementCount: number
+  nodeCount: number
+  maxDisplacementMagnitudeMm: number
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerFeaResult {
+  fea: BrokerFeaResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of solve_fea (contract §14.3/§14.5): gate the stored JSON as an
+ * eos-fea-model/1 document, run the scikit-fem bridge, assemble the
+ * byte-deterministic eos-fea/1 document, find-or-create the kind-"analysis"
+ * artifact (DRAFT revision per run), exactly ONE `fea.solved` audit event.
+ */
+export async function brokerRunFeaCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerFeaResult> {
+  const source = await readJsonArtifact(projectId, artifactId, "eos-fea-model/1", FEA_NO_REVISIONS_MESSAGE)
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof runFeaFromFile>>
+  try {
+    result = await runFeaFromFile(absPath, parameters)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildFeaDocument(source.artifact.name, result)
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "solve_fea",
+    kind: "analysis",
+    format: "eos-fea/1",
+    name: `${source.artifact.name} — plane-stress FEA`,
+    description: `Linear plane-stress FEA (${result.engineKey})`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "fea.solved",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        analysis: result.analysis,
+        elementCount: result.mesh.elementCount,
+        nodeCount: result.mesh.nodeCount,
+        maxDisplacementMagnitudeMm: result.maxDisplacementMagnitudeMm,
+        vonMisesMaxMpa: result.stress.vonMisesMaxMpa,
+      },
+    },
+  })
+
+  return {
+    fea: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-fea/1",
+      analysis: result.analysis,
+      elementCount: result.mesh.elementCount,
+      nodeCount: result.mesh.nodeCount,
+      maxDisplacementMagnitudeMm: result.maxDisplacementMagnitudeMm,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
 /** Pinned 201 `pdf` response object (exact key order — mirror of the mesh 201). */
 export interface BrokerPdfResponse {
   artifactId: string
@@ -3220,6 +3401,32 @@ export async function runBrokerOperation(
           makespan: core.sim.makespan,
           resourceCount: core.sim.resourceCount,
           jobCount: core.sim.jobCount,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "solve_fea": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "solve_fea requires inputs.artifactId (one FEA model artifact id)")
+      }
+      const core = await brokerRunFeaCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.fea.artifactId,
+          revisionNumber: core.fea.revisionNumber,
+          contentHash: core.fea.contentHash,
+          elementCount: core.fea.elementCount,
+          nodeCount: core.fea.nodeCount,
+          maxDisplacementMagnitudeMm: core.fea.maxDisplacementMagnitudeMm,
         },
         outputArtifactRevisionId: core.outputArtifactRevisionId,
         engineKey: core.engineKey,

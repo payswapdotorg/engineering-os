@@ -1,8 +1,8 @@
 {
-  "ranAt": "2026-10-27T21:18:37.890Z",
-  "pythonBin": "/home/z/.venv/bin/python",
+  "ranAt": "2026-10-28T10:38:33.366Z",
+  "pythonBin": "/home/z/.venv/bin/python3",
   "manifestPath": "tests/validation/corpus-manifest.json",
-  "caseCount": 30,
+  "caseCount": 33,
   "environment": {
     "engineAvailability": {
       "step": {
@@ -18,6 +18,9 @@
         "available": true
       },
       "des": {
+        "available": true
+      },
+      "fea": {
         "available": true
       },
       "cpm": {
@@ -46,6 +49,7 @@
     "gmsh": "4.15.2",
     "pandapower": "3.5.6",
     "simpy": "4.1.2",
+    "scikit-fem": "12.0.2",
     "libreoffice": "25.2.3.2",
     "pdfplumber": "0.11.9",
     "ezdxf": "1.4.3",
@@ -63,7 +67,8 @@
     "sheet_takeoff.py": "bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff",
     "dxf_takeoff.py": "07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329",
     "parametric_rebuild.py": "7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9",
-    "sheet_ocr.ts": "b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45"
+    "sheet_ocr.ts": "b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45",
+    "fea_solve.py": "86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef"
   },
   "cases": [
     {
@@ -3937,14 +3942,340 @@
           "adapterHash": "b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45"
         }
       }
+    },
+    {
+      "caseId": "fea-uniform-tension",
+      "adapter": "fea",
+      "fixture": "fea-uniform-tension.json",
+      "fixturePath": "tests/fixtures/fea-uniform-tension.json",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "fea",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
+          {
+            "field": "analysis",
+            "ref": null,
+            "expected": "plane_stress",
+            "observed": "plane_stress",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the only analysis shipped this phase (contract §14.2)"
+          },
+          {
+            "field": "elementType",
+            "ref": null,
+            "expected": "tri6",
+            "observed": "tri6",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "ElementVector(ElementTriP2()) — quadratic triangles, 6 nodes (contract §14.5)"
+          },
+          {
+            "field": "refinement",
+            "ref": null,
+            "expected": 4,
+            "observed": 4,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the default meshRefinement parameter (contract §14.3)"
+          },
+          {
+            "field": "elementCount",
+            "ref": null,
+            "expected": 512,
+            "observed": 512,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "MeshTri().refined(4): the base 2 triangles × 4^4 = 512 — deterministic uniform mesh"
+          },
+          {
+            "field": "nodeCount",
+            "ref": null,
+            "expected": 2178,
+            "observed": 2178,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "P2 dof points of the refined(4) mesh: 81 vertices + 144 midside points × 2 components interleaved = 2178/2 scalar points… pinned as the deterministic dof-point count"
+          },
+          {
+            "field": "ux",
+            "ref": "0x0",
+            "expected": 0,
+            "observed": 0,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u_x = σx/E = 0 at x = 0 (the left edge ux support is exactly compatible)"
+          },
+          {
+            "field": "uy",
+            "ref": "0x0",
+            "expected": 0,
+            "observed": 0,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u_y = −νσy/E = 0 at y = 0 (the bottom edge uy support is exactly compatible)"
+          },
+          {
+            "field": "uy",
+            "ref": "0x200",
+            "expected": -0.003,
+            "observed": -0.003000000000000113,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 1.1275702593849246e-16,
+            "observedRelError": 3.758567531283082e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u_y(H) = −νσH/E = −0.3·10·200/200000 = −0.003 mm (Poisson contraction, free left-edge uy)"
+          },
+          {
+            "field": "ux",
+            "ref": "200x100",
+            "expected": 0.01,
+            "observed": 0.01000000000000092,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 9.194034422677078e-16,
+            "observedRelError": 9.194034422677078e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u_x(W/2) = σ(W/2)/E = 10·200/200000 = 0.01 mm"
+          },
+          {
+            "field": "uy",
+            "ref": "200x100",
+            "expected": -0.0015,
+            "observed": -0.0014999999999999666,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 3.3393426912553537e-17,
+            "observedRelError": 2.2262284608369025e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u_y(H/2) = −νσ(H/2)/E = −0.0015 mm"
+          },
+          {
+            "field": "ux",
+            "ref": "400x0",
+            "expected": 0.02,
+            "observed": 0.02000000000000134,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 1.339206523454095e-15,
+            "observedRelError": 6.696032617270475e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u_x(W) = σW/E = 10·400/200000 = 0.02 mm — the Hooke's-law anchor"
+          },
+          {
+            "field": "ux",
+            "ref": "400x200",
+            "expected": 0.02,
+            "observed": 0.02000000000000105,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 1.0512424264419451e-15,
+            "observedRelError": 5.2562121322097255e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u_x(W) = σW/E = 0.02 mm at the far corner (uniform field: independent of y)"
+          },
+          {
+            "field": "uy",
+            "ref": "400x200",
+            "expected": -0.003,
+            "observed": -0.002999999999999486,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 5.139118297581291e-16,
+            "observedRelError": 1.713039432527097e-13,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u_y(H) = −νσH/E = −0.003 mm at the far corner"
+          },
+          {
+            "field": "sigmaXxMinMpa",
+            "ref": null,
+            "expected": 10,
+            "observed": 9.999999999999728,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 2.717825964282383e-13,
+            "observedRelError": 2.7178259642823833e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "σ_xx = σ = 10 MPa uniform (plane stress, σ_yy = τ_xy = 0) — the per-element mean equals the constant exactly"
+          },
+          {
+            "field": "vonMisesMaxMpa",
+            "ref": null,
+            "expected": 10,
+            "observed": 10.000000000001068,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 1.0675904604795505e-12,
+            "observedRelError": 1.0675904604795506e-13,
+            "ok": true,
+            "problem": "value",
+            "derivation": "von Mises of uniaxial σ: √(σ²) = σ = 10 MPa"
+          },
+          {
+            "field": "maxDisplacementMagnitudeMm",
+            "ref": null,
+            "expected": 0.020223748416157,
+            "observed": 0.02022374841615765,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 6.487865800153259e-16,
+            "observedRelError": 3.208043171151211e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "hypot(u_x(W), u_y(H)) = √(0.02² + 0.003²) = √0.000409 = 0.020223748416157 mm at the far corner"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "scikit-fem",
+          "engineVersion": "12.0.2",
+          "adapterScript": "fea_solve.py",
+          "adapterHash": "86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef"
+        }
+      }
+    },
+    {
+      "caseId": "fea-cantilever-end-shear",
+      "adapter": "fea",
+      "fixture": "fea-cantilever-plate.json",
+      "fixturePath": "tests/fixtures/fea-cantilever-plate.json",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "fea",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
+          {
+            "field": "elementCount",
+            "ref": null,
+            "expected": 512,
+            "observed": 512,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "MeshTri().refined(4) on the scaled 2000×500 domain — same deterministic 512 tri6 elements"
+          },
+          {
+            "field": "uy",
+            "ref": "2000x0",
+            "expected": -1.3424,
+            "observed": -1.336151125569775,
+            "unit": null,
+            "bound": "rel:0.01",
+            "absDiff": 0.006248874430225149,
+            "observedRelError": 0.004655001810358424,
+            "ok": true,
+            "problem": "value",
+            "derivation": "Timoshenko tip deflection at the bottom-right corner: PL³/3EI + PL/κGA = 1.28 + 0.0624 = 1.3424 mm (positive shear acts along the CCW tangent = −y on the right edge, so the plate bends DOWN); the corner carries the centerline deflection (the section rotation displaces the tip corners horizontally, not vertically)"
+          },
+          {
+            "field": "uy",
+            "ref": "2000x500",
+            "expected": -1.3424,
+            "observed": -1.3361125402122764,
+            "unit": null,
+            "bound": "rel:0.01",
+            "absDiff": 0.006287459787723604,
+            "observedRelError": 0.0046837453722613255,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the top-right corner mirrors the bottom within the solver's clamp-boundary-layer difference — both carry the Timoshenko centerline value (observed 1.3361 vs 1.3362)"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "scikit-fem",
+          "engineVersion": "12.0.2",
+          "adapterScript": "fea_solve.py",
+          "adapterHash": "86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef"
+        }
+      }
+    },
+    {
+      "caseId": "fea-underconstrained",
+      "adapter": "fea",
+      "fixture": "fea-underconstrained.json",
+      "fixturePath": "tests/fixtures/fea-underconstrained.json",
+      "expect": "error",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "fea",
+        "expect": "error",
+        "status": "pass",
+        "determinism": null,
+        "comparisons": [],
+        "problems": [],
+        "errorContains": "the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z)",
+        "errorObserved": "the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z) - an unconstrained model cannot be solved, and simulated results are not an option"
+      }
     }
   ],
   "summary": {
-    "total": 30,
-    "pass": 30,
+    "total": 33,
+    "pass": 33,
     "fail": 0,
     "skip": 0,
-    "ran": 30,
+    "ran": 33,
     "notRun": false
   }
 }

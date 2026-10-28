@@ -1,0 +1,13 @@
+{
+  "format": "eos-fea-model/1",
+  "name": "Cantilever plate under end shear",
+  "thicknessMm": 25,
+  "domain": { "widthMm": 2000, "heightMm": 500 },
+  "material": { "elasticModulusMpa": 200000, "poissonRatio": 0.3 },
+  "supports": [
+    { "edge": "left", "ux": true, "uy": true }
+  ],
+  "loads": [
+    { "edge": "right", "shearMPa": 2 }
+  ]
+}

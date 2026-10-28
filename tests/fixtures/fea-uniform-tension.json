@@ -1,0 +1,14 @@
+{
+  "format": "eos-fea-model/1",
+  "name": "Uniform tension plate (exact closed form)",
+  "thicknessMm": 10,
+  "domain": { "widthMm": 400, "heightMm": 200 },
+  "material": { "elasticModulusMpa": 200000, "poissonRatio": 0.3 },
+  "supports": [
+    { "edge": "left", "ux": true, "uy": false },
+    { "edge": "bottom", "ux": false, "uy": true }
+  ],
+  "loads": [
+    { "edge": "right", "tractionMPa": 10 }
+  ]
+}

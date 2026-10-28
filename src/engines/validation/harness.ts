@@ -77,6 +77,7 @@ import { tessellateFromFile, type MeshElement, type MeshResult } from "../adapte
 import { defaultFeMeshParameters, femeshLdLibraryPath, feMeshFromFile, validateFeMeshParameters, type FeMeshParameters, type FeMeshResult } from "../adapters/femesh"
 import { runPowerflowFromFile, type PowerflowResult } from "../adapters/powerflow"
 import { runDesFromFile, type DesResult } from "../adapters/des"
+import { runFeaFromFile, validateFeaParameters, type FeaParameters, type FeaResult } from "../adapters/fea"
 import { convertDocumentToFile, type ConversionResult } from "../adapters/convert-document"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "../adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "../adapters/dxf_takeoff"
@@ -94,6 +95,7 @@ import {
 import {
   buildCpmAnalysisDocument,
   buildDesDocument,
+  buildFeaDocument,
   buildFeMeshDocument,
   buildPowerflowDocument,
   validateScheduleDocument,
@@ -109,6 +111,7 @@ export type AdapterKind =
   | "femesh"
   | "powerflow"
   | "des"
+  | "fea"
   | "cpm"
   | "libreoffice"
   | "sheet"
@@ -125,6 +128,7 @@ export type DisciplineAdapter =
   | "femesh"
   | "powerflow"
   | "des"
+  | "fea"
   | "cpm"
   | "libreoffice"
   | "sheet"
@@ -167,6 +171,7 @@ export interface CorpusCase {
   femesh?: DisciplineExpectation
   powerflow?: DisciplineExpectation
   des?: DisciplineExpectation
+  fea?: DisciplineExpectation
   cpm?: DisciplineExpectation
   libreoffice?: DisciplineExpectation
   /** 16-V: the per-adapter expectation block for the takeoff kinds — `sheet`
@@ -216,8 +221,9 @@ export interface DisciplineExpectation {
   errorContains?: string
   /** femesh only: the broker-style model-kind detection input (default "step") */
   kind?: "step" | "ifc"
-  /** femesh only: mesh parameters override (defaults per contract §4) */
-  parameters?: { meshSizeMin: number; meshSizeMax: number; elementOrder: number }
+  /** femesh: mesh parameters override (defaults per contract §4); fea: the
+   * meshRefinement override (Slice 22, contract §14.3 — default 4) */
+  parameters?: { meshSizeMin: number; meshSizeMax: number; elementOrder: number } | { meshRefinement: number }
   /** success cases only: the pinned expectation set (every entry carries a derivation) */
   pins?: DisciplinePin[]
   /** honest routing/limitation note, rendered into the case notes */
@@ -510,7 +516,7 @@ const LIBREOFFICE_BIN = process.env.EOS_LIBREOFFICE ?? "/usr/bin/libreoffice"
 
 /** Python engines per adapter kind (cpm/libreoffice/ocr are probed differently). */
 const PYTHON_ENGINE_MODULES: Record<
-  "step" | "ifc" | "femesh" | "powerflow" | "des" | "sheet" | "dxf" | "parametric",
+  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "sheet" | "dxf" | "parametric",
   string
 > = {
   step: "cadquery",
@@ -518,6 +524,7 @@ const PYTHON_ENGINE_MODULES: Record<
   femesh: "gmsh",
   powerflow: "pandapower",
   des: "simpy",
+  fea: "skfem",
   sheet: "pdfplumber",
   dxf: "ezdxf",
   parametric: "cadquery",
@@ -539,6 +546,7 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   femesh: "gmsh (FE mesh)",
   powerflow: "pandapower (power flow)",
   des: "simpy (discrete-event)",
+  fea: "scikit-fem (plane-stress FEA)",
   cpm: "platform CPM core (no engine)",
   libreoffice: "libreoffice (document conversion)",
   sheet: "pdfplumber (vector sheet takeoff)",
@@ -769,17 +777,32 @@ function parseDisciplineExpectation(
     if (!isPlainObject(parameters)) {
       throw new Error(`manifest case ${caseId}: ${blockName}.parameters must be an object`)
     }
-    const { meshSizeMin, meshSizeMax, elementOrder } = parameters
-    if (typeof meshSizeMin !== "number" || !(meshSizeMin > 0)) {
-      throw new Error(`manifest case ${caseId}: ${blockName}.parameters.meshSizeMin must be a positive number`)
+    if (blockName === "fea") {
+      // Slice 22 (contract §14.3): the ONLY parameter is the mesh refinement level.
+      const { meshRefinement } = parameters
+      if (
+        typeof meshRefinement !== "number" ||
+        !Number.isInteger(meshRefinement) ||
+        !(meshRefinement >= 1 && meshRefinement <= 7)
+      ) {
+        throw new Error(
+          `manifest case ${caseId}: ${blockName}.parameters.meshRefinement must be an integer between 1 and 7`,
+        )
+      }
+      block.parameters = { meshRefinement }
+    } else {
+      const { meshSizeMin, meshSizeMax, elementOrder } = parameters
+      if (typeof meshSizeMin !== "number" || !(meshSizeMin > 0)) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.parameters.meshSizeMin must be a positive number`)
+      }
+      if (typeof meshSizeMax !== "number" || !(meshSizeMax > 0)) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.parameters.meshSizeMax must be a positive number`)
+      }
+      if (elementOrder !== 1) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.parameters.elementOrder must be 1 (linear tets only this phase)`)
+      }
+      block.parameters = { meshSizeMin, meshSizeMax, elementOrder: 1 }
     }
-    if (typeof meshSizeMax !== "number" || !(meshSizeMax > 0)) {
-      throw new Error(`manifest case ${caseId}: ${blockName}.parameters.meshSizeMax must be a positive number`)
-    }
-    if (elementOrder !== 1) {
-      throw new Error(`manifest case ${caseId}: ${blockName}.parameters.elementOrder must be 1 (linear tets only this phase)`)
-    }
-    block.parameters = { meshSizeMin, meshSizeMax, elementOrder: 1 }
   }
   if (!Array.isArray(pins) || pins.length === 0) {
     throw new Error(
@@ -1130,7 +1153,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
     if (!isPlainObject(c)) {
       throw new Error(`manifest case [${i}] is not an object`)
     }
-    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, cpm, libreoffice, sheet, dxf, parametric, ocr } =
+    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, fea, cpm, libreoffice, sheet, dxf, parametric, ocr } =
       c
     if (typeof caseId !== "string" || caseId.length === 0) {
       throw new Error(`manifest case [${i}] has no caseId`)
@@ -1144,6 +1167,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "femesh" ||
       adapter === "powerflow" ||
       adapter === "des" ||
+      adapter === "fea" ||
       adapter === "cpm" ||
       adapter === "libreoffice" ||
       adapter === "sheet" ||
@@ -1152,7 +1176,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "ocr"
     if (!isModelAdapter && !isDisciplineAdapter) {
       throw new Error(
-        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr" (got ${JSON.stringify(adapter)})`,
+        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr" (got ${JSON.stringify(adapter)})`,
       )
     }
     if (typeof fixture !== "string" || fixture.length === 0) {
@@ -2013,6 +2037,44 @@ function desObserved(r: DesResult, pin: DisciplinePin): unknown {
   return undefined
 }
 
+/** Resolve a pin's observed value on a FEA result (Slice 22 — the sample
+ * locator ref is "<x>x<y>" in mm, e.g. "400x0" for the (400, 0) corner). */
+function feaObserved(r: FeaResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "analysis":
+      return r.analysis
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "elementType":
+      return r.mesh.elementType
+    case "refinement":
+      return r.mesh.refinement
+    case "elementCount":
+      return r.mesh.elementCount
+    case "nodeCount":
+      return r.mesh.nodeCount
+    case "maxDisplacementMagnitudeMm":
+      return r.maxDisplacementMagnitudeMm
+    case "sigmaXxMinMpa":
+      return r.stress.sigmaXxMinMpa
+    case "sigmaXxMaxMpa":
+      return r.stress.sigmaXxMaxMpa
+    case "vonMisesMaxMpa":
+      return r.stress.vonMisesMaxMpa
+    default:
+      break
+  }
+  if (pin.ref === null) return undefined
+  const mx = pin.ref.match(/^([-\d.]+)x([-\d.]+)$/)
+  if (mx === null) return undefined
+  const sample = r.samples.find((s) => s.x === Number(mx[1]) && s.y === Number(mx[2]))
+  if (sample === undefined) return undefined
+  const sampleRecord = sample as unknown as Record<string, unknown>
+  return pin.field === "ux" || pin.field === "uy" ? sampleRecord[pin.field] : undefined
+}
+
 function libreOfficeObserved(r: ConversionResult, pin: DisciplinePin): unknown {
   switch (pin.field) {
     case "pdfMagic":
@@ -2157,6 +2219,8 @@ async function runDisciplineChecks(
         await runPowerflowFromFile(fixturePath)
       } else if (adapter === "des") {
         await runDesFromFile(fixturePath)
+      } else if (adapter === "fea") {
+        await runFeaFromFile(fixturePath, block.parameters ?? {})
       } else {
         r.problems.push(`adapter "${adapter}" has no error-case bridge path (honest harness bug — fix the manifest)`)
         r.status = "fail"
@@ -2259,6 +2323,33 @@ async function runDisciplineChecks(
       }
       for (const pin of block.pins ?? []) {
         r.comparisons.push(compareDisciplinePin(pin, desObserved(first, pin)))
+      }
+    } else if (adapter === "fea") {
+      let params: FeaParameters
+      try {
+        params = validateFeaParameters(block.parameters ?? {})
+      } catch (err) {
+        r.problems.push(`manifest fea parameters failed bridge validation: ${(err as Error).message}`)
+        r.status = "fail"
+        return r
+      }
+      const first = await runFeaFromFile(fixturePath, block.parameters ?? {})
+      const second = await runFeaFromFile(fixturePath, block.parameters ?? {})
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      const documentOf = (res: FeaResult) => buildFeaDocument(sourceName, res)
+      r.determinism = documentOf(first) === documentOf(second)
+      if (!r.determinism) {
+        r.problems.push("two consecutive real runs produced different eos-fea/1 document bytes — the stored artifact would not be byte-deterministic")
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, feaObserved(first, pin)))
       }
     } else if (adapter === "cpm") {
       // The EXACT pure pipeline the analyze_schedule broker core runs — the
@@ -3072,6 +3163,7 @@ export async function runHarness(): Promise<HarnessReport> {
         femesh: probeEngine("femesh"),
         powerflow: probeEngine("powerflow"),
         des: probeEngine("des"),
+        fea: probeEngine("fea"),
         cpm: probeEngine("cpm"),
         libreoffice: probeEngine("libreoffice"),
         sheet: probeEngine("sheet"),
@@ -3086,6 +3178,7 @@ export async function runHarness(): Promise<HarnessReport> {
       gmsh: null,
       pandapower: null,
       simpy: null,
+      "scikit-fem": null,
       libreoffice: null,
       pdfplumber: null,
       ezdxf: null,

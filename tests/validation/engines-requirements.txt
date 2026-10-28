@@ -17,3 +17,9 @@ pandapower==3.5.6
 simpy==4.1.2
 pdfplumber==0.11.10
 ezdxf==1.4.5
+# Slice 22 (2026-10-28, contract §14): scikit-fem — plane-stress FEA solving.
+# BSD-3-Clause (verified on the wheel's LICENSE + METADATA classifier), numpy+scipy only.
+# NOTE: openseespy was probed and REJECTED on license (bundled LICENSE.md requires a
+# written license for cloud-service use) — do not add it to this venv: its dependency
+# pins conflict with ifcopenshell/gmsh/pandapower/simpy coexistence (observed live).
+scikit-fem==12.0.2

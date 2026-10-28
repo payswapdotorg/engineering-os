@@ -40,6 +40,7 @@ import {
   Loader2,
   Play,
   RefreshCw,
+  Ruler,
   TriangleAlert,
   Zap,
 } from "lucide-react"
@@ -52,6 +53,7 @@ import {
   getArtifactDetail,
   runDiscreteEvent,
   runFeMesh,
+  runFea,
   runPowerFlow,
   useApi,
   type ArtifactListItem,
@@ -59,6 +61,7 @@ import {
   type DeriveRunResult,
   type DesPayload,
   type FeMeshPayload,
+  type FeaPayload,
   type PowerFlowPayload,
 } from "@/components/product/api"
 import { ApprovalBadge, KindBadge, StalenessBadge } from "@/components/product/badges"
@@ -86,12 +89,13 @@ import { deriveKind } from "@/engines/adapters/derive-kind"
 // ---------------------------------------------------------------------------
 
 /** Which §8 route a register row was produced by (Regenerate needs it). */
-type SimOp = "fe-mesh" | "powerflow" | "simulate" | "analyze-schedule"
+type SimOp = "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "analyze-schedule"
 
 const OP_RUN_LABEL: Record<SimOp, string> = {
   "fe-mesh": "Meshing…",
   powerflow: "Solving power flow…",
   simulate: "Running simulation…",
+  "solve-fea": "Solving plane-stress FEA…",
   "analyze-schedule": "Analyzing schedule…",
 }
 
@@ -100,6 +104,7 @@ const FORMAT_ENGINE: Record<string, { engineKey: string; platform: boolean }> = 
   "eos-femesh/1": { engineKey: "gmsh", platform: false },
   "eos-powerflow/1": { engineKey: "pandapower", platform: false },
   "eos-des/1": { engineKey: "simpy", platform: false },
+  "eos-fea/1": { engineKey: "scikit-fem", platform: false },
   "eos-cpm/1": { engineKey: "platform core", platform: true },
 }
 
@@ -107,6 +112,7 @@ const FORMAT_OP: Record<string, SimOp> = {
   "eos-femesh/1": "fe-mesh",
   "eos-powerflow/1": "powerflow",
   "eos-des/1": "simulate",
+  "eos-fea/1": "solve-fea",
   "eos-cpm/1": "analyze-schedule",
 }
 
@@ -128,7 +134,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /** Union of every §2 payload this workspace can render. */
-type DerivedPayload = FeMeshPayload | PowerFlowPayload | DesPayload | CpmAnalysisPayload
+type DerivedPayload = FeMeshPayload | PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload
 
 /**
  * Read a stored derived payload (§2 formats) from an already-parsed object.
@@ -234,6 +240,45 @@ function readDerivedPayload(parsed: unknown): DerivedPayload | null {
       durationDays: Number(parsed.durationDays ?? NaN),
     } satisfies CpmAnalysisPayload
   }
+  if (format === "eos-fea/1") {
+    const samples = Array.isArray(parsed.samples) ? parsed.samples.filter(isRecord) : []
+    const mesh = isRecord(parsed.mesh) ? parsed.mesh : {}
+    const stress = isRecord(parsed.stress) ? parsed.stress : {}
+    return {
+      format,
+      sourceArtifactName: typeof parsed.sourceArtifactName === "string" ? parsed.sourceArtifactName : "—",
+      analysis: parsed.analysis === "plane_stress" ? "plane_stress" : "plane_stress",
+      mesh: {
+        elementType: String(mesh.elementType ?? "—"),
+        refinement: Number(mesh.refinement ?? NaN),
+        elementCount: Number(mesh.elementCount ?? NaN),
+        nodeCount: Number(mesh.nodeCount ?? NaN),
+      },
+      thicknessMm: Number(parsed.thicknessMm ?? NaN),
+      elasticModulusMpa: Number(parsed.elasticModulusMpa ?? NaN),
+      poissonRatio: Number(parsed.poissonRatio ?? NaN),
+      samples: samples.map((s) => ({
+        x: Number(s.x ?? NaN),
+        y: Number(s.y ?? NaN),
+        ux: Number(s.ux ?? NaN),
+        uy: Number(s.uy ?? NaN),
+      })),
+      maxDisplacementMagnitudeMm: Number(parsed.maxDisplacementMagnitudeMm ?? NaN),
+      stress: {
+        sigmaXxMinMpa: Number(stress.sigmaXxMinMpa ?? NaN),
+        sigmaXxMaxMpa: Number(stress.sigmaXxMaxMpa ?? NaN),
+        vonMisesMaxMpa: Number(stress.vonMisesMaxMpa ?? NaN),
+      },
+      generatedBy: isRecord(parsed.generatedBy)
+        ? {
+            engineKey: String(parsed.generatedBy.engineKey ?? "—"),
+            engineVersion: String(parsed.generatedBy.engineVersion ?? "—"),
+            adapterScript: String(parsed.generatedBy.adapterScript ?? "—"),
+            adapterHash: String(parsed.generatedBy.adapterHash ?? "—"),
+          }
+        : undefined,
+    } satisfies FeaPayload
+  }
   return null
 }
 
@@ -242,7 +287,7 @@ function readDerivedPayload(parsed: unknown): DerivedPayload | null {
 // ---------------------------------------------------------------------------
 
 interface CapabilitySpec {
-  op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate">
+  op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea">
   title: string
   engineKey: string
   icon: typeof Boxes
@@ -316,6 +361,23 @@ const CAPABILITIES: CapabilitySpec[] = [
       "No .json dataset artifacts in this project yet — upload a scenario JSON (kind `dataset`). " +
       "The route validates the eos-des-scenario/1 shape and refuses it honestly otherwise.",
   },
+  {
+    op: "solve-fea",
+    title: "Plane-stress FEA",
+    engineKey: "scikit-fem",
+    icon: Ruler,
+    blurb:
+      "Solves a linear plane-stress FEA of an eos-fea-model/1 JSON dataset (scikit-fem, BSD-3) — " +
+      "a rectangular plate under per-edge traction/shear with per-edge supports; corner + center " +
+      "displacements, per-element stress statistics and max deflection land in an `analysis` " +
+      "artifact. Under-constrained models are refused honestly, never solved by guessing.",
+    pickerLabel: "FEA model JSON artifact (kind dataset)",
+    runLabel: "Solve FEA",
+    eligible: jsonDatasetEligible,
+    emptyNote:
+      "No .json dataset artifacts in this project yet — upload an eos-fea-model/1 JSON (kind " +
+      "`dataset`). The route validates the model shape and refuses it honestly otherwise.",
+  },
 ]
 
 function CapabilityCard({
@@ -333,7 +395,7 @@ function CapabilityCard({
   artifactsLoading: boolean
   onRetryArtifacts: () => void
   running: SimOp | null
-  onRun: (op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate">, artifactId: string) => void
+  onRun: (op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea">, artifactId: string) => void
 }) {
   const eligible = useMemo(() => rows.filter(spec.eligible), [rows, spec])
   // The picked id is DERIVED at render time (the react-hooks/set-state-in-effect
@@ -430,7 +492,7 @@ function RegisterRowCard({
   return (
     <Card
       className={cn(
-        "transition-colors",
+        "min-w-0 transition-colors",
         selected ? "border-orange-300 bg-accent/40 dark:border-orange-700" : "hover:bg-accent/30",
       )}
     >
@@ -599,7 +661,7 @@ function ExecutionRecordSection({ run }: { run: DeriveRunResult | null }) {
 function PayloadSection({
   payload,
 }: {
-  payload: FeMeshPayload | PowerFlowPayload | DesPayload | CpmAnalysisPayload
+  payload: FeMeshPayload | PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload
 }) {
   if (payload.format === "eos-femesh/1") {
     const p = payload
@@ -760,6 +822,59 @@ function PayloadSection({
             <span>no jobs recorded</span>
           )}
         </p>
+      </div>
+    )
+  }
+  if (payload.format === "eos-fea/1") {
+    const p = payload
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
+          <Badge className="border-transparent bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+            plane stress
+          </Badge>
+          <span className="font-mono tabular-nums" title="max displacement magnitude over all dof points">
+            max |u| {Number.isFinite(p.maxDisplacementMagnitudeMm) ? p.maxDisplacementMagnitudeMm.toFixed(6) : "—"} mm
+          </span>
+          <span className="font-mono tabular-nums" title="max von Mises stress across elements">
+            von Mises max {Number.isFinite(p.stress.vonMisesMaxMpa) ? p.stress.vonMisesMaxMpa.toFixed(3) : "—"} MPa
+          </span>
+          <span className="font-mono tabular-nums" title="uniform tri6 mesh at the pinned refinement">
+            {Number.isFinite(p.mesh.elementCount) ? p.mesh.elementCount.toLocaleString() : "—"} {p.mesh.elementType} elements
+          </span>
+        </div>
+        <div className="eos-scroll max-h-72 overflow-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <caption className="sr-only">FEA results — corner and center sample displacements, verbatim from the engine</caption>
+            <thead className="sticky top-0 bg-muted">
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th scope="col" className="px-3 py-2 font-medium">Sample (mm)</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">u_x (mm)</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">u_y (mm)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.samples.map((s, i) => (
+                <tr key={`${s.x}-${s.y}-${i}`} className="border-b last:border-0">
+                  <td className="px-3 py-2 font-mono text-xs">
+                    ({Number.isFinite(s.x) ? s.x : "—"}, {Number.isFinite(s.y) ? s.y : "—"})
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(s.ux) ? s.ux : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(s.uy) ? s.uy : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <InfoNote>
+          Linear plane-stress solve (scikit-fem) — sample displacements at the 4 domain corners + center;
+          stress stats are per-element means (a P0 mass-lumped projection of C·ε(u)); every number is
+          copied verbatim from the engine. Under-constrained models are refused, never guessed.
+        </InfoNote>
       </div>
     )
   }
@@ -975,9 +1090,10 @@ export function SimWorkspace({
       if (op === "fe-mesh") result = (await runFeMesh(projectId, artifactId)).femesh
       else if (op === "powerflow") result = (await runPowerFlow(projectId, artifactId)).powerflow
       else if (op === "simulate") result = (await runDiscreteEvent(projectId, artifactId)).sim
+      else if (op === "solve-fea") result = (await runFea(projectId, artifactId)).fea
       else result = (await analyzeSchedule(projectId, artifactId)).analysis
       toast.success(
-        `${op === "fe-mesh" ? "FE mesh" : op === "powerflow" ? "Power flow" : op === "simulate" ? "Simulation" : "Schedule analysis"} complete — ${result.name}${result.revisionNumber ? ` r${result.revisionNumber}` : ""} stored as a derived artifact`,
+        `${op === "fe-mesh" ? "FE mesh" : op === "powerflow" ? "Power flow" : op === "simulate" ? "Simulation" : op === "solve-fea" ? "FEA solve" : "Schedule analysis"} complete — ${result.name}${result.revisionNumber ? ` r${result.revisionNumber}` : ""} stored as a derived artifact`,
       )
       setRunByArtifact((prev) => ({ ...prev, [result.artifactId]: { op, result } }))
       setSelectedId(result.artifactId)

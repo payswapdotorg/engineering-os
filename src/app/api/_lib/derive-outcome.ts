@@ -99,6 +99,15 @@ export const DERIVE_SUMMARIES = {
       jobCount: countOf(document, "jobs"),
     }
   },
+  /** eos-fea/1 → elementCount / nodeCount / maxDisplacementMagnitudeMm / vonMisesMaxMpa (Slice 22) */
+  fea(document: unknown): Record<string, unknown> {
+    return {
+      elementCount: numberField(field(document, "mesh"), "elementCount"),
+      nodeCount: numberField(field(document, "mesh"), "nodeCount"),
+      maxDisplacementMagnitudeMm: numberField(document, "maxDisplacementMagnitudeMm"),
+      vonMisesMaxMpa: numberField(field(document, "stress"), "vonMisesMaxMpa"),
+    }
+  },
   /** eos-cpm/1 → activityCount / criticalPathCount / durationDays */
   analysis(document: unknown): Record<string, unknown> {
     return {
