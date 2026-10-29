@@ -1135,8 +1135,8 @@
             {
               "ref": null,
               "field": "pageCount",
-              "value": 3,
-              "derivation": "fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)"
+              "value": 4,
+              "derivation": "fixture builder pins a 4-page document (Slice 20 added page 3, the two-size panel schedule; Slice 27 added page 4, the /Rotate 90 rotated-page fixture — pages 1-3 streams byte-identical)"
             },
             {
               "ref": null,
@@ -1262,8 +1262,8 @@
             {
               "ref": null,
               "field": "fixtureSha256",
-              "value": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
-              "derivation": "see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)"
+              "value": "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6",
+              "derivation": "see case groundTruth — Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)"
             },
             {
               "ref": null,
@@ -1291,8 +1291,8 @@
             {
               "ref": null,
               "field": "pageCount",
-              "value": 3,
-              "derivation": "fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)"
+              "value": 4,
+              "derivation": "fixture builder pins a 4-page document (Slice 27 added page 4, the /Rotate 90 rotated-page fixture; pages 1-3 streams byte-identical)"
             },
             {
               "ref": null,
@@ -1317,8 +1317,8 @@
             {
               "ref": null,
               "field": "fixtureSha256",
-              "value": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
-              "derivation": "see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)"
+              "value": "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6",
+              "derivation": "see case groundTruth — Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)"
             },
             {
               "ref": null,
@@ -1327,6 +1327,95 @@
               "relTolerance": 1e-06,
               "unit": "mm",
               "derivation": "page-3 scale bar 283.464567 pt + 3 x 12 pt ticks = 319.464567 pt = 11 270.000 mm (same furniture as page 2)"
+            }
+          ]
+        },
+        {
+          "parameters": {
+            "pageNo": 4,
+            "scaleMmPerPt": 35.27777777777778,
+            "flattenSegments": 32
+          },
+          "pins": [
+            {
+              "ref": null,
+              "field": "pageNo",
+              "value": 4,
+              "derivation": "the requested page, echoed by the adapter"
+            },
+            {
+              "ref": null,
+              "field": "pageCount",
+              "value": 4,
+              "derivation": "fixture builder pins a 4-page document (Slice 27 added page 4, the /Rotate 90 rotated-page fixture; pages 1-3 streams byte-identical)"
+            },
+            {
+              "ref": null,
+              "field": "widthPt",
+              "value": 842,
+              "derivation": "pdfplumber reports the DISPLAYED page for /Rotate 90 — the unrotated 1191x842 MediaBox turned upright is 842 wide (probed 2026-10-29; pdf.js's viewport paints the same view, the empirically probed alignment of src/core/page-rotation.ts)"
+            },
+            {
+              "ref": null,
+              "field": "heightPt",
+              "value": 1191,
+              "derivation": "the displayed height = the unrotated width 1191 (the /Rotate 90 extent swap, pdfplumber semantics)"
+            },
+            {
+              "ref": null,
+              "field": "linesCount",
+              "value": 4,
+              "derivation": "page 4 carries the same scale-bar furniture as page 2: bar + 2 end ticks + mid tick = 4 lines — rotation never moves a count"
+            },
+            {
+              "ref": null,
+              "field": "rectsCount",
+              "value": 13,
+              "derivation": "page 4 is page-2-isomorphic by construction: border + 6 outer + 6 inner = 13 rects"
+            },
+            {
+              "ref": null,
+              "field": "rectsTotalAreaMm2",
+              "value": 1130321813.4259,
+              "relTolerance": 1e-06,
+              "unit": "mm2",
+              "derivation": "rotation never moves an area — the page-2 value pinned again (908 238 pt2 x (35.277777...)2 = 1 130 321 813.4259 mm2)"
+            },
+            {
+              "ref": null,
+              "field": "fixtureSha256",
+              "value": "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6",
+              "derivation": "Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)"
+            },
+            {
+              "ref": "rect@350,741",
+              "field": "itemAreaMm2",
+              "value": 124452.1605,
+              "relTolerance": 1e-06,
+              "unit": "mm2",
+              "derivation": "THE ROTATED-ANCHOR PIN: the socket at unrotated (440..450, 350..360) presents its first corner at (350, 741) in the pdfminer-CTM rotated view (y, W-x) — 10x10 pt = 100 pt2 x (35.277777...)2 = 124 452.1605 mm2; probed through the real adapter (the same view pdf.js paints)"
+            },
+            {
+              "ref": "rect@500,981",
+              "field": "itemAreaMm2",
+              "value": 124452.1605,
+              "relTolerance": 1e-06,
+              "unit": "mm2",
+              "derivation": "the far rotated anchor: the socket at unrotated (200..210, 500..510) presents its first corner at (500, 981) in the CTM view — same 100 pt2 area, the anchor proves the W-x axis"
+            },
+            {
+              "ref": "rect@503,744",
+              "field": "itemFill",
+              "value": true,
+              "derivation": "the concentric INNER socket (unrotated 443..447, 503..507) presents its first corner at (503, 744) in the CTM view and stays the filled square"
+            },
+            {
+              "ref": null,
+              "field": "linesTotalLengthMm",
+              "value": 11270.0,
+              "relTolerance": 1e-06,
+              "unit": "mm",
+              "derivation": "rotation never moves a length: the scale bar's 283.464567 pt + 3 x 12 pt ticks = 11 270.000 mm (same furniture as page 2)"
             }
           ]
         }

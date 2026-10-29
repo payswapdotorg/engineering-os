@@ -23,8 +23,13 @@
  *    matching (src/core/symbol-match.ts, threshold ≥ 0.85 default) → the
  *    hits are drawn as boxes → "Accept N" produces the same save panel as a
  *    manual count, with quantityMethod "eos-symbol-template/1 (NCC ≥ T)" and
- *    a kind="symbol-hits" markup carrying every hit box. Honest limits:
- *    a rotated page (/Rotate ≠ 0) inherits the Slice-8 click-mapping caveat.
+ *    a kind="symbol-hits" markup carrying every hit box.
+ *    Slice 27 — the rotated-page correctness closure (limitation #17):
+ *    every pt↔px conversion routes through src/core/page-rotation.ts's
+ *    RotationFrame (the /Rotate 90/180/270 quadrants), so on a rotated page
+ *    the pick, the scan, the OCR crop and every drawn box land where the eye
+ *    sees them — at /Rotate 0 every number is bit-identical to the Slice-8/13/14
+ *    formulas, so no pinned behavior changes.
  *    Slice 20 — the "Match other sizes" toggle runs the pinned 12-rung
  *    0.5×–2× scale ladder (nccScanMultiScale) in ONE pass: hits at other
  *    sizes carry their rung, quantityMethod reads "eos-symbol-template/2
@@ -61,9 +66,18 @@
  * imported DYNAMICALLY inside the load effect (never at module scope) so no
  * SSR/build-time evaluation happens.
  *
- * Honest limitation (recorded, not hidden): click→point mapping assumes the
- * page /Rotate is 0 (the pinned A3 fixture is); a rotated page renders upright
- * but picks would land in unrotated coordinates.
+ * Slice-8 honest limitation #17 — CLOSED (Slice 27, 2026-10-29): the
+ * click→point mapping assumed /Rotate 0; a rotated page rendered upright
+ * but picks landed in unrotated coordinates. The closure: every pt↔px
+ * conversion now routes through the page-rotation frame (the four spec
+ * quadrants, empirically probed against pdfjs-dist@4.10.38's own viewport
+ * and the rotated fixture page 4), with the unrotated MediaBox captured
+ * explicitly (getViewport at rotation 0) so the stored Pt contract (Slice 8,
+ * frozen measure.ts space) stays unrotated page space. The fixture:
+ * tests/fixtures/build-sheet-pdf.ts grew to FOUR pages — page 4 "ROTATED
+ * LAYOUT" is page-2-isomorphic socket geometry behind a /Rotate 90 page
+ * dictionary (the same content, so the server-side pdfminer-CTM pin and the
+ * browser pin cannot drift apart).
  */
 import {
   ChevronLeft,
@@ -113,6 +127,12 @@ import {
   toLedgerQuantity,
   type Pt,
 } from "@/core/measure"
+import {
+  cssPxFromPdfPoint,
+  pdfPointFromCssPx,
+  type PdfPageRotation,
+  type RotationFrame,
+} from "@/core/page-rotation"
 import {
   DEFAULT_SCALE_LADDER,
   DEFAULT_SCAN_OPTIONS,
@@ -300,6 +320,15 @@ export function SheetMeasure({
   const [zoom, setZoom] = useState(1)
   const [renderScale, setRenderScale] = useState(1)
   const [pageDims, setPageDims] = useState<{ wPt: number; hPt: number } | null>(null)
+  // [S27] The page's /Rotate (0/90/180/270), captured from the pdf.js viewport
+  // — the limitation-#17 closure: every pt↔px conversion below routes through
+  // page-rotation's RotationFrame so a rotated page's PICTURE and its PICKS
+  // finally agree (at R=0 every number is bit-identical to the Slice-8 math).
+  const [pageRotation, setPageRotation] = useState<PdfPageRotation>(0)
+  const rotationFrame: RotationFrame | null =
+    pageDims !== null
+      ? { wPt: pageDims.wPt, hPt: pageDims.hPt, rotation: pageRotation, scale: renderScale }
+      : null
   const [rendering, setRendering] = useState(false)
 
   // -- measurement state ------------------------------------------------------
@@ -635,8 +664,14 @@ export function SheetMeasure({
       try {
         const page = await doc.getPage(pageNumber)
         if (cancelled) return
-        const base = page.getViewport({ scale: 1 })
-        const fitScale = containerWidth / base.width
+        // [S27] The UNSWAPPED truth: pdf.js's getViewport APPLIES /Rotate, so
+        // the plain scale-1 viewport is the DISPLAYED size — pageDims must hold
+        // the UNROTATED MediaBox (rotation forced to 0) because the stored Pt
+        // contract (Slice 8, measure.ts) is unrotated page space. On an R=0
+        // page the two are identical, so every pinned number is unchanged.
+        const unrot = page.getViewport({ scale: 1, rotation: 0 })
+        const displayed = page.getViewport({ scale: 1 })
+        const fitScale = containerWidth / displayed.width
         const scale = clampScale(fitScale * zoom)
         const viewport = page.getViewport({ scale })
         const dpr = window.devicePixelRatio || 1
@@ -649,8 +684,9 @@ export function SheetMeasure({
         dprRef.current = dpr
         // Points are stored in PDF space; the mapping factors must move to the
         // new scale BEFORE the render finishes so the overlay never drifts.
-        setPageDims({ wPt: base.width, hPt: base.height })
+        setPageDims({ wPt: unrot.width, hPt: unrot.height })
         setRenderScale(scale)
+        setPageRotation((viewport.rotation ?? 0) as PdfPageRotation)
         const ctx = canvas.getContext("2d")
         if (ctx === null) throw new Error("Canvas 2D context unavailable in this browser")
         renderTaskRef.current?.cancel()
@@ -694,13 +730,17 @@ export function SheetMeasure({
     ctx.clearRect(0, 0, overlay.width / dpr, overlay.height / dpr)
 
     // Amber on the white sheet (workspace drawing-measured palette; never
-    // blue/indigo). PDF points → viewport CSS px: x*s, (hPt − y)*s.
+    // blue/indigo). PDF points → viewport CSS px through the page-rotation
+    // frame ([S27] — limitation #17 closed): at R=0 this is bit-identical to
+    // the Slice-8 formula x·s, (hPt−y)·s; at R≠0 it is the rotated view the
+    // eye is looking at, so picks and paint finally agree.
     const stroke = "#b45309" // amber-700
     const guide = "#d97706" // amber-600
-    const toPx = (p: Pt): [number, number] => [
-      p.x * renderScale,
-      (pageDims.hPt - p.y) * renderScale,
-    ]
+    if (rotationFrame === null) return
+    const toPx = (p: Pt): [number, number] => {
+      const q = cssPxFromPdfPoint(p.x, p.y, rotationFrame)
+      return [q.x, q.y]
+    }
 
     const drawDot = (p: Pt) => {
       const [x, y] = toPx(p)
@@ -995,7 +1035,7 @@ export function SheetMeasure({
         }
       }
     }
-  }, [tool, calibPicks, points, cursorPt, finished, renderScale, pageDims, markups, pageNumber, autoPicks, autoHits, cutoutDraft])
+  }, [tool, calibPicks, points, cursorPt, finished, rotationFrame, pageDims, markups, pageNumber, autoPicks, autoHits, cutoutDraft])
 
   useEffect(() => {
     drawOverlay()
@@ -1045,17 +1085,30 @@ export function SheetMeasure({
       const img = ctx.getImageData(0, 0, off.width, off.height)
       const gray = toGray(img.data, off.width, off.height)
 
-      // Template rect: PDF-pt box → raster px (y flipped), rounded to ints —
-      // extractTemplate validates the bounds again with a specific message.
+      // Template rect: PDF-pt box → raster px through the [S27] rotation
+      // frame — the scan raster is rendered with the page's /Rotate applied
+      // (pdf.js viewport), so the pt corners must take the same trip. At R=0
+      // this reduces to the Slice-13 formula (minX·s, (hPt−maxY)·s) exactly.
+      // Rounded to ints — extractTemplate validates the bounds again with
+      // a specific message.
+      if (pageDims === null) return
+      const scanFrame: RotationFrame = {
+        wPt: pageDims.wPt,
+        hPt: pageDims.hPt,
+        rotation: pageRotation,
+        scale: SCAN_SCALE,
+      }
       const minX = Math.min(autoPicks[0].x, autoPicks[1].x)
       const maxX = Math.max(autoPicks[0].x, autoPicks[1].x)
       const minY = Math.min(autoPicks[0].y, autoPicks[1].y)
       const maxY = Math.max(autoPicks[0].y, autoPicks[1].y)
+      const ra = cssPxFromPdfPoint(minX, minY, scanFrame)
+      const rb = cssPxFromPdfPoint(maxX, maxY, scanFrame)
       const rect = {
-        x: Math.round(minX * SCAN_SCALE),
-        y: Math.round((pageDims.hPt - maxY) * SCAN_SCALE),
-        width: Math.max(2, Math.round((maxX - minX) * SCAN_SCALE)),
-        height: Math.max(2, Math.round((maxY - minY) * SCAN_SCALE)),
+        x: Math.round(Math.min(ra.x, rb.x)),
+        y: Math.round(Math.min(ra.y, rb.y)),
+        width: Math.max(2, Math.round(Math.abs(rb.x - ra.x))),
+        height: Math.max(2, Math.round(Math.abs(rb.y - ra.y))),
       }
       const template = extractTemplate(gray, rect)
       // Slice 20: the multi-scale lane rides the SAME raster + template —
@@ -1065,16 +1118,19 @@ export function SheetMeasure({
         ? nccScanMultiScale(gray, template, { minScore: threshold })
         : nccScan(gray, template, { minScore: threshold })
 
-      // Raster px → PDF pt (y flip back). tl/br in PDF space for the markup.
-      const hits: SymbolHit[] = boxes.map((b) => ({
-        tl: { x: b.x / SCAN_SCALE, y: pageDims.hPt - b.y / SCAN_SCALE },
-        br: {
-          x: (b.x + b.width) / SCAN_SCALE,
-          y: pageDims.hPt - (b.y + b.height) / SCAN_SCALE,
-        },
-        score: b.score,
-        ...("scale" in b ? { scale: (b as { scale: number }).scale } : {}),
-      }))
+      // Raster px → PDF pt through the same [S27] frame (the inverse trip).
+      // tl/br in PDF space for the markup. At R=0: (b.x/s, hPt − b.y/s)
+      // byte-identical to the Slice-13 formula.
+      const hits: SymbolHit[] = boxes.map((b) => {
+        const tlq = pdfPointFromCssPx(b.x, b.y, scanFrame)
+        const brq = pdfPointFromCssPx(b.x + b.width, b.y + b.height, scanFrame)
+        return {
+          tl: tlq,
+          br: brq,
+          score: b.score,
+          ...("scale" in b ? { scale: (b as { scale: number }).scale } : {}),
+        }
+      })
       setAutoHits(hits)
       if (hits.length === 0) {
         setScanError(
@@ -1095,7 +1151,7 @@ export function SheetMeasure({
     } finally {
       setScanning(false)
     }
-  }, [autoPicks, autoThreshold, autoMultiScale, pageNumber, pageDims, scanning])
+  }, [autoPicks, autoThreshold, autoMultiScale, pageNumber, pageDims, pageRotation, scanning])
 
   /** Accept the reviewed hits as the finished count measurement (save panel). */
   const acceptAutoHits = useCallback(() => {
@@ -1154,14 +1210,26 @@ export function SheetMeasure({
       ctx.fillRect(0, 0, off.width, off.height)
       await page.render({ canvasContext: ctx, viewport }).promise
 
+      // [S27] The picked pt box → crop-raster px through the rotation frame
+      // (the OCR raster carries the page's /Rotate like every pdf.js render).
+      // At R=0: ox = minX·s, oy = (hPt−maxY)·s byte-identical to Slice 14.
+      if (pageDims === null) return
+      const ocrFrame: RotationFrame = {
+        wPt: pageDims.wPt,
+        hPt: pageDims.hPt,
+        rotation: pageRotation,
+        scale: OCR_SCALE,
+      }
       const minX = Math.min(ocrPicks[0].x, ocrPicks[1].x)
       const maxX = Math.max(ocrPicks[0].x, ocrPicks[1].x)
       const minY = Math.min(ocrPicks[0].y, ocrPicks[1].y)
       const maxY = Math.max(ocrPicks[0].y, ocrPicks[1].y)
-      const ox = Math.round(minX * OCR_SCALE)
-      const oy = Math.round((pageDims.hPt - maxY) * OCR_SCALE)
-      const ow = Math.max(8, Math.round((maxX - minX) * OCR_SCALE))
-      const oh = Math.max(8, Math.round((maxY - minY) * OCR_SCALE))
+      const oa = cssPxFromPdfPoint(minX, minY, ocrFrame)
+      const ob = cssPxFromPdfPoint(maxX, maxY, ocrFrame)
+      const ox = Math.round(Math.min(oa.x, ob.x))
+      const oy = Math.round(Math.min(oa.y, ob.y))
+      const ow = Math.max(8, Math.round(Math.abs(ob.x - oa.x)))
+      const oh = Math.max(8, Math.round(Math.abs(ob.y - oa.y)))
       if (ox < 0 || oy < 0 || ox + ow > off.width || oy + oh > off.height) {
         throw new Error("The picked region falls outside the page — re-pick inside the sheet.")
       }
@@ -1175,15 +1243,18 @@ export function SheetMeasure({
       const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1)
 
       const result = await runSheetOcr(projectId, sheetArtifactId, base64)
-      // Crop-raster px → PDF pt (y flip back through the crop origin).
-      const words: OcrWordHit[] = result.words.map((w) => ({
-        word: w,
-        tl: { x: minX + w.box.x / OCR_SCALE, y: pageDims.hPt - (oy + w.box.y) / OCR_SCALE },
-        br: {
-          x: minX + (w.box.x + w.box.width) / OCR_SCALE,
-          y: pageDims.hPt - (oy + w.box.y + w.box.height) / OCR_SCALE,
-        },
-      }))
+      // Crop-raster px → PDF pt through the same [S27] frame (crop origin +
+      // box, then the inverse rotation trip). At R=0 byte-identical to the
+      // Slice-14 formula.
+      const words: OcrWordHit[] = result.words.map((w) => {
+        const tlq = pdfPointFromCssPx(ox + w.box.x, oy + w.box.y, ocrFrame)
+        const brq = pdfPointFromCssPx(
+          ox + w.box.x + w.box.width,
+          oy + w.box.y + w.box.height,
+          ocrFrame,
+        )
+        return { word: w, tl: tlq, br: brq }
+      })
       setOcrWords(words)
       setOcrEnvelope({
         engine: result.engineKey,
@@ -1204,7 +1275,7 @@ export function SheetMeasure({
     } finally {
       setOcrReading(false)
     }
-  }, [ocrPicks, ocrReading, pageDims, pageNumber, pdfDocRef, projectId, sheetArtifactId])
+  }, [ocrPicks, ocrReading, pageDims, pageRotation, pageNumber, pdfDocRef, projectId, sheetArtifactId])
 
   /** Accept the reviewed transcript as a kind "text-hits" markup (the
    *  auto-count accept precedent, but NO ledger row — text is evidence, not a
@@ -1282,19 +1353,21 @@ export function SheetMeasure({
 
   // -- pointer handlers --------------------------------------------------------
 
-  /** Canvas CSS px → PDF points: divide by the render scale BEFORE any math
-   *  (contract §3.1); PDF y grows up, viewport y grows down. */
+  /** Canvas CSS px → PDF points through the [S27] rotation frame (divide
+   *  by the render scale BEFORE any math — contract §3.1; the rotation trip
+   *  is the limitation-#17 closure). At R=0 byte-identical to the Slice-8
+   *  formula: { x: cssX/s, y: hPt − cssY/s }.
+   *  PDF y grows up, unrotated page space; viewport y grows down, rotated. */
   const eventToPt = (e: React.MouseEvent<HTMLCanvasElement>): Pt | null => {
     const canvas = overlayCanvasRef.current
-    if (!canvas || !pageDims) return null
+    if (!canvas || !pageDims || !rotationFrame) return null
     const rect = canvas.getBoundingClientRect()
     if (rect.width === 0 || rect.height === 0) return null
     const dpr = dprRef.current || 1
-    // Device px (canvas.width carries the DPR) → CSS px → PDF points: divide
-    // by the render scale BEFORE any math (contract §3.1); flip y (PDF grows up).
+    // Device px (canvas.width carries the DPR) → CSS px → PDF points.
     const cssX = ((e.clientX - rect.left) * canvas.width) / rect.width / dpr
     const cssY = ((e.clientY - rect.top) * canvas.height) / rect.height / dpr
-    return { x: cssX / renderScale, y: pageDims.hPt - cssY / renderScale }
+    return pdfPointFromCssPx(cssX, cssY, rotationFrame)
   }
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLCanvasElement>) => {

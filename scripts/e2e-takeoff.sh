@@ -13,7 +13,11 @@
 # matrix → 89 PASS. Slice 20 (scale-invariant auto-count): AC-AC-04a…f
 # pins the two-size page-3 field through the real pdfplumber lane, the v2
 # quantityMethod provenance, and the mixed-size symbol-hits round-trip
-# (+ the size-blind consistency gate) → 95 PASS.
+# (+ the size-blind consistency gate) → 95 PASS. Slice 27 (the rotated-page
+# correctness closure, limitation #17): AC-RW-01…06 pins the /Rotate 90
+# fixture page 4 through the REAL vector-takeoff broker — rotation-invariant
+# counts + area, the pdfplumber displayed page, the pdfminer-CTM rotated
+# anchors, and the unrotated-space symbol-hits markup round-trip → 101 PASS.
 #
 # Rebuilds the demo dataset through the REAL API against the live dev server:
 # project "Harbour View Extension", 4 fixtures, 14 ledger rows, 1 approved GHS
@@ -790,6 +794,86 @@ assert_eq "AC-VT-09j: the accept is audited (markup.created with kind text-hits 
 
 STATUS=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST "$BASE/api/projects/$PID/artifacts/$SHEET_ID/ocr" -H 'Content-Type: application/json' --data-binary @"$WORK/ocr.json") || STATUS="000"
 assert_eq "AC-VT-09k: unauthenticated OCR read refused (401 envelope)" "401" "$STATUS"
+
+# ===========================================================================
+# 4x. Slice 27 — the rotated-page correctness lane (AC-RW-01…06, limitation
+# #17 CLOSED): the /Rotate 90 fixture page 4 (page-2-isomorphic socket
+# geometry behind a rotated page dictionary, tests/fixtures/build-sheet-pdf.ts)
+# through the REAL vector-takeoff broker. Server pins: rotation never moves
+# counts or areas; pdfplumber reports the DISPLAYED page (842×1191); the
+# pdfminer CTM pins the rotated anchors — probed through the real adapter
+# 2026-10-29, the same view pdf.js paints. The storage pin: a rotated page's
+# UI picks live in UNROTATED page space (the Slice-8 frozen Pt contract) —
+# the page-4 symbol-hits markup round-trips the SAME pt pairs a fixed Sheet
+# Measure now stores when the eye boxes that socket on the rotated page. The
+# browser half of the closure is the unit battery's empirically probed table
+# (src/core/page-rotation.test.ts vs pdfjs-dist@4.10.38's own viewport) +
+# the TL journey — the HTTP API cannot click.
+# ===========================================================================
+
+# AC-RW-01: page 4 takeoff — 201, pageCount 4, SAME counts as page 2's
+# geometry (13 rects / 4 lines — rotation never moves a count).
+http POST "/api/projects/$PID/artifacts/$SHEET_ID/vector-takeoff" -H 'Content-Type: application/json' --data-binary '{"pageNo":4,"scaleMmPerPt":35.27777777777778}'
+RW4_BODY="$BODY"
+RW4_STATUS="$STATUS"
+RW4_PAGECOUNT=$(j "$RW4_BODY" '.data.takeoff.document.result.pageCount')
+RW4_RECTS=$(j "$RW4_BODY" '.data.takeoff.rectCount')
+RW4_LINES=$(j "$RW4_BODY" '.data.takeoff.lineCount')
+RW4_AREA=$(j "$RW4_BODY" '.data.takeoff.document.result.entities.rects.totalAreaMm2')
+assert_eq "AC-RW-01: /Rotate 90 page 4 vector takeoff (201, pageCount 4, 13 rects / 4 lines — the SAME geometry as page 2)" \
+  "201|4|13|4" "$RW4_STATUS|$RW4_PAGECOUNT|$RW4_RECTS|$RW4_LINES"
+
+# AC-RW-02: pdfplumber reports the DISPLAYED page for /Rotate 90 — 842 × 1191
+# (the unrotated 1191 × 842 turned upright; the adapter echoes page.width/height).
+assert_eq "AC-RW-02: the adapter's page echo is the DISPLAYED size (842 × 1191 — rotation applied, pdfplumber semantics)" \
+  "842|1191" "$(j "$RW4_BODY" '.data.takeoff.document.result.page.widthPt')|$(j "$RW4_BODY" '.data.takeoff.document.result.page.heightPt')"
+
+# AC-RW-03: the pdfminer CTM pins the rotated border — the border rect's
+# four corners in the (y, W−x) rotated view (probed; == the view pdf.js paints).
+assert_eq "AC-RW-03: the rotated border's four corners pinned (24,24)(818,24)(818,1167)(24,1167) — the pdfminer-CTM view" \
+  "24,24,818,24,818,1167,24,1167" \
+  "$(j "$RW4_BODY" '[.data.takeoff.document.result.items[] | select(.type == "rect" and .pts[0][0] == 24 and .pts[0][1] == 24) | .pts | flatten | @csv] | join("")')"
+
+# AC-RW-04: the rotated socket anchors — one outer at unrotated (440..450,
+# 350..360) → (350, 741); one outer at unrotated (200..210, 500..510) →
+# (500, 981); the concentric inner at (443..447, 503..507) → (503, 744).
+assert_eq "AC-RW-04: three rotated socket anchors pinned in the CTM view ((350,741) outer + (500,981) outer + (503,744) inner)" \
+  "3" "$(j "$RW4_BODY" '[.data.takeoff.document.result.items[] | select(.type == "rect" and ((.pts[0][0] == 350 and .pts[0][1] == 741) or (.pts[0][0] == 500 and .pts[0][1] == 981) or (.pts[0][0] == 503 and .pts[0][1] == 744)))] | length')"
+
+# AC-RW-05: rotation never moves an area — page 2's total rect area equals
+# page 4's to the printed digit (the geometry is isomorphic by construction).
+http POST "/api/projects/$PID/artifacts/$SHEET_ID/vector-takeoff" -H 'Content-Type: application/json' --data-binary '{"pageNo":2,"scaleMmPerPt":35.27777777777778}'
+RW2_AREA=$(j "$BODY" '.data.takeoff.document.result.entities.rects.totalAreaMm2')
+RW_AREA_EQ=$(python3 -c 'import sys
+a, b = float(sys.argv[1]), float(sys.argv[2])
+sys.exit(0 if abs(a - b) <= 1e-6 * max(abs(a), 1.0) else 1)' "$RW4_AREA" "$RW2_AREA" && echo same || echo differ)
+assert_eq "AC-RW-05: page 4's total rect area == page 2's (rotation-invariant, the isomorphic fixture's proof)" \
+  "same" "$RW_AREA_EQ"
+
+# AC-RW-06: the rotated-page STORAGE pin — a page-4 symbol-hits markup in
+# UNROTATED page space (what a fixed Sheet Measure saves when the eye boxes
+# the (200..210, 350..360) socket on the rotated page) round-trips exactly.
+cat > "$WORK/rw-hits.json" <<EOF
+{
+  "revisionId": "$PDF_REV",
+  "page": 4,
+  "kind": "symbol-hits",
+  "points": [
+    { "x": 200, "y": 360 }, { "x": 210, "y": 350 }
+  ],
+  "label": "rotated-page pick — limitation #17 closed: the eye and the ledger agree",
+  "value": 1,
+  "unit": "each",
+  "createdBy": "local-operator"
+}
+EOF
+jpost "/api/projects/$PID/markups" "$WORK/rw-hits.json"
+RW_HIT_STATUS="$STATUS"
+RW_HIT_ID=$(j "$BODY" '.data.markup.id')
+http GET "/api/projects/$PID/markups?revisionId=$PDF_REV"
+RW_HIT_PTS=$(j "$BODY" '[.data.markups[] | select(.id == "'"$RW_HIT_ID"'")][0].points | map([.x, .y]) | flatten | @csv')
+assert_eq "AC-RW-06: the rotated page's pick round-trips in unrotated page space (201 → GET byte-equal pt pairs)" \
+  "201|200,360,210,350" "$RW_HIT_STATUS|$RW_HIT_PTS"
 
 # The e2e transcript markup is cleaned with the rest of the probe dataset at
 # the suite end (dev-db-cleanup); the LEDGER rows are untouched by it (a

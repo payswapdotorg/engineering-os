@@ -184,6 +184,13 @@ const P3_LARGE_STROKE_PT = 1.5
 /** Page-3 title. */
 const P3_TITLE = "EOS DEMO SHEET A-102 P3 \\227 PANEL SCHEDULE @ 1:100"
 
+/** [S27] Page-4 title — the rotated-page fixture (limitation #17's closure):
+ *  the SAME socket geometry as page 2 behind a /Rotate 90 page dictionary, so
+ *  the unit/e2e layers can pin that /Rotate does not move content-stream
+ *  coordinates (both pages extract identical rect geometry through the real
+ *  pdfplumber lane) while the viewport math DOES rotate. */
+const P4_TITLE = "EOS DEMO SHEET A-102 P4 \\227 ROTATED LAYOUT @ 1:100"
+
 /**
  * The full-precision truth about this sheet, exported so harnesses (and the
  * TL's journey) measure against the same numbers the stream is drawn from.
@@ -399,6 +406,30 @@ function buildSymbolPageContentStream(): string {
   return lines.join("\n")
 }
 
+/** [S27] The page-4 content stream: border + P4 title + the SAME scale bar +
+ *  the SAME six socket symbols at the SAME pinned centers as page 2 — the
+ *  page's /Rotate 90 dictionary entry is what makes it the rotated fixture
+ *  (the geometry must be identical to page 2's so the extraction layers can
+ *  pin that /Rotate never moves content-stream coordinates). */
+function buildRotatedSymbolPageContentStream(): string {
+  const lines: string[] = [
+    "% EOS demo sheet A-102 p4 - rotated layout @ 1:100 (Slice 27 limitation-17 fixture)",
+    "% content stream is GEOMETRICALLY IDENTICAL to page 2 (same pinned centers);",
+    "% the /Rotate 90 lives in the PAGE dictionary, not here - this is the pin.",
+    ...borderOps(),
+    `BT /F1 14 Tf ${fmt(TITLE_X_PT)} ${fmt(TITLE_Y_PT)} Td (${P4_TITLE}) Tj ET`,
+    ...scaleBarOps(),
+  ]
+  for (const [cx, cy] of SYMBOL_CENTERS) {
+    lines.push(
+      `% socket symbol at (${fmt(cx)}, ${fmt(cy)})`,
+      `${fmt(cx - SYMBOL_OUTER_PT / 2)} ${fmt(cy - SYMBOL_OUTER_PT / 2)} ${fmt(SYMBOL_OUTER_PT)} ${fmt(SYMBOL_OUTER_PT)} re S`,
+      `${fmt(cx - SYMBOL_INNER_PT / 2)} ${fmt(cy - SYMBOL_INNER_PT / 2)} ${fmt(SYMBOL_INNER_PT)} ${fmt(SYMBOL_INNER_PT)} re f`,
+    )
+  }
+  return lines.join("\n")
+}
+
 // ---------------------------------------------------------------------------
 // PDF 1.4 assembly — objects, xref, trailer (offsets counted in bytes)
 // ---------------------------------------------------------------------------
@@ -419,20 +450,22 @@ function buildSymbolPageContentStream(): string {
  *   7 0 obj  Content stream 2 → /Length <exact byte count> (uncompressed)
  *   8 0 obj  Page 3 [S20]     → /MediaBox [0 0 1191 842] /Resources /Contents
  *   9 0 obj  Content stream 3 → /Length <exact byte count> (uncompressed)
+ *  10 0 obj  Page 4 [S27]     → /MediaBox [0 0 1191 842] /Rotate 90 /Resources /Contents
+ *  11 0 obj  Content stream 4 → /Length <exact byte count> (uncompressed)
  * No /Info dictionary on purpose — it would only invite timestamps; the file
- * carries no date, so regeneration is byte-identical. Pages 1–2's STREAMS are
- * byte-identical to the two-page Slice-13 fixture (the S20 addition is purely
- * additive — the established page-2 precedent: page 1's stream was
- * byte-identical to Slice 8's).
+ * carries no date, so regeneration is byte-identical. Pages 1–3's STREAMS are
+ * byte-identical to the three-page Slice-20 fixture (the S27 addition is purely
+ * additive — the established page-2/page-3 precedent).
  */
 export function buildSheetPdf(): Uint8Array {
   const content1 = ascii(buildContentStream())
   const content2 = ascii(buildSymbolPageContentStream())
   const content3 = ascii(buildPanelScheduleContentStream())
+  const content4 = ascii(buildRotatedSymbolPageContentStream())
 
   const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R 6 0 R 8 0 R] /Count 3 >>",
+    "<< /Type /Pages /Kids [3 0 R 6 0 R 8 0 R 10 0 R] /Count 4 >>",
     `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmt(PAGE_W_PT)} ${fmt(PAGE_H_PT)}] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>`,
     `<< /Length ${content1.length} >>\nstream\n${buildContentStream()}\nendstream`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
@@ -440,6 +473,12 @@ export function buildSheetPdf(): Uint8Array {
     `<< /Length ${content2.length} >>\nstream\n${buildSymbolPageContentStream()}\nendstream`,
     `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmt(PAGE_W_PT)} ${fmt(PAGE_H_PT)}] /Resources << /Font << /F1 5 0 R >> >> /Contents 9 0 R >>`,
     `<< /Length ${content3.length} >>\nstream\n${buildPanelScheduleContentStream()}\nendstream`,
+    // [S27] Page 4 — THE rotated-page fixture: the /Rotate 90 dictionary entry
+    // (clockwise per ISO 32000-1 Table 30) is the ONLY difference from pages
+    // 1–3's dictionaries; pdf.js applies it in the viewport, pdfplumber exposes
+    // it as page.rotation, and the content stream is page-2-isomorphic.
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmt(PAGE_W_PT)} ${fmt(PAGE_H_PT)}] /Rotate 90 /Resources << /Font << /F1 5 0 R >> >> /Contents 11 0 R >>`,
+    `<< /Length ${content4.length} >>\nstream\n${buildRotatedSymbolPageContentStream()}\nendstream`,
   ]
 
   const chunks: Uint8Array[] = []

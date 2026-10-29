@@ -29,8 +29,8 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-29T14:51:41.719Z`
-- Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python`
+- Ran at (UTC): `2026-10-29T21:31:34.611Z`
+- Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python3`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
 - Engine availability probe — ifcopenshell (IFC quantities): available
@@ -95,7 +95,7 @@
 | `des-invalid-resource` | des | `des-invalid-resource.json` | error | pass | — | — | — | des: threw honest error: `jobs[0].tasks[1] references unknown resource "crane"` · threw honest error: `` |
 | `cpm-platform-rollout` | cpm | `schedule-cpm.json` | success | pass | — | — / — | — | cpm: 28 pin(s) · engine identity absent (platform core) · doc byte-determinism ✅ |
 | `lo-cover-sheet-convert` | libreoffice | `cover-sheet.fodt` | success | pass | — | — / — | — | libreoffice: 4 pin(s) · libreoffice 25.2.3.2 · byte-determinism not claimed (PDFs embed creation timestamps — single run, §5.4) |
-| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | sheet: 26 pin(s) · pdfplumber 0.11.10 · doc byte-determinism ✅ · max pin rel error 3.519e-7 |
+| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | sheet: 38 pin(s) · pdfplumber 0.11.10 · doc byte-determinism ✅ · max pin rel error 3.519e-7 |
 | `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pass | — | — / — | — | sheet: 6 pin(s) · pdfplumber 0.11.10 · doc byte-determinism ✅ · max pin rel error 3.981e-5 |
 | `sheet-vector-refusal` | sheet | `sheet-scan-like.pdf` | error | pass | — | — | — | sheet: threw honest error: `this sheet page has no vector path operators — it is a scan or raster-only page; vector takeoff is not available for it,` · threw honest error: `` |
 | `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | pass | — | — / — | — | dxf: 13 pin(s) · ezdxf 1.4.5 · doc byte-determinism ✅ |
@@ -197,7 +197,7 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 | `des-invalid-resource` | des | `des-invalid-resource.json` | error | — (platform core, honestly absent) | — | 0 | pass |
 | `cpm-platform-rollout` | cpm | `schedule-cpm.json` | success | — (platform core, honestly absent) | ✅ true | 28 | pass |
 | `lo-cover-sheet-convert` | libreoffice | `cover-sheet.fodt` | success | libreoffice 25.2.3.2 | not claimed (single run, §5.4) | 4 | pass |
-| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pdfplumber 0.11.10 | ✅ true | 26 | pass |
+| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pdfplumber 0.11.10 | ✅ true | 38 | pass |
 | `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pdfplumber 0.11.10 | ✅ true | 6 | pass |
 | `sheet-vector-refusal` | sheet | `sheet-scan-like.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
 | `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | ezdxf 1.4.5 | ✅ true | 13 | pass |
@@ -285,7 +285,7 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `lo-cover-sheet-convert` sizeBytes: observed **26201** vs pinned 1000 [bound min] · the converted Writer document is a multi-digit-KB PDF (live-observed 26201 bytes) — a lower bound only, never an equality claim (timestamps affect exact bytes)
 - `lo-cover-sheet-convert` engineKey: observed **"libreoffice"** vs pinned "libreoffice" [bound structural] · the registry key of the converting engine
 - `lo-cover-sheet-convert` adapterScript: observed **"convert-document.ts"** vs pinned "convert-document.ts" [bound structural] · the TS-native bridge name (no python in the LO path)
-- `sheet-vector-plan` pageCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)
+- `sheet-vector-plan` pageCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · fixture builder pins a 4-page document (Slice 20 added page 3, the two-size panel schedule; Slice 27 added page 4, the /Rotate 90 rotated-page fixture — pages 1-3 streams byte-identical)
 - `sheet-vector-plan` pageNo: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · the requested page, echoed by the adapter
 - `sheet-vector-plan` linesCount: observed **5** vs pinned 5 [bound abs:0] → rel error 0 (bitwise) · page 1 drawn ops: bar + 2 end ticks + mid tick + wall = 5 lines (builder pin list)
 - `sheet-vector-plan` rectsCount: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · page 1 drawn ops: sheet border + room outline = 2 rects (builder pin list)
@@ -302,15 +302,27 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `sheet-vector-plan` linesCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · page 2 is the self-contained calibration page: scale bar + 2 end ticks + mid tick = 4 lines (builder: page 2 carries scaleBarOps, NO wall)
 - `sheet-vector-plan` rectsCount: observed **13** vs pinned 13 [bound abs:0] → rel error 0 (bitwise) · page 2: sheet border (borderOps) + 6 outer + 6 inner symbol squares = 13 rects (builder: buildSymbolPageContentStream)
 - `sheet-vector-plan` rectsTotalAreaMm2: observed **1130321813.4259262** vs pinned 1130321813.4259 mm2 [bound rel:0.000001] → rel error 2.320e-14 · (1143x794 border + 6x10x10 + 6x4x4 symbols) pt2 = 908 238 pt2 x (35.277777…)2 = 1 130 321 8xx mm2
-- `sheet-vector-plan` fixtureSha256: observed **"ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d"** vs pinned "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d" [bound structural] · see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)
+- `sheet-vector-plan` fixtureSha256: observed **"af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6"** vs pinned "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6" [bound structural] · see case groundTruth — Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)
 - `sheet-vector-plan` linesTotalLengthMm: observed **11270.001166666669** vs pinned 11270 mm [bound rel:0.000001] → rel error 1.035e-7 · page-2 scale bar 283.464567 pt + 3 x 12 pt ticks = 319.464567 pt = 11 270.1 mm (same bar geometry as page 1, no wall)
 - `sheet-vector-plan` pageNo: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · the requested page, echoed by the adapter
-- `sheet-vector-plan` pageCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)
+- `sheet-vector-plan` pageCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · fixture builder pins a 4-page document (Slice 27 added page 4, the /Rotate 90 rotated-page fixture; pages 1-3 streams byte-identical)
 - `sheet-vector-plan` linesCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · page 3 is self-contained like page 2: scale bar + 2 end ticks + mid tick = 4 lines (builder: buildPanelScheduleContentStream)
 - `sheet-vector-plan` rectsCount: observed **21** vs pinned 21 [bound abs:0] → rel error 0 (bitwise) · page 3: border + 6 outer 10 pt + 6 inner 4 pt small sockets + 4 outer 15 pt + 4 inner 6 pt large sockets = 21 rects (the Slice-20 two-size field)
 - `sheet-vector-plan` rectsTotalAreaMm2: observed **1131621093.9814816** vs pinned 1131621093.9815 mm2 [bound rel:0.000001] → rel error 1.622e-14 · (1143x794 border + 6x(100+16) small + 4x(225+36) large) pt2 = 909 282 pt2 x (35.277777…)2 = 1 131 621 093.98 mm2
-- `sheet-vector-plan` fixtureSha256: observed **"ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d"** vs pinned "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d" [bound structural] · see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)
+- `sheet-vector-plan` fixtureSha256: observed **"af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6"** vs pinned "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6" [bound structural] · see case groundTruth — Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)
 - `sheet-vector-plan` linesTotalLengthMm: observed **11270.001166666669** vs pinned 11270 mm [bound rel:0.000001] → rel error 1.035e-7 · page-3 scale bar 283.464567 pt + 3 x 12 pt ticks = 319.464567 pt = 11 270.000 mm (same furniture as page 2)
+- `sheet-vector-plan` pageNo: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the requested page, echoed by the adapter
+- `sheet-vector-plan` pageCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · fixture builder pins a 4-page document (Slice 27 added page 4, the /Rotate 90 rotated-page fixture; pages 1-3 streams byte-identical)
+- `sheet-vector-plan` widthPt: observed **842** vs pinned 842 [bound abs:0] → rel error 0 (bitwise) · pdfplumber reports the DISPLAYED page for /Rotate 90 — the unrotated 1191x842 MediaBox turned upright is 842 wide (probed 2026-10-29; pdf.js's viewport paints the same view, the empirically probed alignment of src/core/page-rotation.ts)
+- `sheet-vector-plan` heightPt: observed **1191** vs pinned 1191 [bound abs:0] → rel error 0 (bitwise) · the displayed height = the unrotated width 1191 (the /Rotate 90 extent swap, pdfplumber semantics)
+- `sheet-vector-plan` linesCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · page 4 carries the same scale-bar furniture as page 2: bar + 2 end ticks + mid tick = 4 lines — rotation never moves a count
+- `sheet-vector-plan` rectsCount: observed **13** vs pinned 13 [bound abs:0] → rel error 0 (bitwise) · page 4 is page-2-isomorphic by construction: border + 6 outer + 6 inner = 13 rects
+- `sheet-vector-plan` rectsTotalAreaMm2: observed **1130321813.4259262** vs pinned 1130321813.4259 mm2 [bound rel:0.000001] → rel error 2.320e-14 · rotation never moves an area — the page-2 value pinned again (908 238 pt2 x (35.277777...)2 = 1 130 321 813.4259 mm2)
+- `sheet-vector-plan` fixtureSha256: observed **"af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6"** vs pinned "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6" [bound structural] · Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)
+- `sheet-vector-plan` itemAreaMm2 @ rect@350,741: observed **124452.16049382716** vs pinned 124452.1605 mm2 [bound rel:0.000001] → rel error 4.960e-11 · THE ROTATED-ANCHOR PIN: the socket at unrotated (440..450, 350..360) presents its first corner at (350, 741) in the pdfminer-CTM rotated view (y, W-x) — 10x10 pt = 100 pt2 x (35.277777...)2 = 124 452.1605 mm2; probed through the real adapter (the same view pdf.js paints)
+- `sheet-vector-plan` itemAreaMm2 @ rect@500,981: observed **124452.16049382716** vs pinned 124452.1605 mm2 [bound rel:0.000001] → rel error 4.960e-11 · the far rotated anchor: the socket at unrotated (200..210, 500..510) presents its first corner at (500, 981) in the CTM view — same 100 pt2 area, the anchor proves the W-x axis
+- `sheet-vector-plan` itemFill @ rect@503,744: observed **true** vs pinned true [bound structural] · the concentric INNER socket (unrotated 443..447, 503..507) presents its first corner at (503, 744) in the CTM view and stays the filled square
+- `sheet-vector-plan` linesTotalLengthMm: observed **11270.001166666669** vs pinned 11270 mm [bound rel:0.000001] → rel error 1.035e-7 · rotation never moves a length: the scale bar's 283.464567 pt + 3 x 12 pt ticks = 11 270.000 mm (same furniture as page 2)
 - `sheet-vector-curve` curvesCount: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · page 1 has no curve ops (builder pin list)
 - `sheet-vector-curve` curvesTotalLengthMm: observed **157.08588681984884** vs pinned 157.0796327 mm [bound rel:0.001] → rel error 3.981e-5 · analytic quarter-arc r x pi/2 = 100 x pi/2 = 157.0796327 pt; N=32 flattening rel ~4e-5 (16-R1)
 - `sheet-vector-curve` rectsCount: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · page 1 drawn ops: sheet border + room outline = 2 rects (builder pin list)

@@ -4,7 +4,7 @@
 << /Type /Catalog /Pages 2 0 R >>
 endobj
 2 0 obj
-<< /Type /Pages /Kids [3 0 R 6 0 R 8 0 R] /Count 3 >>
+<< /Type /Pages /Kids [3 0 R 6 0 R 8 0 R 10 0 R] /Count 4 >>
 endobj
 3 0 obj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 1191 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
@@ -135,20 +135,64 @@ BT /F1 8 Tf 334 100 Td (10 m) Tj ET
 562 357 6 6 re f
 endstream
 endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1191 842] /Rotate 90 /Resources << /Font << /F1 5 0 R >> >> /Contents 11 0 R >>
+endobj
+11 0 obj
+<< /Length 1192 >>
+stream
+% EOS demo sheet A-102 p4 - rotated layout @ 1:100 (Slice 27 limitation-17 fixture)
+% content stream is GEOMETRICALLY IDENTICAL to page 2 (same pinned centers);
+% the /Rotate 90 lives in the PAGE dictionary, not here - this is the pin.
+% border rectangle (paper frame): 24 24 1143 794
+24 24 1143 794 re S
+BT /F1 14 Tf 40 790 Td (EOS DEMO SHEET A-102 P4 \227 ROTATED LAYOUT @ 1:100) Tj ET
+% scale bar: 100 paper-mm = 10.000 m real @ 1:100 (drawn span 343.4646 - 60 = 283.4646 pt)
+60 120 m 343.4646 120 l S
+% end ticks (12 pt tall) and mid tick at 5 m
+60 114 m 60 126 l S
+343.4646 114 m 343.4646 126 l S
+201.7323 114 m 201.7323 126 l S
+% tick labels 0 / 5 / 10 m: Helvetica 8 at baseline y=100
+BT /F1 8 Tf 57.5 100 Td (0) Tj ET
+BT /F1 8 Tf 199.5 100 Td (5) Tj ET
+BT /F1 8 Tf 334 100 Td (10 m) Tj ET
+% socket symbol at (205, 505)
+200 500 10 10 re S
+203 503 4 4 re f
+% socket symbol at (325, 505)
+320 500 10 10 re S
+323 503 4 4 re f
+% socket symbol at (445, 505)
+440 500 10 10 re S
+443 503 4 4 re f
+% socket symbol at (205, 355)
+200 350 10 10 re S
+203 353 4 4 re f
+% socket symbol at (325, 355)
+320 350 10 10 re S
+323 353 4 4 re f
+% socket symbol at (445, 355)
+440 350 10 10 re S
+443 353 4 4 re f
+endstream
+endobj
 xref
-0 10
+0 12
 0000000000 65535 f 
 0000000015 00000 n 
 0000000064 00000 n 
-0000000133 00000 n 
-0000000260 00000 n 
-0000001278 00000 n 
-0000001375 00000 n 
-0000001502 00000 n 
-0000002753 00000 n 
-0000002880 00000 n 
+0000000140 00000 n 
+0000000267 00000 n 
+0000001285 00000 n 
+0000001382 00000 n 
+0000001509 00000 n 
+0000002760 00000 n 
+0000002887 00000 n 
+0000004480 00000 n 
+0000004620 00000 n 
 trailer
-<< /Size 10 /Root 1 0 R >>
+<< /Size 12 /Root 1 0 R >>
 startxref
-4473
+5865
 %%EOF

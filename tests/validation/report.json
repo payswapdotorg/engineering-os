@@ -1,6 +1,6 @@
 {
-  "ranAt": "2026-10-29T14:51:41.719Z",
-  "pythonBin": "/home/z/.venv/bin/python",
+  "ranAt": "2026-10-29T21:31:34.611Z",
+  "pythonBin": "/home/z/.venv/bin/python3",
   "manifestPath": "tests/validation/corpus-manifest.json",
   "caseCount": 36,
   "environment": {
@@ -2727,15 +2727,15 @@
           {
             "field": "pageCount",
             "ref": null,
-            "expected": 3,
-            "observed": 3,
+            "expected": 4,
+            "observed": 4,
             "unit": null,
             "bound": "abs:0",
             "absDiff": 0,
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)"
+            "derivation": "fixture builder pins a 4-page document (Slice 20 added page 3, the two-size panel schedule; Slice 27 added page 4, the /Rotate 90 rotated-page fixture — pages 1-3 streams byte-identical)"
           },
           {
             "field": "pageNo",
@@ -2948,15 +2948,15 @@
           {
             "field": "fixtureSha256",
             "ref": null,
-            "expected": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
-            "observed": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
+            "expected": "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6",
+            "observed": "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6",
             "unit": null,
             "bound": "structural",
             "absDiff": null,
             "observedRelError": null,
             "ok": true,
             "problem": "value",
-            "derivation": "see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)"
+            "derivation": "see case groundTruth — Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)"
           },
           {
             "field": "linesTotalLengthMm",
@@ -2987,15 +2987,15 @@
           {
             "field": "pageCount",
             "ref": null,
-            "expected": 3,
-            "observed": 3,
+            "expected": 4,
+            "observed": 4,
             "unit": null,
             "bound": "abs:0",
             "absDiff": 0,
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "fixture builder pins a 3-page document (Slice 20 added page 3, the two-size panel schedule; pages 1-2 streams byte-identical)"
+            "derivation": "fixture builder pins a 4-page document (Slice 27 added page 4, the /Rotate 90 rotated-page fixture; pages 1-3 streams byte-identical)"
           },
           {
             "field": "linesCount",
@@ -3039,15 +3039,15 @@
           {
             "field": "fixtureSha256",
             "ref": null,
-            "expected": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
-            "observed": "ed19c9c5bb70213508c48c2cb986b5fddcc1cd87b55d051aa995ed349ce5ec8d",
+            "expected": "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6",
+            "observed": "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6",
             "unit": null,
             "bound": "structural",
             "absDiff": null,
             "observedRelError": null,
             "ok": true,
             "problem": "value",
-            "derivation": "see case groundTruth — Slice 20 regenerated the fixture (page 3 added; pages 1-2 streams byte-identical)"
+            "derivation": "see case groundTruth — Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)"
           },
           {
             "field": "linesTotalLengthMm",
@@ -3061,6 +3061,162 @@
             "ok": true,
             "problem": "value",
             "derivation": "page-3 scale bar 283.464567 pt + 3 x 12 pt ticks = 319.464567 pt = 11 270.000 mm (same furniture as page 2)"
+          },
+          {
+            "field": "pageNo",
+            "ref": null,
+            "expected": 4,
+            "observed": 4,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the requested page, echoed by the adapter"
+          },
+          {
+            "field": "pageCount",
+            "ref": null,
+            "expected": 4,
+            "observed": 4,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "fixture builder pins a 4-page document (Slice 27 added page 4, the /Rotate 90 rotated-page fixture; pages 1-3 streams byte-identical)"
+          },
+          {
+            "field": "widthPt",
+            "ref": null,
+            "expected": 842,
+            "observed": 842,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "pdfplumber reports the DISPLAYED page for /Rotate 90 — the unrotated 1191x842 MediaBox turned upright is 842 wide (probed 2026-10-29; pdf.js's viewport paints the same view, the empirically probed alignment of src/core/page-rotation.ts)"
+          },
+          {
+            "field": "heightPt",
+            "ref": null,
+            "expected": 1191,
+            "observed": 1191,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the displayed height = the unrotated width 1191 (the /Rotate 90 extent swap, pdfplumber semantics)"
+          },
+          {
+            "field": "linesCount",
+            "ref": null,
+            "expected": 4,
+            "observed": 4,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "page 4 carries the same scale-bar furniture as page 2: bar + 2 end ticks + mid tick = 4 lines — rotation never moves a count"
+          },
+          {
+            "field": "rectsCount",
+            "ref": null,
+            "expected": 13,
+            "observed": 13,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "page 4 is page-2-isomorphic by construction: border + 6 outer + 6 inner = 13 rects"
+          },
+          {
+            "field": "rectsTotalAreaMm2",
+            "ref": null,
+            "expected": 1130321813.4259,
+            "observed": 1130321813.4259262,
+            "unit": "mm2",
+            "bound": "rel:0.000001",
+            "absDiff": 0.000026226043701171875,
+            "observedRelError": 2.3202280438774496e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "rotation never moves an area — the page-2 value pinned again (908 238 pt2 x (35.277777...)2 = 1 130 321 813.4259 mm2)"
+          },
+          {
+            "field": "fixtureSha256",
+            "ref": null,
+            "expected": "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6",
+            "observed": "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)"
+          },
+          {
+            "field": "itemAreaMm2",
+            "ref": "rect@350,741",
+            "expected": 124452.1605,
+            "observed": 124452.16049382716,
+            "unit": "mm2",
+            "bound": "rel:0.000001",
+            "absDiff": 0.000006172835128381848,
+            "observedRelError": 4.960006402124171e-11,
+            "ok": true,
+            "problem": "value",
+            "derivation": "THE ROTATED-ANCHOR PIN: the socket at unrotated (440..450, 350..360) presents its first corner at (350, 741) in the pdfminer-CTM rotated view (y, W-x) — 10x10 pt = 100 pt2 x (35.277777...)2 = 124 452.1605 mm2; probed through the real adapter (the same view pdf.js paints)"
+          },
+          {
+            "field": "itemAreaMm2",
+            "ref": "rect@500,981",
+            "expected": 124452.1605,
+            "observed": 124452.16049382716,
+            "unit": "mm2",
+            "bound": "rel:0.000001",
+            "absDiff": 0.000006172835128381848,
+            "observedRelError": 4.960006402124171e-11,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the far rotated anchor: the socket at unrotated (200..210, 500..510) presents its first corner at (500, 981) in the CTM view — same 100 pt2 area, the anchor proves the W-x axis"
+          },
+          {
+            "field": "itemFill",
+            "ref": "rect@503,744",
+            "expected": true,
+            "observed": true,
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the concentric INNER socket (unrotated 443..447, 503..507) presents its first corner at (503, 744) in the CTM view and stays the filled square"
+          },
+          {
+            "field": "linesTotalLengthMm",
+            "ref": null,
+            "expected": 11270,
+            "observed": 11270.001166666669,
+            "unit": "mm",
+            "bound": "rel:0.000001",
+            "absDiff": 0.0011666666687233374,
+            "observedRelError": 1.0351966891955079e-7,
+            "ok": true,
+            "problem": "value",
+            "derivation": "rotation never moves a length: the scale bar's 283.464567 pt + 3 x 12 pt ticks = 11 270.000 mm (same furniture as page 2)"
           }
         ],
         "problems": [],

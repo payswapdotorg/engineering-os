@@ -325,9 +325,10 @@ describe.skipIf(!pdfplumberAvailable)("sheetTakeoffFromStorage — real pdfplumb
       })
       // build-sheet-pdf.ts truth: page 1 draws border rect + room rect, bar +
       // 2 end ticks + mid tick + wall lines. Slice 20 grew the document to
-      // THREE pages (page 3 = the two-size panel schedule) — pages 1–2's
+      // THREE pages (page 3 = the two-size panel schedule); Slice 27 grew it
+      // to FOUR (page 4 = the /Rotate 90 rotated-page fixture) — pages 1–3's
       // streams stayed byte-identical.
-      expect(result.pageCount).toBe(3)
+      expect(result.pageCount).toBe(4)
       expect(result.entities.lines.count).toBe(5)
       expect(result.entities.rects.count).toBe(2)
       expect(result.entities.curves.count).toBe(0)
@@ -420,6 +421,64 @@ describe.skipIf(!pdfplumberAvailable)("sheetTakeoffFromStorage — real pdfplumb
       expect(Math.abs(large.areaMm2 - 225 * s * s) / (225 * s * s)).toBeLessThanOrEqual(1e-9)
       expect(large.stroke).toBe(true)
       expect(large.fill).toBe(false)
+    },
+    TEST_TIMEOUT_MS,
+  )
+
+  test(
+    "sheet-a102-plan.pdf page 4 (Slice 27): the /Rotate 90 page — SAME geometry as page 2 through the pdfminer-CTM rotated view (limitation #17's server-side pin)",
+    async () => {
+      const result = await sheetTakeoffFromStorage(path.join(fixtures, "sheet-a102-plan.pdf"), {
+        pageNo: 4,
+        scaleMmPerPt: A102_SCALE_MM_PER_PT,
+      })
+      // pdfplumber reports the DISPLAYED page for /Rotate 90: 842 x 1191
+      // (the unrotated 1191 x 842 turned upright). The adapter's page echo
+      // comes from pdfplumber's page.width/height, so it shows displayed.
+      expect(result.pageCount).toBe(4)
+      expect(result.page).toEqual({ widthPt: 842, heightPt: 1191 })
+      // SAME builder truth as page 2 (13 rects: border + 6×2 symbol squares;
+      // bar + 3 ticks) — rotation never changes count or area, only the axes:
+      expect(result.entities.rects.count).toBe(13)
+      expect(result.entities.lines.count).toBe(4)
+      const s = A102_SCALE_MM_PER_PT
+      const expectedAreaMm2 = (1143 * 794 + 6 * 100 + 6 * 16) * s * s
+      expect(Math.abs(result.entities.rects.totalAreaMm2 - expectedAreaMm2) / expectedAreaMm2)
+        .toBeLessThanOrEqual(1e-9)
+      // The pdfminer CTM maps a /Rotate 90 page's point (x, y) to the rotated
+      // view space (y, W−x) (empirically probed 2026-10-29; the same view
+      // pdf.js's viewport paints — (y, x) in CSS y-down == (y, W−x) in y-up).
+      // Pinned anchors, probed through the REAL adapter:
+      //   border (x∈[24,1167], y∈[24,818]) → corners (24,24)(818,24)(818,1167)(24,1167)
+      //   outer socket at unrotated (440..450, 350..360) → anchor (350, 741)
+      //   outer socket at unrotated (200..210, 500..510) → anchor (500, 981)
+      //   inner socket at unrotated (443..447, 503..507) → anchor (503, 744)
+      const items = result.items as Array<Record<string, unknown>>
+      const border = items.find(
+        (i) => i.type === "rect" && (i.pts as number[][])[0][0] === 24 && (i.pts as number[][])[0][1] === 24,
+      ) as { pts: number[][]; areaMm2: number }
+      expect(border.pts).toEqual([
+        [24, 24],
+        [818, 24],
+        [818, 1167],
+        [24, 1167],
+      ])
+      const outer = items.find(
+        (i) => i.type === "rect" && (i.pts as number[][])[0][0] === 350 && (i.pts as number[][])[0][1] === 741,
+      ) as { areaMm2: number; stroke: boolean; fill: boolean }
+      expect(Math.abs(outer.areaMm2 - 100 * s * s) / (100 * s * s)).toBeLessThanOrEqual(1e-9)
+      expect(outer.stroke).toBe(true)
+      expect(outer.fill).toBe(false)
+      const outerFar = items.find(
+        (i) => i.type === "rect" && (i.pts as number[][])[0][0] === 500 && (i.pts as number[][])[0][1] === 981,
+      ) as { areaMm2: number }
+      expect(Math.abs(outerFar.areaMm2 - 100 * s * s) / (100 * s * s)).toBeLessThanOrEqual(1e-9)
+      const inner = items.find(
+        (i) => i.type === "rect" && (i.pts as number[][])[0][0] === 503 && (i.pts as number[][])[0][1] === 744,
+      ) as { areaMm2: number; stroke: boolean; fill: boolean }
+      expect(Math.abs(inner.areaMm2 - 16 * s * s) / (16 * s * s)).toBeLessThanOrEqual(1e-9)
+      expect(inner.stroke).toBe(false)
+      expect(inner.fill).toBe(true)
     },
     TEST_TIMEOUT_MS,
   )
