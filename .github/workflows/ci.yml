@@ -244,7 +244,7 @@ jobs:
           bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
           bash scripts/e2e-p4-workflows.sh 2>&1 | tee /tmp/e2e-p4.log
 
-      - name: e2e-p5-disciplines (57 PASS expected — Slice 22 FEA lane +9: AC-FEA-04 block + registry reconciliation update)
+      - name: "e2e-p5-disciplines (57 PASS expected — Slice 22 FEA lane +9: AC-FEA-04 block + registry reconciliation update)"
         run: |
           set -o pipefail
           bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
