@@ -5,6 +5,15 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+    # (twenty-fifth pass, 2026-10-29) Push-created runs 47/48 were rejected
+    # instantly with ZERO jobs created (a run-creation anomaly recorded in
+    # implementation-status: the workflow is active + valid, Actions enabled
+    # + all-actions-allowed, public repo, remote blob byte-identical, the
+    # runs un-retryable with no jobs to retry). Re-runs of pre-existing runs
+    # execute fine — run 46 attempt 2 went 6/6 green on 2026-10-29. The
+    # dispatch trigger is the durable operator re-run path (the Actions
+    # page's "Run workflow" button), independent of the push-creation path.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
