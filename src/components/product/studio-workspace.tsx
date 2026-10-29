@@ -38,9 +38,12 @@
  *    cross-reference the quantity ledger.
  */
 import dynamic from "next/dynamic"
+import { useRouter } from "next/navigation"
 import {
   Boxes,
   CircleAlert,
+  ClipboardList,
+  Crosshair,
   DraftingCompass,
   Info,
   Loader2,
@@ -49,7 +52,7 @@ import {
   RotateCcw,
   TriangleAlert,
 } from "lucide-react"
-import { Component, useEffect, useMemo, useState, type ReactNode } from "react"
+import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
 import {
@@ -445,6 +448,7 @@ function ParametricSection({
 export function StudioWorkspace({
   projectId,
   onMutated,
+  locate,
 }: {
   projectId: string
   /** Parent-side cache nudge (Phase-6 known-limitation #13): derive/regenerate
@@ -452,7 +456,16 @@ export function StudioWorkspace({
    *  don't observe on their own (useApi is manual-refresh — the
    *  AgentsWorkspace.onMutated pattern, mirrored exactly). */
   onMutated?: () => void
+  /** Cross-navigation seed (limitation #12's closing lane): ?element= (+ the
+   *  optional ?source= artifact id) arrives from the Takeoff ledger's "Locate
+   *  in 3D". Consumed once per elementRef value: the named source is
+   *  pre-selected when it is a derivable one, then when its mesh payload is
+   *  on screen the element is picked (3D + list) and scrolled into view — or
+   *  an honest note names what was searched when the ref is not in that mesh.
+   *  Never a guess: an absent element picks nothing. */
+  locate?: { elementRef: string; sourceId: string | null } | null
 }) {
+  const router = useRouter()
   const artifacts = useApi<{ artifacts: ArtifactListItem[] }>(`/api/projects/${projectId}/artifacts`)
   const notifyMutated = onMutated ?? noop
 
@@ -468,6 +481,16 @@ export function StudioWorkspace({
   const [meshBySource, setMeshBySource] = useState<Record<string, string>>({})
   const [meshMapLoading, setMeshMapLoading] = useState(false)
   const [meshMapError, setMeshMapError] = useState<string | null>(null)
+
+  // ---- Cross-navigation seed state (limitation #12) ----
+  const [locateSeed, setLocateSeed] = useState<string | null>(null)
+  const [locateStatus, setLocateStatus] = useState<"idle" | "pending" | "found" | "missing">("idle")
+  // elementRef → <li> node — the located element scrolls into view inside the
+  // Elements list (its own scroll container; scrollIntoView reaches it).
+  const elementItemRefs = useMemo(() => new Map<string, HTMLLIElement | null>(), [])
+  const lastSeedRef = useRef<string | null>(null)
+  const locateRefValue = locate?.elementRef ?? null
+  const locateSourceValue = locate?.sourceId ?? null
 
   const rows = useMemo(() => artifacts.data?.artifacts ?? [], [artifacts.data])
 
@@ -557,6 +580,50 @@ export function StudioWorkspace({
     }
     return { elements: mesh.mesh.elements.length, vertices, triangles }
   }, [mesh])
+
+  // ---- Cross-navigation seed consumption (limitation #12) ----
+  // 1) Accept the seed (once per elementRef value — a list refresh mid-visit
+  //    must not re-announce): pre-select the named source when it is a
+  //    derivable one. WAITS for the artifact list first (found live: firing on
+  //    mount raced the fetch and the pre-select missed an empty sources
+  //    array, leaving the DEFAULT source selected — a mesh-less one, the
+  //    honest-but-wrong "Generate 3D view" state). An unknown/absent source
+  //    id is NOT a hard error: the seed still resolves against whatever
+  //    source is selected, honestly.
+  useEffect(() => {
+    if (locateRefValue === null || locateRefValue === "") return
+    if (artifacts.loading) return // sources not on screen yet — the seed waits
+    if (lastSeedRef.current === locateRefValue) return
+    lastSeedRef.current = locateRefValue
+    setLocateSeed(locateRefValue)
+    setLocateStatus("pending")
+    if (locateSourceValue !== null) {
+      const hit = sources.find((s) => s.artifact.id === locateSourceValue)
+      if (hit) setSelectedSourceId(hit.artifact.id)
+    }
+  }, [locateRefValue, locateSourceValue, sources, artifacts.loading])
+
+  // 2) Resolve the seed once the selected source's mesh payload is on screen:
+  //    pick + scroll + announce, or the honest missing note. A source with NO
+  //    mesh yet stays pending — the locate note below names that state.
+  const meshElements = mesh?.mesh.elements ?? null
+  useEffect(() => {
+    if (locateStatus !== "pending" || locateSeed === null) return
+    if (!meshElements) return
+    const hit = meshElements.find((e) => e.elementRef === locateSeed) ?? null
+    if (hit) {
+      setPickedElementRef(locateSeed)
+      setLocateStatus("found")
+      elementItemRefs.get(locateSeed)?.scrollIntoView({ block: "center", behavior: "smooth" })
+    } else {
+      setLocateStatus("missing")
+    }
+  }, [locateStatus, locateSeed, meshElements, elementItemRefs])
+
+  // The picked element's friendly name (for the picked bar + announcements).
+  const pickedElement = pickedElementRef !== null && meshElements !== null
+    ? meshElements.find((e) => e.elementRef === pickedElementRef) ?? null
+    : null
 
   const generateMesh = async (regenerate: boolean) => {
     if (generating || !selectedSource) return
@@ -736,6 +803,52 @@ export function StudioWorkspace({
                 </Alert>
               ) : null}
 
+              {/* Locate-result note (limitation #12): the seed's honest outcome.
+                  found → polite confirmation (the pick + scroll already landed);
+                  missing → names exactly what was searched, never a fake pick;
+                  pending with NO mesh generated yet → the generate-first truth. */}
+              {locateSeed !== null && (locateStatus === "found" || locateStatus === "missing") ? (
+                <div
+                  role="status"
+                  className={
+                    locateStatus === "found"
+                      ? "flex items-center gap-2 rounded-lg border bg-muted/30 px-4 py-2 text-sm"
+                      : "flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                  }
+                >
+                  {locateStatus === "found" ? (
+                    <>
+                      <Crosshair className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      <p>
+                        Located{" "}
+                        <span className="font-medium">{pickedElement ? pickedElement.name : "element"}</span>{" "}
+                        <span className="font-mono text-xs">{locateSeed}</span> — picked in the 3D view and the
+                        element list.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                      <p>
+                        Element <span className="font-mono text-xs">{locateSeed}</span> is not in this
+                        model’s mesh. It may come from a different revision, a different model, or a mesh
+                        that has not been generated yet — nothing was picked.
+                      </p>
+                    </>
+                  )}
+                </div>
+              ) : locateSeed !== null && locateStatus === "pending" &&
+                !meshMapLoading && meshArtifactId === null && selectedSource !== null ? (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  <p>
+                    No 3D view exists for{" "}
+                    <span className="font-medium">{selectedSource.artifact.name}</span> yet — generate one
+                    below to locate element <span className="font-mono text-xs">{locateSeed}</span>.
+                  </p>
+                </div>
+              ) : null}
+
               <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
                 <div className="flex min-w-0 flex-col gap-4">
                   <div className="relative h-[340px] overflow-hidden rounded-lg border bg-muted/40 sm:h-[440px] lg:h-[520px]">
@@ -784,6 +897,38 @@ export function StudioWorkspace({
                       </ViewerErrorBoundary>
                     )}
                   </div>
+
+                  {/* Picked-element bar (limitation #12's 3D→ledger half): the
+                      current pick is announced here and cross-links straight to
+                      the Takeoff ledger rows that reference the same ref. */}
+                  {pickedElementRef !== null ? (
+                    <div
+                      role="status"
+                      className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-lg border bg-muted/30 px-4 py-2 text-sm"
+                    >
+                      <span className="min-w-0">
+                        <Crosshair className="mr-1.5 inline size-3.5 text-muted-foreground" aria-hidden />
+                        <span className="font-medium">Picked:</span>{" "}
+                        {pickedElement ? pickedElement.name : "element"}{" "}
+                        <span className="font-mono text-xs text-muted-foreground">{pickedElementRef}</span>
+                        <span className="text-muted-foreground"> — cross-references the quantity ledger</span>
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 shrink-0"
+                        aria-label={`View quantity rows referencing element ${pickedElementRef} in the Takeoff ledger`}
+                        onClick={() =>
+                          router.push(
+                            `/projects/${projectId}?tab=takeoff&element=${encodeURIComponent(pickedElementRef)}`,
+                          )
+                        }
+                      >
+                        <ClipboardList aria-hidden />
+                        View quantity rows
+                      </Button>
+                    </div>
+                  ) : null}
 
                   <section
                     aria-label="Mesh provenance"
@@ -838,7 +983,14 @@ export function StudioWorkspace({
                       {mesh.mesh.elements.map((element, i) => {
                         const picked = pickedElementRef === element.elementRef
                         return (
-                          <li key={element.elementRef} className="border-b last:border-0">
+                          <li
+                            key={element.elementRef}
+                            className="border-b last:border-0"
+                            ref={(node) => {
+                              // locate-seed scroll target (limitation #12)
+                              elementItemRefs.set(element.elementRef, node)
+                            }}
+                          >
                             <button
                               type="button"
                               onClick={() =>

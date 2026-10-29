@@ -63,7 +63,7 @@ const TABS = [
 ] as const
 type TabId = (typeof TABS)[number]
 
-export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: string; tab: TabId; onTabChange: (tab: TabId) => void }) {
+export function ProjectWorkspace({ projectId, tab, onTabChange, locate }: { projectId: string; tab: TabId; onTabChange: (tab: TabId) => void; locate?: { elementRef: string; sourceId: string | null } | null }) {
   const activeTab = tab
 
   const workspace = useApi<ProjectDetail>(`/api/projects/${projectId}`)
@@ -396,14 +396,18 @@ export function ProjectWorkspace({ projectId, tab, onTabChange }: { projectId: s
 
         {/* ---------------- Design Studio ---------------- */}
         {/* onMutated: derive/regenerate actions refresh the project-level caches
-            (the AgentsWorkspace.onMutated pattern, Phase-6 known-limitation #13). */}
+            (the AgentsWorkspace.onMutated pattern, Phase-6 known-limitation #13).
+            locate: the ?element=/?source= deep-link seed (limitation #12) — the
+            Studio consumes it as a source pre-select + element pick. */}
         <TabsContent value="studio" className="mt-4 flex flex-col gap-4">
-          <StudioWorkspace projectId={project.id} onMutated={refreshAll} />
+          <StudioWorkspace key={project.id} projectId={project.id} onMutated={refreshAll} locate={locate} />
         </TabsContent>
 
         {/* ---------------- Takeoff ---------------- */}
+        {/* locate: the same seed's elementRef half — the ledger highlights its
+            matching rows (limitation #12's ledger→3D→ledger round trip). */}
         <TabsContent value="takeoff" className="mt-4 flex flex-col gap-4">
-          <TakeoffWorkspace projectId={project.id} onMutated={refreshAll} />
+          <TakeoffWorkspace key={project.id} projectId={project.id} onMutated={refreshAll} locate={locate} />
         </TabsContent>
 
         {/* ---------------- Simulation & Verification (W1-f, Phase 5) ---------------- */}

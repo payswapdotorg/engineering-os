@@ -29,7 +29,7 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-29T04:21:23.519Z`
+- Ran at (UTC): `2026-10-29T08:12:44.916Z`
 - Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available

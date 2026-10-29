@@ -54,6 +54,20 @@ function ProjectPageInner() {
   const rawTab = searchParams.get("tab");
   const tab: TabId = isTabId(rawTab) ? rawTab : "overview";
 
+  // Cross-navigation deep-link seed (limitation #12's closing lane): ?element=
+  // names an elementRef shared verbatim by mesh elements and quantity-ledger
+  // rows; ?source= (optional) names the artifact the ref came from, so the
+  // Studio can pre-select exactly the model that owns it. Consumed once by the
+  // target workspace (pick + scroll + announce, honest not-found note); the
+  // next ordinary tab change rewrites ?tab=… only, so the seed lives exactly
+  // one visit — reload re-locates (deep-link semantics, by design).
+  const locateElementRef = searchParams.get("element");
+  const locateSourceId = searchParams.get("source");
+  const locate =
+    locateElementRef !== null
+      ? { elementRef: locateElementRef, sourceId: locateSourceId }
+      : null;
+
   const setTab = useCallback(
     (next: TabId) => {
       router.replace(`/projects/${params.id}?tab=${next}`, { scroll: false });
@@ -65,7 +79,9 @@ function ProjectPageInner() {
     return <p className="text-sm text-muted-foreground">Invalid project id.</p>;
   }
 
-  return <ProjectWorkspace projectId={params.id} tab={tab} onTabChange={setTab} />;
+  return (
+    <ProjectWorkspace projectId={params.id} tab={tab} onTabChange={setTab} locate={locate} />
+  );
 }
 
 export default function ProjectPage() {

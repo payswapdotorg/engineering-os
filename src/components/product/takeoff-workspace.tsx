@@ -16,8 +16,9 @@
  *  - Sheet Measure rows are real drawing-measured records from the calibrated
  *    pdf.js surface (sheet-measure.tsx) — the same ledger, the same gates.
  */
-import { Boxes, ChevronDown, ClipboardList, Download, Info, Layers, Plus, Ruler, Sigma, Trash2, DraftingCompass} from "lucide-react"
-import { useMemo, useState } from "react"
+import { Boxes, ChevronDown, ClipboardList, Crosshair, Download, Info, Layers, Plus, Ruler, Sigma, Trash2, X, DraftingCompass} from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import {
@@ -150,6 +151,7 @@ const noop = () => {}
 export function TakeoffWorkspace({
   projectId,
   onMutated,
+  locate,
 }: {
   projectId: string
   /** Parent-side cache nudge (Phase-6 known-limitation #13): the
@@ -157,7 +159,14 @@ export function TakeoffWorkspace({
    *  that change source staleness) the project-level caches don't observe on
    *  their own — the AgentsWorkspace.onMutated pattern, mirrored exactly. */
   onMutated?: () => void
+  /** Cross-navigation seed (limitation #12's ledger half): ?element= arrives
+   *  from the Studio's picked-element bar. The ledger tab activates, matching
+   * rows highlight + scroll into view with an announced count — or an honest
+   * not-found note when no row references the element yet. Never a filter:
+   *  the full ledger stays on screen. */
+  locate?: { elementRef: string; sourceId: string | null } | null
 }) {
+  const router = useRouter()
   const quantities = useApi<{ quantities: QuantityRow[] }>(`/api/projects/${projectId}/quantities`)
   const assemblies = useApi<{ assemblies: AssemblyRow[] }>(`/api/projects/${projectId}/assemblies`)
   const rates = useApi<{ rates: RateRow[] }>(`/api/projects/${projectId}/rates`)
@@ -187,6 +196,36 @@ export function TakeoffWorkspace({
   const assemblyRows = assemblies.data?.assemblies ?? []
   const rateRows = rates.data?.rates ?? []
   const estimateRows = estimates.data?.estimates ?? []
+
+  // ---- Cross-navigation seed state (limitation #12, ledger half) ----
+  const [locatedElementRef, setLocatedElementRef] = useState<string | null>(null)
+  const [locateNotFound, setLocateNotFound] = useState(false)
+  // quantity id → <tr> node — the first matching row scrolls into view inside
+  // the ledger's own scroll container.
+  const rowRefs = useMemo(() => new Map<string, HTMLTableRowElement | null>(), [])
+  const locateRefValue = locate?.elementRef ?? null
+  const locatedRowCount = locatedElementRef === null
+    ? 0
+    : quantityRows.filter((q) => q.elementRef === locatedElementRef).length
+
+  // Consume the seed once the ledger rows are on screen: activate the ledger
+  // tab, highlight every matching row, scroll the first into view, and count
+  // them aloud. Zero matches is an honest note, never a fabricated highlight.
+  useEffect(() => {
+    if (locateRefValue === null || locateRefValue === "") return
+    if (quantities.loading) return
+    if (locatedElementRef === locateRefValue) return // consumed this value
+    setLocatedElementRef(locateRefValue)
+    setTab((current) => (current === "ledger" ? current : "ledger"))
+    const matches = quantityRows.filter((q) => q.elementRef === locateRefValue)
+    setLocateNotFound(matches.length === 0)
+    if (matches.length > 0) {
+      // rAF: let the ledger tab paint before scrolling to its rows.
+      requestAnimationFrame(() => {
+        rowRefs.get(matches[0].id)?.scrollIntoView({ block: "center", behavior: "smooth" })
+      })
+    }
+  }, [locateRefValue, quantities.loading, quantityRows, locatedElementRef, rowRefs])
 
   const selectedEstimate = estimateRows.find((e) => e.id === selectedEstimateId) ?? null
 
@@ -351,6 +390,47 @@ export function TakeoffWorkspace({
             />
           ) : (
             <div className="eos-scroll max-h-[32rem] overflow-auto rounded-lg border">
+              {/* Locate banner (limitation #12): the seed's honest outcome — the
+                  matching-row count announced, or the not-found truth. The full
+                  ledger stays visible (highlight, never a filter). */}
+              {locatedElementRef !== null ? (
+                <div
+                  role="status"
+                  className={
+                    locateNotFound
+                      ? "flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                      : "flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b bg-muted/40 px-4 py-2 text-sm"
+                  }
+                >
+                  <span className="min-w-0">
+                    {locateNotFound ? (
+                      <>
+                        No quantity rows reference element{" "}
+                        <span className="font-mono text-xs">{locatedElementRef}</span> yet — record one
+                        from a model takeoff to link them.
+                      </>
+                    ) : (
+                      <>
+                        <Crosshair className="mr-1.5 inline size-3.5 text-muted-foreground" aria-hidden />
+                        {locatedRowCount} quantity row{locatedRowCount === 1 ? "" : "s"} reference element{" "}
+                        <span className="font-mono text-xs">{locatedElementRef}</span> — highlighted below.
+                      </>
+                    )}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 shrink-0"
+                    onClick={() => {
+                      setLocatedElementRef(null)
+                      setLocateNotFound(false)
+                    }}
+                  >
+                    <X aria-hidden />
+                    Clear
+                  </Button>
+                </div>
+              ) : null}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -370,7 +450,17 @@ export function TakeoffWorkspace({
                     // Superseded rows stay visible (audit) but greyed and inert.
                     <TableRow
                       key={q.id}
-                      className={cn("cursor-default", q.status === "superseded" && "text-muted-foreground/60")}
+                      ref={(node) => {
+                        // locate-seed scroll target (limitation #12)
+                        rowRefs.set(q.id, node)
+                      }}
+                      className={cn(
+                        "cursor-default",
+                        q.status === "superseded" && "text-muted-foreground/60",
+                        locatedElementRef !== null &&
+                          q.elementRef === locatedElementRef &&
+                          "bg-amber-50 outline outline-1 -outline-offset-1 outline-amber-400 dark:bg-amber-950/40 dark:outline-amber-700",
+                      )}
                     >
                       <TableCell className="font-medium">
                         <span title={q.id}>{q.quantityType}</span>
@@ -393,8 +483,32 @@ export function TakeoffWorkspace({
                           <span className="text-xs">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="max-w-[180px] truncate font-mono text-xs" title={q.sheetRef ?? q.elementRef ?? undefined}>
-                        {q.method === "drawing-measured" ? (q.sheetRef ?? "—") : (q.elementRef ?? "—")}
+                      <TableCell className="max-w-[180px] font-mono text-xs" title={q.sheetRef ?? q.elementRef ?? undefined}>
+                        {q.method === "drawing-measured" ? (
+                          (q.sheetRef ?? "—")
+                        ) : q.elementRef ? (
+                          <span className="flex min-w-0 items-center gap-1">
+                            <span className="truncate">{q.elementRef}</span>
+                            {q.sourceArtifact ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 shrink-0 text-muted-foreground"
+                                aria-label={`Locate element ${q.elementRef} in the 3D viewer`}
+                                title="Locate in 3D"
+                                onClick={() =>
+                                  router.push(
+                                    `/projects/${projectId}?tab=studio&element=${encodeURIComponent(q.elementRef ?? "")}&source=${q.sourceArtifact?.id}`,
+                                  )
+                                }
+                              >
+                                <Crosshair aria-hidden />
+                              </Button>
+                            ) : null}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">
                         <span title={`${q.rulesetId} v${q.rulesetVersion}`}>
