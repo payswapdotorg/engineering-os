@@ -29,7 +29,7 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-28T15:52:28.352Z`
+- Ran at (UTC): `2026-10-29T04:21:23.519Z`
 - Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
@@ -45,7 +45,7 @@
 - Engine availability probe — ezdxf (DXF takeoff): available
 - Engine availability probe — cadquery (parametric rebuild): available
 - Engine availability probe — tesseract (sheet-text OCR): available
-- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · libreoffice 25.2.3.2 · pdfplumber 0.11.9 · ezdxf 1.4.3 · tesseract 5.5.0 · pyswmm 2.2.0
+- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5 · tesseract 5.5.0 · pyswmm 2.2.0
 - Adapter `step_quantities.py` sha256: `950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d`
 - Adapter `ifc_quantities.py` sha256: `68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78`
 - Adapter `step_mesh.py` sha256: `e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c`
@@ -95,10 +95,10 @@
 | `des-invalid-resource` | des | `des-invalid-resource.json` | error | pass | — | — | — | des: threw honest error: `jobs[0].tasks[1] references unknown resource "crane"` · threw honest error: `` |
 | `cpm-platform-rollout` | cpm | `schedule-cpm.json` | success | pass | — | — / — | — | cpm: 28 pin(s) · engine identity absent (platform core) · doc byte-determinism ✅ |
 | `lo-cover-sheet-convert` | libreoffice | `cover-sheet.fodt` | success | pass | — | — / — | — | libreoffice: 4 pin(s) · libreoffice 25.2.3.2 · byte-determinism not claimed (PDFs embed creation timestamps — single run, §5.4) |
-| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | sheet: 26 pin(s) · pdfplumber 0.11.9 · doc byte-determinism ✅ · max pin rel error 3.519e-7 |
-| `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pass | — | — / — | — | sheet: 6 pin(s) · pdfplumber 0.11.9 · doc byte-determinism ✅ · max pin rel error 3.981e-5 |
+| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | sheet: 26 pin(s) · pdfplumber 0.11.10 · doc byte-determinism ✅ · max pin rel error 3.519e-7 |
+| `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pass | — | — / — | — | sheet: 6 pin(s) · pdfplumber 0.11.10 · doc byte-determinism ✅ · max pin rel error 3.981e-5 |
 | `sheet-vector-refusal` | sheet | `sheet-scan-like.pdf` | error | pass | — | — | — | sheet: threw honest error: `this sheet page has no vector path operators — it is a scan or raster-only page; vector takeoff is not available for it,` · threw honest error: `` |
-| `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | pass | — | — / — | — | dxf: 13 pin(s) · ezdxf 1.4.3 · doc byte-determinism ✅ |
+| `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | pass | — | — / — | — | dxf: 13 pin(s) · ezdxf 1.4.5 · doc byte-determinism ✅ |
 | `parametric-schema` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 5 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ |
 | `parametric-defaults` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 9 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ · max pin rel error 7.530e-16 |
 | `parametric-edited` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 9 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ · max pin rel error 8.017e-16 |
@@ -197,10 +197,10 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 | `des-invalid-resource` | des | `des-invalid-resource.json` | error | — (platform core, honestly absent) | — | 0 | pass |
 | `cpm-platform-rollout` | cpm | `schedule-cpm.json` | success | — (platform core, honestly absent) | ✅ true | 28 | pass |
 | `lo-cover-sheet-convert` | libreoffice | `cover-sheet.fodt` | success | libreoffice 25.2.3.2 | not claimed (single run, §5.4) | 4 | pass |
-| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pdfplumber 0.11.9 | ✅ true | 26 | pass |
-| `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pdfplumber 0.11.9 | ✅ true | 6 | pass |
+| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pdfplumber 0.11.10 | ✅ true | 26 | pass |
+| `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pdfplumber 0.11.10 | ✅ true | 6 | pass |
 | `sheet-vector-refusal` | sheet | `sheet-scan-like.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
-| `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | ezdxf 1.4.3 | ✅ true | 13 | pass |
+| `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | ezdxf 1.4.5 | ✅ true | 13 | pass |
 | `parametric-schema` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 5 | pass |
 | `parametric-defaults` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 9 | pass |
 | `parametric-edited` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 9 | pass |

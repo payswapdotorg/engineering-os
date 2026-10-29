@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { spawnSync } from "node:child_process"
 
-import { detectEngines, type EngineProbeSpec, type EngineRecord } from "./index"
+import { detectEngines, engineRegistry, type EngineProbeSpec, type EngineRecord } from "./index"
 
 /**
  * Detection tests (Worker 2 lane, ADR-0005 rule 3: "not installed" is a first-class state).
@@ -206,6 +206,51 @@ describe("detectEngines (fixture registry, no real engines)", () => {
     } finally {
       if (prevPython === undefined) delete process.env.EOS_PYTHON
       else process.env.EOS_PYTHON = prevPython
+    }
+  })
+})
+
+describe("the REAL registry's python-module probes (probe-expr class guard)", () => {
+  // Found live 2026-10-29 on the tenth-recovery host: the pyswmm + scikit-fem
+  // entries (Slices 23/22) shipped "moduleVersionExpr": "([0-9][0-9.]*)" — the
+  // executable-probe versionRegex style pasted into the python-module field.
+  // probePythonModule passes the expr VERBATIM to `python -c`; a bare regex is
+  // a Python SyntaxError, so the probe honestly reported BOTH engines as
+  // not_installed while they were solving live in the same session (the mirror
+  // of the 2026-10-22 pandapower-timeout lesson: an INSTALLED engine must
+  // never downgrade). This guard pins the CLASS, not the two rows: every
+  // python-module probe in the registry must be a real import-and-print
+  // program naming the module it claims to probe.
+  test("every python-module probe expr is an import-and-print Python program naming its module", () => {
+    const pyProbes = engineRegistry.flatMap((e) =>
+      e.probes
+        .filter((p): p is EngineProbeSpec & { kind: "python-module" } => p.kind === "python-module")
+        .map((p) => ({ engine: e.key, module: p.module ?? "", expr: p.moduleVersionExpr ?? "" })),
+    )
+    // The known set (8 at the time of the guard: cadquery, ifcopenshell,
+    // pdfplumber, ezdxf, pandapower, simpy, skfem/scikit-fem, pyswmm): a
+    // dropped python-module probe must fail loudly here, not silently shrink
+    // coverage.
+    expect(pyProbes.length).toBeGreaterThanOrEqual(8)
+    for (const { engine, module, expr } of pyProbes) {
+      expect(
+        expr.startsWith("import "),
+        `${engine}: moduleVersionExpr must start with an import (got ${JSON.stringify(expr)})`,
+      ).toBe(true)
+      expect(
+        expr.includes(module),
+        `${engine}: moduleVersionExpr must import the probed module "${module}"`,
+      ).toBe(true)
+      expect(
+        expr.includes("print("),
+        `${engine}: moduleVersionExpr must print the version (got ${JSON.stringify(expr)})`,
+      ).toBe(true)
+      // The executable-probe style must NEVER ride in this field: a version
+      // REGEX is a Python SyntaxError under `python -c` — the exact defect.
+      expect(
+        expr.includes("[0-9]"),
+        `${engine}: moduleVersionExpr looks like a version REGEX, not a Python program`,
+      ).toBe(false)
     }
   })
 })

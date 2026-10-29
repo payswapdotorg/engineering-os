@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-10-28T15:52:28.352Z",
+  "ranAt": "2026-10-29T04:21:23.519Z",
   "pythonBin": "/home/z/.venv/bin/python",
   "manifestPath": "tests/validation/corpus-manifest.json",
   "caseCount": 36,
@@ -54,8 +54,8 @@
     "simpy": "4.1.2",
     "scikit-fem": "12.0.2",
     "libreoffice": "25.2.3.2",
-    "pdfplumber": "0.11.9",
-    "ezdxf": "1.4.3",
+    "pdfplumber": "0.11.10",
+    "ezdxf": "1.4.5",
     "tesseract": "5.5.0",
     "pyswmm": "2.2.0"
   },
@@ -3066,7 +3066,7 @@
         "problems": [],
         "engine": {
           "engineKey": "pdfplumber",
-          "engineVersion": "0.11.9",
+          "engineVersion": "0.11.10",
           "adapterScript": "sheet_takeoff.py",
           "adapterHash": "bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff"
         }
@@ -3172,7 +3172,7 @@
         "problems": [],
         "engine": {
           "engineKey": "pdfplumber",
-          "engineVersion": "0.11.9",
+          "engineVersion": "0.11.10",
           "adapterScript": "sheet_takeoff.py",
           "adapterHash": "bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff"
         }
@@ -3392,7 +3392,7 @@
         "problems": [],
         "engine": {
           "engineKey": "ezdxf",
-          "engineVersion": "1.4.3",
+          "engineVersion": "1.4.5",
           "adapterScript": "dxf_takeoff.py",
           "adapterHash": "07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329"
         }

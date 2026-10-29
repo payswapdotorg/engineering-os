@@ -456,7 +456,7 @@
         {
           "kind": "python-module",
           "module": "pyswmm",
-          "moduleVersionExpr": "([0-9][0-9.]*)"
+          "moduleVersionExpr": "import pyswmm; print(pyswmm.__version__)"
         }
       ],
       "state": "tested",
@@ -1518,7 +1518,7 @@
         {
           "kind": "python-module",
           "module": "skfem",
-          "moduleVersionExpr": "([0-9][0-9.]*)"
+          "moduleVersionExpr": "import skfem; print(skfem.__version__)"
         }
       ],
       "state": "tested",
