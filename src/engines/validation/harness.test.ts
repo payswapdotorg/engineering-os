@@ -137,7 +137,7 @@ describe("validation corpus manifest (integrity — engine independent)", () => 
   })
 
   test("every ground-truth entry carries a valid tolerance class and a hand-derived audit string", () => {
-    const DISCIPLINE_ADAPTERS = new Set(["femesh", "powerflow", "des", "fea", "transport", "swmm", "cpm", "libreoffice"])
+    const DISCIPLINE_ADAPTERS = new Set(["femesh", "powerflow", "des", "fea", "transport", "chip", "swmm", "cpm", "libreoffice"])
     // 16-V takeoff kinds + the 16-P parametric kind: pins live under runs[]
     // (one pins array per parameter set) — same derivation discipline, nested
     // one level deeper.
@@ -325,6 +325,7 @@ function syntheticReport(): HarnessReport {
         des: { available: false, reason: "synthetic: engine absent" },
         fea: { available: false, reason: "synthetic: engine absent" },
         transport: { available: false, reason: "synthetic: engine absent" },
+        chip: { available: false, reason: "synthetic: engine absent" },
         swmm: { available: false, reason: "synthetic: engine absent" },
         cpm: { available: true }, // platform core — always available, no engine
         libreoffice: { available: false, reason: "synthetic: engine absent" },

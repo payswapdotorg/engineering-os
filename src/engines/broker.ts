@@ -43,6 +43,7 @@ import { runPowerflowFromFile, type PowerflowBus, type PowerflowLine, type Power
 import { runDesFromFile, type DesJob, type DesResource } from "@/engines/adapters/des"
 import { runFeaFromFile, type FeaSample } from "@/engines/adapters/fea"
 import { runTransportFromFile, type TransportSample } from "@/engines/adapters/cfd"
+import { runRtlSynthesisFromFile, type RtlSimulationStep } from "@/engines/adapters/chip"
 import { runSwmmFromFile, type SwmmDepthSample } from "@/engines/adapters/swmm"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "@/engines/adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "@/engines/adapters/dxf_takeoff"
@@ -100,6 +101,7 @@ export type BrokerOperation =
   | "run_des"
   | "solve_fea"
   | "solve_transport"
+  | "synthesize_rtl"
   | "run_swmm"
   | "convert_document"
   | "analyze_schedule"
@@ -990,6 +992,7 @@ export const FEA_NO_REVISIONS_MESSAGE = "This artifact has no revisions to solve
 
 export const SWMM_NO_REVISIONS_MESSAGE = "This artifact has no revisions to run"
 export const TRANSPORT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to solve"
+export const RTL_NO_REVISIONS_MESSAGE = "This artifact has no revisions to synthesize"
 export const CONVERT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to convert"
 export const ANALYZE_NO_REVISIONS_MESSAGE = "This artifact has no revisions to analyze"
 
@@ -1272,6 +1275,77 @@ export function buildTransportDocument(
     })),
     minConcentration: payload.minConcentration,
     maxConcentration: payload.maxConcentration,
+    generatedBy: {
+      engineKey: payload.engineKey,
+      engineVersion: payload.engineVersion,
+      adapterScript: payload.adapterScript,
+      adapterHash: payload.adapterHash,
+    },
+  })
+}
+
+/**
+ * Assemble the eos-chip-netlist/1 document bytes (contract §17.4). PURE:
+ * pinned key order format → sourceArtifactName → analysis → device → rtlil →
+ * netlist → synthesis → simulation → generatedBy; every value is the
+ * engine's verbatim integer/hash/string — no floats anywhere (the netlist is
+ * pure structure), so byte-determinism is exact, not tolerance-based
+ * (ADR-0006 §2 — nobody rounds "for presentation").
+ */
+export function buildRtlDocument(
+  sourceArtifactName: string,
+  payload: {
+    analysis: "rtl_synthesis"
+    device: { kind: "enable_counter"; widthBits: number }
+    rtlil: { sha256: string; charCount: number }
+    netlist: {
+      sha256: string
+      charCount: number
+      totalCells: number
+      flipFlopCount: number
+      cellHistogram: Record<string, number>
+    }
+    synthesis: { engineKey: string; engineVersion: string; script: string }
+    simulation: { engine: string; pattern: string; steps: RtlSimulationStep[] }
+    engineKey: string
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+  },
+): string {
+  return JSON.stringify({
+    format: "eos-chip-netlist/1",
+    sourceArtifactName,
+    analysis: payload.analysis,
+    device: {
+      kind: payload.device.kind,
+      widthBits: payload.device.widthBits,
+    },
+    rtlil: {
+      sha256: payload.rtlil.sha256,
+      charCount: payload.rtlil.charCount,
+    },
+    netlist: {
+      sha256: payload.netlist.sha256,
+      charCount: payload.netlist.charCount,
+      totalCells: payload.netlist.totalCells,
+      flipFlopCount: payload.netlist.flipFlopCount,
+      cellHistogram: payload.netlist.cellHistogram,
+    },
+    synthesis: {
+      engineKey: payload.synthesis.engineKey,
+      engineVersion: payload.synthesis.engineVersion,
+      script: payload.synthesis.script,
+    },
+    simulation: {
+      engine: payload.simulation.engine,
+      pattern: payload.simulation.pattern,
+      steps: payload.simulation.steps.map((step) => ({
+        cycle: step.cycle,
+        enabled: step.enabled,
+        count: step.count,
+      })),
+    },
     generatedBy: {
       engineKey: payload.engineKey,
       engineVersion: payload.engineVersion,
@@ -3006,6 +3080,137 @@ export async function brokerRunFeaCore(
   }
 }
 
+/** Pinned 201 `rtl` response object (exact key order — mirror of the transport 201). */
+export interface BrokerRtlResponse {
+  artifactId: string
+  name: string
+  kind: "analysis"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-chip-netlist/1"
+  analysis: "rtl_synthesis"
+  deviceKind: "enable_counter"
+  widthBits: number
+  totalCells: number
+  flipFlopCount: number
+  synthesisEngineKey: string
+  synthesisEngineVersion: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerRtlResult {
+  rtl: BrokerRtlResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of synthesize_rtl (contract §17.3/§17.5): gate the stored JSON as an
+ * eos-chip-rtl-model/1 document, run the amaranth + yowasp-yosys bridge,
+ * assemble the byte-deterministic eos-chip-netlist/1 document, find-or-create
+ * the kind-"analysis" artifact (DRAFT revision per run), exactly ONE
+ * `rtl.synthesized` audit event (both engines attributed: amaranth the
+ * front-end, yowasp-yosys the synthesis half).
+ */
+export async function brokerRunRtlCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerRtlResult> {
+  const source = await readJsonArtifact(projectId, artifactId, "eos-chip-rtl-model/1", RTL_NO_REVISIONS_MESSAGE)
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof runRtlSynthesisFromFile>>
+  try {
+    result = await runRtlSynthesisFromFile(absPath, parameters)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildRtlDocument(source.artifact.name, result)
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "synthesize_rtl",
+    kind: "analysis",
+    format: "eos-chip-netlist/1",
+    name: `${source.artifact.name} — RTL netlist`,
+    description: `RTL synthesis to gate-level netlist (amaranth + ${result.synthesis.engineKey})`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "rtl.synthesized",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        synthesisEngineKey: result.synthesis.engineKey,
+        synthesisEngineVersion: result.synthesis.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        analysis: result.analysis,
+        deviceKind: result.device.kind,
+        widthBits: result.device.widthBits,
+        totalCells: result.netlist.totalCells,
+        flipFlopCount: result.netlist.flipFlopCount,
+        netlistSha256: result.netlist.sha256,
+      },
+    },
+  })
+
+  return {
+    rtl: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-chip-netlist/1",
+      analysis: result.analysis,
+      deviceKind: result.device.kind,
+      widthBits: result.device.widthBits,
+      totalCells: result.netlist.totalCells,
+      flipFlopCount: result.netlist.flipFlopCount,
+      synthesisEngineKey: result.synthesis.engineKey,
+      synthesisEngineVersion: result.synthesis.engineVersion,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
 /** Pinned 201 `transport` response object (exact key order — mirror of the fea 201). */
 export interface BrokerTransportResponse {
   artifactId: string
@@ -3832,6 +4037,34 @@ export async function runBrokerOperation(
           pecletNumber: core.transport.pecletNumber,
           meshPecletNumber: core.transport.meshPecletNumber,
           maxConcentration: core.transport.maxConcentration,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "synthesize_rtl": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "synthesize_rtl requires inputs.artifactId (one RTL model artifact id)")
+      }
+      const core = await brokerRunRtlCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.rtl.artifactId,
+          revisionNumber: core.rtl.revisionNumber,
+          contentHash: core.rtl.contentHash,
+          deviceKind: core.rtl.deviceKind,
+          widthBits: core.rtl.widthBits,
+          totalCells: core.rtl.totalCells,
+          flipFlopCount: core.rtl.flipFlopCount,
+          synthesisEngineKey: core.rtl.synthesisEngineKey,
         },
         outputArtifactRevisionId: core.outputArtifactRevisionId,
         engineKey: core.engineKey,

@@ -29,7 +29,7 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-30T06:55:16.906Z`
+- Ran at (UTC): `2026-10-30T08:22:56.094Z`
 - Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
@@ -39,6 +39,7 @@
 - Engine availability probe — simpy (discrete-event): available
 - Engine availability probe — scikit-fem (plane-stress FEA): available
 - Engine availability probe — sfepy/SfePy (steady scalar transport CFD): available
+- Engine availability probe — amaranth + yowasp-yosys (RTL synthesis): available
 - Engine availability probe — pyswmm/SWMM5 (stormwater drainage): available
 - Engine availability probe — platform CPM core (no engine): available
 - Engine availability probe — libreoffice (document conversion): available
@@ -46,7 +47,7 @@
 - Engine availability probe — ezdxf (DXF takeoff): available
 - Engine availability probe — cadquery (parametric rebuild): available
 - Engine availability probe — tesseract (sheet-text OCR): available
-- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · sfepy 2026.3 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5 · tesseract 5.5.0 · pyswmm 2.2.0
+- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · sfepy 2026.3 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5 · tesseract 5.5.0 · pyswmm 2.2.0 · amaranth 0.5.10
 - Adapter `step_quantities.py` sha256: `950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d`
 - Adapter `ifc_quantities.py` sha256: `68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78`
 - Adapter `step_mesh.py` sha256: `e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c`
@@ -62,7 +63,8 @@
 - Adapter `fea_solve.py` sha256: `86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef`
 - Adapter `swmm_run.py` sha256: `6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d`
 - Adapter `transport_solve.py` sha256: `d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b`
-- Corpus: `tests/validation/corpus-manifest.json` — 39 cases
+- Adapter `rtl_synthesize.py` sha256: `dfd179e6be39f1bea0b70e8ac889c8e56ffa39554ce85188d85d9cde8a37fba7`
+- Corpus: `tests/validation/corpus-manifest.json` — 42 cases
 
 ## Tolerance policy (pinned)
 
@@ -72,7 +74,7 @@
 | `analytic` | \|obs − exp\| ≤ 1e-9 · max(1, \|exp\|) | exact-engine value vs closed form; also used for the PLANAR mesh case, where the divergence-theorem volume / triangle-sum area are mathematically exact (only IEEE rounding remains) |
 | `mesh` | \|obs − exp\| ≤ 1e-2 · \|exp\| | pinned 1% engineering tolerance for triangulated CURVED surfaces (ifcopenshell PyPI wheel has no OCCT backend, `has_occ=False`); the observed relative error is recorded below — the limitation is quantified, not hidden |
 
-## Results — 39 cases: 39 pass / 0 fail / 0 skip
+## Results — 42 cases: 42 pass / 0 fail / 0 skip
 
 | Case | Adapter | Fixture | Expect | Status | Determinism | Quantities (obs / pinned) | Max observed rel error | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -115,6 +117,9 @@
 | `transport-channel` | transport | `transport-channel.json` | success | pass | — | — / — | — | transport: 16 pin(s) · sfepy 2026.3 · doc byte-determinism ✅ · max pin rel error 4.158e-7 |
 | `transport-uniform` | transport | `transport-uniform.json` | success | pass | — | — / — | — | transport: 8 pin(s) · sfepy 2026.3 · doc byte-determinism ✅ · max pin rel error 7.616e-14 |
 | `transport-mesh-peclet-refusal` | transport | `transport-high-peclet.json` | error | pass | — | — | — | transport: threw honest error: `the mesh does not resolve the transport boundary layer (element Péclet 7.81 exceeds the stability bound 2) - refine the ` · threw honest error: `` |
+| `rtl-counter-4bit` | chip | `rtl-counter-4bit.json` | success | pass | — | — / — | — | chip: 18 pin(s) · amaranth 0.5.10 · doc byte-determinism ✅ |
+| `rtl-counter-8bit` | chip | `rtl-counter-8bit.json` | success | pass | — | — / — | — | chip: 11 pin(s) · amaranth 0.5.10 · doc byte-determinism ✅ |
+| `rtl-invalid-kind` | chip | `rtl-invalid-kind.json` | error | pass | — | — | — | chip: threw honest error: `rtl model device.kind must be "enable_counter" (the v1 device class; every other class is its own future lane) (got "alu` · threw honest error: `` |
 
 ## Mesh tessellation validation (W2-d — the eos-mesh/1 bridge)
 
@@ -220,6 +225,9 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 | `transport-channel` | transport | `transport-channel.json` | success | sfepy 2026.3 | ✅ true | 16 | pass |
 | `transport-uniform` | transport | `transport-uniform.json` | success | sfepy 2026.3 | ✅ true | 8 | pass |
 | `transport-mesh-peclet-refusal` | transport | `transport-high-peclet.json` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `rtl-counter-4bit` | chip | `rtl-counter-4bit.json` | success | amaranth 0.5.10 | ✅ true | 18 | pass |
+| `rtl-counter-8bit` | chip | `rtl-counter-8bit.json` | success | amaranth 0.5.10 | ✅ true | 11 | pass |
+| `rtl-invalid-kind` | chip | `rtl-invalid-kind.json` | error | — (platform core, honestly absent) | — | 0 | pass |
 
 ### Discipline pin comparisons (observed vs hand-derived)
 
@@ -449,6 +457,36 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `transport-uniform` concentration @ 1.5x0.25: observed **0.9999999999999265** vs pinned 1 [bound abs:1e-12] → rel error 7.350e-14 · u ≡ 1 at every station (observed 1 − 7.4e-14)
 - `transport-uniform` concentration @ 1.75x0.25: observed **0.9999999999999389** vs pinned 1 [bound abs:1e-12] → rel error 6.106e-14 · u ≡ 1 at every station (observed 1 − 6.1e-14)
 - `transport-mesh-peclet-refusal` (transport) threw the honest error: `the mesh does not resolve the transport boundary layer (element Péclet 7.81 exceeds the stability bound 2) - refine the mesh (increase meshRefinement) or reduce`
+- `rtl-counter-4bit` analysis: observed **"rtl_synthesis"** vs pinned "rtl_synthesis" [bound structural] · the only analysis shipped this phase (contract §17.4)
+- `rtl-counter-4bit` engineKey: observed **"amaranth"** vs pinned "amaranth" [bound structural] · the lane's front-end engine (contract §17.3)
+- `rtl-counter-4bit` engineVersion: observed **"0.5.10"** vs pinned "0.5.10" [bound structural] · the pinned amaranth wheel (engines-requirements)
+- `rtl-counter-4bit` deviceKind: observed **"enable_counter"** vs pinned "enable_counter" [bound structural] · the frozen v1 device class (contract §17.2)
+- `rtl-counter-4bit` widthBits: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the fixture's register width
+- `rtl-counter-4bit` flipFlopCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the closed form: a W-bit register has exactly W storage elements — probed at every width (§17.1)
+- `rtl-counter-4bit` totalCells: observed **10** vs pinned 10 [bound abs:0] → rel error 0 (bitwise) · 4 $_SDFFE_PP0P_ + 3 $_XOR_ + 2 $_AND_ + 1 $_NOT_ (§17.1 probe)
+- `rtl-counter-4bit` cellTypes: observed **["$_AND_","$_NOT_","$_SDFFE_PP0P_","$_XOR_"]** vs pinned ["$_AND_","$_NOT_","$_SDFFE_PP0P_","$_XOR_"] [bound structural] · the exact cell-type set, sorted
+- `rtl-counter-4bit` cellCount @ $_SDFFE_PP0P_: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · one $_SDFFE_PP0P_ per register bit — the yosys $_SDFFE mapping of the sync-domain enable register
+- `rtl-counter-4bit` cellCount @ $_XOR_: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · W−1 = 3 XOR gates: each upper bit XORs its carry-in (the closed form at every width)
+- `rtl-counter-4bit` cellCount @ $_AND_: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · empirical: the yosys carry-chain sharing at W=4 (§17.1)
+- `rtl-counter-4bit` cellCount @ $_NOT_: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · the constant NOT (one at every width)
+- `rtl-counter-4bit` synthesisEngineKey: observed **"yowasp-yosys"** vs pinned "yowasp-yosys" [bound structural] · the synthesis half of the lane (contract §17.3)
+- `rtl-counter-4bit` synthesisEngineVersion: observed **"0.70.0.0.post1259"** vs pinned "0.70.0.0.post1259" [bound structural] · the pinned yowasp-yosys wheel
+- `rtl-counter-4bit` netlistSha256: observed **"549bbd3fc1205712bd044282ca09da9360f2149e5c319f70f38015daf3548dd4"** vs pinned "549bbd3fc1205712bd044282ca09da9360f2149e5c319f70f38015daf3548dd4" [bound structural] · the src-stripped netlist is byte-identical across hosts — probed via three different source paths (§17.1)
+- `rtl-counter-4bit` stepCount: observed **25** vs pinned 25 [bound abs:0] → rel error 0 (bitwise) · the frozen stimulus: 18 enabled, 1 disabled, 6 enabled (contract §17.4)
+- `rtl-counter-4bit` count @ cycle19: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · cycle 19 is the DISABLED cycle: 18 enabled before it → 18 mod 16 = 2, and the register HOLDS (the closed-form hold pin)
+- `rtl-counter-4bit` count @ cycle25: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · the final step: 24 enabled cycles → 24 mod 16 = 8 — the WRAP the closed form predicts (visible at W=4)
+- `rtl-counter-8bit` widthBits: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · the fixture's register width
+- `rtl-counter-8bit` flipFlopCount: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · the closed form at W=8
+- `rtl-counter-8bit` totalCells: observed **24** vs pinned 24 [bound abs:0] → rel error 0 (bitwise) · 8 $_SDFFE_PP0P_ + 7 $_XOR_ + 8 $_AND_ + 1 $_NOT_ (§17.1 probe)
+- `rtl-counter-8bit` cellTypes: observed **["$_AND_","$_NOT_","$_SDFFE_PP0P_","$_XOR_"]** vs pinned ["$_AND_","$_NOT_","$_SDFFE_PP0P_","$_XOR_"] [bound structural] · the same four cell types at every width ≥ 2
+- `rtl-counter-8bit` cellCount @ $_SDFFE_PP0P_: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · one storage element per bit
+- `rtl-counter-8bit` cellCount @ $_XOR_: observed **7** vs pinned 7 [bound abs:0] → rel error 0 (bitwise) · W−1 = 7 (the XOR closed form)
+- `rtl-counter-8bit` cellCount @ $_AND_: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · empirical carry-chain sharing at W=8 (§17.1: 2W − 2log2W − 2 = 16−6−2)
+- `rtl-counter-8bit` cellCount @ $_NOT_: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · the constant NOT
+- `rtl-counter-8bit` stepCount: observed **25** vs pinned 25 [bound abs:0] → rel error 0 (bitwise) · the same frozen stimulus
+- `rtl-counter-8bit` count @ cycle19: observed **18** vs pinned 18 [bound abs:0] → rel error 0 (bitwise) · the disabled cycle 19 HOLDS the register at 18 enabled cycles — at W=8 there is no wrap (18 < 256), so the held value IS 18 (the W=4 case wraps it to 2; the hold itself is width-independent)
+- `rtl-counter-8bit` count @ cycle25: observed **24** vs pinned 24 [bound abs:0] → rel error 0 (bitwise) · the final step: 24 enabled cycles, no wrap at W=8 (24 < 256) — the non-wrapping regime pinned honestly
+- `rtl-invalid-kind` (chip) threw the honest error: `rtl model device.kind must be "enable_counter" (the v1 device class; every other class is its own future lane) (got "alu")`
 
 ## Regenerate
 

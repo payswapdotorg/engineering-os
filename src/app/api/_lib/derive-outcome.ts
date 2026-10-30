@@ -128,6 +128,18 @@ export const DERIVE_SUMMARIES = {
       maxConcentration: numberField(document, "maxConcentration"),
     }
   },
+  /** eos-chip-netlist/1 → widthBits / totalCells / flipFlopCount / synthesis engine (Slice 30) */
+  rtl(document: unknown): Record<string, unknown> {
+    const device = field(document, "device")
+    const netlist = field(document, "netlist")
+    const synthesis = field(document, "synthesis")
+    return {
+      widthBits: numberField(device, "widthBits"),
+      totalCells: numberField(netlist, "totalCells"),
+      flipFlopCount: numberField(netlist, "flipFlopCount"),
+      synthesisEngineKey: typeof field(synthesis, "engineKey") === "string" ? field(synthesis, "engineKey") : undefined,
+    }
+  },
   /** eos-cpm/1 → activityCount / criticalPathCount / durationDays */
   analysis(document: unknown): Record<string, unknown> {
     return {

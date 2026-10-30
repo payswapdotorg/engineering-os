@@ -30,6 +30,12 @@
 # transport.solved audit event; contract §16.6) and updates the registry
 # reconciliation to twelve tested engines.
 #
+# Slice 30 adds the AC-CHIP-04 block (RTL synthesis via REAL amaranth +
+# yowasp-yosys — the flip-flop closed form, the exact cell histogram, the
+# 25-cycle trajectory wrap/hold pins, one rtl.synthesized audit event with
+# both engines attributed; contract §17.6) and updates the registry
+# reconciliation to fourteen tested engines.
+#
 # Runs LAST of the five scripts. Probe project "P5 Disciplines Probe" is
 # removed on success (KEPT on failure for forensics). Final line
 # "N PASS / M FAIL", nonzero exit on any FAIL.
@@ -268,6 +274,53 @@ assert_contains "element Péclet 7.8125 > the probed-monotone bound 2 → the st
 STATUS_NOAUTH=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/projects/$PROBE_ID/artifacts/$TRANSPORTU_ID/transport") || STATUS_NOAUTH="000"
 BODY_NOAUTH=$(cat "$WORK/http.body")
 assert_eq "unauthenticated transport solve → 401 envelope verbatim (the op rides the same session gate)" \
+  "401|sign in required" \
+  "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
+
+# ===========================================================================
+# AC-CHIP-04 — RTL synthesis (REAL amaranth + yowasp-yosys; the chip lane the
+# Slice-28 license-first probe opened — contract §17.6, Slice 30)
+# ===========================================================================
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/rtl-counter-4bit.json" "RTL counter 4bit"
+RTL_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$RTL_ID/rtl" -H 'Content-Type: application/json' -d '{}'
+assert_eq "rtl model JSON → RTL synthesis by REAL amaranth + yowasp-yosys (kind analysis, eos-chip-netlist/1, W=4: FF 4 + 10 cells, engines amaranth 0.5.10 + yowasp-yosys 0.70.0.0.post1259)" \
+  "201|analysis|eos-chip-netlist/1|rtl_synthesis|enable_counter|4|10|4|amaranth|0.5.10|yowasp-yosys|0.70.0.0.post1259" \
+  "$STATUS|$(j "$BODY" '.data.rtl.kind')|$(j "$BODY" '.data.rtl.document.format')|$(j "$BODY" '.data.rtl.document.analysis')|$(j "$BODY" '.data.rtl.document.device.kind')|$(j "$BODY" '.data.rtl.widthBits')|$(j "$BODY" '.data.rtl.totalCells')|$(j "$BODY" '.data.rtl.flipFlopCount')|$(j "$BODY" '.data.rtl.engineKey')|$(j "$BODY" '.data.rtl.engineVersion')|$(j "$BODY" '.data.rtl.document.synthesis.engineKey')|$(j "$BODY" '.data.rtl.document.synthesis.engineVersion')"
+assert_eq "the closed-form flip-flop pin: a W-bit register carries EXACTLY W storage elements (the hand-derived form probed at every width §17.1)" \
+  "4" "$(j "$BODY" '.data.rtl.document.netlist.flipFlopCount')"
+assert_eq "the full cell histogram EXACT — the Slice-28 probe reproduced through the product lane (4 SDFFE + 3 XOR + 2 AND + 1 NOT)" \
+  "4|3|2|1" \
+  "$(j "$BODY" '.data.rtl.document.netlist.cellHistogram["$_SDFFE_PP0P_"]')|$(j "$BODY" '.data.rtl.document.netlist.cellHistogram["$_XOR_"]')|$(j "$BODY" '.data.rtl.document.netlist.cellHistogram["$_AND_"]')|$(j "$BODY" '.data.rtl.document.netlist.cellHistogram["$_NOT_"]')"
+assert_eq "the trajectory closed form: the disabled cycle 19 HOLDS at 18 mod 16 = 2, and the final cycle 25 reads 24 mod 16 = 8 — the WRAP the modular arithmetic predicts" \
+  "2|8|25" \
+  "$(j "$BODY" '.data.rtl.document.simulation.steps[] | select(.cycle == 19) | .count')|$(j "$BODY" '.data.rtl.document.simulation.steps[] | select(.cycle == 25) | .count')|$(j "$BODY" '.data.rtl.document.simulation.steps | length')"
+assert_eq "the netlist sha256 is the cross-host-stable pin (the §17.1 src-attribute strip)" \
+  "549bbd3fc1205712bd044282ca09da9360f2149e5c319f70f38015daf3548dd4" \
+  "$(j "$BODY" '.data.rtl.document.netlist.sha256')"
+http GET "/api/events?projectId=$PROBE_ID&limit=200"
+assert_eq "exactly ONE rtl.synthesized audit event for the run, both engines attributed (amaranth front-end, yowasp-yosys synthesis)" \
+  "1|amaranth|yowasp-yosys" "$(j "$BODY" '[.data.events[] | select(.action == "rtl.synthesized")] | length')|$(j "$BODY" '[.data.events[] | select(.action == "rtl.synthesized")][0].detail | fromjson | .engineKey')|$(j "$BODY" '[.data.events[] | select(.action == "rtl.synthesized")][0].detail | fromjson | .synthesisEngineKey')"
+http POST "/api/projects/$PROBE_ID/artifacts/$DESW_ID/rtl" -H 'Content-Type: application/json' -d '{}'
+assert_contains "wrong-format JSON → 422 (the ROUTE zod refuses alien content before the broker — defense-in-depth)" \
+  'format must be "eos-chip-rtl-model/1"' \
+  "$(j "$BODY" '.error.message')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/rtl-invalid-kind.json" "RTL invalid kind"
+RTLU_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$RTLU_ID/rtl" -H 'Content-Type: application/json' -d '{}'
+assert_contains "device.kind alu → the honest v1-class refusal verbatim (every other class is its own future lane)" \
+  'device.kind must be "enable_counter"' \
+  "$(j "$BODY" '.error.message')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/rtl-bad-width.json" "RTL bad width"
+RTLW_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$RTLW_ID/rtl" -H 'Content-Type: application/json' -d '{}'
+assert_contains "widthBits 65 → the schema range refusal verbatim" \
+  "device.widthBits must be an integer between 1 and 64" \
+  "$(j "$BODY" '.error.message')"
+: > "$WORK/http.body"
+STATUS_NOAUTH=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/projects/$PROBE_ID/artifacts/$RTLU_ID/rtl") || STATUS_NOAUTH="000"
+BODY_NOAUTH=$(cat "$WORK/http.body")
+assert_eq "unauthenticated RTL synthesis → 401 envelope verbatim (the op rides the same session gate)" \
   "401|sign in required" \
   "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
 
@@ -529,15 +582,19 @@ assert_contains "Slice-23 addendum: the EPA swmm row records the in-process lane
 assert_eq "Slice-29 addendum: the sfepy registry row carries its validation block too (3 transport harness cases, pass)" \
   "pass|3|tested" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "sfepy")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "sfepy")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "sfepy")][0].state')"
-assert_eq "registry reconciliation: twelve harness-validated engines (the nine 16-D set + scikit-fem + pyswmm + sfepy) carry state 'tested', registry total 44 — the OpenSees row stays 'planned' with the license review closed REJECTED" \
-  "12|44|planned" \
+assert_eq "Slice-30 addendum: the amaranth AND yowasp-yosys registry rows carry their validation blocks (3 chip harness cases each, pass — the front-end and synthesis halves of the RTL lane)" \
+  "pass|3|tested|pass|3|tested" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].state')"
+assert_eq "registry reconciliation: fourteen harness-validated engines (the nine 16-D set + scikit-fem + pyswmm + sfepy + amaranth + yowasp-yosys) carry state 'tested', registry total 44 — the OpenSees row stays 'planned' with the license review closed REJECTED" \
+  "14|44|planned" \
   "$(j "$BODY" '[.data.registry[] | select(.state == "tested")] | length')|$(j "$BODY" '.data.registry | length')|$(j "$BODY" '[.data.registry[] | select(.key == "opensees")][0].state')"
 # Slice 28 (the Phase-5 long-tail license-first probe): five new rows with the
 # license reviews closed ACCEPTED on wheel/sdist-verified evidence. Slice 29
-# promoted sfepy to 'tested' (the transport capability landed); the other
-# four stay 'planned' until their own lanes ship.
-assert_eq "Slice-28/29 addendum: sfepy is now tested (the Slice-29 transport lane) while amaranth/yowasp-yosys/pin/pybullet stay planned, all five with ACCEPTED license reviews" \
-  "tested|planned|planned|planned|planned|5" \
+# promoted sfepy (the transport lane); Slice 30 promoted amaranth +
+# yowasp-yosys (the chip lane); pin/pybullet stay 'planned' until their own
+# lanes ship.
+assert_eq "Slice-28/29/30 addendum: sfepy + amaranth + yowasp-yosys are now tested (the transport + chip lanes) while pin/pybullet stay planned, all five with ACCEPTED license reviews" \
+  "tested|tested|tested|planned|planned|5" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "sfepy")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "pybullet")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "sfepy" or .key == "amaranth" or .key == "yowasp-yosys" or .key == "pin" or .key == "pybullet") | select(.integration.notes | contains("LICENSE REVIEW CLOSED ACCEPTED"))] | length')"
 assert_contains "Slice-28 addendum: the pin row records the PyPI name-trap (the real library distributes as 'pin')" \
   "the PyPI distribution named 'pinocchio' (0.5.1) is an UNRELATED package" \

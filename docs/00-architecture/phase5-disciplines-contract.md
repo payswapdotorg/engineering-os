@@ -518,3 +518,113 @@ square elements; Q2 (approx_order 2) on the `2_4` block mesh. Audit action
   Pe_h ≤ 2 monotonicity gate is the frozen reality).
 - Navier-Stokes, turbulence, buoyancy, multiphase: out of scope — separate
   lanes entirely (the registry's openfoam row stays the system-binary class).
+
+## 17. Slice-30 addendum — Chip v1: RTL synthesis via amaranth + yowasp-yosys (BSD-2 + ISC)
+
+The Slice-28 license-first probe opened this lane (amaranth BSD-2-Clause,
+yowasp-yosys ISC — both verified on the wheels' own METADATA/LICENSE files);
+§10's "no EE-desktop" exclusion now closes for the RTL-TO-NETLIST class. The
+engines are **amaranth 0.5.10** (the Python-HDL front-end + the pure-Python
+pysim simulator) and **yowasp-yosys 0.70.0.0.post1259** (Yosys 0.70 compiled
+to WebAssembly, pip-distributed — the synthesis half, NO system packages).
+Amendments are ADDITIVE to §2/§3/§4/§5/§8/§12; nothing frozen above changes.
+
+### 17.1 Verified engine reality (TL probes, 2026-10-31, dev host)
+
+| Probe | Result |
+|---|---|
+| amaranth 0.5.10 + yowasp-yosys 0.70.0.0.post1259 coexistence install into the engine venv | OK (+7 wheels: wasmtime/pyvcd/jschon/rfc3986/yowasp-runtime/yowasp-yosys/amaranth; ZERO removals — the openseespy wipe class does not occur; all 12 prior engines re-import clean) |
+| RTLIL emission `amaranth.back.rtlil.convert(Fragment.get(dut, None), ports=(dut.en, dut.count))` | the `ports=` tuple is REQUIRED (Slice-28 trap re-verified); W=1: 1271 chars, W=4: 1291, W=8: 1299; top module `top`; byte-identical double-run |
+| yowasp-yosys on amaranth RTLIL, the frozen script `hierarchy -top top; proc; opt; memory; techmap; opt; attrmap -remove src; attrmap -modattr -remove src` + `write_json` | 0.2–0.26 s per run warm (first-ever run per host pays the WASM JIT warm-up, seconds); netlist JSON byte-identical double-run (W=4 sha256 549bbd3f…); top ports `clk, en, count, rst` |
+| **The src-attribute trap (caught live)**: amaranth's RTLIL embeds `attribute \src "<python file>:<line>"` on the design objects, and yosys PRESERVES them into write_json — without a strip the netlist bytes depend on the ADAPTER FILE'S ABSOLUTE PATH (host-dependent) | the frozen script strips them (`attrmap -remove src; attrmap -modattr -remove src` — cells/wires then modules); probed: three DIFFERENT source paths → byte-identical stripped netlists. The netlist sha256 is therefore cross-host stable; the RTLIL sha256 stays per-host provenance by design |
+| **WASI trap (caught live)**: yowasp-yosys runs in a WASI sandbox that preopens ONLY the CWD | the adapter MUST run it with `cwd=<tempdir>` + RELATIVE file names — absolute paths outside the preopen fail with `File … not found` |
+| **RFC-27 sim traps (caught live)**: amaranth 0.5.10's simulator | bare `yield` in `add_process()` → TypeError; `await Tick()` → TypeError (`Tick` is not awaitable); the working testbench form is `async def bench(ctx)` + `ctx.set(sig, val)` + `await ctx.tick()` + `ctx.get(sig)`; `add_sync_process` is deprecated |
+| **The flip-flop closed form**: cells whose type contains "DFF" | W ∈ {1, 2, 4, 8, 16, 32, 64} → EXACTLY W every time (all `$_SDFFE_PP0P_`) — a W-bit register has one storage element per bit, hand-derived and probed at every width |
+| The XOR closed form | W−1 at every width (each upper bit XORs its carry-in); NOT exactly 1 (the constant) |
+| The AND count (empirical, power-of-two W) | 2, 8, 22, 52, 114 at W = 4, 8, 16, 32, 64 (= 2W − 2·log2 W − 2; yosys carry-chain sharing — pinned per-fixture, an engine behavior not a structural law) |
+| Full cell histogram W=4 | `$_AND_` 2 · `$_NOT_` 1 · `$_SDFFE_PP0P_` 4 · `$_XOR_` 3 (10 cells) — EXACTLY the Slice-28 registry probe |
+| Full cell histogram W=8 | `$_AND_` 8 · `$_NOT_` 1 · `$_SDFFE_PP0P_` 8 · `$_XOR_` 7 (24 cells) |
+| pysim trajectory (the frozen stimulus: 18 enabled, 1 disabled, 6 enabled = 25 cycles) | matches the closed form `count == enabled_so_far mod 2^W` at EVERY step for W ∈ {1, 4, 8} (W=4 wraps to 8 at the end; W=1 alternates; the disabled cycle holds); double-run identical |
+
+### 17.2 Input schema `eos-chip-rtl-model/1` (amends §3; zod in `src/core/analysis-schemas.ts`, adapter mirrors)
+
+```json
+{ "format": "eos-chip-rtl-model/1", "name": "string 1..200",
+  "device": { "kind": "enable_counter", "widthBits": "integer 1..64" } }
+```
+
+The device class is FROZEN at v1: `enable_counter` (clk, en, count[W] —
+`count <= en ? count + 1 : count`). Verbatim joined error style
+`invalid rtl model: path: msg; …` (mirroring §14.2/§16.2). Any other kind is
+refused at the schema (each other device class — ALUs, FSMs, memories — is
+its own future lane); widthBits outside 1..64 is refused at the schema.
+
+### 17.3 Broker op (amends §4)
+
+| op | inputs | parameters | output kind + format | engineKey |
+|---|---|---|---|---|
+| `synthesize_rtl` | `{artifactId}` (eos-chip-rtl-model/1 JSON dataset) | `{}` — NO parameters (the yosys script is frozen; a non-empty parameter set is refused) | `"analysis"` / `eos-chip-netlist/1` | `"amaranth"` |
+
+The lane is TWO engines by design: amaranth elaborates the design, emits
+RTLIL and runs the behavioral simulation; yowasp-yosys synthesizes the
+netlist. The op's engineKey is the front-end (`amaranth`); the synthesis
+engine is attributed VERBATIM in the document's `synthesis` block and the
+audit detail (`rtl.synthesized` action; every BrokerOutcome field per §4's
+rules).
+
+### 17.4 Output document `eos-chip-netlist/1` (amends §2; byte-deterministic by construction)
+
+`{format, sourceArtifactName, analysis:"rtl_synthesis", device:{kind, widthBits}, rtlil:{sha256, charCount}, netlist:{sha256, charCount, totalCells, flipFlopCount, cellHistogram:{cellType:count sorted by type}}, synthesis:{engineKey:"yowasp-yosys", engineVersion, script:"hierarchy -top top; proc; opt; memory; techmap; opt; attrmap -remove src; attrmap -modattr -remove src"}, simulation:{engine:"amaranth.sim (pysim)", pattern:"18 enabled, 1 disabled, 6 enabled (25 cycles)", steps:[{cycle, enabled, count}]}, generatedBy:{engineKey, engineVersion, adapterScript, adapterHash}}`
+
+All values are integers/hashes/strings — no floats anywhere (the netlist is
+pure structure), so byte-determinism is exact, not tolerance-based. The
+netlist sha256 is cross-HOST stable (the §17.1 src strip); the rtlil sha256
+carries the adapter's own source locations and is per-host provenance (like
+adapterHash — the honest record of WHICH adapter ran, never an invariant).
+
+### 17.5 Adapter spec (amends §5; `src/engines/adapters/rtl_synthesize.py` + `chip.ts`)
+
+- Same stdin/argv JSON protocol as §5.2/§14.5/§16.5: stdin =
+  `{storagePath, parameters}`; stdout = the payload or `{"error": …}` exit 1.
+- Flow: validate the model (§17.2 mirror) → build the `enable_counter`
+  Elaboratable at widthBits → `rtlil.convert(frag, ports=(en, count))` → run
+  `yowasp-yosys -q -p "<frozen script>" -o netlist.json design.il` in a
+  TEMP dir (cwd + relative names — the §17.1 WASI trap), removed after →
+  parse the JSON netlist (cell histogram, FF count) → run the pysim
+  trajectory (§17.1 RFC-27 API) → emit the payload.
+- Honest refusals, verbatim:
+  - invalid model → the mirrored-§17.2 defense message;
+  - non-empty parameters → `synthesize_rtl takes no parameters (the synthesis script is frozen)`;
+  - amaranth not importable / yowasp-yosys not runnable → the engine-unavailable class;
+  - **the flip-flop closed-form gate**: `the synthesized netlist carries <N> flip-flops for a <W>-bit register (expected exactly <W>) - the netlist does not implement the device, and a wrong netlist is not an option`;
+  - **the trajectory closed-form gate**: `the elaborated design does not implement an enable counter (cycle <k>: count <v>, expected <e>) - a disagreeing netlist is not an option`;
+  - any yosys failure → the engine's own text verbatim, never a simulated result.
+- Determinism: pinned engines, frozen script, fixed key order, sorted
+  histogram, integer-only values; the harness double-run pins byte-identity
+  of the emitted document. The temp dir is ALWAYS removed (the s29 d.vtk
+  litter lesson).
+
+### 17.6 Acceptance (amends §12)
+
+| ID | Item |
+|---|---|
+| AC-CHIP-01 | Harness case W=4: the full cell histogram EXACT ({$_AND_: 2, $_NOT_: 1, $_SDFFE_PP0P_: 4, $_XOR_: 3}), flipFlopCount 4 (the closed form), totalCells 10, the trajectory pins (last step count 8 = 24 mod 16; the cycle-19 disabled hold), double-run byte-identical |
+| AC-CHIP-02 | Harness case W=8: histogram EXACT ({$_AND_: 8, $_NOT_: 1, $_SDFFE_PP0P_: 8, $_XOR_: 7}), flipFlopCount 8, totalCells 24, last step count 24 (the non-wrapping regime), double-run byte-identical |
+| AC-CHIP-03 | Honest refusals: wrong device kind (the §17.2 zod 422 verbatim, harness + route), widthBits out of range (the zod 422 verbatim), non-JSON/absent engines (EngineUnavailableError class) |
+| AC-CHIP-04 | e2e p5 block: fixture upload → POST …/rtl → 201 with pinned document fields (kind analysis, eos-chip-netlist/1, FF/totalCells, engine amaranth + synthesis yowasp-yosys); the wrong-format + wrong-kind 422 gates + 401 gate; exactly one `rtl.synthesized` audit event; the analysis artifact registers in the Simulation workspace |
+| AC-CHIP-05 | Registry: the amaranth AND yowasp-yosys rows reach `tested` (the front-end + synthesis halves, each note naming its half) with validation blocks (3 harness cases); engines-requirements pins amaranth==0.5.10 + yowasp-yosys==0.70.0.0.post1259 |
+
+### 17.7 Honest exclusions (extends §10)
+
+- Place & route (OpenROAD), timing/power analysis, FPGA architecture
+  mapping, bitstream generation: out of scope — the pip-only lane is
+  synthesis-to-generic-gate-cells; P&R remains the system-binary class (the
+  canonical yosys row's note records the split).
+- Gate-level simulation of the SYNTHESIZED netlist: out of scope v1 — the
+  behavioral pins ride amaranth's pysim on the elaborated SOURCE design;
+  the netlist pins are structural (the FF closed form + the exact cell
+  histogram).
+- Other device classes (ALUs, FSMs, memories, pipelines), multiple clock
+  domains, asynchronous resets, a Verilog/SystemVerilog front-end, and any
+  post-synthesis optimization knobs (abc mapping targets, FSM extraction):
+  each its own addendum — the yosys script and the device are frozen v1.

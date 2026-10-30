@@ -37,3 +37,10 @@ julian==0.14
 # SDIST-ONLY on PyPI: pip builds the cp312 wheel from source using the declared
 # build deps (gcc/make; ~1.5 min observed in-sandbox). numpy/scipy core.
 sfepy==2026.3
+# Slice 30 (2026-10-31, contract §17): amaranth + yowasp-yosys — RTL synthesis.
+# amaranth BSD-2-Clause (wheel METADATA 'License: BSD-2-clause' + LICENSE.txt,
+# Slice-28 probe); yowasp-yosys ISC (METADATA License-Expression) — Yosys 0.70
+# compiled to WebAssembly, runs via the wasmtime wheel, NO system packages.
+# +7 wheels total (wasmtime/pyvcd/jschon/rfc3986/yowasp-runtime), ZERO removals.
+amaranth==0.5.10
+yowasp-yosys==0.70.0.0.post1259

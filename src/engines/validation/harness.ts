@@ -79,6 +79,7 @@ import { runPowerflowFromFile, type PowerflowResult } from "../adapters/powerflo
 import { runDesFromFile, type DesResult } from "../adapters/des"
 import { runFeaFromFile, validateFeaParameters, type FeaParameters, type FeaResult } from "../adapters/fea"
 import { runTransportFromFile, validateTransportParameters, type TransportParameters, type TransportResult } from "../adapters/cfd"
+import { runRtlSynthesisFromFile, type RtlResult } from "../adapters/chip"
 import { runSwmmFromFile, validateSwmmParameters, type SwmmParameters, type SwmmResult } from "../adapters/swmm"
 import { convertDocumentToFile, type ConversionResult } from "../adapters/convert-document"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "../adapters/sheet_takeoff"
@@ -100,6 +101,7 @@ import {
   buildFeaDocument,
   buildSwmmDocument,
   buildTransportDocument,
+  buildRtlDocument,
   buildFeMeshDocument,
   buildPowerflowDocument,
   validateScheduleDocument,
@@ -117,6 +119,7 @@ export type AdapterKind =
   | "des"
   | "fea"
   | "transport"
+  | "chip"
   | "swmm"
   | "cpm"
   | "libreoffice"
@@ -136,6 +139,7 @@ export type DisciplineAdapter =
   | "des"
   | "fea"
   | "transport"
+  | "chip"
   | "swmm"
   | "cpm"
   | "libreoffice"
@@ -181,6 +185,7 @@ export interface CorpusCase {
   des?: DisciplineExpectation
   fea?: DisciplineExpectation
   transport?: DisciplineExpectation
+  chip?: DisciplineExpectation
   swmm?: DisciplineExpectation
   cpm?: DisciplineExpectation
   libreoffice?: DisciplineExpectation
@@ -233,11 +238,13 @@ export interface DisciplineExpectation {
   kind?: "step" | "ifc"
   /** femesh: mesh parameters override (defaults per contract §4); fea: the
    * meshRefinement override (Slice 22, contract §14.3 — default 4); swmm: the
-   * routingStepSec override (Slice 23, contract §15.3 — default 10) */
+   * routingStepSec override (Slice 23, contract §15.3 — default 10); chip:
+   * always {} (Slice 30, contract §17.3 — NO parameters, the script is frozen) */
   parameters?:
     | { meshSizeMin: number; meshSizeMax: number; elementOrder: number }
     | { meshRefinement: number }
     | { routingStepSec: number }
+    | Record<string, never>
   /** success cases only: the pinned expectation set (every entry carries a derivation) */
   pins?: DisciplinePin[]
   /** honest routing/limitation note, rendered into the case notes */
@@ -530,7 +537,7 @@ const LIBREOFFICE_BIN = process.env.EOS_LIBREOFFICE ?? "/usr/bin/libreoffice"
 
 /** Python engines per adapter kind (cpm/libreoffice/ocr are probed differently). */
 const PYTHON_ENGINE_MODULES: Record<
-  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "transport" | "swmm" | "sheet" | "dxf" | "parametric",
+  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "transport" | "chip" | "swmm" | "sheet" | "dxf" | "parametric",
   string
 > = {
   step: "cadquery",
@@ -540,6 +547,7 @@ const PYTHON_ENGINE_MODULES: Record<
   des: "simpy",
   fea: "skfem",
   transport: "sfepy",
+  chip: "amaranth",
   swmm: "pyswmm",
   sheet: "pdfplumber",
   dxf: "ezdxf",
@@ -564,6 +572,7 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   des: "simpy (discrete-event)",
   fea: "scikit-fem (plane-stress FEA)",
   transport: "sfepy/SfePy (steady scalar transport CFD)",
+  chip: "amaranth + yowasp-yosys (RTL synthesis)",
   swmm: "pyswmm/SWMM5 (stormwater drainage)",
   cpm: "platform CPM core (no engine)",
   libreoffice: "libreoffice (document conversion)",
@@ -609,6 +618,21 @@ export function probeEngine(kind: AdapterKind): { available: boolean; reason?: s
     }
     if (!existsSync(path.join(VENDORED_TESSDATA_DIR, "eng.traineddata"))) {
       return { available: false, reason: `the vendored eng.traineddata is missing at ${VENDORED_TESSDATA_DIR} (harness reads are model-pinned)` }
+    }
+    return { available: true }
+  }
+  if (kind === "chip") {
+    // Slice 30 (§17.1): the chip lane needs BOTH halves — the amaranth import
+    // (front-end) AND the yowasp-yosys entry point (synthesis). Probing one
+    // would let cases FAIL at run time instead of skipping honestly.
+    const amaranth = spawnSync(PYTHON_BIN, ["-c", "import amaranth"], { timeout: 60_000 })
+    if (amaranth.error || amaranth.status !== 0) {
+      return { available: false, reason: `amaranth is not importable in ${PYTHON_BIN} (exit code ${String(amaranth.status)})` }
+    }
+    const yosysBin = path.join(path.dirname(PYTHON_BIN), "yowasp-yosys")
+    const yosys = spawnSync(yosysBin, ["-V"], { timeout: 120_000 })
+    if (yosys.error || yosys.status !== 0) {
+      return { available: false, reason: `yowasp-yosys is not runnable at ${yosysBin} (exit code ${String(yosys.status)}) — the synthesis half of the chip lane` }
     }
     return { available: true }
   }
@@ -809,6 +833,16 @@ function parseDisciplineExpectation(
         )
       }
       block.parameters = { meshRefinement }
+    } else if (blockName === "chip") {
+      // Slice 30 (contract §17.3): synthesize_rtl takes NO parameters — the
+      // yosys script is frozen; a non-empty parameter set is a manifest error.
+      const keys = Object.keys(parameters)
+      if (keys.length !== 0) {
+        throw new Error(
+          `manifest case ${caseId}: chip.parameters must be empty (the synthesis script is frozen; got ${JSON.stringify(keys)})`,
+        )
+      }
+      block.parameters = {}
     } else if (blockName === "swmm") {
       // Slice 23 (contract §15.3): the ONLY parameter is the routing step.
       const { routingStepSec } = parameters
@@ -1201,6 +1235,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "des" ||
       adapter === "fea" ||
       adapter === "transport" ||
+      adapter === "chip" ||
       adapter === "swmm" ||
       adapter === "cpm" ||
       adapter === "libreoffice" ||
@@ -1210,7 +1245,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "ocr"
     if (!isModelAdapter && !isDisciplineAdapter) {
       throw new Error(
-        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"transport"|"swmm"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr" (got ${JSON.stringify(adapter)})`,
+        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"transport"|"chip"|"swmm"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr" (got ${JSON.stringify(adapter)})`,
       )
     }
     if (typeof fixture !== "string" || fixture.length === 0) {
@@ -2149,6 +2184,53 @@ function transportObserved(r: TransportResult, pin: DisciplinePin): unknown {
   return pin.field === "concentration" ? sample.concentration : undefined
 }
 
+/** Resolve a pin's observed value on an RTL synthesis result (Slice 30 —
+ * scalar fields plus TWO ref locators: the cell type (e.g. "$_AND_") for
+ * cellCount histogram pins, and "cycle<N>" for simulation step pins). */
+function chipObserved(r: RtlResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "analysis":
+      return r.analysis
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "deviceKind":
+      return r.device.kind
+    case "widthBits":
+      return r.device.widthBits
+    case "totalCells":
+      return r.netlist.totalCells
+    case "flipFlopCount":
+      return r.netlist.flipFlopCount
+    case "netlistSha256":
+      return r.netlist.sha256
+    case "rtlilCharCount":
+      return r.rtlil.charCount
+    case "synthesisEngineKey":
+      return r.synthesis.engineKey
+    case "synthesisEngineVersion":
+      return r.synthesis.engineVersion
+    case "stepCount":
+      return r.simulation.steps.length
+    case "cellTypes":
+      return Object.keys(r.netlist.cellHistogram).sort()
+    default:
+      break
+  }
+  if (pin.ref === null) return undefined
+  if (pin.field === "cellCount") {
+    return r.netlist.cellHistogram[pin.ref]
+  }
+  const mc = pin.ref.match(/^cycle(\d+)$/)
+  if (mc === null) return undefined
+  const step = r.simulation.steps.find((s) => s.cycle === Number(mc[1]))
+  if (step === undefined) return undefined
+  if (pin.field === "count") return step.count
+  if (pin.field === "enabled") return step.enabled
+  return undefined
+}
+
 /** Resolve a pin's observed value on a SWMM result (Slice 23 — the depth
  * locator ref is the node/conduit id, e.g. "C1" or "J1"). */
 function swmmObserved(r: SwmmResult, pin: DisciplinePin): unknown {
@@ -2336,6 +2418,8 @@ async function runDisciplineChecks(
         await runFeaFromFile(fixturePath, block.parameters ?? {})
       } else if (adapter === "transport") {
         await runTransportFromFile(fixturePath, block.parameters ?? {})
+      } else if (adapter === "chip") {
+        await runRtlSynthesisFromFile(fixturePath, {})
       } else if (adapter === "swmm") {
         await runSwmmFromFile(fixturePath, block.parameters ?? {})
       } else {
@@ -2494,6 +2578,25 @@ async function runDisciplineChecks(
       }
       for (const pin of block.pins ?? []) {
         r.comparisons.push(compareDisciplinePin(pin, transportObserved(first, pin)))
+      }
+    } else if (adapter === "chip") {
+      const first = await runRtlSynthesisFromFile(fixturePath, {})
+      const second = await runRtlSynthesisFromFile(fixturePath, {})
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      const documentOf = (res: RtlResult) => buildRtlDocument(sourceName, res)
+      r.determinism = documentOf(first) === documentOf(second)
+      if (!r.determinism) {
+        r.problems.push("two consecutive real runs produced different eos-chip-netlist/1 document bytes — the stored artifact would not be byte-deterministic")
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, chipObserved(first, pin)))
       }
     } else if (adapter === "swmm") {
       let params: SwmmParameters
@@ -3336,6 +3439,7 @@ export async function runHarness(): Promise<HarnessReport> {
         des: probeEngine("des"),
         fea: probeEngine("fea"),
         transport: probeEngine("transport"),
+        chip: probeEngine("chip"),
         swmm: probeEngine("swmm"),
         cpm: probeEngine("cpm"),
         libreoffice: probeEngine("libreoffice"),

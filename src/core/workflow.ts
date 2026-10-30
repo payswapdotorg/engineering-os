@@ -39,6 +39,8 @@ import { WORKFLOW_STATES, isWorkflowState, type WorkflowState } from "./index"
  * cross-session-capable workflow step; parameters.values carries the edits,
  * absent = the authored defaults). Slice 29 adds `solve_transport` (the CFD
  * lane, phase5 contract §16.3 — steady scalar transport via SfePy).
+ * Slice 30 adds `synthesize_rtl` (the chip lane, phase5 contract §17.3 —
+ * RTL synthesis via amaranth + yowasp-yosys).
  */
 export const BROKER_OPERATIONS = [
   "derive_quantities",
@@ -49,6 +51,7 @@ export const BROKER_OPERATIONS = [
   "run_des",
   "solve_fea",
   "solve_transport",
+  "synthesize_rtl",
   "run_swmm",
   "convert_document",
   "analyze_schedule",

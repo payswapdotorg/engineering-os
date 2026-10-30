@@ -1,0 +1,5 @@
+{
+  "format": "eos-chip-rtl-model/1",
+  "name": "Not a counter",
+  "device": { "kind": "alu", "widthBits": 4 }
+}

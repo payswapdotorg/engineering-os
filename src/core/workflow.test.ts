@@ -497,7 +497,7 @@ describe("WORKFLOW_TEMPLATES.modelQaPipeline", () => {
 // ---------------------------------------------------------------------------
 
 describe("BROKER_OPERATIONS — the Phase-5 + Slice-15/16 ops (contract §4)", () => {
-  test("the vocabulary is EXACTLY the fourteen contract keys in contract order", () => {
+  test("the vocabulary is EXACTLY the fifteen contract keys in contract order", () => {
     expect(BROKER_OPERATIONS).toEqual([
       "derive_quantities",
       "derive_mesh",
@@ -507,6 +507,7 @@ describe("BROKER_OPERATIONS — the Phase-5 + Slice-15/16 ops (contract §4)", (
       "run_des",
       "solve_fea",
       "solve_transport",
+      "synthesize_rtl",
       "run_swmm",
       "convert_document",
       "analyze_schedule",

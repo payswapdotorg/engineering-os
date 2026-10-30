@@ -1,0 +1,5 @@
+{
+  "format": "eos-chip-rtl-model/1",
+  "name": "Too wide",
+  "device": { "kind": "enable_counter", "widthBits": 65 }
+}

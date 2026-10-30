@@ -873,3 +873,49 @@ export function parseTransportModelJsonText(text: string): ParseSchemaResult<Tra
   if (!raw.ok) return { ok: false, error: `invalid transport model: ${raw.error}` }
   return parseTransportModel(raw.value)
 }
+
+// ---------------------------------------------------------------------------
+// §17.2 RTL model (eos-chip-rtl-model/1 — Slice 30, RTL synthesis via
+// amaranth + yowasp-yosys; the chip lane the Slice-28 license-first probe
+// opened)
+// ---------------------------------------------------------------------------
+
+export const rtlModelSchema = z.strictObject(
+  {
+    format: z.literal("eos-chip-rtl-model/1", {
+      message: 'format must be "eos-chip-rtl-model/1"',
+    }),
+    name: nameField(),
+    device: z.strictObject(
+      {
+        kind: z.literal("enable_counter", {
+          message:
+            'device.kind must be "enable_counter" (the v1 device class; every other class is its own future lane)',
+        }),
+        widthBits: z
+          .number({ message: "device.widthBits must be a number" })
+          .int("device.widthBits must be an integer between 1 and 64")
+          .min(1, "device.widthBits must be an integer between 1 and 64")
+          .max(64, "device.widthBits must be an integer between 1 and 64"),
+      },
+      { message: "device must be a JSON object" },
+    ),
+  },
+  { message: "rtl model must be a JSON object" },
+)
+
+export type RtlModelInput = z.infer<typeof rtlModelSchema>
+
+/** Parse an unknown value as an eos-chip-rtl-model/1 document. */
+export function parseRtlModel(input: unknown): ParseSchemaResult<RtlModelInput> {
+  const parsed = rtlModelSchema.safeParse(input)
+  if (parsed.success) return { ok: true, value: parsed.data }
+  return { ok: false, error: joinZodIssues("invalid rtl model", parsed.error) }
+}
+
+/** Parse stored artifact text as an eos-chip-rtl-model/1 document (Slice 30). */
+export function parseRtlModelJsonText(text: string): ParseSchemaResult<RtlModelInput> {
+  const raw = parseJsonText(text)
+  if (!raw.ok) return { ok: false, error: `invalid rtl model: ${raw.error}` }
+  return parseRtlModel(raw.value)
+}

@@ -1192,8 +1192,37 @@ export interface TransportPayload {
   generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string }
 }
 
+/** eos-chip-netlist/1 — RTL synthesis result (amaranth + yowasp-yosys, Slice 30). */
+export interface ChipPayload {
+  format: "eos-chip-netlist/1"
+  sourceArtifactName: string
+  analysis: "rtl_synthesis"
+  device: { kind: string; widthBits: number }
+  rtlil: { sha256: string; charCount: number }
+  netlist: {
+    sha256: string
+    charCount: number
+    totalCells: number
+    flipFlopCount: number
+    cellHistogram: Record<string, number>
+  }
+  synthesis: { engineKey: string; engineVersion: string; script: string }
+  simulation: {
+    engine: string
+    pattern: string
+    steps: Array<{ cycle: number; enabled: number; count: number }>
+  }
+  generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string }
+}
+
 /** Which stored payload a derived artifact revision carries (discriminated by format). */
-export type AnalysisPayload = PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload | TransportPayload
+export type AnalysisPayload =
+  | PowerFlowPayload
+  | DesPayload
+  | CpmAnalysisPayload
+  | FeaPayload
+  | TransportPayload
+  | ChipPayload
 
 // --- §8 routes (thin wrappers over broker cores; 422s verbatim) --------------
 
@@ -1330,6 +1359,15 @@ export async function runFea(projectId: string, artifactId: string) {
 export async function runTransport(projectId: string, artifactId: string) {
   return apiJson<{ transport: DeriveRunResult }>(
     `/api/projects/${projectId}/artifacts/${artifactId}/transport`,
+    "POST",
+    {},
+  )
+}
+
+/** POST /api/projects/[id]/artifacts/[aid]/rtl — 201 {rtl} (Slice 30). */
+export async function runRtlSynthesis(projectId: string, artifactId: string) {
+  return apiJson<{ rtl: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/rtl`,
     "POST",
     {},
   )

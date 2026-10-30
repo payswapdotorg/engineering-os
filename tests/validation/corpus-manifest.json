@@ -2426,5 +2426,224 @@
       "errorContains": "the mesh does not resolve the transport boundary layer",
       "note": "The honest stability refusal (contract §16.5): a = 5 m/s at the default r=4 mesh gives element Péclet 5·(2/64)/(2·0.01) = 7.8125 > 2 — central-Galerkin Q2 OVERSHOOTS there (probed: +0.16 at Pe_h=4), so the adapter refuses BEFORE the solve rather than storing an oscillatory solution. The bound 2 is the probed-monotone value."
     }
+  },
+  {
+    "caseId": "rtl-counter-4bit",
+    "adapter": "chip",
+    "fixture": "rtl-counter-4bit.json",
+    "expect": "success",
+    "chip": {
+      "expect": "success",
+      "note": "The enable counter at W=4 (the Slice-28 probe width, re-probed §17.1): amaranth elaborates the device and emits RTLIL; yowasp-yosys synthesizes the gate-level netlist through the frozen script; amaranth's pysim runs the frozen 25-cycle stimulus (18 en, 1 dis, 6 en). CLOSED FORMS: a W-bit register carries exactly W flip-flops (hand-derived, probed at every width), and after E enabled cycles count = E mod 2^W (24 mod 16 = 8 — the wrap is visible at W=4; the cycle-19 disabled cycle holds at 18 mod 16 = 2). The W=4 histogram is EXACTLY the Slice-28 registry probe.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "analysis",
+          "value": "rtl_synthesis",
+          "derivation": "the only analysis shipped this phase (contract §17.4)"
+        },
+        {
+          "ref": null,
+          "field": "engineKey",
+          "value": "amaranth",
+          "derivation": "the lane's front-end engine (contract §17.3)"
+        },
+        {
+          "ref": null,
+          "field": "engineVersion",
+          "value": "0.5.10",
+          "derivation": "the pinned amaranth wheel (engines-requirements)"
+        },
+        {
+          "ref": null,
+          "field": "deviceKind",
+          "value": "enable_counter",
+          "derivation": "the frozen v1 device class (contract §17.2)"
+        },
+        {
+          "ref": null,
+          "field": "widthBits",
+          "value": 4,
+          "derivation": "the fixture's register width"
+        },
+        {
+          "ref": null,
+          "field": "flipFlopCount",
+          "value": 4,
+          "derivation": "the closed form: a W-bit register has exactly W storage elements — probed at every width (§17.1)"
+        },
+        {
+          "ref": null,
+          "field": "totalCells",
+          "value": 10,
+          "derivation": "4 $_SDFFE_PP0P_ + 3 $_XOR_ + 2 $_AND_ + 1 $_NOT_ (§17.1 probe)"
+        },
+        {
+          "ref": null,
+          "field": "cellTypes",
+          "value": [
+            "$_AND_",
+            "$_NOT_",
+            "$_SDFFE_PP0P_",
+            "$_XOR_"
+          ],
+          "derivation": "the exact cell-type set, sorted"
+        },
+        {
+          "ref": "$_SDFFE_PP0P_",
+          "field": "cellCount",
+          "value": 4,
+          "derivation": "one $_SDFFE_PP0P_ per register bit — the yosys $_SDFFE mapping of the sync-domain enable register"
+        },
+        {
+          "ref": "$_XOR_",
+          "field": "cellCount",
+          "value": 3,
+          "derivation": "W−1 = 3 XOR gates: each upper bit XORs its carry-in (the closed form at every width)"
+        },
+        {
+          "ref": "$_AND_",
+          "field": "cellCount",
+          "value": 2,
+          "derivation": "empirical: the yosys carry-chain sharing at W=4 (§17.1)"
+        },
+        {
+          "ref": "$_NOT_",
+          "field": "cellCount",
+          "value": 1,
+          "derivation": "the constant NOT (one at every width)"
+        },
+        {
+          "ref": null,
+          "field": "synthesisEngineKey",
+          "value": "yowasp-yosys",
+          "derivation": "the synthesis half of the lane (contract §17.3)"
+        },
+        {
+          "ref": null,
+          "field": "synthesisEngineVersion",
+          "value": "0.70.0.0.post1259",
+          "derivation": "the pinned yowasp-yosys wheel"
+        },
+        {
+          "ref": null,
+          "field": "netlistSha256",
+          "value": "549bbd3fc1205712bd044282ca09da9360f2149e5c319f70f38015daf3548dd4",
+          "derivation": "the src-stripped netlist is byte-identical across hosts — probed via three different source paths (§17.1)"
+        },
+        {
+          "ref": null,
+          "field": "stepCount",
+          "value": 25,
+          "derivation": "the frozen stimulus: 18 enabled, 1 disabled, 6 enabled (contract §17.4)"
+        },
+        {
+          "ref": "cycle19",
+          "field": "count",
+          "value": 2,
+          "derivation": "cycle 19 is the DISABLED cycle: 18 enabled before it → 18 mod 16 = 2, and the register HOLDS (the closed-form hold pin)"
+        },
+        {
+          "ref": "cycle25",
+          "field": "count",
+          "value": 8,
+          "derivation": "the final step: 24 enabled cycles → 24 mod 16 = 8 — the WRAP the closed form predicts (visible at W=4)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "rtl-counter-8bit",
+    "adapter": "chip",
+    "fixture": "rtl-counter-8bit.json",
+    "expect": "success",
+    "chip": {
+      "expect": "success",
+      "note": "The enable counter at W=8 (the hand-Verilog Slice-28 smoke width, here through the amaranth front-end): the FF closed form holds (exactly 8), XOR = W−1 = 7, and the final count is 24 — the NON-wrapping regime (24 < 2^8), the honest complement of the W=4 wrap pin. The histogram matches the Slice-28 hand-Verilog smoke's shape (8 DFF + 7 XOR/8 AND/1 NOT).",
+      "pins": [
+        {
+          "ref": null,
+          "field": "widthBits",
+          "value": 8,
+          "derivation": "the fixture's register width"
+        },
+        {
+          "ref": null,
+          "field": "flipFlopCount",
+          "value": 8,
+          "derivation": "the closed form at W=8"
+        },
+        {
+          "ref": null,
+          "field": "totalCells",
+          "value": 24,
+          "derivation": "8 $_SDFFE_PP0P_ + 7 $_XOR_ + 8 $_AND_ + 1 $_NOT_ (§17.1 probe)"
+        },
+        {
+          "ref": null,
+          "field": "cellTypes",
+          "value": [
+            "$_AND_",
+            "$_NOT_",
+            "$_SDFFE_PP0P_",
+            "$_XOR_"
+          ],
+          "derivation": "the same four cell types at every width ≥ 2"
+        },
+        {
+          "ref": "$_SDFFE_PP0P_",
+          "field": "cellCount",
+          "value": 8,
+          "derivation": "one storage element per bit"
+        },
+        {
+          "ref": "$_XOR_",
+          "field": "cellCount",
+          "value": 7,
+          "derivation": "W−1 = 7 (the XOR closed form)"
+        },
+        {
+          "ref": "$_AND_",
+          "field": "cellCount",
+          "value": 8,
+          "derivation": "empirical carry-chain sharing at W=8 (§17.1: 2W − 2log2W − 2 = 16−6−2)"
+        },
+        {
+          "ref": "$_NOT_",
+          "field": "cellCount",
+          "value": 1,
+          "derivation": "the constant NOT"
+        },
+        {
+          "ref": null,
+          "field": "stepCount",
+          "value": 25,
+          "derivation": "the same frozen stimulus"
+        },
+        {
+          "ref": "cycle19",
+          "field": "count",
+          "value": 18,
+          "derivation": "the disabled cycle 19 HOLDS the register at 18 enabled cycles — at W=8 there is no wrap (18 < 256), so the held value IS 18 (the W=4 case wraps it to 2; the hold itself is width-independent)"
+        },
+        {
+          "ref": "cycle25",
+          "field": "count",
+          "value": 24,
+          "derivation": "the final step: 24 enabled cycles, no wrap at W=8 (24 < 256) — the non-wrapping regime pinned honestly"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "rtl-invalid-kind",
+    "adapter": "chip",
+    "fixture": "rtl-invalid-kind.json",
+    "expect": "error",
+    "chip": {
+      "expect": "error",
+      "errorContains": "rtl model device.kind must be \"enable_counter\"",
+      "note": "The §17.2 schema refusal: the v1 device class is frozen at enable_counter; every other class (here 'alu') is its own future lane — refused at the zod (the route) AND mirrored in the adapter (defense-in-depth), never normalized to a guess."
+    }
   }
 ]

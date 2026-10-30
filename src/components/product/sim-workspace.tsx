@@ -34,6 +34,7 @@
 import {
   Boxes,
   ChevronDown,
+  Cpu,
   Droplets,
   FlaskConical,
   Hourglass,
@@ -59,8 +60,10 @@ import {
   runPowerFlow,
   runSwmm,
   runTransport,
+  runRtlSynthesis,
   useApi,
   type ArtifactListItem,
+  type ChipPayload,
   type CpmAnalysisPayload,
   type DeriveRunResult,
   type DesPayload,
@@ -95,7 +98,15 @@ import { deriveKind } from "@/engines/adapters/derive-kind"
 // ---------------------------------------------------------------------------
 
 /** Which §8 route a register row was produced by (Regenerate needs it). */
-type SimOp = "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "run-swmm" | "analyze-schedule"
+type SimOp =
+  | "fe-mesh"
+  | "powerflow"
+  | "simulate"
+  | "solve-fea"
+  | "solve-transport"
+  | "synthesize-rtl"
+  | "run-swmm"
+  | "analyze-schedule"
 
 const OP_RUN_LABEL: Record<SimOp, string> = {
   "fe-mesh": "Meshing…",
@@ -103,6 +114,7 @@ const OP_RUN_LABEL: Record<SimOp, string> = {
   simulate: "Running simulation…",
   "solve-fea": "Solving plane-stress FEA…",
   "solve-transport": "Solving scalar transport…",
+  "synthesize-rtl": "Synthesizing RTL…",
   "run-swmm": "Running stormwater drainage…",
   "analyze-schedule": "Analyzing schedule…",
 }
@@ -114,6 +126,7 @@ const FORMAT_ENGINE: Record<string, { engineKey: string; platform: boolean }> = 
   "eos-des/1": { engineKey: "simpy", platform: false },
   "eos-fea/1": { engineKey: "scikit-fem", platform: false },
   "eos-cfd-transport/1": { engineKey: "sfepy", platform: false },
+  "eos-chip-netlist/1": { engineKey: "amaranth", platform: false },
   "eos-swmm/1": { engineKey: "pyswmm", platform: false },
   "eos-cpm/1": { engineKey: "platform core", platform: true },
 }
@@ -124,6 +137,7 @@ const FORMAT_OP: Record<string, SimOp> = {
   "eos-des/1": "simulate",
   "eos-fea/1": "solve-fea",
   "eos-cfd-transport/1": "solve-transport",
+  "eos-chip-netlist/1": "synthesize-rtl",
   "eos-swmm/1": "run-swmm",
   "eos-cpm/1": "analyze-schedule",
 }
@@ -146,7 +160,15 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /** Union of every §2 payload this workspace can render. */
-type DerivedPayload = FeMeshPayload | PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload | TransportPayload | SwmmPayload
+type DerivedPayload =
+  | FeMeshPayload
+  | PowerFlowPayload
+  | DesPayload
+  | CpmAnalysisPayload
+  | FeaPayload
+  | TransportPayload
+  | ChipPayload
+  | SwmmPayload
 
 /**
  * Read a stored derived payload (§2 formats) from an already-parsed object.
@@ -333,6 +355,61 @@ function readDerivedPayload(parsed: unknown): DerivedPayload | null {
         : undefined,
     } satisfies TransportPayload
   }
+  if (format === "eos-chip-netlist/1") {
+    const device = isRecord(parsed.device) ? parsed.device : {}
+    const rtlil = isRecord(parsed.rtlil) ? parsed.rtlil : {}
+    const netlist = isRecord(parsed.netlist) ? parsed.netlist : {}
+    const histogram = isRecord(netlist.cellHistogram) ? netlist.cellHistogram : {}
+    const synthesis = isRecord(parsed.synthesis) ? parsed.synthesis : {}
+    const simulation = isRecord(parsed.simulation) ? parsed.simulation : {}
+    const steps = Array.isArray(simulation.steps) ? simulation.steps.filter(isRecord) : []
+    const cellHistogram: Record<string, number> = {}
+    for (const [type, count] of Object.entries(histogram)) {
+      cellHistogram[type] = Number(count)
+    }
+    return {
+      format,
+      sourceArtifactName: typeof parsed.sourceArtifactName === "string" ? parsed.sourceArtifactName : "—",
+      analysis: "rtl_synthesis",
+      device: {
+        kind: device.kind === "enable_counter" ? "enable_counter" : "—",
+        widthBits: Number(device.widthBits ?? NaN),
+      },
+      rtlil: {
+        sha256: typeof rtlil.sha256 === "string" ? rtlil.sha256 : "—",
+        charCount: Number(rtlil.charCount ?? NaN),
+      },
+      netlist: {
+        sha256: typeof netlist.sha256 === "string" ? netlist.sha256 : "—",
+        charCount: Number(netlist.charCount ?? NaN),
+        totalCells: Number(netlist.totalCells ?? NaN),
+        flipFlopCount: Number(netlist.flipFlopCount ?? NaN),
+        cellHistogram,
+      },
+      synthesis: {
+        engineKey: String(synthesis.engineKey ?? "—"),
+        engineVersion: String(synthesis.engineVersion ?? "—"),
+        script: String(synthesis.script ?? "—"),
+      },
+      simulation: {
+        engine: String(simulation.engine ?? "—"),
+        pattern: String(simulation.pattern ?? "—"),
+        steps: steps.map((s) => ({
+          cycle: Number(s.cycle ?? NaN),
+          enabled: Number(s.enabled ?? NaN),
+          count: Number(s.count ?? NaN),
+        })),
+      },
+      generatedBy: isRecord(parsed.generatedBy)
+        ? {
+            engineKey: String(parsed.generatedBy.engineKey ?? "—"),
+            engineVersion: String(parsed.generatedBy.engineVersion ?? "—"),
+            adapterScript: String(parsed.generatedBy.adapterScript ?? "—"),
+            adapterHash: String(parsed.generatedBy.adapterHash ?? "—"),
+          }
+        : undefined,
+    } satisfies ChipPayload
+  }
   if (format === "eos-swmm/1") {
     const rain = isRecord(parsed.rain) ? parsed.rain : {}
     const routing = isRecord(parsed.routing) ? parsed.routing : {}
@@ -385,7 +462,7 @@ function readDerivedPayload(parsed: unknown): DerivedPayload | null {
 // ---------------------------------------------------------------------------
 
 interface CapabilitySpec {
-  op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "run-swmm">
+  op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "synthesize-rtl" | "run-swmm">
   title: string
   engineKey: string
   icon: typeof Boxes
@@ -496,6 +573,24 @@ const CAPABILITIES: CapabilitySpec[] = [
       "(kind `dataset`). The route validates the model shape and refuses it honestly otherwise.",
   },
   {
+    op: "synthesize-rtl",
+    title: "RTL synthesis (chip)",
+    engineKey: "amaranth",
+    icon: Cpu,
+    blurb:
+      "Synthesizes an eos-chip-rtl-model/1 JSON dataset (an enable counter at a chosen width) through the REAL " +
+      "pip-only chip flow — amaranth (BSD-2) elaborates the Python RTL to RTLIL and simulates it, yowasp-yosys " +
+      "(ISC, WASM) synthesizes the gate-level netlist; the cell histogram, the flip-flop closed form (one per " +
+      "register bit) and the 25-cycle behavioral trajectory land in an `analysis` artifact. A netlist that " +
+      "disagrees with the closed forms is refused honestly, never stored.",
+    pickerLabel: "RTL model JSON artifact (kind dataset)",
+    runLabel: "Synthesize RTL",
+    eligible: jsonDatasetEligible,
+    emptyNote:
+      "No .json dataset artifacts in this project yet — upload an eos-chip-rtl-model/1 JSON (kind " +
+      "`dataset`). The route validates the model shape and refuses it honestly otherwise.",
+  },
+  {
     op: "run-swmm",
     title: "Stormwater drainage",
     engineKey: "pyswmm",
@@ -530,7 +625,7 @@ function CapabilityCard({
   artifactsLoading: boolean
   onRetryArtifacts: () => void
   running: SimOp | null
-  onRun: (op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "run-swmm">, artifactId: string) => void
+  onRun: (op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "synthesize-rtl" | "run-swmm">, artifactId: string) => void
 }) {
   const eligible = useMemo(() => rows.filter(spec.eligible), [rows, spec])
   // The picked id is DERIVED at render time (the react-hooks/set-state-in-effect
@@ -1073,6 +1168,89 @@ function PayloadSection({
       </div>
     )
   }
+  if (payload.format === "eos-chip-netlist/1") {
+    const p = payload
+    const steps = p.simulation.steps
+    const lastStep = steps.length > 0 ? steps[steps.length - 1] : null
+    const holdStep = steps.find((s) => s.enabled === 0) ?? null
+    const histogramEntries = Object.entries(p.netlist.cellHistogram).sort(([a], [b]) => a.localeCompare(b))
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
+          <Badge className="border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+            rtl synthesis
+          </Badge>
+          <span className="font-mono tabular-nums" title="the frozen v1 device class — clk, en, count[W]">
+            {p.device.kind === "enable_counter" ? "enable counter" : p.device.kind} ×{" "}
+            {Number.isFinite(p.device.widthBits) ? p.device.widthBits : "—"} bits
+          </span>
+          <span
+            className="font-mono tabular-nums"
+            title="the flip-flop closed form: a W-bit register carries exactly W storage elements — probed at every width"
+          >
+            FF {Number.isFinite(p.netlist.flipFlopCount) ? p.netlist.flipFlopCount : "—"} (closed form W)
+          </span>
+          <span className="font-mono tabular-nums" title="total cells in the gate-level netlist">
+            {Number.isFinite(p.netlist.totalCells) ? p.netlist.totalCells : "—"} cells
+          </span>
+          <span className="font-mono" title="the frozen yosys synthesis script (contract §17.3)">
+            {p.synthesis.engineKey === "yowasp-yosys" ? "yosys → gates" : p.synthesis.engineKey}
+          </span>
+        </div>
+        <div className="eos-scroll max-h-72 overflow-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <caption className="sr-only">
+              Netlist cell histogram — the exact gate-level cell counts, verbatim from yowasp-yosys
+            </caption>
+            <thead className="sticky top-0 bg-muted">
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th scope="col" className="px-3 py-2 font-medium">Cell type</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              {histogramEntries.map(([type, count]) => (
+                <tr key={type} className="border-b last:border-0">
+                  <td className="px-3 py-2 font-mono text-xs">{type}</td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(count) ? count : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
+          <span className="font-mono" title="the frozen behavioral stimulus (amaranth pysim)">
+            sim: {p.simulation.pattern}
+          </span>
+          <span
+            className="font-mono tabular-nums"
+            title="the closed form: after E enabled cycles, count = E mod 2^W — the wrap is visible at W=4 (24 mod 16 = 8)"
+          >
+            final count {lastStep && Number.isFinite(lastStep.count) ? lastStep.count : "—"}
+          </span>
+          {holdStep && Number.isFinite(holdStep.count) ? (
+            <span
+              className="font-mono tabular-nums"
+              title="the disabled cycle holds the register — the closed-form hold pin"
+            >
+              cycle {holdStep.cycle} hold @ {holdStep.count}
+            </span>
+          ) : null}
+          <span className="font-mono" title="the netlist sha256 — cross-host stable (the src-attribute strip)">
+            netlist {p.netlist.sha256 === "—" ? "—" : p.netlist.sha256.slice(0, 12)}…
+          </span>
+        </div>
+        <InfoNote>
+          RTL synthesis (amaranth elaboration → RTLIL → yowasp-yosys gate cells; behavioral sim by
+          amaranth pysim) — the cell histogram, the flip-flop count and every trajectory step are
+          copied verbatim from the engines. A netlist whose flip-flop count ≠ the register width, or
+          whose trajectory disagrees with the counter closed form, is refused, never stored.
+        </InfoNote>
+      </div>
+    )
+  }
   if (payload.format === "eos-swmm/1") {
     const p = payload
     return (
@@ -1345,10 +1523,11 @@ export function SimWorkspace({
       else if (op === "simulate") result = (await runDiscreteEvent(projectId, artifactId)).sim
       else if (op === "solve-fea") result = (await runFea(projectId, artifactId)).fea
       else if (op === "solve-transport") result = (await runTransport(projectId, artifactId)).transport
+      else if (op === "synthesize-rtl") result = (await runRtlSynthesis(projectId, artifactId)).rtl
       else if (op === "run-swmm") result = (await runSwmm(projectId, artifactId)).swmm
       else result = (await analyzeSchedule(projectId, artifactId)).analysis
       toast.success(
-        `${op === "fe-mesh" ? "FE mesh" : op === "powerflow" ? "Power flow" : op === "simulate" ? "Simulation" : op === "solve-fea" ? "FEA solve" : op === "solve-transport" ? "Transport solve" : op === "run-swmm" ? "Drainage simulation" : "Schedule analysis"} complete — ${result.name}${result.revisionNumber ? ` r${result.revisionNumber}` : ""} stored as a derived artifact`,
+        `${op === "fe-mesh" ? "FE mesh" : op === "powerflow" ? "Power flow" : op === "simulate" ? "Simulation" : op === "solve-fea" ? "FEA solve" : op === "solve-transport" ? "Transport solve" : op === "synthesize-rtl" ? "RTL synthesis" : op === "run-swmm" ? "Drainage simulation" : "Schedule analysis"} complete — ${result.name}${result.revisionNumber ? ` r${result.revisionNumber}` : ""} stored as a derived artifact`,
       )
       setRunByArtifact((prev) => ({ ...prev, [result.artifactId]: { op, result } }))
       setSelectedId(result.artifactId)

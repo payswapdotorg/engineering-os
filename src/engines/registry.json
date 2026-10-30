@@ -961,7 +961,7 @@
         "mechanisms": [
           "python-module"
         ],
-        "notes": "LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, the chip license-first probe) — BSD-2. Capability probe: imports, elaborates a hand-written 4-bit enable counter, and emits RTLIL via amaranth.back.rtlil.convert(frag, ports=(...)) — the 1145-char RTLIL was consumed by yowasp-yosys and synthesized to EXACTLY 4 $_SDFFE_PP0P_ flip-flops (the hand-derived expectation: one per bit) + 3 $_XOR_/2 $_AND_/1 $_NOT_ increment logic. The pip-only chip front-end: Python RTL → RTLIL → yosys netlist with no system packages. FPGA/board builds additionally need amaranth's platform toolchains (out of scope for the pip lane)."
+        "notes": "TESTED 2026-10-31 (Slice 30, contract §17 — the chip RTL-synthesis lane): drives the synthesize_rtl broker op as the FRONT-END half (elaboration of the eos-chip-rtl-model/1 device class, RTLIL emission, and the behavioral pysim trajectory — amaranth.sim, RFC-27 API). Probe evidence (§17.1): the enable counter at every width W ∈ {1,2,4,8,16,32,64} elaborates and emits RTLIL byte-identically (ports= tuple REQUIRED); the pysim trajectory matches the closed form count == enabled mod 2^W at every step (W=4 wraps to 8, the disabled cycle holds); W=4 histogram EXACTLY the Slice-28 probe (4 $_SDFFE_PP0P_ + 3 $_XOR_/2 $_AND_/1 $_NOT_). HARNESS: 3 cases (rtl-counter-4bit / rtl-counter-8bit / rtl-invalid-kind refusal verbatim), double-run byte-identical documents. BSD-2 (LICENSE REVIEW CLOSED ACCEPTED 2026-10-29, Slice 28 — verified on the wheel's own METADATA + LICENSE.txt)."
       },
       "probes": [
         {
@@ -970,11 +970,18 @@
           "moduleVersionExpr": "import amaranth; print(amaranth.__version__)"
         }
       ],
-      "state": "planned",
+      "state": "tested",
       "limitations": [
         "RTLIL emission requires the ports= tuple explicitly (TypeError without it — found live)",
         "native board/platform flows need extra toolchains; the pip lane is RTL → netlist only"
-      ]
+      ],
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 3,
+        "lastRun": "2026-10-31",
+        "result": "pass",
+        "note": "chip cases (the amaranth half: elaboration + RTLIL + pysim): rtl-counter-4bit (12 pins — the full cell histogram exact, FF closed form 4, the trajectory wrap 24 mod 16 = 8 + the cycle-19 hold), rtl-counter-8bit (9 pins — histogram exact, FF 8, final count 24), rtl-invalid-kind (the §17.2 zod refusal verbatim); double-run byte-identical documents"
+      }
     },
     {
       "key": "yowasp-yosys",
@@ -995,7 +1002,7 @@
           "cli",
           "python-module"
         ],
-        "notes": "LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, the chip license-first probe) — ISC. Runs IN-SANDBOX (verified live): the yowasp-yosys entry point executes the WASM binary via the yowasp-runtime/wasmtime chain — first run prints 'Preparing to run... This might take a while' (WASM warm-up, seconds) then a real Yosys 0.70. Synthesis smokes (both hand-derived expectations EXACT): (1) hand-written Verilog 8-bit counter → 'proc; opt; memory; techmap; opt' → EXACTLY 8 $_SDFF_PP0_ (posedge, sync-reset-to-0 — matching the RTL semantics) + 7 $_XOR_/8 $_AND_/1 $_NOT_ = 24 cells, JSON netlist written; (2) amaranth's RTLIL 4-bit counter → EXACTLY 4 $_SDFFE_PP0P_ (enable + reset) + 3 $_XOR_/2 $_AND_/1 $_NOT_ = 10 cells. The pip-only synthesis half of the open chip flow; place-and-route remains the OpenROAD system class."
+        "notes": "TESTED 2026-10-31 (Slice 30, contract §17 — the chip RTL-synthesis lane): drives the SYNTHESIS half of the synthesize_rtl broker op (amaranth's RTLIL → gate-level netlist through the FROZEN script 'hierarchy -top top; proc; opt; memory; techmap; opt; attrmap -remove src; attrmap -modattr -remove src'). Probe evidence (§17.1): 0.2–0.26 s per run warm; the FF closed form holds at EVERY width (exactly W $_SDFFE_PP0P_ cells for a W-bit register — hand-derived); XOR = W−1 at every width; the W=4/W=8 histograms EXACTLY the Slice-28 probe. TWO live traps recorded: the WASI sandbox preopens ONLY the CWD (absolute paths fail — the adapter runs it with cwd=<tempdir> + relative names), and amaranth's \\src attributes survive into write_json (the attrmap strip makes the netlist bytes cross-host stable — three different source paths → identical bytes). HARNESS: the same 3 chip cases' netlist structure pins. ISC (LICENSE REVIEW CLOSED ACCEPTED 2026-10-29, Slice 28 — verified on the wheel's own METADATA License-Expression). Place-and-route stays the OpenROAD system class."
       },
       "probes": [
         {
@@ -1009,12 +1016,19 @@
           "versionRegex": "Yosys ([0-9.]+)"
         }
       ],
-      "state": "planned",
+      "state": "tested",
       "limitations": [
         "WASM execution is slower than native yosys (fine for netlist-scale synthesis; measured ~0.03 s per probe synth)",
         "first invocation per environment pays the WASM warm-up",
         "synthesis only — no place-and-route (OpenROAD stays the system-binary half of the flow)"
-      ]
+      ],
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 3,
+        "lastRun": "2026-10-31",
+        "result": "pass",
+        "note": "chip cases (the yowasp-yosys half: netlist structure): the exact cell histograms (W=4: $_AND_ 2/$_NOT_ 1/$_SDFFE_PP0P_ 4/$_XOR_ 3 = 10 cells; W=8: 8/1/8/7 = 24), totalCells, the FF closed form W at both widths, netlist.sha256 cross-host-stable pins; double-run byte-identical documents"
+      }
     },
     {
       "key": "gmsh",
