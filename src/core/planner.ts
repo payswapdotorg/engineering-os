@@ -576,6 +576,10 @@ const OPERATION_LABELS: Record<PlannerOperation, string> = {
   takeoff_sheet: "Vector-takeoff a PDF sheet",
   takeoff_drawing: "Vector-takeoff a DXF drawing",
   rebuild_parametric: "Parametric rebuild (model)",
+  compare_revisions: "Compare two sheet revisions",
+  annotate_takeoff: "Publish takeoff into the PDF (annotations)",
+  export_boq_xlsx: "Export BOQ table (XLSX/CSV)",
+  fill_area: "Room fill (Magic Fill)",
 }
 
 /**

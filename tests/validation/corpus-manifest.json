@@ -9,17 +9,17 @@
         "elementRef": "step:solid:0",
         "quantityType": "volume",
         "value": 32984.0710525538,
-        "unit": "mm³",
+        "unit": "mm\u00b3",
         "tolerance": "analytic",
-        "derivation": "L-profile area (80·10 + 10·50 − 10·10) = 1200 mm² extruded 30 mm, minus two Ø8 through-holes: 36000 − 960π mm³"
+        "derivation": "L-profile area (80\u00b710 + 10\u00b750 \u2212 10\u00b710) = 1200 mm\u00b2 extruded 30 mm, minus two \u00d88 through-holes: 36000 \u2212 960\u03c0 mm\u00b3"
       },
       {
         "elementRef": "step:solids:all",
         "quantityType": "area",
         "value": 11506.902543893353,
-        "unit": "mm²",
+        "unit": "mm\u00b2",
         "tolerance": "analytic",
-        "derivation": "2·(1200 − 2π·4²) + 2·(80+50)·30 + 2·(2π·4·30) = 10200 + 416π mm² (profile perimeter equals the 80×50 box: the L-notch removes and re-adds equal runs)"
+        "derivation": "2\u00b7(1200 \u2212 2\u03c0\u00b74\u00b2) + 2\u00b7(80+50)\u00b730 + 2\u00b7(2\u03c0\u00b74\u00b730) = 10200 + 416\u03c0 mm\u00b2 (profile perimeter equals the 80\u00d750 box: the L-notch removes and re-adds equal runs)"
       },
       {
         "elementRef": "step:model:bbox",
@@ -27,7 +27,7 @@
         "value": 98.99494936611666,
         "unit": "mm",
         "tolerance": "analytic",
-        "derivation": "bounding box 80 × 50 × 30 mm → diagonal √(80² + 50² + 30²) = √9800 mm"
+        "derivation": "bounding box 80 \u00d7 50 \u00d7 30 mm \u2192 diagonal \u221a(80\u00b2 + 50\u00b2 + 30\u00b2) = \u221a9800 mm"
       }
     ]
   },
@@ -55,9 +55,9 @@
         {
           "elementRef": "step:solid:0",
           "value": 0.0001256637061435917,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "mesh",
-          "derivation": "π · 20² · 100 mm³ = 40000π mm³ = 4π×10⁻⁵ m³ (Ø40×100 mm cylinder). 'mesh' tolerance (pinned 1%): the divergence-theorem volume over the OCCT triangulation is an approximation on the CURVED lateral surface (the inscribed tessellation slightly underestimates) — the harness records the observed relative error per run"
+          "derivation": "\u03c0 \u00b7 20\u00b2 \u00b7 100 mm\u00b3 = 40000\u03c0 mm\u00b3 = 4\u03c0\u00d710\u207b\u2075 m\u00b3 (\u00d840\u00d7100 mm cylinder). 'mesh' tolerance (pinned 1%): the divergence-theorem volume over the OCCT triangulation is an approximation on the CURVED lateral surface (the inscribed tessellation slightly underestimates) \u2014 the harness records the observed relative error per run"
         }
       ]
     },
@@ -66,17 +66,17 @@
         "elementRef": "step:solid:0",
         "quantityType": "volume",
         "value": 125663.70614359173,
-        "unit": "mm³",
+        "unit": "mm\u00b3",
         "tolerance": "analytic",
-        "derivation": "π · 20² · 100 = 40000π mm³ (Ø40 × 100 mm cylinder, exact OCCT BRepGProp path — no meshing)"
+        "derivation": "\u03c0 \u00b7 20\u00b2 \u00b7 100 = 40000\u03c0 mm\u00b3 (\u00d840 \u00d7 100 mm cylinder, exact OCCT BRepGProp path \u2014 no meshing)"
       },
       {
         "elementRef": "step:solids:all",
         "quantityType": "area",
         "value": 15079.644737231007,
-        "unit": "mm²",
+        "unit": "mm\u00b2",
         "tolerance": "analytic",
-        "derivation": "lateral 2π·20·100 = 4000π plus two caps 2·π·20² = 800π → 4800π mm² (curved surface through the EXACT OCCT integration path)"
+        "derivation": "lateral 2\u03c0\u00b720\u00b7100 = 4000\u03c0 plus two caps 2\u00b7\u03c0\u00b720\u00b2 = 800\u03c0 \u2192 4800\u03c0 mm\u00b2 (curved surface through the EXACT OCCT integration path)"
       },
       {
         "elementRef": "step:model:bbox",
@@ -84,7 +84,7 @@
         "value": 114.89125293076057,
         "unit": "mm",
         "tolerance": "analytic",
-        "derivation": "bounding box 40 × 40 × 100 mm → diagonal √(40² + 40² + 100²) = √13200 mm"
+        "derivation": "bounding box 40 \u00d7 40 \u00d7 100 mm \u2192 diagonal \u221a(40\u00b2 + 40\u00b2 + 100\u00b2) = \u221a13200 mm"
       }
     ]
   },
@@ -119,16 +119,16 @@
         {
           "elementRef": "step:solid:0",
           "value": 6e-06,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "box A 30 × 20 × 10 mm = 6000 mm³ = 6×10⁻⁶ m³ (PLANAR solid → divergence-theorem mesh volume is mathematically exact; only IEEE rounding remains, and the mesh elementRef set-equals the quantity ledger's per-solid refs)"
+          "derivation": "box A 30 \u00d7 20 \u00d7 10 mm = 6000 mm\u00b3 = 6\u00d710\u207b\u2076 m\u00b3 (PLANAR solid \u2192 divergence-theorem mesh volume is mathematically exact; only IEEE rounding remains, and the mesh elementRef set-equals the quantity ledger's per-solid refs)"
         },
         {
           "elementRef": "step:solid:1",
           "value": 9e-06,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "box B 15 × 15 × 40 mm = 9000 mm³ = 9×10⁻⁶ m³ (PLANAR solid → mesh volume exact)"
+          "derivation": "box B 15 \u00d7 15 \u00d7 40 mm = 9000 mm\u00b3 = 9\u00d710\u207b\u2076 m\u00b3 (PLANAR solid \u2192 mesh volume exact)"
         }
       ]
     },
@@ -137,25 +137,25 @@
         "elementRef": "step:solid:0",
         "quantityType": "volume",
         "value": 6000,
-        "unit": "mm³",
+        "unit": "mm\u00b3",
         "tolerance": "analytic",
-        "derivation": "box A 30 × 20 × 10 mm at the origin = 6000 mm³ (first solid written to the fixture file; OCCT enumerates it as solid 0 — enumeration order is pinned by the generator self-check and re-verified by the harness determinism double-run)"
+        "derivation": "box A 30 \u00d7 20 \u00d7 10 mm at the origin = 6000 mm\u00b3 (first solid written to the fixture file; OCCT enumerates it as solid 0 \u2014 enumeration order is pinned by the generator self-check and re-verified by the harness determinism double-run)"
       },
       {
         "elementRef": "step:solid:1",
         "quantityType": "volume",
         "value": 9000,
-        "unit": "mm³",
+        "unit": "mm\u00b3",
         "tolerance": "analytic",
-        "derivation": "box B 15 × 15 × 40 mm at (100, 0, 0) = 9000 mm³ (disjoint from box A, 70 mm gap)"
+        "derivation": "box B 15 \u00d7 15 \u00d7 40 mm at (100, 0, 0) = 9000 mm\u00b3 (disjoint from box A, 70 mm gap)"
       },
       {
         "elementRef": "step:solids:all",
         "quantityType": "area",
         "value": 5050,
-        "unit": "mm²",
+        "unit": "mm\u00b2",
         "tolerance": "analytic",
-        "derivation": "S_A + S_B = 2·(30·20 + 30·10 + 20·10) + 2·(15·15 + 15·40 + 15·40) = 2200 + 2850 = 5050 mm²"
+        "derivation": "S_A + S_B = 2\u00b7(30\u00b720 + 30\u00b710 + 20\u00b710) + 2\u00b7(15\u00b715 + 15\u00b740 + 15\u00b740) = 2200 + 2850 = 5050 mm\u00b2"
       },
       {
         "elementRef": "step:model:bbox",
@@ -163,7 +163,7 @@
         "value": 123.38962679253066,
         "unit": "mm",
         "tolerance": "analytic",
-        "derivation": "overall bounding box 115 × 20 × 40 mm (union of the two disjoint boxes) → diagonal √(115² + 20² + 40²) = √15225 mm"
+        "derivation": "overall bounding box 115 \u00d7 20 \u00d7 40 mm (union of the two disjoint boxes) \u2192 diagonal \u221a(115\u00b2 + 20\u00b2 + 40\u00b2) = \u221a15225 mm"
       }
     ]
   },
@@ -201,7 +201,7 @@
         "value": 3.0,
         "unit": "m",
         "tolerance": "exact",
-        "derivation": "declared BaseQuantities 'Length' — authored wall 3.0 × 0.2 × 2.0 m (closed form in make_fixture_wall.py)"
+        "derivation": "declared BaseQuantities 'Length' \u2014 authored wall 3.0 \u00d7 0.2 \u00d7 2.0 m (closed form in make_fixture_wall.py)"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
@@ -223,49 +223,49 @@
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 12.8,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "declared 'GrossSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
+        "derivation": "declared 'GrossSideArea' = 2\u00b7(3.0 + 0.2)\u00b72.0 = 12.8 m\u00b2"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 12.8,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "declared 'NetSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
+        "derivation": "declared 'NetSideArea' = 2\u00b7(3.0 + 0.2)\u00b72.0 = 12.8 m\u00b2"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 0.6,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "declared 'GrossFootprintArea' = 3.0 · 0.2 = 0.6 m²"
+        "derivation": "declared 'GrossFootprintArea' = 3.0 \u00b7 0.2 = 0.6 m\u00b2"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 0.6,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "declared 'NetFootprintArea' = 3.0 · 0.2 = 0.6 m²"
+        "derivation": "declared 'NetFootprintArea' = 3.0 \u00b7 0.2 = 0.6 m\u00b2"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "volume",
         "value": 1.2,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "exact",
-        "derivation": "declared 'GrossVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
+        "derivation": "declared 'GrossVolume' = 3.0 \u00b7 0.2 \u00b7 2.0 = 1.2 m\u00b3"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "volume",
         "value": 1.2,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "exact",
-        "derivation": "declared 'NetVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
+        "derivation": "declared 'NetVolume' = 3.0 \u00b7 0.2 \u00b7 2.0 = 1.2 m\u00b3"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
@@ -315,23 +315,23 @@
         {
           "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
           "value": 2.8,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "Wall A 4.0 × 0.25 × 2.8 m = 2.8 m³ (PLANAR → divergence-theorem mesh volume exact; metres authored and verified)"
+          "derivation": "Wall A 4.0 \u00d7 0.25 \u00d7 2.8 m = 2.8 m\u00b3 (PLANAR \u2192 divergence-theorem mesh volume exact; metres authored and verified)"
         },
         {
           "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
           "value": 0.84,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "Wall B 2.0 × 0.15 × 2.8 m = 0.84 m³ (PLANAR → exact)"
+          "derivation": "Wall B 2.0 \u00d7 0.15 \u00d7 2.8 m = 0.84 m\u00b3 (PLANAR \u2192 exact)"
         },
         {
           "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
           "value": 3.0,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "Slab S 5.0 × 3.0 × 0.2 m = 3.0 m³ (PLANAR → exact)"
+          "derivation": "Slab S 5.0 \u00d7 3.0 \u00d7 0.2 m = 3.0 m\u00b3 (PLANAR \u2192 exact)"
         }
       ]
     },
@@ -342,7 +342,7 @@
         "value": 4.0,
         "unit": "m",
         "tolerance": "exact",
-        "derivation": "Wall A 'Length' — 4.0 × 0.25 × 2.8 m wall"
+        "derivation": "Wall A 'Length' \u2014 4.0 \u00d7 0.25 \u00d7 2.8 m wall"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
@@ -364,17 +364,17 @@
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 23.8,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "Wall A 'GrossSideArea' = 2·(4.0 + 0.25)·2.8 = 23.8 m²"
+        "derivation": "Wall A 'GrossSideArea' = 2\u00b7(4.0 + 0.25)\u00b72.8 = 23.8 m\u00b2"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "volume",
         "value": 2.8,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "exact",
-        "derivation": "Wall A 'NetVolume' = 4.0 · 0.25 · 2.8 = 2.8 m³"
+        "derivation": "Wall A 'NetVolume' = 4.0 \u00b7 0.25 \u00b7 2.8 = 2.8 m\u00b3"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
@@ -382,7 +382,7 @@
         "value": 2.0,
         "unit": "m",
         "tolerance": "exact",
-        "derivation": "Wall B 'Length' — 2.0 × 0.15 × 2.8 m wall"
+        "derivation": "Wall B 'Length' \u2014 2.0 \u00d7 0.15 \u00d7 2.8 m wall"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
@@ -404,25 +404,25 @@
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
         "quantityType": "area",
         "value": 12.04,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "Wall B 'NetSideArea' = 2·(2.0 + 0.15)·2.8 = 12.04 m²"
+        "derivation": "Wall B 'NetSideArea' = 2\u00b7(2.0 + 0.15)\u00b72.8 = 12.04 m\u00b2"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
         "quantityType": "area",
         "value": 0.3,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "Wall B 'NetFootprintArea' = 2.0 · 0.15 = 0.3 m²"
+        "derivation": "Wall B 'NetFootprintArea' = 2.0 \u00b7 0.15 = 0.3 m\u00b2"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
         "quantityType": "volume",
         "value": 0.84,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "exact",
-        "derivation": "Wall B 'NetVolume' = 2.0 · 0.15 · 2.8 = 0.84 m³"
+        "derivation": "Wall B 'NetVolume' = 2.0 \u00b7 0.15 \u00b7 2.8 = 0.84 m\u00b3"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
@@ -430,7 +430,7 @@
         "value": 5.0,
         "unit": "m",
         "tolerance": "exact",
-        "derivation": "Slab S 'Length' — 5.0 × 3.0 × 0.2 m slab"
+        "derivation": "Slab S 'Length' \u2014 5.0 \u00d7 3.0 \u00d7 0.2 m slab"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
@@ -444,17 +444,17 @@
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
         "quantityType": "area",
         "value": 15.0,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "exact",
-        "derivation": "Slab S 'GrossArea' = 5.0 · 3.0 = 15.0 m²"
+        "derivation": "Slab S 'GrossArea' = 5.0 \u00b7 3.0 = 15.0 m\u00b2"
       },
       {
         "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
         "quantityType": "volume",
         "value": 3.0,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "exact",
-        "derivation": "Slab S 'NetVolume' = 5.0 · 3.0 · 0.2 = 3.0 m³"
+        "derivation": "Slab S 'NetVolume' = 5.0 \u00b7 3.0 \u00b7 0.2 = 3.0 m\u00b3"
       }
     ]
   },
@@ -482,9 +482,9 @@
         {
           "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
           "value": 1.2,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "analytic",
-          "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³ (PLANAR → divergence-theorem mesh volume is mathematically exact; the mesh elementRef set-equals the quantity ledger ref)"
+          "derivation": "box 3.0 \u00d7 0.2 \u00d7 2.0 m = 1.2 m\u00b3 (PLANAR \u2192 divergence-theorem mesh volume is mathematically exact; the mesh elementRef set-equals the quantity ledger ref)"
         }
       ]
     },
@@ -493,17 +493,17 @@
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "volume",
         "value": 1.2,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "analytic",
-        "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³. Tolerance 'analytic' (not 'mesh') is justified: the mesh path is divergence-theorem volume over planar triangles, which is mathematically EXACT for planar solids — only IEEE rounding remains (observed 1.2000000000000002, rel ≈ 2e-16)"
+        "derivation": "box 3.0 \u00d7 0.2 \u00d7 2.0 m = 1.2 m\u00b3. Tolerance 'analytic' (not 'mesh') is justified: the mesh path is divergence-theorem volume over planar triangles, which is mathematically EXACT for planar solids \u2014 only IEEE rounding remains (observed 1.2000000000000002, rel \u2248 2e-16)"
       },
       {
         "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 14.0,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "analytic",
-        "derivation": "total box surface 2·(3·0.2) + 2·(3·2) + 2·(0.2·2) = 1.2 + 12 + 0.8 = 14.0 m². Tolerance 'analytic' justified: triangle-sum area over planar faces is exact in exact arithmetic (observed 14.000000000000002, rel ≈ 1e-16)"
+        "derivation": "total box surface 2\u00b7(3\u00b70.2) + 2\u00b7(3\u00b72) + 2\u00b7(0.2\u00b72) = 1.2 + 12 + 0.8 = 14.0 m\u00b2. Tolerance 'analytic' justified: triangle-sum area over planar faces is exact in exact arithmetic (observed 14.000000000000002, rel \u2248 1e-16)"
       }
     ]
   },
@@ -531,9 +531,9 @@
         {
           "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
           "value": 0.3769911184307752,
-          "unit": "m³",
+          "unit": "m\u00b3",
           "tolerance": "mesh",
-          "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance (pinned 1%): the default-settings triangulation (44 segments) is an APPROXIMATION on the curved surface — the harness records the observed relative error per run (same triangulation the quantity adapter's fallback reports on)"
+          "derivation": "\u03c0 \u00b7 0.2\u00b2 \u00b7 3.0 = 0.12\u03c0 m\u00b3 (\u00d8400 \u00d7 3000 mm column). 'mesh' tolerance (pinned 1%): the default-settings triangulation (44 segments) is an APPROXIMATION on the curved surface \u2014 the harness records the observed relative error per run (same triangulation the quantity adapter's fallback reports on)"
         }
       ]
     },
@@ -542,17 +542,17 @@
         "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "volume",
         "value": 0.3769911184307752,
-        "unit": "m³",
+        "unit": "m\u00b3",
         "tolerance": "mesh",
-        "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance: the PyPI ifcopenshell wheel has no OCCT backend (has_occ=False), so this curved surface is triangulated — an APPROXIMATION; the harness records the observed relative error to quantify that limitation honestly"
+        "derivation": "\u03c0 \u00b7 0.2\u00b2 \u00b7 3.0 = 0.12\u03c0 m\u00b3 (\u00d8400 \u00d7 3000 mm column). 'mesh' tolerance: the PyPI ifcopenshell wheel has no OCCT backend (has_occ=False), so this curved surface is triangulated \u2014 an APPROXIMATION; the harness records the observed relative error to quantify that limitation honestly"
       },
       {
         "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
         "quantityType": "area",
         "value": 4.0212385965949355,
-        "unit": "m²",
+        "unit": "m\u00b2",
         "tolerance": "mesh",
-        "derivation": "lateral 2π·0.2·3.0 = 1.2π plus two caps 2·π·0.2² = 0.08π → 1.28π m². 'mesh' tolerance (1% pinned): triangulated curved surface — observed relative error recorded per run"
+        "derivation": "lateral 2\u03c0\u00b70.2\u00b73.0 = 1.2\u03c0 plus two caps 2\u00b7\u03c0\u00b70.2\u00b2 = 0.08\u03c0 \u2192 1.28\u03c0 m\u00b2. 'mesh' tolerance (1% pinned): triangulated curved surface \u2014 observed relative error recorded per run"
       }
     ]
   },
@@ -592,7 +592,7 @@
           "ref": null,
           "field": "nodes",
           "value": 1088,
-          "derivation": "live-observed node count at MeshSizeMin 2.0 / MeshSizeMax 4.0, gmsh 4.15.2 linear tets — pinned after the TL smoke run"
+          "derivation": "live-observed node count at MeshSizeMin 2.0 / MeshSizeMax 4.0, gmsh 4.15.2 linear tets \u2014 pinned after the TL smoke run"
         },
         {
           "ref": null,
@@ -709,7 +709,7 @@
       "expect": "error",
       "kind": "ifc",
       "errorContains": "gmsh cannot import IFC geometry",
-      "note": "observed live on gmsh 4.15.2: .ifc falls through to the .geo parser and dies with a misleading error — the adapter refuses by name instead (honest absence)"
+      "note": "observed live on gmsh 4.15.2: .ifc falls through to the .geo parser and dies with a misleading error \u2014 the adapter refuses by name instead (honest absence)"
     }
   },
   {
@@ -765,14 +765,14 @@
           "field": "vmPu",
           "value": 0.9999875,
           "relTolerance": 1e-06,
-          "derivation": "V2 = sqrt((1 + sqrt(1 - 4*(p*x)^2)) / 2) with p = P/baseMva = 2/100 = 0.02 pu and x = Xohm/baseZ = (0.1 ohm/km * 10 km) / ((20 kV)^2 / 100 MVA) = 1 / 4 = 0.25 pu -> p*x = 5e-3 -> 4*(px)^2 = 1e-4 -> V2^2 = (1 + 0.99995)/2 = 0.999975 -> V2 = 0.9999875 (the high branch NR converges to). [An earlier draft of this derivation wrote 1/4 as 0.025 — the harness caught the 10x slip against the real engine, which is exactly its job.]"
+          "derivation": "V2 = sqrt((1 + sqrt(1 - 4*(p*x)^2)) / 2) with p = P/baseMva = 2/100 = 0.02 pu and x = Xohm/baseZ = (0.1 ohm/km * 10 km) / ((20 kV)^2 / 100 MVA) = 1 / 4 = 0.25 pu -> p*x = 5e-3 -> 4*(px)^2 = 1e-4 -> V2^2 = (1 + 0.99995)/2 = 0.999975 -> V2 = 0.9999875 (the high branch NR converges to). [An earlier draft of this derivation wrote 1/4 as 0.025 \u2014 the harness caught the 10x slip against the real engine, which is exactly its job.]"
         },
         {
           "ref": "bus-2",
           "field": "angleDeg",
           "value": -0.28647895,
           "absTolerance": 0.0001,
-          "derivation": "sin(delta) = p*x/V2 = 5.00000625e-3 rad = 0.28647895 degrees across the line (lossless: P = V1*V2*sin(delta)/X); bus-2 LAGS the slack reference so pandapower reports the negative angle; absTolerance 1e-4 deg absorbs NR's convergence residual (observed -0.28648367, residual 4.7e-6 deg — the solver's own tolerance, not a formula error)"
+          "derivation": "sin(delta) = p*x/V2 = 5.00000625e-3 rad = 0.28647895 degrees across the line (lossless: P = V1*V2*sin(delta)/X); bus-2 LAGS the slack reference so pandapower reports the negative angle; absTolerance 1e-4 deg absorbs NR's convergence residual (observed -0.28648367, residual 4.7e-6 deg \u2014 the solver's own tolerance, not a formula error)"
         },
         {
           "ref": "bus-1>bus-2",
@@ -799,7 +799,7 @@
     "powerflow": {
       "expect": "error",
       "errorContains": "islanded network - buses with no path to the external grid",
-      "note": "observed live: pandapower 3.5.6 CONVERGES and reports NaN vm_pu for bus-3 (no line path) — NaN is not a result; the adapter refuses naming the island"
+      "note": "observed live: pandapower 3.5.6 CONVERGES and reports NaN vm_pu for bus-3 (no line path) \u2014 NaN is not a result; the adapter refuses naming the island"
     }
   },
   {
@@ -815,7 +815,7 @@
           "ref": null,
           "field": "policy",
           "value": "fifo",
-          "derivation": "the only policy shipped (contract §3.3)"
+          "derivation": "the only policy shipped (contract \u00a73.3)"
         },
         {
           "ref": null,
@@ -900,7 +900,7 @@
     "expect": "success",
     "cpm": {
       "expect": "success",
-      "note": "PLATFORM CORE (no engine): the exact analyze_schedule pure pipeline (analyzeCpm + buildCpmAnalysisDocument); engineKey/adapterScript are ABSENT from the document — recorded honestly.",
+      "note": "PLATFORM CORE (no engine): the exact analyze_schedule pure pipeline (analyzeCpm + buildCpmAnalysisDocument); engineKey/adapterScript are ABSENT from the document \u2014 recorded honestly.",
       "pins": [
         {
           "ref": null,
@@ -941,7 +941,7 @@
           "ref": null,
           "field": "engineKeyAbsent",
           "value": true,
-          "derivation": "NO engineKey/adapterScript in the document — platform core honesty (contract §4)"
+          "derivation": "NO engineKey/adapterScript in the document \u2014 platform core honesty (contract \u00a74)"
         },
         {
           "ref": "a",
@@ -1085,7 +1085,7 @@
     "expect": "success",
     "libreoffice": {
       "expect": "success",
-      "note": "REAL headless soffice run, ONCE (byte-determinism NOT claimed — PDFs embed creation timestamps, contract §5.4). Structural pins only.",
+      "note": "REAL headless soffice run, ONCE (byte-determinism NOT claimed \u2014 PDFs embed creation timestamps, contract \u00a75.4). Structural pins only.",
       "pins": [
         {
           "ref": null,
@@ -1098,7 +1098,7 @@
           "field": "sizeBytes",
           "value": 1000,
           "minBound": true,
-          "derivation": "the converted Writer document is a multi-digit-KB PDF (live-observed 26201 bytes) — a lower bound only, never an equality claim (timestamps affect exact bytes)"
+          "derivation": "the converted Writer document is a multi-digit-KB PDF (live-observed 26201 bytes) \u2014 a lower bound only, never an equality claim (timestamps affect exact bytes)"
         },
         {
           "ref": null,
@@ -1120,10 +1120,10 @@
     "adapter": "sheet",
     "fixture": "sheet-a102-plan.pdf",
     "expect": "success",
-    "groundTruth": "Slice-15 vector lane: pdfplumber over the pinned A-102 sheet (Slice-8/13/20 fixture, sha ed19c9c5… — Slice 20 added the page-3 two-size panel schedule; pages 1-2 streams byte-identical). Analytic truths from the builder constants: 1:100 A3 -> 1 pt = 25.4/72 x 100 = 35.277777… mm. Page 1: bar 283.464567 pt = 10 000 mm; wall 85.039370 pt = 3 000 mm; 3 ticks 12 pt = 423.333 mm each (lines total 14 270.000 mm); border rect 1143x794 pt + room rect 226.7717x141.7323 pt -> perimeters 3874 + 737.008 pt = 162 666.1156 mm, areas 907 542 + 32 139.36 pt2 = 1 169 455 639.25 mm2. Page 2: six 10 pt stroked + six 4 pt filled squares = 12 rects, 696 pt2 = 866 187.037 mm2. Page 3 (Slice 20, the two-size panel schedule): border + 6x2 small + 4x2 large squares = 21 rects, 909 282 pt2 = 1 131 621 093.98 mm2. Drawn coords carry the fixture's own 4-dp fmt rounding (rel ~1e-7), so pins use rel 1e-6.",
+    "groundTruth": "Slice-15 vector lane: pdfplumber over the pinned A-102 sheet (Slice-8/13/20 fixture, sha ed19c9c5\u2026 \u2014 Slice 20 added the page-3 two-size panel schedule; pages 1-2 streams byte-identical). Analytic truths from the builder constants: 1:100 A3 -> 1 pt = 25.4/72 x 100 = 35.277777\u2026 mm. Page 1: bar 283.464567 pt = 10 000 mm; wall 85.039370 pt = 3 000 mm; 3 ticks 12 pt = 423.333 mm each (lines total 14 270.000 mm); border rect 1143x794 pt + room rect 226.7717x141.7323 pt -> perimeters 3874 + 737.008 pt = 162 666.1156 mm, areas 907 542 + 32 139.36 pt2 = 1 169 455 639.25 mm2. Page 2: six 10 pt stroked + six 4 pt filled squares = 12 rects, 696 pt2 = 866 187.037 mm2. Page 3 (Slice 20, the two-size panel schedule): border + 6x2 small + 4x2 large squares = 21 rects, 909 282 pt2 = 1 131 621 093.98 mm2. Drawn coords carry the fixture's own 4-dp fmt rounding (rel ~1e-7), so pins use rel 1e-6.",
     "sheet": {
       "expect": "success",
-      "note": "both pages of the pinned sheet measured at the analytic 1:100 scale; the mm-per-pt value is the BUILDER truth (the click-calibration journey's 35.40 mm/pt carries the recorded 0.35% browser bias — limitation #16 — while vector extraction reads the drawn operators exactly)",
+      "note": "both pages of the pinned sheet measured at the analytic 1:100 scale; the mm-per-pt value is the BUILDER truth (the click-calibration journey's 35.40 mm/pt carries the recorded 0.35% browser bias \u2014 limitation #16 \u2014 while vector extraction reads the drawn operators exactly)",
       "runs": [
         {
           "parameters": {
@@ -1136,7 +1136,7 @@
               "ref": null,
               "field": "pageCount",
               "value": 4,
-              "derivation": "fixture builder pins a 4-page document (Slice 20 added page 3, the two-size panel schedule; Slice 27 added page 4, the /Rotate 90 rotated-page fixture — pages 1-3 streams byte-identical)"
+              "derivation": "fixture builder pins a 4-page document (Slice 20 added page 3, the two-size panel schedule; Slice 27 added page 4, the /Rotate 90 rotated-page fixture \u2014 pages 1-3 streams byte-identical)"
             },
             {
               "ref": null,
@@ -1168,7 +1168,7 @@
               "value": 14270.0,
               "relTolerance": 1e-06,
               "unit": "mm",
-              "derivation": "(283.464567 + 85.039370 + 3 x 12) pt x 35.277777… mm/pt = 14 270.000 mm"
+              "derivation": "(283.464567 + 85.039370 + 3 x 12) pt x 35.277777\u2026 mm/pt = 14 270.000 mm"
             },
             {
               "ref": null,
@@ -1176,7 +1176,7 @@
               "value": 162666.1156,
               "relTolerance": 1e-06,
               "unit": "mm",
-              "derivation": "(2x(1143+794) + 2x(226.7717+141.7323)) pt x 35.277777… = 162 666.1156 mm"
+              "derivation": "(2x(1143+794) + 2x(226.7717+141.7323)) pt x 35.277777\u2026 = 162 666.1156 mm"
             },
             {
               "ref": null,
@@ -1184,7 +1184,7 @@
               "value": 1169455639.25,
               "relTolerance": 1e-06,
               "unit": "mm2",
-              "derivation": "(1143x794 + 226.7717x141.7323) pt2 x (35.277777…)2 = 1 169 455 639.25 mm2"
+              "derivation": "(1143x794 + 226.7717x141.7323) pt2 x (35.277777\u2026)2 = 1 169 455 639.25 mm2"
             },
             {
               "ref": "eos demo sheet a-102",
@@ -1257,13 +1257,13 @@
               "value": 1130321813.4259,
               "relTolerance": 1e-06,
               "unit": "mm2",
-              "derivation": "(1143x794 border + 6x10x10 + 6x4x4 symbols) pt2 = 908 238 pt2 x (35.277777…)2 = 1 130 321 8xx mm2"
+              "derivation": "(1143x794 border + 6x10x10 + 6x4x4 symbols) pt2 = 908 238 pt2 x (35.277777\u2026)2 = 1 130 321 8xx mm2"
             },
             {
               "ref": null,
               "field": "fixtureSha256",
               "value": "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6",
-              "derivation": "see case groundTruth — Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)"
+              "derivation": "see case groundTruth \u2014 Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)"
             },
             {
               "ref": null,
@@ -1312,13 +1312,13 @@
               "value": 1131621093.9815,
               "relTolerance": 1e-06,
               "unit": "mm2",
-              "derivation": "(1143x794 border + 6x(100+16) small + 4x(225+36) large) pt2 = 909 282 pt2 x (35.277777…)2 = 1 131 621 093.98 mm2"
+              "derivation": "(1143x794 border + 6x(100+16) small + 4x(225+36) large) pt2 = 909 282 pt2 x (35.277777\u2026)2 = 1 131 621 093.98 mm2"
             },
             {
               "ref": null,
               "field": "fixtureSha256",
               "value": "af00a43e0f8b22e2cea8261da5fd93ee9456941df27f9d40f33cd8297ff205a6",
-              "derivation": "see case groundTruth — Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)"
+              "derivation": "see case groundTruth \u2014 Slice 27 regenerated the fixture (page 4, the /Rotate 90 rotated page, added; pages 1-3 streams byte-identical)"
             },
             {
               "ref": null,
@@ -1353,7 +1353,7 @@
               "ref": null,
               "field": "widthPt",
               "value": 842,
-              "derivation": "pdfplumber reports the DISPLAYED page for /Rotate 90 — the unrotated 1191x842 MediaBox turned upright is 842 wide (probed 2026-10-29; pdf.js's viewport paints the same view, the empirically probed alignment of src/core/page-rotation.ts)"
+              "derivation": "pdfplumber reports the DISPLAYED page for /Rotate 90 \u2014 the unrotated 1191x842 MediaBox turned upright is 842 wide (probed 2026-10-29; pdf.js's viewport paints the same view, the empirically probed alignment of src/core/page-rotation.ts)"
             },
             {
               "ref": null,
@@ -1365,7 +1365,7 @@
               "ref": null,
               "field": "linesCount",
               "value": 4,
-              "derivation": "page 4 carries the same scale-bar furniture as page 2: bar + 2 end ticks + mid tick = 4 lines — rotation never moves a count"
+              "derivation": "page 4 carries the same scale-bar furniture as page 2: bar + 2 end ticks + mid tick = 4 lines \u2014 rotation never moves a count"
             },
             {
               "ref": null,
@@ -1379,7 +1379,7 @@
               "value": 1130321813.4259,
               "relTolerance": 1e-06,
               "unit": "mm2",
-              "derivation": "rotation never moves an area — the page-2 value pinned again (908 238 pt2 x (35.277777...)2 = 1 130 321 813.4259 mm2)"
+              "derivation": "rotation never moves an area \u2014 the page-2 value pinned again (908 238 pt2 x (35.277777...)2 = 1 130 321 813.4259 mm2)"
             },
             {
               "ref": null,
@@ -1393,7 +1393,7 @@
               "value": 124452.1605,
               "relTolerance": 1e-06,
               "unit": "mm2",
-              "derivation": "THE ROTATED-ANCHOR PIN: the socket at unrotated (440..450, 350..360) presents its first corner at (350, 741) in the pdfminer-CTM rotated view (y, W-x) — 10x10 pt = 100 pt2 x (35.277777...)2 = 124 452.1605 mm2; probed through the real adapter (the same view pdf.js paints)"
+              "derivation": "THE ROTATED-ANCHOR PIN: the socket at unrotated (440..450, 350..360) presents its first corner at (350, 741) in the pdfminer-CTM rotated view (y, W-x) \u2014 10x10 pt = 100 pt2 x (35.277777...)2 = 124 452.1605 mm2; probed through the real adapter (the same view pdf.js paints)"
             },
             {
               "ref": "rect@500,981",
@@ -1401,7 +1401,7 @@
               "value": 124452.1605,
               "relTolerance": 1e-06,
               "unit": "mm2",
-              "derivation": "the far rotated anchor: the socket at unrotated (200..210, 500..510) presents its first corner at (500, 981) in the CTM view — same 100 pt2 area, the anchor proves the W-x axis"
+              "derivation": "the far rotated anchor: the socket at unrotated (200..210, 500..510) presents its first corner at (500, 981) in the CTM view \u2014 same 100 pt2 area, the anchor proves the W-x axis"
             },
             {
               "ref": "rect@503,744",
@@ -1430,7 +1430,7 @@
     "groundTruth": "Slice-15 vector lane: ONE kappa-approximated quarter-arc bezier (r=100 pt, analytic length 100 x pi/2 = 157.0796327 pt) + ONE 50x30 pt rect. Flatten at N=32 converges at rel 4.0e-5 (16-R1 research); scale 1.0 so mm == pt and the rect is exact: perimeter 160, area 1500.",
     "sheet": {
       "expect": "success",
-      "note": "curve length pinned against the ANALYTIC quarter-arc at rel 1e-3 (the pinned N=32 flattening reads rel ~4e-5 low — honest flattening error, recorded; rect pins are exact)",
+      "note": "curve length pinned against the ANALYTIC quarter-arc at rel 1e-3 (the pinned N=32 flattening reads rel ~4e-5 low \u2014 honest flattening error, recorded; rect pins are exact)",
       "runs": [
         {
           "parameters": {
@@ -1465,7 +1465,7 @@
               "value": 160.0,
               "relTolerance": 1e-09,
               "unit": "mm",
-              "derivation": "(2x(1143+794) + 2x(226.7717+141.7323)) pt x 35.277777… = 162 666.1156 mm"
+              "derivation": "(2x(1143+794) + 2x(226.7717+141.7323)) pt x 35.277777\u2026 = 162 666.1156 mm"
             },
             {
               "ref": null,
@@ -1473,7 +1473,7 @@
               "value": 1500.0,
               "relTolerance": 1e-09,
               "unit": "mm2",
-              "derivation": "(1143x794 + 226.7717x141.7323) pt2 x (35.277777…)2 = 1 169 455 639.25 mm2"
+              "derivation": "(1143x794 + 226.7717x141.7323) pt2 x (35.277777\u2026)2 = 1 169 455 639.25 mm2"
             },
             {
               "ref": null,
@@ -1614,7 +1614,7 @@
     "adapter": "parametric",
     "fixture": "parametric-bracket.py",
     "expect": "success",
-    "groundTruth": "Slice-15 parametric lane (16-P, design proven in 16-R3): the committed parametric model declares PARAM_SCHEMA with five numeric parameters (width 20..300, depth 20..200, thickness 2..40, height 20..300, holeDia 0..60; additionalProperties: false) and DEFAULT_PARAMS w80-d50-t8-h60-hd10. Schema mode reads the module SAFELY (bytes read once, compiled once, exec'd in a fresh namespace — never executed standalone) and emits schema + defaults verbatim with the sha256 of the model bytes (the artifact-revision identity).",
+    "groundTruth": "Slice-15 parametric lane (16-P, design proven in 16-R3): the committed parametric model declares PARAM_SCHEMA with five numeric parameters (width 20..300, depth 20..200, thickness 2..40, height 20..300, holeDia 0..60; additionalProperties: false) and DEFAULT_PARAMS w80-d50-t8-h60-hd10. Schema mode reads the module SAFELY (bytes read once, compiled once, exec'd in a fresh namespace \u2014 never executed standalone) and emits schema + defaults verbatim with the sha256 of the model bytes (the artifact-revision identity).",
     "parametric": {
       "expect": "success",
       "note": "the Design Studio form source: schema mode answers from the module bytes alone (no parameters, no STEP); the adapter refuses a script without PARAM_SCHEMA/DEFAULT_PARAMS with the pinned authoring-docs message",
@@ -1626,7 +1626,7 @@
               "ref": null,
               "field": "engineKey",
               "value": "cadquery",
-              "derivation": "the adapter's declared engine — cadquery is the pinned BREP kernel (16-R3: the only STEP-authoring engine in the pinned set, zero new dependencies)"
+              "derivation": "the adapter's declared engine \u2014 cadquery is the pinned BREP kernel (16-R3: the only STEP-authoring engine in the pinned set, zero new dependencies)"
             },
             {
               "ref": null,
@@ -1650,7 +1650,7 @@
               "ref": null,
               "field": "modelScriptHash",
               "value": "fcfb7185b7cfc75f5211b17c763df3919f602f4c344c405172f551756463ea82",
-              "derivation": "sha256 of the committed tests/fixtures/parametric-bracket.py bytes — the artifact-revision identity the broker pins to the parametric-model revision"
+              "derivation": "sha256 of the committed tests/fixtures/parametric-bracket.py bytes \u2014 the artifact-revision identity the broker pins to the parametric-model revision"
             }
           ]
         }
@@ -1662,10 +1662,10 @@
     "adapter": "parametric",
     "fixture": "parametric-bracket.py",
     "expect": "success",
-    "groundTruth": "Slice-15 parametric lane: rebuild at the authored defaults (the 16-R3 RUN A). Analytic ground truth V = w*d*t + w*t*(h-t) - pi*hd^2/4*t = 32000 + 33280 - 200*pi = 64651.68146928204 mm3; the STEP re-import read 64651.68146928197 mm3 (rel 1.13e-15) — the pinned value. Surface area A = w*d + w*(d-t) + 3*w*t + 2*t*(d+h-t) + 2*w*(h-t) - pi*hd^2/2 + pi*hd*t = 19232 + 30*pi = 19326.247779607693 mm2 (the hand-derived face sum INCLUDING the internal shared face w*t that OCCT retains in the fused solid and counts in Area(); verified rel 7e-16 against the re-imported solid). bbox = the drawn extents 80 x 50 x 60 mm (the through-hole never reaches the bounding box).",
+    "groundTruth": "Slice-15 parametric lane: rebuild at the authored defaults (the 16-R3 RUN A). Analytic ground truth V = w*d*t + w*t*(h-t) - pi*hd^2/4*t = 32000 + 33280 - 200*pi = 64651.68146928204 mm3; the STEP re-import read 64651.68146928197 mm3 (rel 1.13e-15) \u2014 the pinned value. Surface area A = w*d + w*(d-t) + 3*w*t + 2*t*(d+h-t) + 2*w*(h-t) - pi*hd^2/2 + pi*hd*t = 19232 + 30*pi = 19326.247779607693 mm2 (the hand-derived face sum INCLUDING the internal shared face w*t that OCCT retains in the fused solid and counts in Area(); verified rel 7e-16 against the re-imported solid). bbox = the drawn extents 80 x 50 x 60 mm (the through-hole never reaches the bounding box).",
     "parametric": {
       "expect": "success",
-      "note": "the adapter gates the built volume against analytic_volume_mm3 at rel 1e-9 BEFORE writing any STEP, then re-imports the STEP in the same process and emits the round-trip properties; per-run determinism compares the GEOMETRY PROPERTIES, never the STEP bytes (OCCT stamps an export timestamp into FILE_NAME — the 16-R3 finding)",
+      "note": "the adapter gates the built volume against analytic_volume_mm3 at rel 1e-9 BEFORE writing any STEP, then re-imports the STEP in the same process and emits the round-trip properties; per-run determinism compares the GEOMETRY PROPERTIES, never the STEP bytes (OCCT stamps an export timestamp into FILE_NAME \u2014 the 16-R3 finding)",
       "runs": [
         {
           "mode": "build",
@@ -1681,7 +1681,7 @@
               "ref": null,
               "field": "paramKeys",
               "value": "depth,height,holeDia,thickness,width",
-              "derivation": "paramsUsed = the authored defaults merged over the empty edit set — five keys, sorted, comma-joined"
+              "derivation": "paramsUsed = the authored defaults merged over the empty edit set \u2014 five keys, sorted, comma-joined"
             },
             {
               "ref": null,
@@ -1703,19 +1703,19 @@
               "ref": null,
               "field": "paramBboxW",
               "value": 80,
-              "derivation": "the re-imported solid spans x in [0, 80] — the drawn base width, uncut by the through-hole"
+              "derivation": "the re-imported solid spans x in [0, 80] \u2014 the drawn base width, uncut by the through-hole"
             },
             {
               "ref": null,
               "field": "paramBboxD",
               "value": 50,
-              "derivation": "the re-imported solid spans y in [0, 50] — the drawn base depth (the drill overshoots y but is a cut, adding no material)"
+              "derivation": "the re-imported solid spans y in [0, 50] \u2014 the drawn base depth (the drill overshoots y but is a cut, adding no material)"
             },
             {
               "ref": null,
               "field": "paramBboxH",
               "value": 60,
-              "derivation": "the re-imported solid spans z in [0, 60] — the drawn overall height"
+              "derivation": "the re-imported solid spans z in [0, 60] \u2014 the drawn overall height"
             },
             {
               "ref": null,
@@ -1728,7 +1728,7 @@
               "ref": null,
               "field": "paramChecksPassed",
               "value": true,
-              "derivation": "the STEP is emitted ONLY because the analytic gate passed — the gate result itself is pinned"
+              "derivation": "the STEP is emitted ONLY because the analytic gate passed \u2014 the gate result itself is pinned"
             }
           ]
         }
@@ -1740,7 +1740,7 @@
     "adapter": "parametric",
     "fixture": "parametric-bracket.py",
     "expect": "success",
-    "groundTruth": "Slice-15 parametric lane: rebuild at edited parameters (the 16-R3 RUN B set, w120-d60-t10-h80-hd16). V = 120*60*10 + 120*10*(80-10) - pi*16^2/4*10 = 156000 - 640*pi = 153989.38070170252 mm3 analytic; the STEP re-import read 153989.38070170232 mm3 (rel 1.32e-15) — the pinned value. A = 36200 + 32*pi = 36300.53096491488 mm2 (same closed form as the defaults case). bbox 120 x 60 x 80 mm. The two parameter sets produce DISTINCT, analytically-exact volumes (ratio 2.382) — the parametric-editing loop's money evidence from 16-R3.",
+    "groundTruth": "Slice-15 parametric lane: rebuild at edited parameters (the 16-R3 RUN B set, w120-d60-t10-h80-hd16). V = 120*60*10 + 120*10*(80-10) - pi*16^2/4*10 = 156000 - 640*pi = 153989.38070170252 mm3 analytic; the STEP re-import read 153989.38070170232 mm3 (rel 1.32e-15) \u2014 the pinned value. A = 36200 + 32*pi = 36300.53096491488 mm2 (same closed form as the defaults case). bbox 120 x 60 x 80 mm. The two parameter sets produce DISTINCT, analytically-exact volumes (ratio 2.382) \u2014 the parametric-editing loop's money evidence from 16-R3.",
     "parametric": {
       "expect": "success",
       "note": "partial-edit semantics are exercised by the 16-R3 partial-fill probe (width=100, holeDia=12 -> 80695.2213 mm3, rel 1.8e-16); this case pins the full five-key edit so every parameter's analytic term is visible in one closed form",
@@ -1765,7 +1765,7 @@
               "ref": null,
               "field": "paramKeys",
               "value": "depth,height,holeDia,thickness,width",
-              "derivation": "paramsUsed = the five edited values — the merged keys are exactly the schema's keys, sorted, comma-joined"
+              "derivation": "paramsUsed = the five edited values \u2014 the merged keys are exactly the schema's keys, sorted, comma-joined"
             },
             {
               "ref": null,
@@ -1787,19 +1787,19 @@
               "ref": null,
               "field": "paramBboxW",
               "value": 120,
-              "derivation": "the re-imported solid spans x in [0, 120] — the edited width"
+              "derivation": "the re-imported solid spans x in [0, 120] \u2014 the edited width"
             },
             {
               "ref": null,
               "field": "paramBboxD",
               "value": 60,
-              "derivation": "the re-imported solid spans y in [0, 60] — the edited depth"
+              "derivation": "the re-imported solid spans y in [0, 60] \u2014 the edited depth"
             },
             {
               "ref": null,
               "field": "paramBboxH",
               "value": 80,
-              "derivation": "the re-imported solid spans z in [0, 80] — the edited height"
+              "derivation": "the re-imported solid spans z in [0, 80] \u2014 the edited height"
             },
             {
               "ref": null,
@@ -1812,7 +1812,7 @@
               "ref": null,
               "field": "paramChecksPassed",
               "value": true,
-              "derivation": "the STEP is emitted ONLY because the analytic gate passed — the gate result itself is pinned"
+              "derivation": "the STEP is emitted ONLY because the analytic gate passed \u2014 the gate result itself is pinned"
             }
           ]
         }
@@ -1858,7 +1858,7 @@
     "adapter": "ocr",
     "fixture": "ocr-callout.png",
     "expect": "success",
-    "groundTruth": "Slice 16-B sheet-text OCR lane (16-R2 research, live-verified): the committed fixture renders LOADING BAY PLAN / 2400 / Ø400 / 1200 / GHS 225.00 at 44 px DejaVuSans; tesseract 5.5.0 with the VENDORED sha-pinned eng model (7d4322bd…, byte-identical to the ubuntu-24.04 tesseract-ocr package) reads every word at psm 6. The Ø GLYPH NEVER transcribes natively — Ø400 comes back as @400 at ~55% conf (the number is always right) and the diameter-glyph rule maps it to Ø400 with the raw preserved. Conf floors are live-observed values minus margin; determinism is the full word list (text+conf+boxes) across two consecutive reads.",
+    "groundTruth": "Slice 16-B sheet-text OCR lane (16-R2 research, live-verified): the committed fixture renders LOADING BAY PLAN / 2400 / \u00d8400 / 1200 / GHS 225.00 at 44 px DejaVuSans; tesseract 5.5.0 with the VENDORED sha-pinned eng model (7d4322bd\u2026, byte-identical to the ubuntu-24.04 tesseract-ocr package) reads every word at psm 6. The \u00d8 GLYPH NEVER transcribes natively \u2014 \u00d8400 comes back as @400 at ~55% conf (the number is always right) and the diameter-glyph rule maps it to \u00d8400 with the raw preserved. Conf floors are live-observed values minus margin; determinism is the full word list (text+conf+boxes) across two consecutive reads.",
     "ocr": {
       "expect": "success",
       "runs": [
@@ -1886,7 +1886,7 @@
             {
               "text": "@400",
               "confFloor": 40,
-              "normalized": "Ø400"
+              "normalized": "\u00d8400"
             },
             {
               "text": "1200",
@@ -1903,7 +1903,7 @@
           ]
         }
       ],
-      "note": "the committed fixture + the vendored sha-pinned eng.traineddata make the read model-deterministic in CI; the @400→Ø400 row pins the 16-R2 finding with the raw transcript preserved"
+      "note": "the committed fixture + the vendored sha-pinned eng.traineddata make the read model-deterministic in CI; the @400\u2192\u00d8400 row pins the 16-R2 finding with the raw transcript preserved"
     }
   },
   {
@@ -1913,114 +1913,114 @@
     "expect": "success",
     "fea": {
       "expect": "success",
-      "note": "Uniform uniaxial tension, plane stress: the exact field u_x = σx/E, u_y = −νσy/E is LINEAR and satisfies both edge supports exactly (left ux at x=0, bottom uy at y=0), so tri6 elements reproduce it MACHINE-VERBATIM — every displacement/stress pin below is the hand-derived closed form, not an observed value.",
+      "note": "Uniform uniaxial tension, plane stress: the exact field u_x = \u03c3x/E, u_y = \u2212\u03bd\u03c3y/E is LINEAR and satisfies both edge supports exactly (left ux at x=0, bottom uy at y=0), so tri6 elements reproduce it MACHINE-VERBATIM \u2014 every displacement/stress pin below is the hand-derived closed form, not an observed value.",
       "pins": [
         {
           "ref": null,
           "field": "analysis",
           "value": "plane_stress",
-          "derivation": "the only analysis shipped this phase (contract §14.2)"
+          "derivation": "the only analysis shipped this phase (contract \u00a714.2)"
         },
         {
           "ref": null,
           "field": "elementType",
           "value": "tri6",
-          "derivation": "ElementVector(ElementTriP2()) — quadratic triangles, 6 nodes (contract §14.5)"
+          "derivation": "ElementVector(ElementTriP2()) \u2014 quadratic triangles, 6 nodes (contract \u00a714.5)"
         },
         {
           "ref": null,
           "field": "refinement",
           "value": 4,
-          "derivation": "the default meshRefinement parameter (contract §14.3)"
+          "derivation": "the default meshRefinement parameter (contract \u00a714.3)"
         },
         {
           "ref": null,
           "field": "elementCount",
           "value": 512,
-          "derivation": "MeshTri().refined(4): the base 2 triangles × 4^4 = 512 — deterministic uniform mesh"
+          "derivation": "MeshTri().refined(4): the base 2 triangles \u00d7 4^4 = 512 \u2014 deterministic uniform mesh"
         },
         {
           "ref": null,
           "field": "nodeCount",
           "value": 2178,
-          "derivation": "P2 dof points of the refined(4) mesh: 81 vertices + 144 midside points × 2 components interleaved = 2178/2 scalar points… pinned as the deterministic dof-point count"
+          "derivation": "P2 dof points of the refined(4) mesh: 81 vertices + 144 midside points \u00d7 2 components interleaved = 2178/2 scalar points\u2026 pinned as the deterministic dof-point count"
         },
         {
           "ref": "0x0",
           "field": "ux",
           "value": 0.0,
           "absTolerance": 1e-09,
-          "derivation": "u_x = σx/E = 0 at x = 0 (the left edge ux support is exactly compatible)"
+          "derivation": "u_x = \u03c3x/E = 0 at x = 0 (the left edge ux support is exactly compatible)"
         },
         {
           "ref": "0x0",
           "field": "uy",
           "value": 0.0,
           "absTolerance": 1e-09,
-          "derivation": "u_y = −νσy/E = 0 at y = 0 (the bottom edge uy support is exactly compatible)"
+          "derivation": "u_y = \u2212\u03bd\u03c3y/E = 0 at y = 0 (the bottom edge uy support is exactly compatible)"
         },
         {
           "ref": "0x200",
           "field": "uy",
           "value": -0.003,
           "absTolerance": 1e-09,
-          "derivation": "u_y(H) = −νσH/E = −0.3·10·200/200000 = −0.003 mm (Poisson contraction, free left-edge uy)"
+          "derivation": "u_y(H) = \u2212\u03bd\u03c3H/E = \u22120.3\u00b710\u00b7200/200000 = \u22120.003 mm (Poisson contraction, free left-edge uy)"
         },
         {
           "ref": "200x100",
           "field": "ux",
           "value": 0.01,
           "absTolerance": 1e-09,
-          "derivation": "u_x(W/2) = σ(W/2)/E = 10·200/200000 = 0.01 mm"
+          "derivation": "u_x(W/2) = \u03c3(W/2)/E = 10\u00b7200/200000 = 0.01 mm"
         },
         {
           "ref": "200x100",
           "field": "uy",
           "value": -0.0015,
           "absTolerance": 1e-09,
-          "derivation": "u_y(H/2) = −νσ(H/2)/E = −0.0015 mm"
+          "derivation": "u_y(H/2) = \u2212\u03bd\u03c3(H/2)/E = \u22120.0015 mm"
         },
         {
           "ref": "400x0",
           "field": "ux",
           "value": 0.02,
           "absTolerance": 1e-09,
-          "derivation": "u_x(W) = σW/E = 10·400/200000 = 0.02 mm — the Hooke's-law anchor"
+          "derivation": "u_x(W) = \u03c3W/E = 10\u00b7400/200000 = 0.02 mm \u2014 the Hooke's-law anchor"
         },
         {
           "ref": "400x200",
           "field": "ux",
           "value": 0.02,
           "absTolerance": 1e-09,
-          "derivation": "u_x(W) = σW/E = 0.02 mm at the far corner (uniform field: independent of y)"
+          "derivation": "u_x(W) = \u03c3W/E = 0.02 mm at the far corner (uniform field: independent of y)"
         },
         {
           "ref": "400x200",
           "field": "uy",
           "value": -0.003,
           "absTolerance": 1e-09,
-          "derivation": "u_y(H) = −νσH/E = −0.003 mm at the far corner"
+          "derivation": "u_y(H) = \u2212\u03bd\u03c3H/E = \u22120.003 mm at the far corner"
         },
         {
           "ref": null,
           "field": "sigmaXxMinMpa",
           "value": 10.0,
           "absTolerance": 1e-09,
-          "derivation": "σ_xx = σ = 10 MPa uniform (plane stress, σ_yy = τ_xy = 0) — the per-element mean equals the constant exactly"
+          "derivation": "\u03c3_xx = \u03c3 = 10 MPa uniform (plane stress, \u03c3_yy = \u03c4_xy = 0) \u2014 the per-element mean equals the constant exactly"
         },
         {
           "ref": null,
           "field": "vonMisesMaxMpa",
           "value": 10.0,
           "absTolerance": 1e-09,
-          "derivation": "von Mises of uniaxial σ: √(σ²) = σ = 10 MPa"
+          "derivation": "von Mises of uniaxial \u03c3: \u221a(\u03c3\u00b2) = \u03c3 = 10 MPa"
         },
         {
           "ref": null,
           "field": "maxDisplacementMagnitudeMm",
           "value": 0.020223748416157,
           "absTolerance": 1e-09,
-          "derivation": "hypot(u_x(W), u_y(H)) = √(0.02² + 0.003²) = √0.000409 = 0.020223748416157 mm at the far corner"
+          "derivation": "hypot(u_x(W), u_y(H)) = \u221a(0.02\u00b2 + 0.003\u00b2) = \u221a0.000409 = 0.020223748416157 mm at the far corner"
         }
       ]
     }
@@ -2032,27 +2032,27 @@
     "expect": "success",
     "fea": {
       "expect": "success",
-      "note": "Cantilever plate under end shear (the Timoshenko closed form): P = 2 MPa × 25 mm × 500 mm = 25000 N down the right edge; I = t·H³/12 = 2.6041667e8 mm⁴; G = E/2(1+ν) = 76923.08 MPa; κ = 5/6. Tip δ = PL³/3EI + PL/κGA ≈ 1.28 + 0.0624 = 1.3424 mm. The tri6 solution converges to the 2D-elasticity limit from below; at refinement 4 the observed tip uy is 1.3362 (0.46% under) — the mesh-tolerance pin (1%) is the honest bound, the gmsh-volume precedent.",
+      "note": "Cantilever plate under end shear (the Timoshenko closed form): P = 2 MPa \u00d7 25 mm \u00d7 500 mm = 25000 N down the right edge; I = t\u00b7H\u00b3/12 = 2.6041667e8 mm\u2074; G = E/2(1+\u03bd) = 76923.08 MPa; \u03ba = 5/6. Tip \u03b4 = PL\u00b3/3EI + PL/\u03baGA \u2248 1.28 + 0.0624 = 1.3424 mm. The tri6 solution converges to the 2D-elasticity limit from below; at refinement 4 the observed tip uy is 1.3362 (0.46% under) \u2014 the mesh-tolerance pin (1%) is the honest bound, the gmsh-volume precedent.",
       "pins": [
         {
           "ref": null,
           "field": "elementCount",
           "value": 512,
-          "derivation": "MeshTri().refined(4) on the scaled 2000×500 domain — same deterministic 512 tri6 elements"
+          "derivation": "MeshTri().refined(4) on the scaled 2000\u00d7500 domain \u2014 same deterministic 512 tri6 elements"
         },
         {
           "ref": "2000x0",
           "field": "uy",
           "value": -1.3424,
           "relTolerance": 0.01,
-          "derivation": "Timoshenko tip deflection at the bottom-right corner: PL³/3EI + PL/κGA = 1.28 + 0.0624 = 1.3424 mm (positive shear acts along the CCW tangent = −y on the right edge, so the plate bends DOWN); the corner carries the centerline deflection (the section rotation displaces the tip corners horizontally, not vertically)"
+          "derivation": "Timoshenko tip deflection at the bottom-right corner: PL\u00b3/3EI + PL/\u03baGA = 1.28 + 0.0624 = 1.3424 mm (positive shear acts along the CCW tangent = \u2212y on the right edge, so the plate bends DOWN); the corner carries the centerline deflection (the section rotation displaces the tip corners horizontally, not vertically)"
         },
         {
           "ref": "2000x500",
           "field": "uy",
           "value": -1.3424,
           "relTolerance": 0.01,
-          "derivation": "the top-right corner mirrors the bottom within the solver's clamp-boundary-layer difference — both carry the Timoshenko centerline value (observed 1.3361 vs 1.3362)"
+          "derivation": "the top-right corner mirrors the bottom within the solver's clamp-boundary-layer difference \u2014 both carry the Timoshenko centerline value (observed 1.3361 vs 1.3362)"
         }
       ]
     }
@@ -2065,7 +2065,7 @@
     "fea": {
       "expect": "error",
       "errorContains": "the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z)",
-      "note": "ux-only supports on the bottom edge: y-translation has no ux OR uy anchor anywhere (no fixed u^2 dof exists), and z-rotation survives because every fixed u^1 dof sits at y = 0 (r_rot(u1) = −y = 0 there). The rigid-mode check is pure math on the fixed DOF set BEFORE any solve (contract §14.5) — an unconstrained model is refused, never solved by guessing."
+      "note": "ux-only supports on the bottom edge: y-translation has no ux OR uy anchor anywhere (no fixed u^2 dof exists), and z-rotation survives because every fixed u^1 dof sits at y = 0 (r_rot(u1) = \u2212y = 0 there). The rigid-mode check is pure math on the fixed DOF set BEFORE any solve (contract \u00a714.5) \u2014 an unconstrained model is refused, never solved by guessing."
     }
   },
   {
@@ -2081,19 +2081,19 @@
           "ref": null,
           "field": "analysis",
           "value": "drainage",
-          "derivation": "the only analysis shipped this phase (contract §15.4)"
+          "derivation": "the only analysis shipped this phase (contract \u00a715.4)"
         },
         {
           "ref": null,
           "field": "engineKey",
           "value": "pyswmm",
-          "derivation": "the pip-pinned pyswmm distribution drives the EPA SWMM5 engine in-process (contract §15.5)"
+          "derivation": "the pip-pinned pyswmm distribution drives the EPA SWMM5 engine in-process (contract \u00a715.5)"
         },
         {
           "ref": null,
           "field": "routingStepSec",
           "value": 10,
-          "derivation": "the default routingStepSec parameter (contract §15.3)"
+          "derivation": "the default routingStepSec parameter (contract \u00a715.3)"
         },
         {
           "ref": null,
@@ -2228,7 +2228,7 @@
     "swmm": {
       "expect": "error",
       "errorContains": "the network has no outfall - runoff cannot leave the model, and simulated results are not an option",
-      "note": "Two junctions + one conduit, no outfall node: water cannot leave the network. The no-outfall check is the rigid-mode analog -- pure graph math on the node kinds BEFORE the engine opens (contract §15.2/§15.5) -- an undrainable model is refused, never solved by guessing."
+      "note": "Two junctions + one conduit, no outfall node: water cannot leave the network. The no-outfall check is the rigid-mode analog -- pure graph math on the node kinds BEFORE the engine opens (contract \u00a715.2/\u00a715.5) -- an undrainable model is refused, never solved by guessing."
     }
   },
   {
@@ -2238,70 +2238,70 @@
     "expect": "success",
     "transport": {
       "expect": "success",
-      "note": "Steady advection-diffusion down a channel (L=2 m, H=0.5 m, a=0.05 m/s, D=0.01 m²/s → Pe=10; inlet 1, outlet 0, zero-flux walls). The exact 1D closed form u(x) = (e^Pe − e^(Pe·x/L))/(e^Pe − 1) is reproduced by the FULL 2D Q2 assembly (contract §16.1: y-independence probed at 3.0e-15); every station pin below is the hand-derived closed form, tolerance from the measured O(h³) convergence (observed 3.0e-7 at the r=4 default).",
+      "note": "Steady advection-diffusion down a channel (L=2 m, H=0.5 m, a=0.05 m/s, D=0.01 m\u00b2/s \u2192 Pe=10; inlet 1, outlet 0, zero-flux walls). The exact 1D closed form u(x) = (e^Pe \u2212 e^(Pe\u00b7x/L))/(e^Pe \u2212 1) is reproduced by the FULL 2D Q2 assembly (contract \u00a716.1: y-independence probed at 3.0e-15); every station pin below is the hand-derived closed form, tolerance from the measured O(h\u00b3) convergence (observed 3.0e-7 at the r=4 default).",
       "pins": [
         {
           "ref": null,
           "field": "analysis",
           "value": "scalar_transport",
-          "derivation": "the only analysis shipped this phase (contract §16.2)"
+          "derivation": "the only analysis shipped this phase (contract \u00a716.2)"
         },
         {
           "ref": null,
           "field": "engineKey",
           "value": "sfepy",
-          "derivation": "the CFD lane's pinned engine (contract §16.1)"
+          "derivation": "the CFD lane's pinned engine (contract \u00a716.1)"
         },
         {
           "ref": null,
           "field": "elementType",
           "value": "quad",
-          "derivation": "gen_block_mesh 2_4 quads (contract §16.1 probe)"
+          "derivation": "gen_block_mesh 2_4 quads (contract \u00a716.1 probe)"
         },
         {
           "ref": null,
           "field": "approximation",
           "value": "Q2",
-          "derivation": "approx_order=2 on quads → 9-node Q2 (contract §16.3)"
+          "derivation": "approx_order=2 on quads \u2192 9-node Q2 (contract \u00a716.3)"
         },
         {
           "ref": null,
           "field": "refinement",
           "value": 4,
-          "derivation": "the default meshRefinement parameter (contract §16.3)"
+          "derivation": "the default meshRefinement parameter (contract \u00a716.3)"
         },
         {
           "ref": null,
           "field": "elementCount",
           "value": 1024,
-          "derivation": "N=8·2³=64 divisions on the longer (x) axis, y gets round(64·0.5/2)=16 → 64·16=1024 quads (the frozen square-element rule)"
+          "derivation": "N=8\u00b72\u00b3=64 divisions on the longer (x) axis, y gets round(64\u00b70.5/2)=16 \u2192 64\u00b716=1024 quads (the frozen square-element rule)"
         },
         {
           "ref": null,
           "field": "nodeCount",
           "value": 4257,
-          "derivation": "Q2 dofs: 65·17 corners + 64·17 x-midside + 65·16 y-midside + 64·16 centers = 1105+1088+1040+1024 = 4257"
+          "derivation": "Q2 dofs: 65\u00b717 corners + 64\u00b717 x-midside + 65\u00b716 y-midside + 64\u00b716 centers = 1105+1088+1040+1024 = 4257"
         },
         {
           "ref": null,
           "field": "pecletNumber",
           "value": 10.0,
           "absTolerance": 1e-12,
-          "derivation": "Pe = a·L/D = 0.05·2/0.01 = 10"
+          "derivation": "Pe = a\u00b7L/D = 0.05\u00b72/0.01 = 10"
         },
         {
           "ref": null,
           "field": "meshPecletNumber",
           "value": 0.078125,
           "absTolerance": 1e-12,
-          "derivation": "Pe_h = a·h/(2D) with h = L/64 = 0.03125 → 0.05·0.03125/0.02 = 0.078125 (far inside the probed-monotone bound 2)"
+          "derivation": "Pe_h = a\u00b7h/(2D) with h = L/64 = 0.03125 \u2192 0.05\u00b70.03125/0.02 = 0.078125 (far inside the probed-monotone bound 2)"
         },
         {
           "ref": null,
           "field": "minConcentration",
           "value": 0.0,
           "absTolerance": 1e-12,
-          "derivation": "the outlet Dirichlet dof is exactly 0 and the monotone solution never undershoots (Pe_h ≪ 2)"
+          "derivation": "the outlet Dirichlet dof is exactly 0 and the monotone solution never undershoots (Pe_h \u226a 2)"
         },
         {
           "ref": null,
@@ -2315,35 +2315,35 @@
           "field": "concentration",
           "value": 0.9998869334714342,
           "absTolerance": 0.0001,
-          "derivation": "u(L/8) = (e^10 − e^1.25)/(e^10 − 1) = 0.9998869334714342"
+          "derivation": "u(L/8) = (e^10 \u2212 e^1.25)/(e^10 \u2212 1) = 0.9998869334714342"
         },
         {
           "ref": "0.5x0.25",
           "field": "concentration",
           "value": 0.9994922925097303,
           "absTolerance": 0.0001,
-          "derivation": "u(L/4) = (e^10 − e^2.5)/(e^10 − 1) = 0.9994922925097303"
+          "derivation": "u(L/4) = (e^10 \u2212 e^2.5)/(e^10 \u2212 1) = 0.9994922925097303"
         },
         {
           "ref": "1.0x0.25",
           "field": "concentration",
           "value": 0.9933071490757152,
           "absTolerance": 0.0001,
-          "derivation": "u(L/2) = (e^10 − e^5)/(e^10 − 1) = 0.9933071490757152"
+          "derivation": "u(L/2) = (e^10 \u2212 e^5)/(e^10 \u2212 1) = 0.9933071490757152"
         },
         {
           "ref": "1.5x0.25",
           "field": "concentration",
           "value": 0.9179566765447413,
           "absTolerance": 0.0001,
-          "derivation": "u(3L/4) = (e^10 − e^7.5)/(e^10 − 1) = 0.9179566765447413"
+          "derivation": "u(3L/4) = (e^10 \u2212 e^7.5)/(e^10 \u2212 1) = 0.9179566765447413"
         },
         {
           "ref": "1.75x0.25",
           "field": "concentration",
           "value": 0.7135275972426084,
           "absTolerance": 0.0001,
-          "derivation": "u(7L/8) = (e^10 − e^8.75)/(e^10 − 1) = 0.7135275972426084 — inside the outlet boundary layer (observed 3.0e-7 at r=4, the O(h³) convergence pin)"
+          "derivation": "u(7L/8) = (e^10 \u2212 e^8.75)/(e^10 \u2212 1) = 0.7135275972426084 \u2014 inside the outlet boundary layer (observed 3.0e-7 at r=4, the O(h\u00b3) convergence pin)"
         }
       ]
     }
@@ -2355,63 +2355,63 @@
     "expect": "success",
     "transport": {
       "expect": "success",
-      "note": "The machine-class assembly pin (the fea-uniform-tension precedent): inlet = outlet = 1 makes u ≡ 1 — the constant satisfies the PDE, both Dirichlet BCs and the zero-flux walls EXACTLY, so the Q2 assembly must reproduce it to machine precision (contract §16.1 probe: max|u−1| = 4.5e-14). Any deviation beyond 1e-12 is an assembly defect.",
+      "note": "The machine-class assembly pin (the fea-uniform-tension precedent): inlet = outlet = 1 makes u \u2261 1 \u2014 the constant satisfies the PDE, both Dirichlet BCs and the zero-flux walls EXACTLY, so the Q2 assembly must reproduce it to machine precision (contract \u00a716.1 probe: max|u\u22121| = 4.5e-14). Any deviation beyond 1e-12 is an assembly defect.",
       "pins": [
         {
           "ref": null,
           "field": "pecletNumber",
           "value": 10.0,
           "absTolerance": 1e-12,
-          "derivation": "Pe = a·L/D = 10 (same transport regime as the channel case)"
+          "derivation": "Pe = a\u00b7L/D = 10 (same transport regime as the channel case)"
         },
         {
           "ref": null,
           "field": "minConcentration",
           "value": 1.0,
           "absTolerance": 1e-12,
-          "derivation": "u ≡ 1: the constant field is the exact solution (observed 0.9999999999999238)"
+          "derivation": "u \u2261 1: the constant field is the exact solution (observed 0.9999999999999238)"
         },
         {
           "ref": null,
           "field": "maxConcentration",
           "value": 1.0,
           "absTolerance": 1e-12,
-          "derivation": "u ≡ 1 (observed exactly 1.0 — the Dirichlet dofs pin the range)"
+          "derivation": "u \u2261 1 (observed exactly 1.0 \u2014 the Dirichlet dofs pin the range)"
         },
         {
           "ref": "0.25x0.25",
           "field": "concentration",
           "value": 1.0,
           "absTolerance": 1e-12,
-          "derivation": "u ≡ 1 at every station (observed 1 − 1.4e-14)"
+          "derivation": "u \u2261 1 at every station (observed 1 \u2212 1.4e-14)"
         },
         {
           "ref": "0.5x0.25",
           "field": "concentration",
           "value": 1.0,
           "absTolerance": 1e-12,
-          "derivation": "u ≡ 1 at every station (observed 1 − 2.5e-14)"
+          "derivation": "u \u2261 1 at every station (observed 1 \u2212 2.5e-14)"
         },
         {
           "ref": "1.0x0.25",
           "field": "concentration",
           "value": 1.0,
           "absTolerance": 1e-12,
-          "derivation": "u ≡ 1 at every station (observed 1 − 5.6e-14)"
+          "derivation": "u \u2261 1 at every station (observed 1 \u2212 5.6e-14)"
         },
         {
           "ref": "1.5x0.25",
           "field": "concentration",
           "value": 1.0,
           "absTolerance": 1e-12,
-          "derivation": "u ≡ 1 at every station (observed 1 − 7.4e-14)"
+          "derivation": "u \u2261 1 at every station (observed 1 \u2212 7.4e-14)"
         },
         {
           "ref": "1.75x0.25",
           "field": "concentration",
           "value": 1.0,
           "absTolerance": 1e-12,
-          "derivation": "u ≡ 1 at every station (observed 1 − 6.1e-14)"
+          "derivation": "u \u2261 1 at every station (observed 1 \u2212 6.1e-14)"
         }
       ]
     }
@@ -2424,7 +2424,7 @@
     "transport": {
       "expect": "error",
       "errorContains": "the mesh does not resolve the transport boundary layer",
-      "note": "The honest stability refusal (contract §16.5): a = 5 m/s at the default r=4 mesh gives element Péclet 5·(2/64)/(2·0.01) = 7.8125 > 2 — central-Galerkin Q2 OVERSHOOTS there (probed: +0.16 at Pe_h=4), so the adapter refuses BEFORE the solve rather than storing an oscillatory solution. The bound 2 is the probed-monotone value."
+      "note": "The honest stability refusal (contract \u00a716.5): a = 5 m/s at the default r=4 mesh gives element P\u00e9clet 5\u00b7(2/64)/(2\u00b70.01) = 7.8125 > 2 \u2014 central-Galerkin Q2 OVERSHOOTS there (probed: +0.16 at Pe_h=4), so the adapter refuses BEFORE the solve rather than storing an oscillatory solution. The bound 2 is the probed-monotone value."
     }
   },
   {
@@ -2434,19 +2434,19 @@
     "expect": "success",
     "chip": {
       "expect": "success",
-      "note": "The enable counter at W=4 (the Slice-28 probe width, re-probed §17.1): amaranth elaborates the device and emits RTLIL; yowasp-yosys synthesizes the gate-level netlist through the frozen script; amaranth's pysim runs the frozen 25-cycle stimulus (18 en, 1 dis, 6 en). CLOSED FORMS: a W-bit register carries exactly W flip-flops (hand-derived, probed at every width), and after E enabled cycles count = E mod 2^W (24 mod 16 = 8 — the wrap is visible at W=4; the cycle-19 disabled cycle holds at 18 mod 16 = 2). The W=4 histogram is EXACTLY the Slice-28 registry probe.",
+      "note": "The enable counter at W=4 (the Slice-28 probe width, re-probed \u00a717.1): amaranth elaborates the device and emits RTLIL; yowasp-yosys synthesizes the gate-level netlist through the frozen script; amaranth's pysim runs the frozen 25-cycle stimulus (18 en, 1 dis, 6 en). CLOSED FORMS: a W-bit register carries exactly W flip-flops (hand-derived, probed at every width), and after E enabled cycles count = E mod 2^W (24 mod 16 = 8 \u2014 the wrap is visible at W=4; the cycle-19 disabled cycle holds at 18 mod 16 = 2). The W=4 histogram is EXACTLY the Slice-28 registry probe.",
       "pins": [
         {
           "ref": null,
           "field": "analysis",
           "value": "rtl_synthesis",
-          "derivation": "the only analysis shipped this phase (contract §17.4)"
+          "derivation": "the only analysis shipped this phase (contract \u00a717.4)"
         },
         {
           "ref": null,
           "field": "engineKey",
           "value": "amaranth",
-          "derivation": "the lane's front-end engine (contract §17.3)"
+          "derivation": "the lane's front-end engine (contract \u00a717.3)"
         },
         {
           "ref": null,
@@ -2458,7 +2458,7 @@
           "ref": null,
           "field": "deviceKind",
           "value": "enable_counter",
-          "derivation": "the frozen v1 device class (contract §17.2)"
+          "derivation": "the frozen v1 device class (contract \u00a717.2)"
         },
         {
           "ref": null,
@@ -2470,13 +2470,13 @@
           "ref": null,
           "field": "flipFlopCount",
           "value": 4,
-          "derivation": "the closed form: a W-bit register has exactly W storage elements — probed at every width (§17.1)"
+          "derivation": "the closed form: a W-bit register has exactly W storage elements \u2014 probed at every width (\u00a717.1)"
         },
         {
           "ref": null,
           "field": "totalCells",
           "value": 10,
-          "derivation": "4 $_SDFFE_PP0P_ + 3 $_XOR_ + 2 $_AND_ + 1 $_NOT_ (§17.1 probe)"
+          "derivation": "4 $_SDFFE_PP0P_ + 3 $_XOR_ + 2 $_AND_ + 1 $_NOT_ (\u00a717.1 probe)"
         },
         {
           "ref": null,
@@ -2493,19 +2493,19 @@
           "ref": "$_SDFFE_PP0P_",
           "field": "cellCount",
           "value": 4,
-          "derivation": "one $_SDFFE_PP0P_ per register bit — the yosys $_SDFFE mapping of the sync-domain enable register"
+          "derivation": "one $_SDFFE_PP0P_ per register bit \u2014 the yosys $_SDFFE mapping of the sync-domain enable register"
         },
         {
           "ref": "$_XOR_",
           "field": "cellCount",
           "value": 3,
-          "derivation": "W−1 = 3 XOR gates: each upper bit XORs its carry-in (the closed form at every width)"
+          "derivation": "W\u22121 = 3 XOR gates: each upper bit XORs its carry-in (the closed form at every width)"
         },
         {
           "ref": "$_AND_",
           "field": "cellCount",
           "value": 2,
-          "derivation": "empirical: the yosys carry-chain sharing at W=4 (§17.1)"
+          "derivation": "empirical: the yosys carry-chain sharing at W=4 (\u00a717.1)"
         },
         {
           "ref": "$_NOT_",
@@ -2517,7 +2517,7 @@
           "ref": null,
           "field": "synthesisEngineKey",
           "value": "yowasp-yosys",
-          "derivation": "the synthesis half of the lane (contract §17.3)"
+          "derivation": "the synthesis half of the lane (contract \u00a717.3)"
         },
         {
           "ref": null,
@@ -2529,25 +2529,25 @@
           "ref": null,
           "field": "netlistSha256",
           "value": "549bbd3fc1205712bd044282ca09da9360f2149e5c319f70f38015daf3548dd4",
-          "derivation": "the src-stripped netlist is byte-identical across hosts — probed via three different source paths (§17.1)"
+          "derivation": "the src-stripped netlist is byte-identical across hosts \u2014 probed via three different source paths (\u00a717.1)"
         },
         {
           "ref": null,
           "field": "stepCount",
           "value": 25,
-          "derivation": "the frozen stimulus: 18 enabled, 1 disabled, 6 enabled (contract §17.4)"
+          "derivation": "the frozen stimulus: 18 enabled, 1 disabled, 6 enabled (contract \u00a717.4)"
         },
         {
           "ref": "cycle19",
           "field": "count",
           "value": 2,
-          "derivation": "cycle 19 is the DISABLED cycle: 18 enabled before it → 18 mod 16 = 2, and the register HOLDS (the closed-form hold pin)"
+          "derivation": "cycle 19 is the DISABLED cycle: 18 enabled before it \u2192 18 mod 16 = 2, and the register HOLDS (the closed-form hold pin)"
         },
         {
           "ref": "cycle25",
           "field": "count",
           "value": 8,
-          "derivation": "the final step: 24 enabled cycles → 24 mod 16 = 8 — the WRAP the closed form predicts (visible at W=4)"
+          "derivation": "the final step: 24 enabled cycles \u2192 24 mod 16 = 8 \u2014 the WRAP the closed form predicts (visible at W=4)"
         }
       ]
     }
@@ -2559,7 +2559,7 @@
     "expect": "success",
     "chip": {
       "expect": "success",
-      "note": "The enable counter at W=8 (the hand-Verilog Slice-28 smoke width, here through the amaranth front-end): the FF closed form holds (exactly 8), XOR = W−1 = 7, and the final count is 24 — the NON-wrapping regime (24 < 2^8), the honest complement of the W=4 wrap pin. The histogram matches the Slice-28 hand-Verilog smoke's shape (8 DFF + 7 XOR/8 AND/1 NOT).",
+      "note": "The enable counter at W=8 (the hand-Verilog Slice-28 smoke width, here through the amaranth front-end): the FF closed form holds (exactly 8), XOR = W\u22121 = 7, and the final count is 24 \u2014 the NON-wrapping regime (24 < 2^8), the honest complement of the W=4 wrap pin. The histogram matches the Slice-28 hand-Verilog smoke's shape (8 DFF + 7 XOR/8 AND/1 NOT).",
       "pins": [
         {
           "ref": null,
@@ -2577,7 +2577,7 @@
           "ref": null,
           "field": "totalCells",
           "value": 24,
-          "derivation": "8 $_SDFFE_PP0P_ + 7 $_XOR_ + 8 $_AND_ + 1 $_NOT_ (§17.1 probe)"
+          "derivation": "8 $_SDFFE_PP0P_ + 7 $_XOR_ + 8 $_AND_ + 1 $_NOT_ (\u00a717.1 probe)"
         },
         {
           "ref": null,
@@ -2588,7 +2588,7 @@
             "$_SDFFE_PP0P_",
             "$_XOR_"
           ],
-          "derivation": "the same four cell types at every width ≥ 2"
+          "derivation": "the same four cell types at every width \u2265 2"
         },
         {
           "ref": "$_SDFFE_PP0P_",
@@ -2600,13 +2600,13 @@
           "ref": "$_XOR_",
           "field": "cellCount",
           "value": 7,
-          "derivation": "W−1 = 7 (the XOR closed form)"
+          "derivation": "W\u22121 = 7 (the XOR closed form)"
         },
         {
           "ref": "$_AND_",
           "field": "cellCount",
           "value": 8,
-          "derivation": "empirical carry-chain sharing at W=8 (§17.1: 2W − 2log2W − 2 = 16−6−2)"
+          "derivation": "empirical carry-chain sharing at W=8 (\u00a717.1: 2W \u2212 2log2W \u2212 2 = 16\u22126\u22122)"
         },
         {
           "ref": "$_NOT_",
@@ -2624,13 +2624,13 @@
           "ref": "cycle19",
           "field": "count",
           "value": 18,
-          "derivation": "the disabled cycle 19 HOLDS the register at 18 enabled cycles — at W=8 there is no wrap (18 < 256), so the held value IS 18 (the W=4 case wraps it to 2; the hold itself is width-independent)"
+          "derivation": "the disabled cycle 19 HOLDS the register at 18 enabled cycles \u2014 at W=8 there is no wrap (18 < 256), so the held value IS 18 (the W=4 case wraps it to 2; the hold itself is width-independent)"
         },
         {
           "ref": "cycle25",
           "field": "count",
           "value": 24,
-          "derivation": "the final step: 24 enabled cycles, no wrap at W=8 (24 < 256) — the non-wrapping regime pinned honestly"
+          "derivation": "the final step: 24 enabled cycles, no wrap at W=8 (24 < 256) \u2014 the non-wrapping regime pinned honestly"
         }
       ]
     }
@@ -2643,7 +2643,603 @@
     "chip": {
       "expect": "error",
       "errorContains": "rtl model device.kind must be \"enable_counter\"",
-      "note": "The §17.2 schema refusal: the v1 device class is frozen at enable_counter; every other class (here 'alu') is its own future lane — refused at the zod (the route) AND mirrored in the adapter (defense-in-depth), never normalized to a guess."
+      "note": "The \u00a717.2 schema refusal: the v1 device class is frozen at enable_counter; every other class (here 'alu') is its own future lane \u2014 refused at the zod (the route) AND mirrored in the adapter (defense-in-depth), never normalized to a guess."
+    }
+  },
+  {
+    "caseId": "p2t-compare-identical",
+    "adapter": "pdf2takeoff",
+    "fixture": "sheet-a102-plan.pdf",
+    "expect": "success",
+    "groundTruth": "ADR-0009 Stage 1 (the ADOPTED engine, pinned commit f5a1c08): revision compare of the A-102 demo sheet against ITSELF. The fixture is byte-identical on both sides, so every one of the 4 sheets is UNCHANGED (changed 0 / unchanged 4 / onlyInA 0 / onlyInB 0), each changedFraction is exactly 0, and the vector diff agrees (identical, 0 added / 0 removed). Hand-derived from the fixture builder (tests/fixtures/build-sheet-pdf.ts): 4 pages, all MediaBox 1191x842 except page 4 portrait 842x1191.",
+    "pdf2takeoff": {
+      "op": "compare",
+      "expect": "success",
+      "otherFixture": "sheet-a102-plan.pdf",
+      "note": "identical bytes on both sides \u2014 the no-change witness; determinism = compare result JSON identity across two runs",
+      "runs": [
+        {
+          "parameters": {},
+          "pins": [
+            {
+              "ref": null,
+              "field": "comparedSheets",
+              "value": 4,
+              "derivation": "the A-102 fixture has 4 pages; both revisions identical, so all 4 pair up"
+            },
+            {
+              "ref": null,
+              "field": "changedSheetCount",
+              "value": 0,
+              "derivation": "byte-identical revisions cannot differ on any sheet"
+            },
+            {
+              "ref": null,
+              "field": "summary.changed",
+              "value": 0,
+              "derivation": "same \u2014 the summary counts the sheets array"
+            },
+            {
+              "ref": null,
+              "field": "summary.unchanged",
+              "value": 4,
+              "derivation": "all four pages identical"
+            },
+            {
+              "ref": null,
+              "field": "summary.onlyInA",
+              "value": 0,
+              "derivation": "same page count on both sides \u2014 nothing unmatched"
+            },
+            {
+              "ref": null,
+              "field": "summary.onlyInB",
+              "value": 0,
+              "derivation": "same page count on both sides \u2014 nothing unmatched"
+            },
+            {
+              "ref": "page:1",
+              "field": "changedFraction",
+              "value": 0,
+              "derivation": "identical raster \u2192 zero changed pixels"
+            },
+            {
+              "ref": "page:4",
+              "field": "vectorIdentical",
+              "value": true,
+              "derivation": "identical vector operators (the portrait panel-schedule page included)"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "p2t-compare-different",
+    "adapter": "pdf2takeoff",
+    "fixture": "sheet-a102-plan.pdf",
+    "expect": "success",
+    "groundTruth": "ADR-0009 Stage 1: revision compare of the A-102 plan set (4 sheets) against the quarter-arc curve fixture (1 sheet, tests/fixtures/build-curve-pdf.ts). Sheets pair by position: page 1 pairs (both exist) and DIFFERS \u2014 the A-102 page 1 carries the title text, scale bar, room outline and interior wall while the curve sheet draws one quarter-arc \u2014 so changed 1, unchanged 0; pages 2-4 have no counterpart (onlyInA 3, onlyInB 0, comparedSheets 1). Page 1's changedFraction is a raster-diff quantity (engine-observed 0.0059 on the dev host; pinned at abs 0.005 to stay honest across hosts) with changed regions present.",
+    "pdf2takeoff": {
+      "op": "compare",
+      "expect": "success",
+      "otherFixture": "sheet-curve-arc.pdf",
+      "note": "cross-sheet pair with a real change on the paired page and unmatched sheets on the A-side; determinism = compare result JSON identity across two runs",
+      "runs": [
+        {
+          "parameters": {},
+          "pins": [
+            {
+              "ref": null,
+              "field": "comparedSheets",
+              "value": 1,
+              "derivation": "only page 1 exists on both sides (curve fixture is single-sheet)"
+            },
+            {
+              "ref": null,
+              "field": "changedSheetCount",
+              "value": 1,
+              "derivation": "the paired page 1 differs (completely different drawing content)"
+            },
+            {
+              "ref": null,
+              "field": "summary.changed",
+              "value": 1,
+              "derivation": "page 1 changed"
+            },
+            {
+              "ref": null,
+              "field": "summary.onlyInA",
+              "value": 3,
+              "derivation": "A-102 pages 2, 3, 4 have no counterpart in the single-page curve revision"
+            },
+            {
+              "ref": null,
+              "field": "summary.onlyInB",
+              "value": 0,
+              "derivation": "every curve-sheet page (just page 1) has an A-counterpart"
+            },
+            {
+              "ref": "page:1",
+              "field": "changed",
+              "value": true,
+              "derivation": "different drawings on the paired page"
+            },
+            {
+              "ref": "page:1",
+              "field": "changedFraction",
+              "value": 0.0059,
+              "absTolerance": 0.005,
+              "derivation": "engine-observed raster-diff fraction on the dev host (title bar + room rectangle + wall regions); abs 0.005 keeps the pin honest across raster hosts"
+            },
+            {
+              "ref": "page:1",
+              "field": "regionCount",
+              "value": 1,
+              "minBound": true,
+              "derivation": "at least one changed region localizes the change (the engine reported 3 on the dev host)"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "p2t-annotate-roundtrip",
+    "adapter": "pdf2takeoff",
+    "fixture": "sheet-a102-plan.pdf",
+    "expect": "success",
+    "groundTruth": "ADR-0009 Stage 1: PDF annotation round-trip. The spec writes THREE markups pinned to the A-102 closed forms (contract \u00a72.2): the scale-bar run (60 -> 343.4646 pt = 100 paper-mm), the room rectangle (500,400 -> 726.7717,541.7323 = 80x50 paper-mm), one socket on page 2. The engine writes them as STANDARD annotations (Line/PolyLine/Polygon/FreeText) and reports 3 written / 0 kept. The output embeds a creation timestamp \u2014 byte-determinism is NOT claimed (the LibreOffice \u00a75.4 convention); the pins are structural (count + %PDF magic + size floor) and the VALUES are pinned by the p2t-export-boq-roundtrip case.",
+    "pdf2takeoff": {
+      "op": "annotate",
+      "expect": "success",
+      "note": "structural evidence only \u2014 annotate output embeds a creation timestamp, determinism honestly null (\u00a75.4); re-runs REPLACE the pdf2takeoff markups idempotently",
+      "runs": [
+        {
+          "parameters": {
+            "markups": [
+              {
+                "type": "length",
+                "label": "Scale bar",
+                "page": 1,
+                "points": [
+                  [
+                    60,
+                    400
+                  ],
+                  [
+                    343.4646,
+                    400
+                  ]
+                ]
+              },
+              {
+                "type": "area",
+                "label": "Room 101",
+                "page": 1,
+                "points": [
+                  [
+                    500,
+                    400
+                  ],
+                  [
+                    726.7717,
+                    400
+                  ],
+                  [
+                    726.7717,
+                    541.7323
+                  ],
+                  [
+                    500,
+                    541.7323
+                  ]
+                ]
+              },
+              {
+                "type": "count",
+                "label": "Socket",
+                "page": 2,
+                "points": [
+                  [
+                    205,
+                    505
+                  ]
+                ]
+              }
+            ]
+          },
+          "pins": [
+            {
+              "ref": null,
+              "field": "markupCount",
+              "value": 3,
+              "derivation": "the spec carries exactly 3 markups (length + area + count)"
+            },
+            {
+              "ref": null,
+              "field": "kept",
+              "value": 0,
+              "derivation": "the bare fixture carries no pdf2takeoff annotations \u2014 nothing to keep"
+            },
+            {
+              "ref": null,
+              "field": "isPdf",
+              "value": true,
+              "derivation": "the annotated output must be a real PDF (%PDF magic)"
+            },
+            {
+              "ref": null,
+              "field": "sizeBytes",
+              "value": 4000,
+              "minBound": true,
+              "derivation": "the 6166-byte dev-host output sizes the floor; an annotated copy of the 4-page fixture cannot be tiny"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "p2t-export-boq-roundtrip",
+    "adapter": "pdf2takeoff",
+    "fixture": "sheet-a102-plan.pdf",
+    "expect": "success",
+    "groundTruth": "ADR-0009 Stage 1: the annotate -> export round-trip (the product loop: markups become BOQ rows). The run annotates the A-102 closed forms into the PDF, then exports the quantities table at scale 1:100 in metres. Hand-derived values from contract \u00a72.2 + the engine's exact 1:100 preset (metersPerPt 0.03527778, the upstream's 8-dp preset value): scale bar = 283.4646 pt x 0.03527778 m/pt = 10.000001166666667 m (analytic 10.000 m at 1:100); room = 226.7717 x 141.7323 pt -> 40.00001783583051 m2 (analytic 40.000 m2); socket = 1 each. The XLSX twin is a real workbook (PK zip magic).",
+    "pdf2takeoff": {
+      "op": "export",
+      "expect": "success",
+      "note": "run 1 = CSV (values pinned against the A-102 closed forms); run 2 = the XLSX twin (structural: PK magic + size floor). Determinism = CSV row identity across two executions",
+      "runs": [
+        {
+          "parameters": {
+            "spec": [
+              {
+                "type": "length",
+                "label": "Scale bar",
+                "page": 1,
+                "points": [
+                  [
+                    60,
+                    400
+                  ],
+                  [
+                    343.4646,
+                    400
+                  ]
+                ]
+              },
+              {
+                "type": "area",
+                "label": "Room 101",
+                "page": 1,
+                "points": [
+                  [
+                    500,
+                    400
+                  ],
+                  [
+                    726.7717,
+                    400
+                  ],
+                  [
+                    726.7717,
+                    541.7323
+                  ],
+                  [
+                    500,
+                    541.7323
+                  ]
+                ]
+              },
+              {
+                "type": "count",
+                "label": "Socket",
+                "page": 2,
+                "points": [
+                  [
+                    205,
+                    505
+                  ]
+                ]
+              }
+            ],
+            "scaleRatio": "1:100",
+            "unit": "m",
+            "format": "csv"
+          },
+          "pins": [
+            {
+              "ref": null,
+              "field": "rowCount",
+              "value": 3,
+              "derivation": "three markups -> three data rows"
+            },
+            {
+              "ref": "label:Scale bar",
+              "field": "value",
+              "value": 10.000001166666667,
+              "relTolerance": 1e-09,
+              "derivation": "283.4646 pt x 0.03527778 m/pt (the engine's exact 1:100 preset); analytic 100 paper-mm = 10.000 m real"
+            },
+            {
+              "ref": "label:Scale bar",
+              "field": "unit",
+              "value": "m",
+              "derivation": "length export in metres"
+            },
+            {
+              "ref": "label:Room 101",
+              "field": "value",
+              "value": 40.00001783583051,
+              "relTolerance": 1e-09,
+              "derivation": "226.7717 x 141.7323 pt at 1:100 -> 80x50 paper-mm -> 8.000 x 5.000 m = 40.000 m2 analytic"
+            },
+            {
+              "ref": "label:Room 101",
+              "field": "type",
+              "value": "area",
+              "derivation": "the spec's area markup exports as an area row"
+            },
+            {
+              "ref": "label:Socket",
+              "field": "value",
+              "value": 1,
+              "derivation": "one count markup at (205, 505) on page 2 (the S13 lighting-layout socket grid, first symbol)"
+            },
+            {
+              "ref": "label:Socket",
+              "field": "unit",
+              "value": "each",
+              "derivation": "counts export in each"
+            }
+          ]
+        },
+        {
+          "parameters": {
+            "spec": [
+              {
+                "type": "length",
+                "label": "Scale bar",
+                "page": 1,
+                "points": [
+                  [
+                    60,
+                    400
+                  ],
+                  [
+                    343.4646,
+                    400
+                  ]
+                ]
+              },
+              {
+                "type": "area",
+                "label": "Room 101",
+                "page": 1,
+                "points": [
+                  [
+                    500,
+                    400
+                  ],
+                  [
+                    726.7717,
+                    400
+                  ],
+                  [
+                    726.7717,
+                    541.7323
+                  ],
+                  [
+                    500,
+                    541.7323
+                  ]
+                ]
+              },
+              {
+                "type": "count",
+                "label": "Socket",
+                "page": 2,
+                "points": [
+                  [
+                    205,
+                    505
+                  ]
+                ]
+              }
+            ],
+            "scaleRatio": "1:100",
+            "unit": "m",
+            "format": "xlsx"
+          },
+          "pins": [
+            {
+              "ref": null,
+              "field": "isXlsx",
+              "value": true,
+              "derivation": "the XLSX export must be a real workbook (PK zip magic)"
+            },
+            {
+              "ref": null,
+              "field": "sizeBytes",
+              "value": 3000,
+              "minBound": true,
+              "derivation": "a 3-row workbook with styles sizes the floor (dev host: ~5 KB)"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "p2t-fill-area-room",
+    "adapter": "pdf2takeoff",
+    "fixture": "sheet-a102-plan.pdf",
+    "expect": "success",
+    "groundTruth": "ADR-0009 Stage 1: room fill (Magic Fill) inside the A-102 room outline \u2014 the 80x50 paper-mm rectangle at (500,400)..(726.7717,541.7323) pt, i.e. the analytic 8.000 x 5.000 m = 40.000 m2 room at 1:100 (scaleMmPerPt 1270/36, the platform calibration for A3@1:100 carried EXACTLY via from_points). The engine's documented behaviour: the fill boundary runs along the INNER faces of the 1-pt stroke (~0.67 pt inset per side), so the engine-observed value is 39.4009 m2 on the dev host \u2014 pinned at abs 0.1 (a raster-fill quantity, honest across hosts). The click point (560, 460) is strictly inside the room, clear of the interior wall anchored on the bottom edge. 8 boundary vertices on the dev host (the rect's 4 corners + the wall's intersections), bbox inside the analytic rect.",
+    "pdf2takeoff": {
+      "op": "fill",
+      "expect": "success",
+      "note": "Magic Fill is a raster flood fill: value pinned at abs 0.1 m2 (dev host 39.4009 vs the 40.000 analytic \u2014 the inner-face inset); determinism = value/vertices/bbox identity (the markup id carries a random suffix, excluded honestly)",
+      "runs": [
+        {
+          "parameters": {
+            "pageNo": 1,
+            "at": [
+              560,
+              460
+            ],
+            "label": "Room 101",
+            "scaleMmPerPt": 35.27777777777778
+          },
+          "pins": [
+            {
+              "ref": null,
+              "field": "value",
+              "value": 39.4009,
+              "absTolerance": 0.1,
+              "derivation": "analytic 40.000 m2 minus the inner-wall-face inset of the 1-pt stroke (~0.67 pt/side); engine-observed 39.4009 on the dev host"
+            },
+            {
+              "ref": null,
+              "field": "vertices",
+              "value": 8,
+              "derivation": "the room rectangle's 4 corners + the interior wall's 2 boundary intersections + the 2 jogs where the boundary turns along the wall \u2014 the dev-host raster polygon"
+            },
+            {
+              "ref": null,
+              "field": "unit",
+              "value": "m2",
+              "derivation": "the fill records an area in square metres"
+            },
+            {
+              "ref": null,
+              "field": "calibrated",
+              "value": true,
+              "derivation": "the bridge ALWAYS calibrates the session (from_points carries the platform scale exactly)"
+            },
+            {
+              "ref": null,
+              "field": "bboxX0",
+              "value": 500.67,
+              "absTolerance": 1.0,
+              "derivation": "the analytic left edge is x=500; the fill boundary sits ~0.67 pt inside it (pen half-width)"
+            },
+            {
+              "ref": null,
+              "field": "bboxX1",
+              "value": 726.33,
+              "absTolerance": 1.0,
+              "derivation": "the analytic right edge is x=726.7717; inset ~0.44 pt on the dev host"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "p2t-fill-no-scale",
+    "adapter": "pdf2takeoff",
+    "fixture": "sheet-a102-plan.pdf",
+    "expect": "error",
+    "groundTruth": "ADR-0009 Stage 1: the calibration red line \u2014 fill_area without a scale REFUSES before any engine call (an uncalibrated takeoff number is a fabricated number, ADR-0005/0006). The bridge's pinned verbatim refusal.",
+    "pdf2takeoff": {
+      "op": "fill",
+      "expect": "error",
+      "errorContains": "scaleMmPerPt must be a positive number \u2014 calibrate the sheet first or pass it explicitly (an uncalibrated takeoff number is a fabricated number)",
+      "note": "the refusal fires BEFORE any subprocess spawn \u2014 validated in the bridge's pure half",
+      "runs": [
+        {
+          "parameters": {
+            "pageNo": 1,
+            "at": [
+              560,
+              460
+            ]
+          },
+          "errorContains": "scaleMmPerPt must be a positive number \u2014 calibrate the sheet first or pass it explicitly (an uncalibrated takeoff number is a fabricated number)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "p2t-export-no-annotations",
+    "adapter": "pdf2takeoff",
+    "fixture": "sheet-a102-plan.pdf",
+    "expect": "error",
+    "groundTruth": "ADR-0009 Stage 1: export from a PDF carrying NO pdf2takeoff annotations refuses honestly (the engine's own message, surfaced verbatim through the bridge) \u2014 nothing is invented from an unannotated sheet.",
+    "pdf2takeoff": {
+      "op": "export",
+      "expect": "error",
+      "errorContains": "no pdf2takeoff annotations found",
+      "note": "the engine's honest refusal \u2014 the bare A-102 fixture has no annotations to export",
+      "runs": [
+        {
+          "parameters": {
+            "scaleRatio": "1:100",
+            "unit": "m",
+            "format": "csv"
+          },
+          "errorContains": "no pdf2takeoff annotations found"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "p2t-annotate-bad-spec",
+    "adapter": "pdf2takeoff",
+    "fixture": "sheet-a102-plan.pdf",
+    "expect": "error",
+    "groundTruth": "ADR-0009 Stage 1: the bridge refuses a malformed annotate spec BEFORE any subprocess spawn \u2014 an area markup with a single point cannot exist (upstream parseSpec policy mirrored: length/area need >= 2 points).",
+    "pdf2takeoff": {
+      "op": "annotate",
+      "expect": "error",
+      "errorContains": "markups[0].points must be an array of",
+      "note": "bridge-level validation \u2014 no engine subprocess runs for garbage input",
+      "runs": [
+        {
+          "parameters": {
+            "markups": [
+              {
+                "type": "area",
+                "points": [
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            ]
+          },
+          "errorContains": "markups[0].points must be an array of"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "p2t-fill-click-on-line",
+    "adapter": "pdf2takeoff",
+    "fixture": "sheet-a102-plan.pdf",
+    "expect": "error",
+    "groundTruth": "ADR-0009 Stage 1: a fill click ON a drawn line (the interior-wall anchor zone at (613, 470)) is the ENGINE's honest refusal \u2014 the MCP tool refuses with 'you clicked on a line \u2014 click inside the region' and the bridge surfaces it verbatim as EngineUnavailableError. A miss is a miss, never a fabricated area.",
+    "pdf2takeoff": {
+      "op": "fill",
+      "expect": "error",
+      "errorContains": "clicked on a line",
+      "note": "the engine's own refusal surfaced through the MCP session (isError content)",
+      "runs": [
+        {
+          "parameters": {
+            "pageNo": 1,
+            "at": [
+              613,
+              470
+            ],
+            "scaleMmPerPt": 35.27777777777778
+          },
+          "errorContains": "clicked on a line"
+        }
+      ]
     }
   }
 ]

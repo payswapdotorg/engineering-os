@@ -1,6 +1,6 @@
 # ADR-0009: Open-Source Reuse and Consolidation Audit v1
 
-Status: accepted (2026-10-30, Audit v1 — binding Open-Source Reuse Directive compliance, delivered before the next capability expansion) · Supersedes: none · Extends: [ADR-0004](0004-license-and-copyleft-boundary.md) (license boundary), [ADR-0005](0005-engine-integration-contract.md) (engine contract), [ADR-0006](0006-agent-safety-and-approval-gates.md) (approval red line), [ADR-0008](0008-llm-planner-untrusted-advisor.md) (planner contract)
+Status: accepted (2026-10-30, Audit v1 — binding Open-Source Reuse Directive compliance, delivered before the next capability expansion) · **Stage 1 SHIPPED same day** (see the migration-plan note below: the pdf2takeoff arm's-length bridge is live — 4 broker ops, 9/9 harness cases, registry `tested`) · Supersedes: none · Extends: [ADR-0004](0004-license-and-copyleft-boundary.md) (license boundary), [ADR-0005](0005-engine-integration-contract.md) (engine contract), [ADR-0006](0006-agent-safety-and-approval-gates.md) (approval red line), [ADR-0008](0008-llm-planner-untrusted-advisor.md) (planner contract)
 
 ## Context
 
@@ -84,12 +84,18 @@ Staged, acceptance-suite-protected:
 
 - **Stage 0 (this change):** ADR-0009 + docs-drift fixes + registry rows. No
   runtime code touched; CI gates unaffected.
-- **Stage 1:** pdf2takeoff arm's-length bridge pinned to an exact commit
-  (registry state installed→tested), new broker ops (`compare_revisions`,
-  `annotate_takeoff`, `export_boq_xlsx`, `fill_area`), corpus cases in
-  `tests/validation`, AC items appended to
-  [docs/06-qa/acceptance-catalogue.md](../06-qa/acceptance-catalogue.md).
-  The existing 506-e2e suite must stay green.
+- **Stage 1 (SHIPPED 2026-10-30, same day):** pdf2takeoff arm's-length bridge
+  pinned to the exact commit `f5a1c08…`
+  (`scripts/setup-pdf2takeoff.sh` + `src/engines/adapters/pdf2takeoff.ts`;
+  registry state planned → **tested**), new broker ops (`compare_revisions`,
+  `annotate_takeoff`, `export_boq_xlsx`, `fill_area` — BROKER_OPERATIONS
+  15 → 19), corpus cases in `tests/validation` (42 → 51; the 9 p2t cases
+  pin the A-102 closed forms and four honest refusals, all passing), AC
+  items appended to
+  [docs/06-qa/acceptance-catalogue.md](../06-qa/acceptance-catalogue.md)
+  (AC-P2T-1…12). The unit suite stayed green (791 pass / 0 fail); the
+  506-e2e suite runs in CI on the push (the dev sandbox lacks the seeded
+  DB — recorded honestly in the AC residuals).
 - **Stage 2:** workflow-foundation spike (Temporal vs Kestra) behind a flag;
   decision ADR-0010; swap only after e2e-p4 + recovery drill pass on the
   replacement.

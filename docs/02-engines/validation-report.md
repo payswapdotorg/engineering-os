@@ -29,42 +29,40 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-30T08:22:56.094Z`
-- Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python`
+- Ran at (UTC): `2026-10-30T18:01:54.246Z`
+- Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python3`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
-- Engine availability probe — ifcopenshell (IFC quantities): available
-- Engine availability probe — gmsh (FE mesh): available
-- Engine availability probe — pandapower (power flow): available
-- Engine availability probe — simpy (discrete-event): available
-- Engine availability probe — scikit-fem (plane-stress FEA): available
-- Engine availability probe — sfepy/SfePy (steady scalar transport CFD): available
-- Engine availability probe — amaranth + yowasp-yosys (RTL synthesis): available
-- Engine availability probe — pyswmm/SWMM5 (stormwater drainage): available
+- Engine availability probe — ifcopenshell (IFC quantities): UNAVAILABLE (ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1))
+- Engine availability probe — gmsh (FE mesh): UNAVAILABLE (gmsh is not importable in /home/z/.venv/bin/python3 (exit code 1) — missing system libs? run scripts/setup-engine-libs.sh)
+- Engine availability probe — pandapower (power flow): UNAVAILABLE (pandapower is not importable in /home/z/.venv/bin/python3 (exit code 1))
+- Engine availability probe — simpy (discrete-event): UNAVAILABLE (simpy is not importable in /home/z/.venv/bin/python3 (exit code 1))
+- Engine availability probe — scikit-fem (plane-stress FEA): UNAVAILABLE (skfem is not importable in /home/z/.venv/bin/python3 (exit code 1))
+- Engine availability probe — sfepy/SfePy (steady scalar transport CFD): UNAVAILABLE (sfepy is not importable in /home/z/.venv/bin/python3 (exit code 1))
+- Engine availability probe — amaranth + yowasp-yosys (RTL synthesis): UNAVAILABLE (amaranth is not importable in /home/z/.venv/bin/python3 (exit code 1))
+- Engine availability probe — pyswmm/SWMM5 (stormwater drainage): UNAVAILABLE (pyswmm is not importable in /home/z/.venv/bin/python3 (exit code 1))
 - Engine availability probe — platform CPM core (no engine): available
 - Engine availability probe — libreoffice (document conversion): available
 - Engine availability probe — pdfplumber (vector sheet takeoff): available
 - Engine availability probe — ezdxf (DXF takeoff): available
 - Engine availability probe — cadquery (parametric rebuild): available
 - Engine availability probe — tesseract (sheet-text OCR): available
-- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · sfepy 2026.3 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5 · tesseract 5.5.0 · pyswmm 2.2.0 · amaranth 0.5.10
+- Engine availability probe — pdf2takeoff (ADOPTED takeoff engine — ADR-0009): available
+- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell no successful run (version unknown) · gmsh no successful run (version unknown) · pandapower no successful run (version unknown) · simpy no successful run (version unknown) · scikit-fem no successful run (version unknown) · sfepy no successful run (version unknown) · libreoffice 25.2.3.2 · pdfplumber 0.11.9 · ezdxf 1.4.3 · pdf2takeoff 0.1.0 · tesseract 5.5.0
 - Adapter `step_quantities.py` sha256: `950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d`
-- Adapter `ifc_quantities.py` sha256: `68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78`
+- Adapter `ifc_quantities.py` sha256: `not observed (no successful run)`
 - Adapter `step_mesh.py` sha256: `e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c`
-- Adapter `ifc_mesh.py` sha256: `6854d6c0a170daf29de36991af88996af10f2169084d5850083fad03b9747465`
-- Adapter `step_femesh.py` sha256: `3770e13ab779e6cbbe3db9162533bf028a26b4087dcbb476d92742f927a34b3f`
-- Adapter `powerflow.py` sha256: `a1a8fc441d0cf321e95bbd655fc368cb04c22e17ee693090f9b7193fdb380606`
-- Adapter `des.py` sha256: `9295a66271617f068f9dfab63f9339e814f993db59605df7b7ce86a0c3842550`
+- Adapter `ifc_mesh.py` sha256: `not observed (no successful run)`
+- Adapter `step_femesh.py` sha256: `not observed (no successful run)`
+- Adapter `powerflow.py` sha256: `not observed (no successful run)`
+- Adapter `des.py` sha256: `not observed (no successful run)`
 - Adapter `convert-document.ts` sha256: `4b1bb3d10fdcaa3f85ebb654a652092acb3ac5a59812f1f0fd9c5074b15540d0`
 - Adapter `sheet_takeoff.py` sha256: `bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff`
 - Adapter `dxf_takeoff.py` sha256: `07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329`
-- Adapter `parametric_rebuild.py` sha256: `7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9`
+- Adapter `parametric_rebuild.py` sha256: `14d62a117314160ffea825ec9aca038e863a550fa7cc5b33babb487295854acf`
+- Adapter `pdf2takeoff.ts` sha256: `9b97433816a0773676d8f3fb4592e14ff03c30083af4e03e6fd2796f486f9728`
 - Adapter `sheet_ocr.ts` sha256: `b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45`
-- Adapter `fea_solve.py` sha256: `86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef`
-- Adapter `swmm_run.py` sha256: `6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d`
-- Adapter `transport_solve.py` sha256: `d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b`
-- Adapter `rtl_synthesize.py` sha256: `dfd179e6be39f1bea0b70e8ac889c8e56ffa39554ce85188d85d9cde8a37fba7`
-- Corpus: `tests/validation/corpus-manifest.json` — 42 cases
+- Corpus: `tests/validation/corpus-manifest.json` — 51 cases
 
 ## Tolerance policy (pinned)
 
@@ -74,7 +72,7 @@
 | `analytic` | \|obs − exp\| ≤ 1e-9 · max(1, \|exp\|) | exact-engine value vs closed form; also used for the PLANAR mesh case, where the divergence-theorem volume / triangle-sum area are mathematically exact (only IEEE rounding remains) |
 | `mesh` | \|obs − exp\| ≤ 1e-2 · \|exp\| | pinned 1% engineering tolerance for triangulated CURVED surfaces (ifcopenshell PyPI wheel has no OCCT backend, `has_occ=False`); the observed relative error is recorded below — the limitation is quantified, not hidden |
 
-## Results — 42 cases: 42 pass / 0 fail / 0 skip
+## Results — 51 cases: 25 pass / 0 fail / 26 skip
 
 | Case | Adapter | Fixture | Expect | Status | Determinism | Quantities (obs / pinned) | Max observed rel error | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -83,43 +81,52 @@
 | `step-two-solids` | step | `two-solids.step` | success | pass | ✅ true | 4 / 4 | 0.000e+0 | mesh: 2 element(s) / 48 verts / 24 tris · byte-determinism ✅ · max mesh-volume rel error 3.765e-16 |
 | `step-bracket-empty` | step | `bracket.step` | error | pass | — | — | — | mesh: threw honest error: `no solid geometry found in STEP file (import produced 0 solids) - cannot tessellate, and simulated m` · threw honest error: `no solid geometry found in STEP file (import produced 0 solids) - cannot derive quantities, and simulated values are not an option` |
 | `step-nonmodel-file` | step | `site-notes.md` | error | pass | — | — | — | mesh: threw honest error: `cadquery STEP import failed: ValueError: STEP File could not be loaded` · threw honest error: `cadquery STEP import failed: ValueError: STEP File could not be loaded` |
-| `ifc-wall-quantities` | ifc | `wall-quantities.ifc` | success | pass | ✅ true | 10 / 10 | 0.000e+0 |  |
-| `ifc-two-elements` | ifc | `two-elements.ifc` | success | pass | ✅ true | 15 / 15 | 0.000e+0 | mesh: 3 element(s) / 24 verts / 36 tris · byte-determinism ✅ · max mesh-volume rel error 1.586e-16 |
-| `ifc-wall-geometry-mesh` | ifc | `wall-geometry.ifc` | success | pass | ✅ true | 2 / 2 | 1.850e-16 | mesh: 1 element(s) / 8 verts / 12 tris · byte-determinism ✅ · max mesh-volume rel error 1.850e-16 · largest observed rel error 1.850e-16 (#2rUnE8CnPHBwLdZzIqZkf1 volume) — IEEE/authoring noise only, within tolerance |
-| `ifc-cylinder-geometry-mesh` | ifc | `cylinder-geometry.ifc` | success | pass | ✅ true | 2 / 2 | 3.246e-3 | mesh: 1 element(s) / 90 verts / 176 tris · byte-determinism ✅ · max mesh-volume rel error 3.246e-3 · mesh vs closed form: volume observed 0.3757673725921769 vs expected 0.3769911184307752 m³ — rel error 3.246e-3 (0.3246%) · mesh vs closed form: area observed 4.017361163910887 vs expected 4.0212385965949355 m² — rel error 9.642e-4 (0.0964%) |
-| `ifc-wall-stripped-empty` | ifc | `wall-stripped.ifc` | success | pass | ✅ true | 0 / 0 | — | mesh: threw honest error: `no meshable geometry found in IFC file (1 element(s) examined, 0 produced a triangulation) — cannot ` · empty pinned set — the adapter returned zero quantities (honest empty, never fabricated) |
-| `ifc-nonmodel-file` | ifc | `site-notes.md` | error | pass | — | — | — | mesh: threw honest error: `ifcopenshell could not open the file: Error: Unable to parse IFC SPF header` · threw honest error: `ifcopenshell could not open the file: Error: Unable to parse IFC SPF header` |
-| `femesh-bracket-solid` | femesh | `bracket-solid.step` | success | pass | — | — / — | — | femesh: 7 pin(s) · gmsh 4.15.2 · doc byte-determinism ✅ · max pin rel error 9.162e-3 |
-| `femesh-two-solids` | femesh | `two-solids.step` | success | pass | — | — / — | — | femesh: 6 pin(s) · gmsh 4.15.2 · doc byte-determinism ✅ · max pin rel error 1.364e-15 |
-| `femesh-geometry-free` | femesh | `bracket.step` | error | pass | — | — | — | femesh: threw honest error: `no solid geometry found in STEP file (import produced 0 solids) - cannot generate an FE mesh, and simulated meshes are n` · threw honest error: `` |
-| `femesh-ifc-refused` | femesh | `wall-quantities.ifc` | error | pass | — | — | — | femesh: threw honest error: `gmsh cannot import IFC geometry (gmsh has no IFC import reader - OCC STEP/IGES/BRep only) - cannot generate an FE mesh, ` · threw honest error: `` |
-| `powerflow-2bus-closed-form` | powerflow | `powerflow-2bus.json` | success | pass | — | — / — | — | powerflow: 10 pin(s) · pandapower 3.5.6 · doc byte-determinism ✅ · max pin rel error 1.648e-5 |
-| `powerflow-islanded` | powerflow | `powerflow-islanded.json` | error | pass | — | — | — | powerflow: threw honest error: `power flow did not produce results for all buses (islanded network - buses with no path to the external grid: bus-3) - r` · threw honest error: `` |
-| `des-flowshop-makespan` | des | `des-flowshop.json` | success | pass | — | — / — | — | des: 11 pin(s) · simpy 4.1.2 · doc byte-determinism ✅ |
-| `des-invalid-resource` | des | `des-invalid-resource.json` | error | pass | — | — | — | des: threw honest error: `jobs[0].tasks[1] references unknown resource "crane"` · threw honest error: `` |
+| `ifc-wall-quantities` | ifc | `wall-quantities.ifc` | success | skip | — | — / 10 | — | engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `ifc-two-elements` | ifc | `two-elements.ifc` | success | skip | — | — / 15 | — | engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `ifc-wall-geometry-mesh` | ifc | `wall-geometry.ifc` | success | skip | — | — / 2 | — | engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `ifc-cylinder-geometry-mesh` | ifc | `cylinder-geometry.ifc` | success | skip | — | — / 2 | — | engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `ifc-wall-stripped-empty` | ifc | `wall-stripped.ifc` | success | skip | — | — / 0 | — | engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `ifc-nonmodel-file` | ifc | `site-notes.md` | error | skip | — | — | — | engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `femesh-bracket-solid` | femesh | `bracket-solid.step` | success | skip | — | — / — | — | engine unavailable for the femesh adapter: gmsh is not importable in /home/z/.venv/bin/python3 (exit code 1) — missing system libs? run scripts/setup-engine-libs.sh |
+| `femesh-two-solids` | femesh | `two-solids.step` | success | skip | — | — / — | — | engine unavailable for the femesh adapter: gmsh is not importable in /home/z/.venv/bin/python3 (exit code 1) — missing system libs? run scripts/setup-engine-libs.sh |
+| `femesh-geometry-free` | femesh | `bracket.step` | error | skip | — | — | — | engine unavailable for the femesh adapter: gmsh is not importable in /home/z/.venv/bin/python3 (exit code 1) — missing system libs? run scripts/setup-engine-libs.sh |
+| `femesh-ifc-refused` | femesh | `wall-quantities.ifc` | error | skip | — | — | — | engine unavailable for the femesh adapter: gmsh is not importable in /home/z/.venv/bin/python3 (exit code 1) — missing system libs? run scripts/setup-engine-libs.sh |
+| `powerflow-2bus-closed-form` | powerflow | `powerflow-2bus.json` | success | skip | — | — / — | — | engine unavailable for the powerflow adapter: pandapower is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `powerflow-islanded` | powerflow | `powerflow-islanded.json` | error | skip | — | — | — | engine unavailable for the powerflow adapter: pandapower is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `des-flowshop-makespan` | des | `des-flowshop.json` | success | skip | — | — / — | — | engine unavailable for the des adapter: simpy is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `des-invalid-resource` | des | `des-invalid-resource.json` | error | skip | — | — | — | engine unavailable for the des adapter: simpy is not importable in /home/z/.venv/bin/python3 (exit code 1) |
 | `cpm-platform-rollout` | cpm | `schedule-cpm.json` | success | pass | — | — / — | — | cpm: 28 pin(s) · engine identity absent (platform core) · doc byte-determinism ✅ |
 | `lo-cover-sheet-convert` | libreoffice | `cover-sheet.fodt` | success | pass | — | — / — | — | libreoffice: 4 pin(s) · libreoffice 25.2.3.2 · byte-determinism not claimed (PDFs embed creation timestamps — single run, §5.4) |
-| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | sheet: 38 pin(s) · pdfplumber 0.11.10 · doc byte-determinism ✅ · max pin rel error 3.519e-7 |
-| `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pass | — | — / — | — | sheet: 6 pin(s) · pdfplumber 0.11.10 · doc byte-determinism ✅ · max pin rel error 3.981e-5 |
+| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | sheet: 38 pin(s) · pdfplumber 0.11.9 · doc byte-determinism ✅ · max pin rel error 3.519e-7 |
+| `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pass | — | — / — | — | sheet: 6 pin(s) · pdfplumber 0.11.9 · doc byte-determinism ✅ · max pin rel error 3.981e-5 |
 | `sheet-vector-refusal` | sheet | `sheet-scan-like.pdf` | error | pass | — | — | — | sheet: threw honest error: `this sheet page has no vector path operators — it is a scan or raster-only page; vector takeoff is not available for it,` · threw honest error: `` |
-| `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | pass | — | — / — | — | dxf: 13 pin(s) · ezdxf 1.4.5 · doc byte-determinism ✅ |
+| `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | pass | — | — / — | — | dxf: 13 pin(s) · ezdxf 1.4.3 · doc byte-determinism ✅ |
 | `parametric-schema` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 5 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ |
 | `parametric-defaults` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 9 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ · max pin rel error 7.530e-16 |
 | `parametric-edited` | parametric | `parametric-bracket.py` | success | pass | — | — / — | — | parametric: 9 pin(s) · cadquery 2.6.1 · doc byte-determinism ✅ · max pin rel error 8.017e-16 |
 | `parametric-refusals` | parametric | `parametric-bracket.py` | error | pass | — | — | — | parametric: threw honest error: `parameter 'width' = 10 below minimum 20 \| unknown parameter(s) rejected: ['bogus'] \| hole does not fit inside the vertic` · threw honest error: `` |
 | `sheet-ocr-callout` | ocr | `ocr-callout.png` | success | pass | — | — / — | — | ocr: 9 pin(s) · tesseract 5.5.0 · doc byte-determinism ✅ |
-| `fea-uniform-tension` | fea | `fea-uniform-tension.json` | success | pass | — | — / — | — | fea: 16 pin(s) · scikit-fem 12.0.2 · doc byte-determinism ✅ · max pin rel error 1.713e-13 |
-| `fea-cantilever-end-shear` | fea | `fea-cantilever-plate.json` | success | pass | — | — / — | — | fea: 3 pin(s) · scikit-fem 12.0.2 · doc byte-determinism ✅ · max pin rel error 4.684e-3 |
-| `fea-underconstrained` | fea | `fea-underconstrained.json` | error | pass | — | — | — | fea: threw honest error: `the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z) - an unconstraine` · threw honest error: `` |
-| `swmm-runoff-balance` | swmm | `swmm-runoff-balance.json` | success | pass | — | — / — | — | swmm: 11 pin(s) · pyswmm 2.2.0 · doc byte-determinism ✅ · max pin rel error 1.652e-2 |
-| `swmm-manning-conduit` | swmm | `swmm-manning-conduit.json` | success | pass | — | — / — | — | swmm: 8 pin(s) · pyswmm 2.2.0 · doc byte-determinism ✅ · max pin rel error 9.948e-3 |
-| `swmm-no-outfall` | swmm | `swmm-no-outfall.json` | error | pass | — | — | — | swmm: threw honest error: `the network has no outfall - runoff cannot leave the model, and simulated results are not an option` · threw honest error: `` |
-| `transport-channel` | transport | `transport-channel.json` | success | pass | — | — / — | — | transport: 16 pin(s) · sfepy 2026.3 · doc byte-determinism ✅ · max pin rel error 4.158e-7 |
-| `transport-uniform` | transport | `transport-uniform.json` | success | pass | — | — / — | — | transport: 8 pin(s) · sfepy 2026.3 · doc byte-determinism ✅ · max pin rel error 7.616e-14 |
-| `transport-mesh-peclet-refusal` | transport | `transport-high-peclet.json` | error | pass | — | — | — | transport: threw honest error: `the mesh does not resolve the transport boundary layer (element Péclet 7.81 exceeds the stability bound 2) - refine the ` · threw honest error: `` |
-| `rtl-counter-4bit` | chip | `rtl-counter-4bit.json` | success | pass | — | — / — | — | chip: 18 pin(s) · amaranth 0.5.10 · doc byte-determinism ✅ |
-| `rtl-counter-8bit` | chip | `rtl-counter-8bit.json` | success | pass | — | — / — | — | chip: 11 pin(s) · amaranth 0.5.10 · doc byte-determinism ✅ |
-| `rtl-invalid-kind` | chip | `rtl-invalid-kind.json` | error | pass | — | — | — | chip: threw honest error: `rtl model device.kind must be "enable_counter" (the v1 device class; every other class is its own future lane) (got "alu` · threw honest error: `` |
+| `fea-uniform-tension` | fea | `fea-uniform-tension.json` | success | skip | — | — / — | — | engine unavailable for the fea adapter: skfem is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `fea-cantilever-end-shear` | fea | `fea-cantilever-plate.json` | success | skip | — | — / — | — | engine unavailable for the fea adapter: skfem is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `fea-underconstrained` | fea | `fea-underconstrained.json` | error | skip | — | — | — | engine unavailable for the fea adapter: skfem is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `swmm-runoff-balance` | swmm | `swmm-runoff-balance.json` | success | skip | — | — / — | — | engine unavailable for the swmm adapter: pyswmm is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `swmm-manning-conduit` | swmm | `swmm-manning-conduit.json` | success | skip | — | — / — | — | engine unavailable for the swmm adapter: pyswmm is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `swmm-no-outfall` | swmm | `swmm-no-outfall.json` | error | skip | — | — | — | engine unavailable for the swmm adapter: pyswmm is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `transport-channel` | transport | `transport-channel.json` | success | skip | — | — / — | — | engine unavailable for the transport adapter: sfepy is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `transport-uniform` | transport | `transport-uniform.json` | success | skip | — | — / — | — | engine unavailable for the transport adapter: sfepy is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `transport-mesh-peclet-refusal` | transport | `transport-high-peclet.json` | error | skip | — | — | — | engine unavailable for the transport adapter: sfepy is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `rtl-counter-4bit` | chip | `rtl-counter-4bit.json` | success | skip | — | — / — | — | engine unavailable for the chip adapter: amaranth is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `rtl-counter-8bit` | chip | `rtl-counter-8bit.json` | success | skip | — | — / — | — | engine unavailable for the chip adapter: amaranth is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `rtl-invalid-kind` | chip | `rtl-invalid-kind.json` | error | skip | — | — | — | engine unavailable for the chip adapter: amaranth is not importable in /home/z/.venv/bin/python3 (exit code 1) |
+| `p2t-compare-identical` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 8 pin(s) · pdf2takeoff 0.1.0 · doc byte-determinism ✅ |
+| `p2t-compare-different` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 8 pin(s) · pdf2takeoff 0.1.0 · doc byte-determinism ✅ |
+| `p2t-annotate-roundtrip` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 4 pin(s) · pdf2takeoff 0.1.0 |
+| `p2t-export-boq-roundtrip` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 9 pin(s) · pdf2takeoff 0.1.0 · doc byte-determinism ✅ |
+| `p2t-fill-area-room` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 6 pin(s) · pdf2takeoff 0.1.0 · doc byte-determinism ✅ |
+| `p2t-fill-no-scale` | pdf2takeoff | `sheet-a102-plan.pdf` | error | pass | — | — | — | pdf2takeoff: threw honest error: `fill_area parameters.scaleMmPerPt must be a positive number — calibrate the sheet first or pass it explicitly (an uncali` · threw honest error: `` |
+| `p2t-export-no-annotations` | pdf2takeoff | `sheet-a102-plan.pdf` | error | pass | — | — | — | pdf2takeoff: threw honest error: `pdf2takeoff export failed: pdf2takeoff: no pdf2takeoff annotations found in /home/z/engineering-os/tests/fixtures/sheet-` · threw honest error: `` |
+| `p2t-annotate-bad-spec` | pdf2takeoff | `sheet-a102-plan.pdf` | error | pass | — | — | — | pdf2takeoff: threw honest error: `annotate_takeoff parameters.markups[0].points must be an array of 2..64 [x,y] pairs for type area` · threw honest error: `` |
+| `p2t-fill-click-on-line` | pdf2takeoff | `sheet-a102-plan.pdf` | error | pass | — | — | — | pdf2takeoff: threw honest error: `pdf2takeoff fill_area refused: you clicked on a line — click inside the region` · threw honest error: `` |
 
 ## Mesh tessellation validation (W2-d — the eos-mesh/1 bridge)
 
@@ -140,22 +147,12 @@ Adapter tolerance pins (payload `tolerance`, metres — documented per adapter):
 | `step-two-solids` | step | 2 (step_mesh) | 48 | 24 | z | 0.0001 | ✅ true | pass |
 | `step-bracket-empty` | step | — | — | — | — | — | — | pass (honest error) |
 | `step-nonmodel-file` | step | — | — | — | — | — | — | pass (honest error) |
-| `ifc-two-elements` | ifc | 3 (ifc_mesh) | 24 | 36 | z | 0.001 | ✅ true | pass |
-| `ifc-wall-geometry-mesh` | ifc | 1 (ifc_mesh) | 8 | 12 | z | 0.001 | ✅ true | pass |
-| `ifc-cylinder-geometry-mesh` | ifc | 1 (ifc_mesh) | 90 | 176 | z | 0.001 | ✅ true | pass |
-| `ifc-wall-stripped-empty` | ifc | — | — | — | — | — | — | pass (honest error) |
-| `ifc-nonmodel-file` | ifc | — | — | — | — | — | — | pass (honest error) |
 
 ### Observed mesh-volume errors — divergence theorem vs closed forms
 
 - `step-cylinder-solid` (cylinder-solid.step) step:solid:0: observed **0.00012561163186495692** vs closed form 0.0001256637061435917 m³ → relative error 4.144e-4 (0.0414%) — within the pinned 1% mesh tolerance · π · 20² · 100 mm³ = 40000π mm³ = 4π×10⁻⁵ m³ (Ø40×100 mm cylinder). 'mesh' tolerance (pinned 1%): the divergence-theorem volume over the OCCT triangulation is an approximation on the CURVED lateral surface (the inscribed tessellation slightly underestimates) — the harness records the observed relative error per run
 - `step-two-solids` (two-solids.step) step:solid:0: observed **0.000005999999999999999** vs closed form 0.000006 m³ → relative error 1.412e-16 — planar-solid exactness (IEEE rounding only) · box A 30 × 20 × 10 mm = 6000 mm³ = 6×10⁻⁶ m³ (PLANAR solid → divergence-theorem mesh volume is mathematically exact; only IEEE rounding remains, and the mesh elementRef set-equals the quantity ledger's per-solid refs)
 - `step-two-solids` (two-solids.step) step:solid:1: observed **0.000008999999999999997** vs closed form 0.000009 m³ → relative error 3.765e-16 — planar-solid exactness (IEEE rounding only) · box B 15 × 15 × 40 mm = 9000 mm³ = 9×10⁻⁶ m³ (PLANAR solid → mesh volume exact)
-- `ifc-two-elements` (two-elements.ifc) #3rUnE8CnPHBwLdZzIqZkf1: observed **2.8000000000000003** vs closed form 2.8 m³ → relative error 1.586e-16 — planar-solid exactness (IEEE rounding only) · Wall A 4.0 × 0.25 × 2.8 m = 2.8 m³ (PLANAR → divergence-theorem mesh volume exact; metres authored and verified)
-- `ifc-two-elements` (two-elements.ifc) #3rUnE8CnPHBwLdZzIqZkf2: observed **0.84** vs closed form 0.84 m³ → relative error 0 (bitwise) — planar-solid exactness (IEEE rounding only) · Wall B 2.0 × 0.15 × 2.8 m = 0.84 m³ (PLANAR → exact)
-- `ifc-two-elements` (two-elements.ifc) #3rUnE8CnPHBwLdZzIqZkf3: observed **3** vs closed form 3 m³ → relative error 0 (bitwise) — planar-solid exactness (IEEE rounding only) · Slab S 5.0 × 3.0 × 0.2 m = 3.0 m³ (PLANAR → exact)
-- `ifc-wall-geometry-mesh` (wall-geometry.ifc) #2rUnE8CnPHBwLdZzIqZkf1: observed **1.2000000000000002** vs closed form 1.2 m³ → relative error 1.850e-16 — planar-solid exactness (IEEE rounding only) · box 3.0 × 0.2 × 2.0 m = 1.2 m³ (PLANAR → divergence-theorem mesh volume is mathematically exact; the mesh elementRef set-equals the quantity ledger ref)
-- `ifc-cylinder-geometry-mesh` (cylinder-geometry.ifc) #4rUnE8CnPHBwLdZzIqZkf1: observed **0.3757673725921769** vs closed form 0.3769911184307752 m³ → relative error 3.246e-3 (0.3246%) — within the pinned 1% mesh tolerance · π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance (pinned 1%): the default-settings triangulation (44 segments) is an APPROXIMATION on the curved surface — the harness records the observed relative error per run (same triangulation the quantity adapter's fallback reports on)
 
 ### Honest notes on the tessellation adapters
 
@@ -173,8 +170,7 @@ Adapter tolerance pins (payload `tolerance`, metres — documented per adapter):
 
 ### Observed mesh errors — the `has_occ=False` limitation, quantified
 
-- `ifc-cylinder-geometry-mesh` (cylinder-geometry.ifc): volume observed **0.3757673725921769** vs closed form 0.3769911184307752 m³ → relative error 3.246e-3 (0.3246%) — within the pinned 1% mesh tolerance
-- `ifc-cylinder-geometry-mesh` (cylinder-geometry.ifc): area observed **4.017361163910887** vs closed form 4.0212385965949355 m² → relative error 9.642e-4 (0.0964%) — within the pinned 1% mesh tolerance
+- no mesh-tolerance comparisons ran (case skipped or none expected)
 
 The PLANAR mesh case (`ifc-wall-geometry-mesh`) runs at the stricter `analytic` tolerance by derivation:
 divergence-theorem volume and triangle-sum area are mathematically exact for planar solids, so only IEEE
@@ -197,78 +193,29 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 
 | Case | Adapter | Fixture | Expect | Engine | Doc byte-determinism | Pins | Status |
 |---|---|---|---|---|---|---|---|
-| `femesh-bracket-solid` | femesh | `bracket-solid.step` | success | gmsh 4.15.2 | ✅ true | 7 | pass |
-| `femesh-two-solids` | femesh | `two-solids.step` | success | gmsh 4.15.2 | ✅ true | 6 | pass |
-| `femesh-geometry-free` | femesh | `bracket.step` | error | — (platform core, honestly absent) | — | 0 | pass |
-| `femesh-ifc-refused` | femesh | `wall-quantities.ifc` | error | — (platform core, honestly absent) | — | 0 | pass |
-| `powerflow-2bus-closed-form` | powerflow | `powerflow-2bus.json` | success | pandapower 3.5.6 | ✅ true | 10 | pass |
-| `powerflow-islanded` | powerflow | `powerflow-islanded.json` | error | — (platform core, honestly absent) | — | 0 | pass |
-| `des-flowshop-makespan` | des | `des-flowshop.json` | success | simpy 4.1.2 | ✅ true | 11 | pass |
-| `des-invalid-resource` | des | `des-invalid-resource.json` | error | — (platform core, honestly absent) | — | 0 | pass |
 | `cpm-platform-rollout` | cpm | `schedule-cpm.json` | success | — (platform core, honestly absent) | ✅ true | 28 | pass |
 | `lo-cover-sheet-convert` | libreoffice | `cover-sheet.fodt` | success | libreoffice 25.2.3.2 | not claimed (single run, §5.4) | 4 | pass |
-| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pdfplumber 0.11.10 | ✅ true | 38 | pass |
-| `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pdfplumber 0.11.10 | ✅ true | 6 | pass |
+| `sheet-vector-plan` | sheet | `sheet-a102-plan.pdf` | success | pdfplumber 0.11.9 | ✅ true | 38 | pass |
+| `sheet-vector-curve` | sheet | `sheet-curve-arc.pdf` | success | pdfplumber 0.11.9 | ✅ true | 6 | pass |
 | `sheet-vector-refusal` | sheet | `sheet-scan-like.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
-| `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | ezdxf 1.4.5 | ✅ true | 13 | pass |
+| `dxf-takeoff-room` | dxf | `takeoff-room.dxf` | success | ezdxf 1.4.3 | ✅ true | 13 | pass |
 | `parametric-schema` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 5 | pass |
 | `parametric-defaults` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 9 | pass |
 | `parametric-edited` | parametric | `parametric-bracket.py` | success | cadquery 2.6.1 | ✅ true | 9 | pass |
 | `parametric-refusals` | parametric | `parametric-bracket.py` | error | — (platform core, honestly absent) | — | 0 | pass |
 | `sheet-ocr-callout` | ocr | `ocr-callout.png` | success | tesseract 5.5.0 | ✅ true | 9 | pass |
-| `fea-uniform-tension` | fea | `fea-uniform-tension.json` | success | scikit-fem 12.0.2 | ✅ true | 16 | pass |
-| `fea-cantilever-end-shear` | fea | `fea-cantilever-plate.json` | success | scikit-fem 12.0.2 | ✅ true | 3 | pass |
-| `fea-underconstrained` | fea | `fea-underconstrained.json` | error | — (platform core, honestly absent) | — | 0 | pass |
-| `swmm-runoff-balance` | swmm | `swmm-runoff-balance.json` | success | pyswmm 2.2.0 | ✅ true | 11 | pass |
-| `swmm-manning-conduit` | swmm | `swmm-manning-conduit.json` | success | pyswmm 2.2.0 | ✅ true | 8 | pass |
-| `swmm-no-outfall` | swmm | `swmm-no-outfall.json` | error | — (platform core, honestly absent) | — | 0 | pass |
-| `transport-channel` | transport | `transport-channel.json` | success | sfepy 2026.3 | ✅ true | 16 | pass |
-| `transport-uniform` | transport | `transport-uniform.json` | success | sfepy 2026.3 | ✅ true | 8 | pass |
-| `transport-mesh-peclet-refusal` | transport | `transport-high-peclet.json` | error | — (platform core, honestly absent) | — | 0 | pass |
-| `rtl-counter-4bit` | chip | `rtl-counter-4bit.json` | success | amaranth 0.5.10 | ✅ true | 18 | pass |
-| `rtl-counter-8bit` | chip | `rtl-counter-8bit.json` | success | amaranth 0.5.10 | ✅ true | 11 | pass |
-| `rtl-invalid-kind` | chip | `rtl-invalid-kind.json` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `p2t-compare-identical` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | ✅ true | 8 | pass |
+| `p2t-compare-different` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | ✅ true | 8 | pass |
+| `p2t-annotate-roundtrip` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | — | 4 | pass |
+| `p2t-export-boq-roundtrip` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | ✅ true | 9 | pass |
+| `p2t-fill-area-room` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | ✅ true | 6 | pass |
+| `p2t-fill-no-scale` | pdf2takeoff | `sheet-a102-plan.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `p2t-export-no-annotations` | pdf2takeoff | `sheet-a102-plan.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `p2t-annotate-bad-spec` | pdf2takeoff | `sheet-a102-plan.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `p2t-fill-click-on-line` | pdf2takeoff | `sheet-a102-plan.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
 
 ### Discipline pin comparisons (observed vs hand-derived)
 
-- `femesh-bracket-solid` nodes: observed **1088** vs pinned 1088 [bound abs:0] → rel error 0 (bitwise) · live-observed node count at MeshSizeMin 2.0 / MeshSizeMax 4.0, gmsh 4.15.2 linear tets — pinned after the TL smoke run
-- `femesh-bracket-solid` elements: observed **3482** vs pinned 3482 [bound abs:0] → rel error 0 (bitwise) · live-observed tet4 count under the same pinned options
-- `femesh-bracket-solid` solidRefOrderOk: observed **true** vs pinned true [bound structural] · solids[i].ref === step:solid:i for every index (the pinned ascending order)
-- `femesh-bracket-solid` tetSumOk: observed **true** vs pinned true [bound structural] · sum of per-solid tetCounts === elements.count (payload self-consistency)
-- `femesh-bracket-solid` qualityRangeOk: observed **true** vs pinned true [bound structural] · gmsh element qualities in (0,1] with min <= mean (observed min 0.2997 / mean 0.7848 live)
-- `femesh-bracket-solid` tetCount @ step:solid:0: observed **3482** vs pinned 3482 [bound abs:0] → rel error 0 (bitwise) · single-solid fixture: the whole tet count
-- `femesh-bracket-solid` meshVolume @ step:solid:0: observed **33286.26390462647** vs pinned 32984.071 mm3 [bound rel:0.02] → rel error 9.162e-3 (0.9162%) · closed form 36000 - 960*pi mm3 (40x30x30 block minus two r=4 h=30 through-holes; pi=3.14159265358979 -> 32984.07105). Linear tets under-trap the curved holes so the mesh volume runs HIGH: live-observed 33286.264 = +0.92%, the expected O(h^2) bias at these sizes; pinned at the contract's 2%
-- `femesh-two-solids` nodes: observed **479** vs pinned 479 [bound abs:0] → rel error 0 (bitwise) · live-observed node count, gmsh 4.15.2 defaults
-- `femesh-two-solids` elements: observed **1378** vs pinned 1378 [bound abs:0] → rel error 0 (bitwise) · live-observed tet4 count
-- `femesh-two-solids` tetCount @ step:solid:0: observed **599** vs pinned 599 [bound abs:0] → rel error 0 (bitwise) · live-observed per-solid split (599 + 779 = 1378)
-- `femesh-two-solids` tetCount @ step:solid:1: observed **779** vs pinned 779 [bound abs:0] → rel error 0 (bitwise) · live-observed per-solid split
-- `femesh-two-solids` meshVolume @ step:solid:0: observed **5999.999999999992** vs pinned 6000 mm3 [bound rel:1e-12] → rel error 1.364e-15 · closed form 30x20x10 mm = 6000 mm3 (make_fixture_step_solids.py); planar -> EXACT by divergence theorem
-- `femesh-two-solids` meshVolume @ step:solid:1: observed **9000.000000000005** vs pinned 9000 mm3 [bound rel:1e-12] → rel error 6.063e-16 · closed form 15x15x40 mm = 9000 mm3; planar -> EXACT by divergence theorem
-- `femesh-geometry-free` (femesh) threw the honest error: `no solid geometry found in STEP file (import produced 0 solids) - cannot generate an FE mesh, and simulated meshes are not an option`
-- `femesh-ifc-refused` (femesh) threw the honest error: `gmsh cannot import IFC geometry (gmsh has no IFC import reader - OCC STEP/IGES/BRep only) - cannot generate an FE mesh, and simulated meshes are not an option`
-- `powerflow-2bus-closed-form` converged: observed **true** vs pinned true [bound structural] · lossless radial 2-bus with a light load: NR from a flat start converges to the high branch
-- `powerflow-2bus-closed-form` busCount: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · fixture declares 2 buses
-- `powerflow-2bus-closed-form` lineCount: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · fixture declares 1 line
-- `powerflow-2bus-closed-form` lossMw: observed **0** vs pinned 0 [bound abs:1e-9] · r = 0 ohm/km -> I^2*R losses are identically zero; pandapower's residual rounding pinned at 1e-9
-- `powerflow-2bus-closed-form` loadMw: observed **2** vs pinned 2 [bound abs:1e-9] → rel error 0 (bitwise) · the single declared load (2 MW)
-- `powerflow-2bus-closed-form` vmPu @ bus-1: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · slack bus holds the external-grid setpoint exactly
-- `powerflow-2bus-closed-form` vmPu @ bus-2: observed **0.9999874997656195** vs pinned 0.9999875 [bound rel:0.000001] → rel error 2.344e-10 · V2 = sqrt((1 + sqrt(1 - 4*(p*x)^2)) / 2) with p = P/baseMva = 2/100 = 0.02 pu and x = Xohm/baseZ = (0.1 ohm/km * 10 km) / ((20 kV)^2 / 100 MVA) = 1 / 4 = 0.25 pu -> p*x = 5e-3 -> 4*(px)^2 = 1e-4 -> V2^2 = (1 + 0.99995)/2 = 0.999975 -> V2 = 0.9999875 (the high branch NR converges to). [An earlier draft of this derivation wrote 1/4 as 0.025 — the harness caught the 10x slip against the real engine, which is exactly its job.]
-- `powerflow-2bus-closed-form` angleDeg @ bus-2: observed **-0.28648367232412064** vs pinned -0.28647895 [bound abs:0.0001] → rel error 1.648e-5 · sin(delta) = p*x/V2 = 5.00000625e-3 rad = 0.28647895 degrees across the line (lossless: P = V1*V2*sin(delta)/X); bus-2 LAGS the slack reference so pandapower reports the negative angle; absTolerance 1e-4 deg absorbs NR's convergence residual (observed -0.28648367, residual 4.7e-6 deg — the solver's own tolerance, not a formula error)
-- `powerflow-2bus-closed-form` iKa @ bus-1>bus-2: observed **0.057735748617323765** vs pinned 0.057735749 [bound rel:0.00001] → rel error 6.628e-9 · I = P / (sqrt(3) * V2_LL * ...) with the SOLVED V2: 2 MW / (1.7320508 * 20 kV * 0.9999875) = 0.05773575 kA (the current reflects the actual end-of-line voltage, not the nominal)
-- `powerflow-2bus-closed-form` pLossMw @ bus-1>bus-2: observed **0** vs pinned 0 [bound abs:1e-9] · r = 0 -> zero active loss on the line
-- `powerflow-islanded` (powerflow) threw the honest error: `power flow did not produce results for all buses (islanded network - buses with no path to the external grid: bus-3) - results are not available, and simulated `
-- `des-flowshop-makespan` policy: observed **"fifo"** vs pinned "fifo" [bound structural] · the only policy shipped (contract §3.3)
-- `des-flowshop-makespan` jobCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · fixture declares 3 jobs
-- `des-flowshop-makespan` resourceCount: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · fixture declares 2 machines
-- `des-flowshop-makespan` makespan: observed **13** vs pinned 13 [bound abs:0] → rel error 0 (bitwise) · hand trace: m1 serves j1[0,2] j2[2,5] j3[5,6] (busy 6); m2 serves j1[2,6] then j2[6,8] (j2 arrives at 5, waits), then j3[8,13] -> last completion 13
-- `des-flowshop-makespan` utilizationInvariantOk: observed **true** vs pinned true [bound structural] · utilization === busy/makespan for every resource (payload self-consistency)
-- `des-flowshop-makespan` busy @ m1: observed **6** vs pinned 6 [bound abs:0] → rel error 0 (bitwise) · sum of m1 task durations 2+3+1
-- `des-flowshop-makespan` busy @ m2: observed **11** vs pinned 11 [bound abs:0] → rel error 0 (bitwise) · sum of m2 task durations 4+2+5
-- `des-flowshop-makespan` utilization @ m1: observed **0.46153846153846156** vs pinned 0.46153846153846156 [bound abs:1e-12] → rel error 0 (bitwise) · 6/13 (busy/makespan)
-- `des-flowshop-makespan` utilization @ m2: observed **0.8461538461538461** vs pinned 0.8461538461538461 [bound abs:1e-12] → rel error 0 (bitwise) · 11/13
-- `des-flowshop-makespan` endAt @ j1: observed **6** vs pinned 6 [bound abs:0] → rel error 0 (bitwise) · j1: m1 [0,2] then m2 [2,6]
-- `des-flowshop-makespan` endAt @ j3: observed **13** vs pinned 13 [bound abs:0] → rel error 0 (bitwise) · j3: m1 [5,6] then m2 [8,13] (waits for m2 to clear j2 at 8)
-- `des-invalid-resource` (des) threw the honest error: `jobs[0].tasks[1] references unknown resource "crane"`
 - `cpm-platform-rollout` activityCount: observed **6** vs pinned 6 [bound abs:0] → rel error 0 (bitwise) · fixture declares 6 activities
 - `cpm-platform-rollout` durationDays: observed **11** vs pinned 11 [bound abs:0] → rel error 0 (bitwise) · longest path b(2)+d(5)+f(1)+e(3) = 11 days
 - `cpm-platform-rollout` criticalPathCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · critical activities: b, d, f, e
@@ -392,101 +339,45 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `sheet-ocr-callout` word @ word 6: observed **"1200 (conf 96.0)"** vs pinned "1200 (conf ≥ 90)" [bound min 90] · the live tesseract read of the committed fixture with the vendored model
 - `sheet-ocr-callout` word @ word 7: observed **"GHS (conf 90.3)"** vs pinned "GHS (conf ≥ 85)" [bound min 85] · the live tesseract read of the committed fixture with the vendored model
 - `sheet-ocr-callout` word @ word 8: observed **"225.00 (conf 96.7)"** vs pinned "225.00 (conf ≥ 90)" [bound min 90] · the live tesseract read of the committed fixture with the vendored model
-- `fea-uniform-tension` analysis: observed **"plane_stress"** vs pinned "plane_stress" [bound structural] · the only analysis shipped this phase (contract §14.2)
-- `fea-uniform-tension` elementType: observed **"tri6"** vs pinned "tri6" [bound structural] · ElementVector(ElementTriP2()) — quadratic triangles, 6 nodes (contract §14.5)
-- `fea-uniform-tension` refinement: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the default meshRefinement parameter (contract §14.3)
-- `fea-uniform-tension` elementCount: observed **512** vs pinned 512 [bound abs:0] → rel error 0 (bitwise) · MeshTri().refined(4): the base 2 triangles × 4^4 = 512 — deterministic uniform mesh
-- `fea-uniform-tension` nodeCount: observed **2178** vs pinned 2178 [bound abs:0] → rel error 0 (bitwise) · P2 dof points of the refined(4) mesh: 81 vertices + 144 midside points × 2 components interleaved = 2178/2 scalar points… pinned as the deterministic dof-point count
-- `fea-uniform-tension` ux @ 0x0: observed **0** vs pinned 0 [bound abs:1e-9] · u_x = σx/E = 0 at x = 0 (the left edge ux support is exactly compatible)
-- `fea-uniform-tension` uy @ 0x0: observed **0** vs pinned 0 [bound abs:1e-9] · u_y = −νσy/E = 0 at y = 0 (the bottom edge uy support is exactly compatible)
-- `fea-uniform-tension` uy @ 0x200: observed **-0.003000000000000113** vs pinned -0.003 [bound abs:1e-9] → rel error 3.759e-14 · u_y(H) = −νσH/E = −0.3·10·200/200000 = −0.003 mm (Poisson contraction, free left-edge uy)
-- `fea-uniform-tension` ux @ 200x100: observed **0.01000000000000092** vs pinned 0.01 [bound abs:1e-9] → rel error 9.194e-14 · u_x(W/2) = σ(W/2)/E = 10·200/200000 = 0.01 mm
-- `fea-uniform-tension` uy @ 200x100: observed **-0.0014999999999999666** vs pinned -0.0015 [bound abs:1e-9] → rel error 2.226e-14 · u_y(H/2) = −νσ(H/2)/E = −0.0015 mm
-- `fea-uniform-tension` ux @ 400x0: observed **0.02000000000000134** vs pinned 0.02 [bound abs:1e-9] → rel error 6.696e-14 · u_x(W) = σW/E = 10·400/200000 = 0.02 mm — the Hooke's-law anchor
-- `fea-uniform-tension` ux @ 400x200: observed **0.02000000000000105** vs pinned 0.02 [bound abs:1e-9] → rel error 5.256e-14 · u_x(W) = σW/E = 0.02 mm at the far corner (uniform field: independent of y)
-- `fea-uniform-tension` uy @ 400x200: observed **-0.002999999999999486** vs pinned -0.003 [bound abs:1e-9] → rel error 1.713e-13 · u_y(H) = −νσH/E = −0.003 mm at the far corner
-- `fea-uniform-tension` sigmaXxMinMpa: observed **9.999999999999728** vs pinned 10 [bound abs:1e-9] → rel error 2.718e-14 · σ_xx = σ = 10 MPa uniform (plane stress, σ_yy = τ_xy = 0) — the per-element mean equals the constant exactly
-- `fea-uniform-tension` vonMisesMaxMpa: observed **10.000000000001068** vs pinned 10 [bound abs:1e-9] → rel error 1.068e-13 · von Mises of uniaxial σ: √(σ²) = σ = 10 MPa
-- `fea-uniform-tension` maxDisplacementMagnitudeMm: observed **0.02022374841615765** vs pinned 0.020223748416157 [bound abs:1e-9] → rel error 3.208e-14 · hypot(u_x(W), u_y(H)) = √(0.02² + 0.003²) = √0.000409 = 0.020223748416157 mm at the far corner
-- `fea-cantilever-end-shear` elementCount: observed **512** vs pinned 512 [bound abs:0] → rel error 0 (bitwise) · MeshTri().refined(4) on the scaled 2000×500 domain — same deterministic 512 tri6 elements
-- `fea-cantilever-end-shear` uy @ 2000x0: observed **-1.336151125569775** vs pinned -1.3424 [bound rel:0.01] → rel error 4.655e-3 (0.4655%) · Timoshenko tip deflection at the bottom-right corner: PL³/3EI + PL/κGA = 1.28 + 0.0624 = 1.3424 mm (positive shear acts along the CCW tangent = −y on the right edge, so the plate bends DOWN); the corner carries the centerline deflection (the section rotation displaces the tip corners horizontally, not vertically)
-- `fea-cantilever-end-shear` uy @ 2000x500: observed **-1.3361125402122764** vs pinned -1.3424 [bound rel:0.01] → rel error 4.684e-3 (0.4684%) · the top-right corner mirrors the bottom within the solver's clamp-boundary-layer difference — both carry the Timoshenko centerline value (observed 1.3361 vs 1.3362)
-- `fea-underconstrained` (fea) threw the honest error: `the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z) - an unconstrained model cannot be solved, and simulated `
-- `swmm-runoff-balance` analysis: observed **"drainage"** vs pinned "drainage" [bound structural] · the only analysis shipped this phase (contract §15.4)
-- `swmm-runoff-balance` engineKey: observed **"pyswmm"** vs pinned "pyswmm" [bound structural] · the pip-pinned pyswmm distribution drives the EPA SWMM5 engine in-process (contract §15.5)
-- `swmm-runoff-balance` routingStepSec: observed **10** vs pinned 10 [bound abs:0] → rel error 0 (bitwise) · the default routingStepSec parameter (contract §15.3)
-- `swmm-runoff-balance` rainVolumeM3: observed **500** vs pinned 500 [bound abs:0] → rel error 0 (bitwise) · i.A.t = 0.025 m/hr x 2 hr x 10 000 m2 = 500 m3 -- the adapter's own rain block must agree exactly
-- `swmm-runoff-balance` outfallVolumeM3: observed **500.02193805825715** vs pinned 500 [bound rel:0.001] → rel error 4.388e-5 · mass conservation: all rain that fell drains by end of window (probe-observed rel 4.4e-5)
-- `swmm-runoff-balance` maxRunoffCms: observed **0.06945220755175956** vs pinned 0.06944444444444443 [bound rel:0.01] → rel error 1.118e-4 (0.0112%) · equilibrium runoff = i.A = 25/1000/3600 x 10 000 = 0.0694444 m3/s, approached asymptotically (observed rel 1.1e-4)
-- `swmm-runoff-balance` maxConduitFlowCms: observed **0.07059164318103153** vs pinned 0.06944444444444443 [bound rel:0.03] → rel error 1.652e-2 (1.6520%) · equilibrium flow + the kinematic-wave numerical surge (probe-observed +1.6%)
-- `swmm-runoff-balance` maxDepthM @ C1: observed **0.14486048192340867** vs pinned 0.14486665688316655 [bound abs:0.005] → rel error 4.263e-5 · Manning normal depth: (1/0.015).0.5.y.(0.5y/(0.5+2y))^(2/3).sqrt(0.005) = 0.0694444 -> y_N = 0.144866657 m (observed abs 6.2e-6)
-- `swmm-runoff-balance` maxDepthM @ J1: observed **0.14486048196573673** vs pinned 0.14486665688316655 [bound abs:0.005] → rel error 4.262e-5 · the junction's max depth equals the conduit's equilibrium depth (observed abs 6.2e-6)
-- `swmm-runoff-balance` runoffErrorPct: observed **-0.012** vs pinned 0 [bound abs:0.5] · the engine's own .rpt runoff continuity error, pinned as a magnitude bound (observed -0.012%)
-- `swmm-runoff-balance` routingErrorPct: observed **-0.055** vs pinned 0 [bound abs:0.5] · the engine's own .rpt flow-routing continuity error, pinned as a magnitude bound (observed -0.055%)
-- `swmm-manning-conduit` rainVolumeM3: observed **2000** vs pinned 2000 [bound abs:0] → rel error 0 (bitwise) · i.A.t = 0.05 x 2 x 20 000 = 2 000 m3
-- `swmm-manning-conduit` outfallVolumeM3: observed **2000.2177313394764** vs pinned 2000 [bound rel:0.001] → rel error 1.089e-4 (0.0109%) · mass conservation on the bigger storm (probe-observed rel 1.1e-4)
-- `swmm-manning-conduit` maxRunoffCms: observed **0.2778088311533788** vs pinned 0.2777777777777778 [bound rel:0.01] → rel error 1.118e-4 (0.0112%) · equilibrium runoff = i.A = 50/1000/3600 x 20 000 = 0.2777778 m3/s (observed rel 1.1e-4)
-- `swmm-manning-conduit` maxConduitFlowCms: observed **0.28054116263223894** vs pinned 0.2777777777777778 [bound rel:0.03] → rel error 9.948e-3 (0.9948%) · equilibrium + surge (probe-observed +1.0%)
-- `swmm-manning-conduit` maxDepthM @ J1: observed **0.18094179310931605** vs pinned 0.1809516359327449 [bound abs:0.005] → rel error 5.439e-5 · Manning cubic: (1/0.013).0.8.y.(0.8y/(0.8+2y))^(2/3).sqrt(0.01) = 0.2777778 -> y_N = 0.180951636 m (observed abs 9.8e-6)
-- `swmm-manning-conduit` maxDepthM @ C1: observed **0.18094179310920122** vs pinned 0.1809516359327449 [bound abs:0.005] → rel error 5.439e-5 · the conduit's own equilibrium depth mirrors the junction (observed abs 9.8e-6)
-- `swmm-manning-conduit` runoffErrorPct: observed **-0.015** vs pinned 0 [bound abs:0.5] · engine .rpt runoff continuity magnitude bound (observed -0.015%)
-- `swmm-manning-conduit` routingErrorPct: observed **-0.02** vs pinned 0 [bound abs:0.5] · engine .rpt routing continuity magnitude bound (observed -0.02%)
-- `swmm-no-outfall` (swmm) threw the honest error: `the network has no outfall - runoff cannot leave the model, and simulated results are not an option`
-- `transport-channel` analysis: observed **"scalar_transport"** vs pinned "scalar_transport" [bound structural] · the only analysis shipped this phase (contract §16.2)
-- `transport-channel` engineKey: observed **"sfepy"** vs pinned "sfepy" [bound structural] · the CFD lane's pinned engine (contract §16.1)
-- `transport-channel` elementType: observed **"quad"** vs pinned "quad" [bound structural] · gen_block_mesh 2_4 quads (contract §16.1 probe)
-- `transport-channel` approximation: observed **"Q2"** vs pinned "Q2" [bound structural] · approx_order=2 on quads → 9-node Q2 (contract §16.3)
-- `transport-channel` refinement: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the default meshRefinement parameter (contract §16.3)
-- `transport-channel` elementCount: observed **1024** vs pinned 1024 [bound abs:0] → rel error 0 (bitwise) · N=8·2³=64 divisions on the longer (x) axis, y gets round(64·0.5/2)=16 → 64·16=1024 quads (the frozen square-element rule)
-- `transport-channel` nodeCount: observed **4257** vs pinned 4257 [bound abs:0] → rel error 0 (bitwise) · Q2 dofs: 65·17 corners + 64·17 x-midside + 65·16 y-midside + 64·16 centers = 1105+1088+1040+1024 = 4257
-- `transport-channel` pecletNumber: observed **10** vs pinned 10 [bound abs:1e-12] → rel error 0 (bitwise) · Pe = a·L/D = 0.05·2/0.01 = 10
-- `transport-channel` meshPecletNumber: observed **0.078125** vs pinned 0.078125 [bound abs:1e-12] → rel error 0 (bitwise) · Pe_h = a·h/(2D) with h = L/64 = 0.03125 → 0.05·0.03125/0.02 = 0.078125 (far inside the probed-monotone bound 2)
-- `transport-channel` minConcentration: observed **0** vs pinned 0 [bound abs:1e-12] · the outlet Dirichlet dof is exactly 0 and the monotone solution never undershoots (Pe_h ≪ 2)
-- `transport-channel` maxConcentration: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · the inlet Dirichlet dof is exactly 1 and the monotone solution never overshoots
-- `transport-channel` concentration @ 0.25x0.25: observed **0.9998869326982239** vs pinned 0.9998869334714342 [bound abs:0.0001] → rel error 7.733e-10 · u(L/8) = (e^10 − e^1.25)/(e^10 − 1) = 0.9998869334714342
-- `transport-channel` concentration @ 0.5x0.25: observed **0.9994922894467615** vs pinned 0.9994922925097303 [bound abs:0.0001] → rel error 3.065e-9 · u(L/4) = (e^10 − e^2.5)/(e^10 − 1) = 0.9994922925097303
-- `transport-channel` concentration @ 1.0x0.25: observed **0.9933071215179019** vs pinned 0.9933071490757152 [bound abs:0.0001] → rel error 2.774e-8 · u(L/2) = (e^10 − e^5)/(e^10 − 1) = 0.9933071490757152
-- `transport-channel` concentration @ 1.5x0.25: observed **0.9179565067518318** vs pinned 0.9179566765447413 [bound abs:0.0001] → rel error 1.850e-7 · u(3L/4) = (e^10 − e^7.5)/(e^10 − 1) = 0.9179566765447413
-- `transport-channel` concentration @ 1.75x0.25: observed **0.7135273005906637** vs pinned 0.7135275972426084 [bound abs:0.0001] → rel error 4.158e-7 · u(7L/8) = (e^10 − e^8.75)/(e^10 − 1) = 0.7135275972426084 — inside the outlet boundary layer (observed 3.0e-7 at r=4, the O(h³) convergence pin)
-- `transport-uniform` pecletNumber: observed **10** vs pinned 10 [bound abs:1e-12] → rel error 0 (bitwise) · Pe = a·L/D = 10 (same transport regime as the channel case)
-- `transport-uniform` minConcentration: observed **0.9999999999999238** vs pinned 1 [bound abs:1e-12] → rel error 7.616e-14 · u ≡ 1: the constant field is the exact solution (observed 0.9999999999999238)
-- `transport-uniform` maxConcentration: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · u ≡ 1 (observed exactly 1.0 — the Dirichlet dofs pin the range)
-- `transport-uniform` concentration @ 0.25x0.25: observed **0.9999999999999856** vs pinned 1 [bound abs:1e-12] → rel error 1.443e-14 · u ≡ 1 at every station (observed 1 − 1.4e-14)
-- `transport-uniform` concentration @ 0.5x0.25: observed **0.9999999999999747** vs pinned 1 [bound abs:1e-12] → rel error 2.531e-14 · u ≡ 1 at every station (observed 1 − 2.5e-14)
-- `transport-uniform` concentration @ 1.0x0.25: observed **0.9999999999999443** vs pinned 1 [bound abs:1e-12] → rel error 5.573e-14 · u ≡ 1 at every station (observed 1 − 5.6e-14)
-- `transport-uniform` concentration @ 1.5x0.25: observed **0.9999999999999265** vs pinned 1 [bound abs:1e-12] → rel error 7.350e-14 · u ≡ 1 at every station (observed 1 − 7.4e-14)
-- `transport-uniform` concentration @ 1.75x0.25: observed **0.9999999999999389** vs pinned 1 [bound abs:1e-12] → rel error 6.106e-14 · u ≡ 1 at every station (observed 1 − 6.1e-14)
-- `transport-mesh-peclet-refusal` (transport) threw the honest error: `the mesh does not resolve the transport boundary layer (element Péclet 7.81 exceeds the stability bound 2) - refine the mesh (increase meshRefinement) or reduce`
-- `rtl-counter-4bit` analysis: observed **"rtl_synthesis"** vs pinned "rtl_synthesis" [bound structural] · the only analysis shipped this phase (contract §17.4)
-- `rtl-counter-4bit` engineKey: observed **"amaranth"** vs pinned "amaranth" [bound structural] · the lane's front-end engine (contract §17.3)
-- `rtl-counter-4bit` engineVersion: observed **"0.5.10"** vs pinned "0.5.10" [bound structural] · the pinned amaranth wheel (engines-requirements)
-- `rtl-counter-4bit` deviceKind: observed **"enable_counter"** vs pinned "enable_counter" [bound structural] · the frozen v1 device class (contract §17.2)
-- `rtl-counter-4bit` widthBits: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the fixture's register width
-- `rtl-counter-4bit` flipFlopCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the closed form: a W-bit register has exactly W storage elements — probed at every width (§17.1)
-- `rtl-counter-4bit` totalCells: observed **10** vs pinned 10 [bound abs:0] → rel error 0 (bitwise) · 4 $_SDFFE_PP0P_ + 3 $_XOR_ + 2 $_AND_ + 1 $_NOT_ (§17.1 probe)
-- `rtl-counter-4bit` cellTypes: observed **["$_AND_","$_NOT_","$_SDFFE_PP0P_","$_XOR_"]** vs pinned ["$_AND_","$_NOT_","$_SDFFE_PP0P_","$_XOR_"] [bound structural] · the exact cell-type set, sorted
-- `rtl-counter-4bit` cellCount @ $_SDFFE_PP0P_: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · one $_SDFFE_PP0P_ per register bit — the yosys $_SDFFE mapping of the sync-domain enable register
-- `rtl-counter-4bit` cellCount @ $_XOR_: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · W−1 = 3 XOR gates: each upper bit XORs its carry-in (the closed form at every width)
-- `rtl-counter-4bit` cellCount @ $_AND_: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · empirical: the yosys carry-chain sharing at W=4 (§17.1)
-- `rtl-counter-4bit` cellCount @ $_NOT_: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · the constant NOT (one at every width)
-- `rtl-counter-4bit` synthesisEngineKey: observed **"yowasp-yosys"** vs pinned "yowasp-yosys" [bound structural] · the synthesis half of the lane (contract §17.3)
-- `rtl-counter-4bit` synthesisEngineVersion: observed **"0.70.0.0.post1259"** vs pinned "0.70.0.0.post1259" [bound structural] · the pinned yowasp-yosys wheel
-- `rtl-counter-4bit` netlistSha256: observed **"549bbd3fc1205712bd044282ca09da9360f2149e5c319f70f38015daf3548dd4"** vs pinned "549bbd3fc1205712bd044282ca09da9360f2149e5c319f70f38015daf3548dd4" [bound structural] · the src-stripped netlist is byte-identical across hosts — probed via three different source paths (§17.1)
-- `rtl-counter-4bit` stepCount: observed **25** vs pinned 25 [bound abs:0] → rel error 0 (bitwise) · the frozen stimulus: 18 enabled, 1 disabled, 6 enabled (contract §17.4)
-- `rtl-counter-4bit` count @ cycle19: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · cycle 19 is the DISABLED cycle: 18 enabled before it → 18 mod 16 = 2, and the register HOLDS (the closed-form hold pin)
-- `rtl-counter-4bit` count @ cycle25: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · the final step: 24 enabled cycles → 24 mod 16 = 8 — the WRAP the closed form predicts (visible at W=4)
-- `rtl-counter-8bit` widthBits: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · the fixture's register width
-- `rtl-counter-8bit` flipFlopCount: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · the closed form at W=8
-- `rtl-counter-8bit` totalCells: observed **24** vs pinned 24 [bound abs:0] → rel error 0 (bitwise) · 8 $_SDFFE_PP0P_ + 7 $_XOR_ + 8 $_AND_ + 1 $_NOT_ (§17.1 probe)
-- `rtl-counter-8bit` cellTypes: observed **["$_AND_","$_NOT_","$_SDFFE_PP0P_","$_XOR_"]** vs pinned ["$_AND_","$_NOT_","$_SDFFE_PP0P_","$_XOR_"] [bound structural] · the same four cell types at every width ≥ 2
-- `rtl-counter-8bit` cellCount @ $_SDFFE_PP0P_: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · one storage element per bit
-- `rtl-counter-8bit` cellCount @ $_XOR_: observed **7** vs pinned 7 [bound abs:0] → rel error 0 (bitwise) · W−1 = 7 (the XOR closed form)
-- `rtl-counter-8bit` cellCount @ $_AND_: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · empirical carry-chain sharing at W=8 (§17.1: 2W − 2log2W − 2 = 16−6−2)
-- `rtl-counter-8bit` cellCount @ $_NOT_: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · the constant NOT
-- `rtl-counter-8bit` stepCount: observed **25** vs pinned 25 [bound abs:0] → rel error 0 (bitwise) · the same frozen stimulus
-- `rtl-counter-8bit` count @ cycle19: observed **18** vs pinned 18 [bound abs:0] → rel error 0 (bitwise) · the disabled cycle 19 HOLDS the register at 18 enabled cycles — at W=8 there is no wrap (18 < 256), so the held value IS 18 (the W=4 case wraps it to 2; the hold itself is width-independent)
-- `rtl-counter-8bit` count @ cycle25: observed **24** vs pinned 24 [bound abs:0] → rel error 0 (bitwise) · the final step: 24 enabled cycles, no wrap at W=8 (24 < 256) — the non-wrapping regime pinned honestly
-- `rtl-invalid-kind` (chip) threw the honest error: `rtl model device.kind must be "enable_counter" (the v1 device class; every other class is its own future lane) (got "alu")`
+- `p2t-compare-identical` comparedSheets: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the A-102 fixture has 4 pages; both revisions identical, so all 4 pair up
+- `p2t-compare-identical` changedSheetCount: observed **0** vs pinned 0 [bound abs:0] · byte-identical revisions cannot differ on any sheet
+- `p2t-compare-identical` summary.changed: observed **0** vs pinned 0 [bound abs:0] · same — the summary counts the sheets array
+- `p2t-compare-identical` summary.unchanged: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · all four pages identical
+- `p2t-compare-identical` summary.onlyInA: observed **0** vs pinned 0 [bound abs:0] · same page count on both sides — nothing unmatched
+- `p2t-compare-identical` summary.onlyInB: observed **0** vs pinned 0 [bound abs:0] · same page count on both sides — nothing unmatched
+- `p2t-compare-identical` changedFraction @ page:1: observed **0** vs pinned 0 [bound abs:0] · identical raster → zero changed pixels
+- `p2t-compare-identical` vectorIdentical @ page:4: observed **true** vs pinned true [bound structural] · identical vector operators (the portrait panel-schedule page included)
+- `p2t-compare-different` comparedSheets: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · only page 1 exists on both sides (curve fixture is single-sheet)
+- `p2t-compare-different` changedSheetCount: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · the paired page 1 differs (completely different drawing content)
+- `p2t-compare-different` summary.changed: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · page 1 changed
+- `p2t-compare-different` summary.onlyInA: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · A-102 pages 2, 3, 4 have no counterpart in the single-page curve revision
+- `p2t-compare-different` summary.onlyInB: observed **0** vs pinned 0 [bound abs:0] · every curve-sheet page (just page 1) has an A-counterpart
+- `p2t-compare-different` changed @ page:1: observed **true** vs pinned true [bound structural] · different drawings on the paired page
+- `p2t-compare-different` changedFraction @ page:1: observed **0.0059** vs pinned 0.0059 [bound abs:0.005] → rel error 0 (bitwise) · engine-observed raster-diff fraction on the dev host (title bar + room rectangle + wall regions); abs 0.005 keeps the pin honest across raster hosts
+- `p2t-compare-different` regionCount @ page:1: observed **18** vs pinned 1 [bound min] · at least one changed region localizes the change (the engine reported 3 on the dev host)
+- `p2t-annotate-roundtrip` markupCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · the spec carries exactly 3 markups (length + area + count)
+- `p2t-annotate-roundtrip` kept: observed **0** vs pinned 0 [bound abs:0] · the bare fixture carries no pdf2takeoff annotations — nothing to keep
+- `p2t-annotate-roundtrip` isPdf: observed **true** vs pinned true [bound structural] · the annotated output must be a real PDF (%PDF magic)
+- `p2t-annotate-roundtrip` sizeBytes: observed **6168** vs pinned 4000 [bound min] · the 6166-byte dev-host output sizes the floor; an annotated copy of the 4-page fixture cannot be tiny
+- `p2t-export-boq-roundtrip` rowCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · three markups -> three data rows
+- `p2t-export-boq-roundtrip` value @ label:Scale bar: observed **10.000001166666667** vs pinned 10.000001166666667 [bound rel:1e-9] → rel error 0 (bitwise) · 283.4646 pt x 0.03527778 m/pt (the engine's exact 1:100 preset); analytic 100 paper-mm = 10.000 m real
+- `p2t-export-boq-roundtrip` unit @ label:Scale bar: observed **"m"** vs pinned "m" [bound structural] · length export in metres
+- `p2t-export-boq-roundtrip` value @ label:Room 101: observed **40.00001783583051** vs pinned 40.00001783583051 [bound rel:1e-9] → rel error 0 (bitwise) · 226.7717 x 141.7323 pt at 1:100 -> 80x50 paper-mm -> 8.000 x 5.000 m = 40.000 m2 analytic
+- `p2t-export-boq-roundtrip` type @ label:Room 101: observed **"area"** vs pinned "area" [bound structural] · the spec's area markup exports as an area row
+- `p2t-export-boq-roundtrip` value @ label:Socket: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · one count markup at (205, 505) on page 2 (the S13 lighting-layout socket grid, first symbol)
+- `p2t-export-boq-roundtrip` unit @ label:Socket: observed **"each"** vs pinned "each" [bound structural] · counts export in each
+- `p2t-export-boq-roundtrip` isXlsx: observed **true** vs pinned true [bound structural] · the XLSX export must be a real workbook (PK zip magic)
+- `p2t-export-boq-roundtrip` sizeBytes: observed **17914** vs pinned 3000 [bound min] · a 3-row workbook with styles sizes the floor (dev host: ~5 KB)
+- `p2t-fill-area-room` value: observed **39.4009** vs pinned 39.4009 [bound abs:0.1] → rel error 0 (bitwise) · analytic 40.000 m2 minus the inner-wall-face inset of the 1-pt stroke (~0.67 pt/side); engine-observed 39.4009 on the dev host
+- `p2t-fill-area-room` vertices: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · the room rectangle's 4 corners + the interior wall's 2 boundary intersections + the 2 jogs where the boundary turns along the wall — the dev-host raster polygon
+- `p2t-fill-area-room` unit: observed **"m2"** vs pinned "m2" [bound structural] · the fill records an area in square metres
+- `p2t-fill-area-room` calibrated: observed **true** vs pinned true [bound structural] · the bridge ALWAYS calibrates the session (from_points carries the platform scale exactly)
+- `p2t-fill-area-room` bboxX0: observed **500.67** vs pinned 500.67 [bound abs:1] → rel error 0 (bitwise) · the analytic left edge is x=500; the fill boundary sits ~0.67 pt inside it (pen half-width)
+- `p2t-fill-area-room` bboxX1: observed **726.33** vs pinned 726.33 [bound abs:1] → rel error 0 (bitwise) · the analytic right edge is x=726.7717; inset ~0.44 pt on the dev host
+- `p2t-fill-no-scale` (pdf2takeoff) threw the honest error: `fill_area parameters.scaleMmPerPt must be a positive number — calibrate the sheet first or pass it explicitly (an uncalibrated takeoff number is a fabricated nu`
+- `p2t-export-no-annotations` (pdf2takeoff) threw the honest error: `pdf2takeoff export failed: pdf2takeoff: no pdf2takeoff annotations found in /home/z/engineering-os/tests/fixtures/sheet-a102-plan.pdf (annotate it first, or ope`
+- `p2t-annotate-bad-spec` (pdf2takeoff) threw the honest error: `annotate_takeoff parameters.markups[0].points must be an array of 2..64 [x,y] pairs for type area`
+- `p2t-fill-click-on-line` (pdf2takeoff) threw the honest error: `pdf2takeoff fill_area refused: you clicked on a line — click inside the region`
 
 ## Regenerate
 
