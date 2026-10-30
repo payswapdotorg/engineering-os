@@ -2345,7 +2345,7 @@ export async function brokerTakeoffDrawingCore(
 }
 
 // ---------------------------------------------------------------------------
-// ADOPTED takeoff engine pdf2takeoff (ADR-0009 decision 5, Stage 1 — the
+// ADOPTED takeoff engine pdf2takeoff (ADR-0011 decision 5, Stage 1 — the
 // audit's highest-value reuse: room fill, revision compare, annotation
 // round-trip and BOQ export are CONSUMED from the pinned Apache-2.0 upstream
 // at commit f5a1c08…, never rebuilt). Four cores over ONE arm's-length

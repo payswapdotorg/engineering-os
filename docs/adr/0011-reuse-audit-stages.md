@@ -1,4 +1,17 @@
-# ADR-0009: Open-Source Reuse and Consolidation Audit v1
+# ADR-0011: Open-Source Reuse Audit v1 — the TL line and implementation stages
+
+> Renumbered from ADR-0009 on 2026-10-31: the same directive produced two
+> parallel audit deliveries — this one (the TL line, committed to
+> tl/reuse-audit-v1 first) and Slice 31's
+> [ADR-0009](0009-oss-reuse-consolidation-decisions.md), which landed on
+> main first and keeps the number. The two lines AGREE on every major
+> decision — pdf2takeoff ADOPTED as the adapter-first source for the takeoff
+> deltas, Temporal designated the single successor lane behind a thin
+> execution seam, Kestra rejected, OpenProject arm's-length only, CPM
+> retained — and are reconciled in the merge that brought this branch onto
+> main's tree: ADR-0009 records the decisions; this ADR records the audit
+> and carries the implementation stages (Stage 1 = the pdf2takeoff bridge,
+> Stage 2 = the foundation seam, both SHIPPED).
 
 Status: accepted (2026-10-30, Audit v1 — binding Open-Source Reuse Directive compliance, delivered before the next capability expansion) · **Stage 1 SHIPPED same day** (see the migration-plan note below: the pdf2takeoff arm's-length bridge is live — 4 broker ops, 9/9 harness cases, registry `tested`) · Supersedes: none · Extends: [ADR-0004](0004-license-and-copyleft-boundary.md) (license boundary), [ADR-0005](0005-engine-integration-contract.md) (engine contract), [ADR-0006](0006-agent-safety-and-approval-gates.md) (approval red line), [ADR-0008](0008-llm-planner-untrusted-advisor.md) (planner contract)
 
@@ -82,7 +95,7 @@ touched):
 
 Staged, acceptance-suite-protected:
 
-- **Stage 0 (this change):** ADR-0009 + docs-drift fixes + registry rows. No
+- **Stage 0 (this change):** ADR-0011 (then numbered 0009) + docs-drift fixes + registry rows. No
   runtime code touched; CI gates unaffected.
 - **Stage 1 (SHIPPED 2026-10-30, same day):** pdf2takeoff arm's-length bridge
   pinned to the exact commit `f5a1c08…`

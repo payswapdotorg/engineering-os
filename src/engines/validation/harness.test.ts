@@ -146,7 +146,7 @@ describe("validation corpus manifest (integrity — engine independent)", () => 
     // the raw transcript + conf floor + the Ø-rule form); the ground truth is
     // the case-level narrative string, like takeoff/parametric.
     const OCR_ADAPTERS = new Set(["ocr"])
-    // ADR-0009 Stage 1 — the ADOPTED takeoff engine: pins live under runs[]
+    // ADR-0011 Stage 1 — the ADOPTED takeoff engine: pins live under runs[]
     // (like takeoff/parametric), with the op + otherFixture block shape.
     const P2T_ADAPTERS = new Set(["pdf2takeoff"])
     for (const c of manifest) {

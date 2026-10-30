@@ -1,6 +1,6 @@
 /**
  * Engineering OS — engine-adapter bridge for the ADOPTED takeoff engine
- * pdf2takeoff (ADR-0009 decision 5, Stage 1 — the audit's highest-value
+ * pdf2takeoff (ADR-0011 decision 5, Stage 1 — the audit's highest-value
  * reuse: room fill, revision compare, PDF annotation round-trip and BOQ
  * export are CONSUMED from upstream, not rebuilt).
  *
@@ -15,7 +15,7 @@
  * convert-document.ts self-report convention); `pinnedCommit` is verified
  * against .eos-engine-pin at every process start and echoed in every result.
  *
- * The four Stage-1 broker ops map onto it (ADR-0009 migration plan):
+ * The four Stage-1 broker ops map onto it (ADR-0011 migration plan):
  *   - compare_revisions  → CLI `compare <old> <new>` (per-sheet change
  *     fractions + changed regions + vector diffs, deterministic JSON)
  *   - annotate_takeoff   → CLI `annotate <pdf> --spec <yaml> -o <out>` —
@@ -60,7 +60,7 @@ export { EngineUnavailableError }
 // The pinned engine checkout (resolved + verified once per process)
 // ---------------------------------------------------------------------------
 
-/** The audit-pinned upstream commit (ADR-0009; setup-pdf2takeoff.sh stamps it). */
+/** The audit-pinned upstream commit (ADR-0011; setup-pdf2takeoff.sh stamps it). */
 export const PDF2TAKEOFF_PINNED_COMMIT = "f5a1c08b1308628755867df3b921e96ac2018969"
 
 /** The engine checkout root (the registry probe path; overridable for honest skips). */
@@ -172,7 +172,7 @@ export async function resolvePdf2takeoffEngine(): Promise<Pdf2takeoffEngine> {
   }
   if (pin !== PDF2TAKEOFF_PINNED_COMMIT) {
     throw new EngineUnavailableError(
-      `pdf2takeoff checkout at ${PDF2TAKEOFF_DIR} is pinned to ${pin}, but the bridge requires ${PDF2TAKEOFF_PINNED_COMMIT} (ADR-0009 Stage 1) — run scripts/setup-pdf2takeoff.sh to restore the audited pin`,
+      `pdf2takeoff checkout at ${PDF2TAKEOFF_DIR} is pinned to ${pin}, but the bridge requires ${PDF2TAKEOFF_PINNED_COMMIT} (ADR-0011 Stage 1) — run scripts/setup-pdf2takeoff.sh to restore the audited pin`,
     )
   }
   engineCache = {

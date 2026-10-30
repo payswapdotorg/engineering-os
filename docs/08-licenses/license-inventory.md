@@ -12,7 +12,7 @@ Engineering OS platform code: **Apache-2.0** (`/LICENSE`).
 |---|---|---|
 | next, react, react-dom | MIT | framework |
 | prisma / @prisma/client | Apache-2.0 | data layer |
-| tailwindcss, tw-animate-css | MIT | styling |
+| tailwindcss, tw-animate-css, tailwindcss-animate | MIT | styling (tailwindcss-animate is the runtime-listed one; tw-animate-css is dev) |
 | Radix UI primitives | MIT | component primitives |
 | class-variance-authority, clsx, tailwind-merge | Apache-2.0/MIT/… | shadcn/ui toolchain |
 | lucide-react | ISC | icons |
@@ -20,12 +20,20 @@ Engineering OS platform code: **Apache-2.0** (`/LICENSE`).
 | sonner, next-themes, date-fns, uuid, framer-motion | MIT | product UX utilities |
 | @tanstack/react-query, react-hook-form, @hookform/resolvers | MIT | client state/forms |
 | next-auth | ISC | available; auth lands Phase 4 |
+| pdfjs-dist 4.10.38 (pdf.js) | Apache-2.0 | Sheet Measure client rendering core; worker vendored at `public/vendor/pdf.worker.min.mjs` |
+| three + @types/three | MIT | 3D viewer (model-viewer.tsx) |
+| @react-three/fiber, @react-three/drei | MIT | 3D viewer React bindings (fiber: license field only — no in-package LICENSE file) |
+| sharp | Apache-2.0 | declared runtime dep with no import site today (noted by the Slice-31 audit) |
+| z-ai-web-dev-sdk | ISC — **ships NO license text** | the one platform dependency violating our own §4 source-text rule (package.json field only, no LICENSE file in the package) — flagged for vendor follow-up |
+| next-intl, zustand, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, vaul, cmdk, react-markdown, react-syntax-highlighter, recharts, @mdxeditor/editor, react-day-picker, @tanstack/react-table | MIT | product UX utilities |
+| embla-carousel-react, input-otp | MIT (field only) | carousel + OTP inputs; no in-package LICENSE file |
+| @reactuses/core | Unlicense (public domain) | NOT MIT as commonly assumed — public-domain dedication text verified in-package |
 
-All of the above are permissive (MIT/Apache-2.0/ISC) — no copyleft in the platform's runtime dependency tree. (Exact versions: `package.json`; lockfile `bun.lock`.)
+All of the above are permissive (MIT/Apache-2.0/ISC/Unlicense) — no copyleft in the platform's runtime dependency tree. (Exact versions: `package.json`; lockfile `bun.lock`.) Completeness audit 2026-10-31 (Slice 31, [ADR-0009](../adr/0009-oss-reuse-consolidation-decisions.md)): every runtime dependency in `package.json` now carries a row — 25 previously-missing rows added, each verified against the installed node_modules tree text or the package license field; the four field-only packages (@react-three/fiber, embla-carousel-react, input-otp, z-ai-web-dev-sdk) are recorded as such, and z-ai-web-dev-sdk — which ships no license text at all — is the register's only open supply-chain item.
 
 ## 3. Engine candidates (upstream)
 
-> **Engine candidates, source-verified 2026-10-21/25/29 + the 2026-10-30 reuse audit** (Worker 2 audits + TL-Audit-v1 per [ADR-0009](../adr/0009-open-source-reuse-consolidation-audit.md); GitHub/GitLab/SourceForge APIs, PyPI/npm registries, and pinned-tree LICENSE/COPYING texts — full method and per-engine evidence in [engine-inventory.md](../02-engines/engine-inventory.md), capability states in [capability-matrix.md](../02-engines/capability-matrix.md)). The register no longer means "all planned": the live registry (`src/engines/registry.json`) carried **44 records at audit close — 14 `tested` with real adapters** (cadquery, IfcOpenShell, gmsh, scikit-fem, SfePy, SimPy, pandapower, pyswmm, pdfplumber, ezdxf, tesseract, amaranth, yowasp-yosys, LibreOffice) **and 30 `planned`**; the pdf2takeoff row added below by the same audit raises it to 45 records / 31 `planned`. `tested` means adapter-verified on the dev host, never redistribution — bundling still requires the Phase-6 re-verification (ADR-0004 §3).
+> **49 engine candidates in the registry, source-verified 2026-10-21 → 2026-10-31** (Worker 2 audit + Slice 28 license-first probes + the two reuse-audit lines — Slice 31 per [ADR-0009](../adr/0009-oss-reuse-consolidation-decisions.md) with the [audit](../02-engines/oss-reuse-consolidation-audit-v1.md), the TL line per [ADR-0011](../adr/0011-reuse-audit-stages.md); GitHub/GitLab/SourceForge APIs, PyPI/npm registries, and pinned-tree LICENSE/COPYING texts — full method and per-engine evidence in [engine-inventory.md](../02-engines/engine-inventory.md), capability states in [capability-matrix.md](../02-engines/capability-matrix.md)). The live registry (`src/engines/registry.json`) carries **49 records — 15 `tested` with real adapters** (cadquery, IfcOpenShell, gmsh, scikit-fem, SfePy, SimPy, pandapower, pyswmm, pdfplumber, ezdxf, tesseract, amaranth, yowasp-yosys, LibreOffice, pdf2takeoff) **and 34 `planned`** (incl. the slice-31 designation rows: temporal, kestra, solvespace, gdal, and the future OpenTakeoff MCP lane). `tested` means adapter-verified on the dev host, never redistribution — bundling still requires the Phase-6 re-verification (ADR-0004 §3).
 >
 > | Engine | License (SPDX / honest text) | Copyleft class | Integration policy (ADR-0004) |
 > |---|---|---|---|
@@ -64,6 +72,11 @@ All of the above are permissive (MIT/Apache-2.0/ISC) — no copyleft in the plat
 > | LibreOffice | **conflict**: mirror COPYING = GPL-3.0 text vs libreoffice.org MPL-2.0 OR LGPL-3.0-or-later | strong (unresolved) | resolve against pinned release tree before any bundling (§3) |
 > | OpenProject | GPL-3.0 | strong | arm's-length REST/server integration (§2) |
 > | ProjectLibre | CPAL-1.0 | attribution + network-use conditions | arm's-length desktop + attribution notices reviewed at adapter time |
+> | pdf2takeoff | Apache-2.0 | permissive | library/CLI/MCP all permitted — but its xlsx@0.18.5 (CVE-stale SheetJS npm build) and libheif-js (LGPL-3.0, HEIC-only lazy) deps must never enter our tree; pin the exact commit |
+> | Temporal (server + the SDKs we would use) | MIT | permissive | designated NOT-adopted scale-out candidate ([ADR-0009 D1](../adr/0009-oss-reuse-consolidation-decisions.md)); external process/server only while unadopted |
+> | Kestra | Apache-2.0 | permissive | rejected candidate (ADR-0009) — recorded so the one-engine rule stays source-backed |
+> | SolveSpace | GPL-3.0-or-later | strong | arm's-length process only (§2) |
+> | GDAL/OGR | MIT-style core + enumerated per-file exceptions | permissive (exceptions per-file) | arm's-length CLI/python; re-verify the exception set against the pinned build (§3) |
 
 Integration policy (ADR-0004): engines run as separate processes; bundling/redistribution requires per-engine re-verification at release time. `installed` state never implies redistribution.
 

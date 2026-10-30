@@ -56,7 +56,7 @@ import {
   type WorkflowTransitionAction,
 } from "@/components/product/api"
 import { ActorBadge } from "@/components/product/badges"
-import { formatDate, relTime, shortHash } from "@/components/product/format"
+import { formatDate, formatDuration, relTime, shortHash } from "@/components/product/format"
 import { EmptyState, ErrorState, InfoNote } from "@/components/product/parts"
 import { GuardedButton } from "@/components/product/guarded-button"
 import { useSessionUser } from "@/components/product/session-user"
@@ -138,19 +138,6 @@ function parseWorkflowFailure(failure: string | null | undefined): WorkflowFailu
   } catch {
     return null
   }
-}
-
-/** Display-only duration from the server-recorded durationMs — no client math beyond formatting. */
-function formatDuration(ms: number | null | undefined): string {
-  if (ms === null || ms === undefined || !Number.isFinite(ms) || ms < 0) return "—"
-  if (ms < 1000) return `${Math.round(ms)} ms`
-  const seconds = ms / 1000
-  if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)} s`
-  const minutes = Math.floor(seconds / 60)
-  const rem = Math.round(seconds % 60)
-  if (minutes < 60) return `${minutes}m ${rem}s`
-  const hours = Math.floor(minutes / 60)
-  return `${hours}h ${minutes % 60}m`
 }
 
 /** Card summary: "3 steps · quantities, mesh, report" (+ approval-gate marker). */

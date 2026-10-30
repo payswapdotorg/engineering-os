@@ -1,13 +1,14 @@
 # ADR-0010: Workflow execution foundation — Stage-2 spike outcome and the seam
 
-Status: accepted (2026-10-30, ADR-0009 Stage 2) · Supersedes: none · Extends:
-ADR-0009 (decision #11 and migration Stage 2), ADR-0005 (the broker stays the
-only tool path), ADR-0006 §3 (the approval red line), ADR-0002 (platform core
-stays pure)
+Status: accepted (2026-10-30, ADR-0011 Stage 2) · Supersedes: none · Extends:
+ADR-0011 (decision #11 and migration Stage 2 — renumbered from the TL line's
+ADR-0009; see ADR-0009 D1 on main for the independently-reached same
+designation), ADR-0005 (the broker stays the only tool path), ADR-0006 §3 (the
+approval red line), ADR-0002 (platform core stays pure)
 
 ## Context
 
-ADR-0009 decision #11 froze the semantics of the durable workflow executor
+ADR-0011 decision #11 (same ground as ADR-0009 D1) froze the semantics of the durable workflow executor
 (`src/core/runtime/executor.ts`, 786 LOC — an in-process serial queue: durable
 records, not durable execution; no timers, no distributed workers, no
 parallelism) and mandated this spike: choose ONE execution foundation —

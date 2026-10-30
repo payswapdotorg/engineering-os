@@ -41,7 +41,7 @@ import { WORKFLOW_STATES, isWorkflowState, type WorkflowState } from "./index"
  * lane, phase5 contract §16.3 — steady scalar transport via SfePy).
  * Slice 30 adds `synthesize_rtl` (the chip lane, phase5 contract §17.3 —
  * RTL synthesis via amaranth + yowasp-yosys).
- * ADR-0009 Stage 1 adds the ADOPTED takeoff engine's four ops
+ * ADR-0011 Stage 1 adds the ADOPTED takeoff engine's four ops
  * (`compare_revisions`, `annotate_takeoff`, `export_boq_xlsx`, `fill_area` —
  * pdf2takeoff, Apache-2.0, pinned commit f5a1c08…).
  */

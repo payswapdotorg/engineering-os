@@ -74,7 +74,7 @@ import {
   type PowerFlowPayload,
 } from "@/components/product/api"
 import { ApprovalBadge, KindBadge, StalenessBadge } from "@/components/product/badges"
-import { formatDate, humanBytes, relTime, shortHash } from "@/components/product/format"
+import { formatDate, formatDuration, humanBytes, readCpmPayloadView, relTime, shortHash } from "@/components/product/format"
 import { EmptyState, ErrorState, InfoNote } from "@/components/product/parts"
 import { GuardedButton } from "@/components/product/guarded-button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -140,19 +140,6 @@ const FORMAT_OP: Record<string, SimOp> = {
   "eos-chip-netlist/1": "synthesize-rtl",
   "eos-swmm/1": "run-swmm",
   "eos-cpm/1": "analyze-schedule",
-}
-
-/** Display-only duration from the server-recorded durationMs — no client math beyond formatting. */
-function formatDuration(ms: number | null | undefined): string {
-  if (ms === null || ms === undefined || !Number.isFinite(ms) || ms < 0) return "—"
-  if (ms < 1000) return `${Math.round(ms)} ms`
-  const seconds = ms / 1000
-  if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)} s`
-  const minutes = Math.floor(seconds / 60)
-  const rem = Math.round(seconds % 60)
-  if (minutes < 60) return `${minutes}m ${rem}s`
-  const hours = Math.floor(minutes / 60)
-  return `${hours}h ${minutes % 60}m`
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -256,23 +243,9 @@ function readDerivedPayload(parsed: unknown): DerivedPayload | null {
     } satisfies DesPayload
   }
   if (format === "eos-cpm/1") {
-    return {
-      format,
-      sourceArtifactName: typeof parsed.sourceArtifactName === "string" ? parsed.sourceArtifactName : "—",
-      activities: (Array.isArray(parsed.activities) ? parsed.activities.filter(isRecord) : []).map((a) => ({
-        id: String(a.id ?? "—"),
-        name: String(a.name ?? "—"),
-        durationDays: Number(a.durationDays ?? NaN),
-        es: Number(a.es ?? NaN),
-        ef: Number(a.ef ?? NaN),
-        ls: Number(a.ls ?? NaN),
-        lf: Number(a.lf ?? NaN),
-        totalFloat: Number(a.totalFloat ?? NaN),
-        critical: a.critical === true,
-      })),
-      criticalPath: (Array.isArray(parsed.criticalPath) ? parsed.criticalPath : []).map(String),
-      durationDays: Number(parsed.durationDays ?? NaN),
-    } satisfies CpmAnalysisPayload
+    // Slice 31: the pinned-field mapping is the shared readCpmPayloadView
+    // (format.ts) — previously a byte-duplicate of the Controls workspace's.
+    return readCpmPayloadView(parsed) satisfies CpmAnalysisPayload
   }
   if (format === "eos-fea/1") {
     const samples = Array.isArray(parsed.samples) ? parsed.samples.filter(isRecord) : []

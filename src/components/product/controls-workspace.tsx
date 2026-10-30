@@ -57,7 +57,7 @@ import {
   type ScheduleActivityInput,
 } from "@/components/product/api"
 import { ApprovalBadge, KindBadge, StalenessBadge } from "@/components/product/badges"
-import { formatDate, humanBytes, relTime } from "@/components/product/format"
+import { formatDate, humanBytes, readCpmPayloadView, relTime } from "@/components/product/format"
 import { EmptyState, ErrorState, InfoNote } from "@/components/product/parts"
 import { GuardedButton } from "@/components/product/guarded-button"
 import { canonicalScheduleJson, parseSchedule } from "@/core/analysis-schemas"
@@ -105,28 +105,14 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  */
 function readCpmPayload(candidate: unknown): CpmAnalysisPayload | null {
   if (!isRecord(candidate)) return null
-  const activitiesRaw = Array.isArray(candidate.activities) ? candidate.activities : null
-  if (activitiesRaw === null) return null
-  const activities = activitiesRaw.filter(isRecord)
-  if (activities.length === 0) return null
-  return {
-    format: "eos-cpm/1",
-    sourceArtifactName:
-      typeof candidate.sourceArtifactName === "string" ? candidate.sourceArtifactName : "—",
-    activities: activities.map((a) => ({
-      id: String(a.id ?? "—"),
-      name: String(a.name ?? "—"),
-      durationDays: Number(a.durationDays ?? NaN),
-      es: Number(a.es ?? NaN),
-      ef: Number(a.ef ?? NaN),
-      ls: Number(a.ls ?? NaN),
-      lf: Number(a.lf ?? NaN),
-      totalFloat: Number(a.totalFloat ?? NaN),
-      critical: a.critical === true,
-    })),
-    criticalPath: (Array.isArray(candidate.criticalPath) ? candidate.criticalPath : []).map(String),
-    durationDays: Number(candidate.durationDays ?? NaN),
-  }
+  // Slice 31: the pinned-field mapping is the shared readCpmPayloadView
+  // (format.ts) — previously a byte-duplicate of the Simulation workspace's.
+  // This reader keeps its own stricter envelope rule: an analysis carrier
+  // without a non-empty activity list is not a CPM payload (null), while the
+  // stored-payload reader renders the honest empty list.
+  const view = readCpmPayloadView(candidate)
+  if (view.activities.length === 0) return null
+  return view
 }
 
 /** Try every plausible embedding of the CPM payload inside the 201 body. */

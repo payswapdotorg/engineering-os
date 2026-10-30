@@ -1,9 +1,9 @@
 /**
  * Engineering OS — workflow execution foundation seam (ADR-0010, the
- * ADR-0009 Stage-2 spike).
+ * ADR-0011 Stage-2 spike).
  *
  * THE PORT any durable-execution foundation must satisfy — and, more
- * important, the list of what it may NEVER own. ADR-0009 decision #11
+ * important, the list of what it may NEVER own. ADR-0011 decision #11
  * binding conditions, restated as architecture: the approval RED LINE
  * (approveWorkflow, human-only actor), revision publication, the closed
  * event vocabulary (contract §7, WORKFLOW_EVENT_KINDS) and broker

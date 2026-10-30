@@ -164,7 +164,7 @@ export type TakeoffAdapter = "sheet" | "dxf"
 /** 16-P (Slice 15 parametric-authoring lane): the cadquery parametric-rebuild kind. */
 export type ParametricAdapter = "parametric"
 
-/** ADR-0009 Stage 1: the ADOPTED takeoff engine's case kind — one adapter,
+/** ADR-0011 Stage 1: the ADOPTED takeoff engine's case kind — one adapter,
  * four ops (compare | annotate | export | fill), each case pinning the op in
  * its block. */
 export type Pdf2takeoffAdapter = "pdf2takeoff"
@@ -223,11 +223,11 @@ export interface CorpusCase {
   /** 16-B: the case-level narrative for OCR success cases (a string — the
    * expectedWords pins carry the transcript + conf floors + the Ø rule). */
   ocrGroundTruth?: string
-  /** ADR-0009 Stage 1: the per-adapter expectation block for the ADOPTED
+  /** ADR-0011 Stage 1: the per-adapter expectation block for the ADOPTED
    * engine — `pdf2takeoff` for adapter "pdf2takeoff" (one block per case,
    * pinning which op it exercises). */
   pdf2takeoff?: Pdf2takeoffExpectation
-  /** ADR-0009 Stage 1: the case-level analytic narrative for pdf2takeoff
+  /** ADR-0011 Stage 1: the case-level analytic narrative for pdf2takeoff
    * success cases (a string — the pins carry the numbers). */
   pdf2takeoffGroundTruth?: string
 }
@@ -302,7 +302,7 @@ export interface TakeoffExpectation {
 }
 
 // ---------------------------------------------------------------------------
-// pdf2takeoff expectations (ADR-0009 Stage 1 — the ADOPTED takeoff engine;
+// pdf2takeoff expectations (ADR-0011 Stage 1 — the ADOPTED takeoff engine;
 // same DisciplinePin schema, plus `op` (which of the four broker surfaces the
 // case exercises) and, for compare cases, `otherFixture` (the second
 // revision). Determinism policy per op: compare = JSON identity; export =
@@ -638,7 +638,7 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   dxf: "ezdxf (DXF takeoff)",
   parametric: "cadquery (parametric rebuild)",
   ocr: "tesseract (sheet-text OCR)",
-  pdf2takeoff: "pdf2takeoff (ADOPTED takeoff engine — ADR-0009)",
+  pdf2takeoff: "pdf2takeoff (ADOPTED takeoff engine — ADR-0011)",
 }
 
 /**
@@ -656,7 +656,7 @@ export function probeEngine(kind: AdapterKind): { available: boolean; reason?: s
     return { available: true } // pure platform core — no engine to probe (contract §6)
   }
   if (kind === "pdf2takeoff") {
-    // ADR-0009 Stage 1: the ADOPTED engine — pinned checkout + dependencies
+    // ADR-0011 Stage 1: the ADOPTED engine — pinned checkout + dependencies
     // + a runnable CLI (EOS_PDF2TAKEOFF_DIR-overridable, so a missing install
     // yields honest skips for its cases, never fabricated results).
     const dir = process.env.EOS_PDF2TAKEOFF_DIR ?? path.join(os.homedir(), ".local", "share", "eos-engines", "pdf2takeoff")
@@ -673,7 +673,7 @@ export function probeEngine(kind: AdapterKind): { available: boolean; reason?: s
       return { available: false, reason: `pdf2takeoff at ${dir} carries no .eos-engine-pin (run scripts/setup-pdf2takeoff.sh) — an unpinned checkout is never run` }
     }
     if (pin !== PDF2TAKEOFF_PINNED_COMMIT) {
-      return { available: false, reason: `pdf2takeoff checkout is pinned to ${pin}, but the harness requires ${PDF2TAKEOFF_PINNED_COMMIT} (ADR-0009 Stage 1)` }
+      return { available: false, reason: `pdf2takeoff checkout is pinned to ${pin}, but the harness requires ${PDF2TAKEOFF_PINNED_COMMIT} (ADR-0011 Stage 1)` }
     }
     const res = spawnSync(process.env.EOS_NODE_BIN ?? "node", [path.join(dir, "bin", "pdf2takeoff.js"), "help"], { timeout: 60_000 })
     if (res.error || res.status !== 0) {
@@ -1293,7 +1293,7 @@ function parseOcrExpectation(
   return block
 }
 
-/** Validate one pdf2takeoff expectation block (ADR-0009 Stage 1). */
+/** Validate one pdf2takeoff expectation block (ADR-0011 Stage 1). */
 function parsePdf2takeoffExpectation(caseId: string, blockName: string, raw: unknown): Pdf2takeoffExpectation {
   if (!isPlainObject(raw)) {
     throw new Error(`manifest case ${caseId}: ${blockName} block must be an object`)
@@ -1475,7 +1475,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       continue
     }
     if (adapter === "pdf2takeoff") {
-      // ADR-0009 Stage 1: exactly ONE pdf2takeoff block, naming the op
+      // ADR-0011 Stage 1: exactly ONE pdf2takeoff block, naming the op
       if (pdf2takeoff === undefined) {
         throw new Error(`manifest case ${caseId}: adapter "pdf2takeoff" requires a "pdf2takeoff" expectation block`)
       }
@@ -2591,7 +2591,7 @@ async function runDisciplineChecks(
     return runTakeoffChecks(c, fixturePath, report)
   }
 
-  // ADR-0009 Stage 1: the ADOPTED takeoff engine runs its own per-op
+  // ADR-0011 Stage 1: the ADOPTED takeoff engine runs its own per-op
   // machinery (compare/annotate/export/fill, per-op determinism policy) —
   // hand off BEFORE the Phase-5 discipline dispatch below.
   if (adapter === "pdf2takeoff") {
@@ -3245,7 +3245,7 @@ async function runTakeoffChecks(
 }
 
 // ---------------------------------------------------------------------------
-// pdf2takeoff checks (ADR-0009 Stage 1 — the ADOPTED takeoff engine at the
+// pdf2takeoff checks (ADR-0011 Stage 1 — the ADOPTED takeoff engine at the
 // pinned commit; the REAL arm's-length bridge over the committed fixtures,
 // hand-derived analytic pins from the A-102 closed forms, per-op determinism
 // policy: compare = result-JSON identity, export = CSV row identity, fill =

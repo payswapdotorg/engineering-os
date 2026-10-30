@@ -114,7 +114,7 @@ jpost "/api/projects/$PROBE_ID/workflows" "$WORK/wf-badop.json"
 # broker ops (contract §4); Slice 15 (2026-10-25) added the vector-takeoff
 # ops; Slice 22 (2026-10-28) added solve_fea; Slice 23 (2026-10-28) added
 # run_swmm; Slice 29 (2026-10-30) added solve_transport; Slice 30 (2026-10-31)
-# added synthesize_rtl; ADR-0009 Stage 1 (2026-10-30) added the ADOPTED
+# added synthesize_rtl; ADR-0011 Stage 1 (2026-10-30) added the ADOPTED
 # takeoff engine's four ops — the pinned message now lists all nineteen
 # (Slice 16 added rebuild_parametric).
 assert_eq "unknown operation → 422 with the joined verbatim message" \

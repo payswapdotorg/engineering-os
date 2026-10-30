@@ -2651,7 +2651,7 @@
     "adapter": "pdf2takeoff",
     "fixture": "sheet-a102-plan.pdf",
     "expect": "success",
-    "groundTruth": "ADR-0009 Stage 1 (the ADOPTED engine, pinned commit f5a1c08): revision compare of the A-102 demo sheet against ITSELF. The fixture is byte-identical on both sides, so every one of the 4 sheets is UNCHANGED (changed 0 / unchanged 4 / onlyInA 0 / onlyInB 0), each changedFraction is exactly 0, and the vector diff agrees (identical, 0 added / 0 removed). Hand-derived from the fixture builder (tests/fixtures/build-sheet-pdf.ts): 4 pages, all MediaBox 1191x842 except page 4 portrait 842x1191.",
+    "groundTruth": "ADR-0011 Stage 1 (the ADOPTED engine, pinned commit f5a1c08): revision compare of the A-102 demo sheet against ITSELF. The fixture is byte-identical on both sides, so every one of the 4 sheets is UNCHANGED (changed 0 / unchanged 4 / onlyInA 0 / onlyInB 0), each changedFraction is exactly 0, and the vector diff agrees (identical, 0 added / 0 removed). Hand-derived from the fixture builder (tests/fixtures/build-sheet-pdf.ts): 4 pages, all MediaBox 1191x842 except page 4 portrait 842x1191.",
     "pdf2takeoff": {
       "op": "compare",
       "expect": "success",
@@ -2719,7 +2719,7 @@
     "adapter": "pdf2takeoff",
     "fixture": "sheet-a102-plan.pdf",
     "expect": "success",
-    "groundTruth": "ADR-0009 Stage 1: revision compare of the A-102 plan set (4 sheets) against the quarter-arc curve fixture (1 sheet, tests/fixtures/build-curve-pdf.ts). Sheets pair by position: page 1 pairs (both exist) and DIFFERS \u2014 the A-102 page 1 carries the title text, scale bar, room outline and interior wall while the curve sheet draws one quarter-arc \u2014 so changed 1, unchanged 0; pages 2-4 have no counterpart (onlyInA 3, onlyInB 0, comparedSheets 1). Page 1's changedFraction is a raster-diff quantity (engine-observed 0.0059 on the dev host; pinned at abs 0.005 to stay honest across hosts) with changed regions present.",
+    "groundTruth": "ADR-0011 Stage 1: revision compare of the A-102 plan set (4 sheets) against the quarter-arc curve fixture (1 sheet, tests/fixtures/build-curve-pdf.ts). Sheets pair by position: page 1 pairs (both exist) and DIFFERS \u2014 the A-102 page 1 carries the title text, scale bar, room outline and interior wall while the curve sheet draws one quarter-arc \u2014 so changed 1, unchanged 0; pages 2-4 have no counterpart (onlyInA 3, onlyInB 0, comparedSheets 1). Page 1's changedFraction is a raster-diff quantity (engine-observed 0.0059 on the dev host; pinned at abs 0.005 to stay honest across hosts) with changed regions present.",
     "pdf2takeoff": {
       "op": "compare",
       "expect": "success",
@@ -2789,7 +2789,7 @@
     "adapter": "pdf2takeoff",
     "fixture": "sheet-a102-plan.pdf",
     "expect": "success",
-    "groundTruth": "ADR-0009 Stage 1: PDF annotation round-trip. The spec writes THREE markups pinned to the A-102 closed forms (contract \u00a72.2): the scale-bar run (60 -> 343.4646 pt = 100 paper-mm), the room rectangle (500,400 -> 726.7717,541.7323 = 80x50 paper-mm), one socket on page 2. The engine writes them as STANDARD annotations (Line/PolyLine/Polygon/FreeText) and reports 3 written / 0 kept. The output embeds a creation timestamp \u2014 byte-determinism is NOT claimed (the LibreOffice \u00a75.4 convention); the pins are structural (count + %PDF magic + size floor) and the VALUES are pinned by the p2t-export-boq-roundtrip case.",
+    "groundTruth": "ADR-0011 Stage 1: PDF annotation round-trip. The spec writes THREE markups pinned to the A-102 closed forms (contract \u00a72.2): the scale-bar run (60 -> 343.4646 pt = 100 paper-mm), the room rectangle (500,400 -> 726.7717,541.7323 = 80x50 paper-mm), one socket on page 2. The engine writes them as STANDARD annotations (Line/PolyLine/Polygon/FreeText) and reports 3 written / 0 kept. The output embeds a creation timestamp \u2014 byte-determinism is NOT claimed (the LibreOffice \u00a75.4 convention); the pins are structural (count + %PDF magic + size floor) and the VALUES are pinned by the p2t-export-boq-roundtrip case.",
     "pdf2takeoff": {
       "op": "annotate",
       "expect": "success",
@@ -2885,7 +2885,7 @@
     "adapter": "pdf2takeoff",
     "fixture": "sheet-a102-plan.pdf",
     "expect": "success",
-    "groundTruth": "ADR-0009 Stage 1: the annotate -> export round-trip (the product loop: markups become BOQ rows). The run annotates the A-102 closed forms into the PDF, then exports the quantities table at scale 1:100 in metres. Hand-derived values from contract \u00a72.2 + the engine's exact 1:100 preset (metersPerPt 0.03527778, the upstream's 8-dp preset value): scale bar = 283.4646 pt x 0.03527778 m/pt = 10.000001166666667 m (analytic 10.000 m at 1:100); room = 226.7717 x 141.7323 pt -> 40.00001783583051 m2 (analytic 40.000 m2); socket = 1 each. The XLSX twin is a real workbook (PK zip magic).",
+    "groundTruth": "ADR-0011 Stage 1: the annotate -> export round-trip (the product loop: markups become BOQ rows). The run annotates the A-102 closed forms into the PDF, then exports the quantities table at scale 1:100 in metres. Hand-derived values from contract \u00a72.2 + the engine's exact 1:100 preset (metersPerPt 0.03527778, the upstream's 8-dp preset value): scale bar = 283.4646 pt x 0.03527778 m/pt = 10.000001166666667 m (analytic 10.000 m at 1:100); room = 226.7717 x 141.7323 pt -> 40.00001783583051 m2 (analytic 40.000 m2); socket = 1 each. The XLSX twin is a real workbook (PK zip magic).",
     "pdf2takeoff": {
       "op": "export",
       "expect": "success",
@@ -3076,7 +3076,7 @@
     "adapter": "pdf2takeoff",
     "fixture": "sheet-a102-plan.pdf",
     "expect": "success",
-    "groundTruth": "ADR-0009 Stage 1: room fill (Magic Fill) inside the A-102 room outline \u2014 the 80x50 paper-mm rectangle at (500,400)..(726.7717,541.7323) pt, i.e. the analytic 8.000 x 5.000 m = 40.000 m2 room at 1:100 (scaleMmPerPt 1270/36, the platform calibration for A3@1:100 carried EXACTLY via from_points). The engine's documented behaviour: the fill boundary runs along the INNER faces of the 1-pt stroke (~0.67 pt inset per side), so the engine-observed value is 39.4009 m2 on the dev host \u2014 pinned at abs 0.1 (a raster-fill quantity, honest across hosts). The click point (560, 460) is strictly inside the room, clear of the interior wall anchored on the bottom edge. 8 boundary vertices on the dev host (the rect's 4 corners + the wall's intersections), bbox inside the analytic rect.",
+    "groundTruth": "ADR-0011 Stage 1: room fill (Magic Fill) inside the A-102 room outline \u2014 the 80x50 paper-mm rectangle at (500,400)..(726.7717,541.7323) pt, i.e. the analytic 8.000 x 5.000 m = 40.000 m2 room at 1:100 (scaleMmPerPt 1270/36, the platform calibration for A3@1:100 carried EXACTLY via from_points). The engine's documented behaviour: the fill boundary runs along the INNER faces of the 1-pt stroke (~0.67 pt inset per side), so the engine-observed value is 39.4009 m2 on the dev host \u2014 pinned at abs 0.1 (a raster-fill quantity, honest across hosts). The click point (560, 460) is strictly inside the room, clear of the interior wall anchored on the bottom edge. 8 boundary vertices on the dev host (the rect's 4 corners + the wall's intersections), bbox inside the analytic rect.",
     "pdf2takeoff": {
       "op": "fill",
       "expect": "success",
@@ -3142,7 +3142,7 @@
     "adapter": "pdf2takeoff",
     "fixture": "sheet-a102-plan.pdf",
     "expect": "error",
-    "groundTruth": "ADR-0009 Stage 1: the calibration red line \u2014 fill_area without a scale REFUSES before any engine call (an uncalibrated takeoff number is a fabricated number, ADR-0005/0006). The bridge's pinned verbatim refusal.",
+    "groundTruth": "ADR-0011 Stage 1: the calibration red line \u2014 fill_area without a scale REFUSES before any engine call (an uncalibrated takeoff number is a fabricated number, ADR-0005/0006). The bridge's pinned verbatim refusal.",
     "pdf2takeoff": {
       "op": "fill",
       "expect": "error",
@@ -3167,7 +3167,7 @@
     "adapter": "pdf2takeoff",
     "fixture": "sheet-a102-plan.pdf",
     "expect": "error",
-    "groundTruth": "ADR-0009 Stage 1: export from a PDF carrying NO pdf2takeoff annotations refuses honestly (the engine's own message, surfaced verbatim through the bridge) \u2014 nothing is invented from an unannotated sheet.",
+    "groundTruth": "ADR-0011 Stage 1: export from a PDF carrying NO pdf2takeoff annotations refuses honestly (the engine's own message, surfaced verbatim through the bridge) \u2014 nothing is invented from an unannotated sheet.",
     "pdf2takeoff": {
       "op": "export",
       "expect": "error",
@@ -3190,7 +3190,7 @@
     "adapter": "pdf2takeoff",
     "fixture": "sheet-a102-plan.pdf",
     "expect": "error",
-    "groundTruth": "ADR-0009 Stage 1: the bridge refuses a malformed annotate spec BEFORE any subprocess spawn \u2014 an area markup with a single point cannot exist (upstream parseSpec policy mirrored: length/area need >= 2 points).",
+    "groundTruth": "ADR-0011 Stage 1: the bridge refuses a malformed annotate spec BEFORE any subprocess spawn \u2014 an area markup with a single point cannot exist (upstream parseSpec policy mirrored: length/area need >= 2 points).",
     "pdf2takeoff": {
       "op": "annotate",
       "expect": "error",
@@ -3221,7 +3221,7 @@
     "adapter": "pdf2takeoff",
     "fixture": "sheet-a102-plan.pdf",
     "expect": "error",
-    "groundTruth": "ADR-0009 Stage 1: a fill click ON a drawn line (the interior-wall anchor zone at (613, 470)) is the ENGINE's honest refusal \u2014 the MCP tool refuses with 'you clicked on a line \u2014 click inside the region' and the bridge surfaces it verbatim as EngineUnavailableError. A miss is a miss, never a fabricated area.",
+    "groundTruth": "ADR-0011 Stage 1: a fill click ON a drawn line (the interior-wall anchor zone at (613, 470)) is the ENGINE's honest refusal \u2014 the MCP tool refuses with 'you clicked on a line \u2014 click inside the region' and the bridge surfaces it verbatim as EngineUnavailableError. A miss is a miss, never a fabricated area.",
     "pdf2takeoff": {
       "op": "fill",
       "expect": "error",

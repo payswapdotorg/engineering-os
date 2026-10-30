@@ -24,7 +24,7 @@ import {
 } from "./pdf2takeoff"
 
 /**
- * pdf2takeoff bridge tests (ADR-0009 Stage 1 — the ADOPTED takeoff engine).
+ * pdf2takeoff bridge tests (ADR-0011 Stage 1 — the ADOPTED takeoff engine).
  *
  * Honesty rules (ADR-0006 — the sheet_takeoff.test.ts convention): the PURE
  * tests feed SYNTHETIC inputs into the bridge's validate/serialize half and

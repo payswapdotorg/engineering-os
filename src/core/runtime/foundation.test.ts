@@ -1,7 +1,7 @@
 /**
  * ADR-0010 Stage-2 spike — workflow foundation seam tests.
  *
- * Pins the four things the spike owes the audit (ADR-0009 decision #11):
+ * Pins the four things the spike owes the audit (ADR-0011 decision #11):
  *   1. the flag: unset/empty → embedded default; EXACT id match; an
  *      unknown value is a hard verbatim error listing the registered
  *      foundations — a foundation is never a silent fallback;

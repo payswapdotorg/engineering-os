@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run \u2014 via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters \u2014 model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json \u2014 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) \u2014 see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py \u2192 eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) \u2014 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index \u2014 both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod. Update 2026-10-25 (Slice 16-D, registry state-vocabulary reconciliation \u2014 closes roadmap-gap-audit finding #15): every engine with a harness-validated adapter driving real broker operations now carries state 'tested' \u2014 gmsh (fe-mesh), pandapower (power flow), simpy (DES), libreoffice (headless document conversion) join cadquery and ifcopenshell; the three Slice-15/16 takeoff engines were ADDED with machine-verified upstreams (pdfplumber, ezdxf, tesseract \u2014 github-api license + PyPI/releases version checks, 2026-10-25). 'planned' now means exactly: no integrated adapter yet, regardless of installation state. Five license-first probe rows (sfepy/amaranth/yowasp-yosys/pin/pybullet) added 2026-10-29 (Slice 28, the Phase-5 long-tail CFD/chip/robotics probes) \u2014 every one verified on the wheel/sdist itself. Update 2026-10-30 (TL-Audit-v1): source-verified takeoff-engine audit concluded \u2014 pdf2takeoff (Apache-2.0) added as planned Stage-1 ADOPT per ADR-0009; OpenTakeoff confirmed AGPL-3.0-only (arm's-length MCP policy, no code reuse). Update 2026-10-30 (ADR-0009 Stage 1 SHIPPED): pdf2takeoff is now LIVE \u2014 the pinned checkout (commit f5a1c08\u2026) + the src/engines/adapters/pdf2takeoff.ts arm's-length bridge behind four broker ops (compare_revisions / annotate_takeoff / export_boq_xlsx / fill_area, BROKER_OPERATIONS 15 \u2192 19); the harness corpus gained 9 cases (42 \u2192 51, all 9 pass: analytic A-102 closed forms + four honest-refusal probes); registry 45 records (15 tested / 30 planned).",
+  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run \u2014 via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters \u2014 model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json \u2014 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) \u2014 see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py \u2192 eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) \u2014 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index \u2014 both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod. Update 2026-10-25 (Slice 16-D, registry state-vocabulary reconciliation \u2014 closes roadmap-gap-audit finding #15): every engine with a harness-validated adapter driving real broker operations now carries state 'tested' \u2014 gmsh (fe-mesh), pandapower (power flow), simpy (DES), libreoffice (headless document conversion) join cadquery and ifcopenshell; the three Slice-15/16 takeoff engines were ADDED with machine-verified upstreams (pdfplumber, ezdxf, tesseract \u2014 github-api license + PyPI/releases version checks, 2026-10-25). 'planned' now means exactly: no integrated adapter yet, regardless of installation state. Five license-first probe rows (sfepy/amaranth/yowasp-yosys/pin/pybullet) added 2026-10-29 (Slice 28, the Phase-5 long-tail CFD/chip/robotics probes) \u2014 every one verified on the wheel/sdist itself. Update 2026-10-31 (Slice 31 \u2014 the OSS Reuse & Consolidation Audit v1, ADR-0009): five candidates ADDED source-verified \u2014 pdf2takeoff (Apache-2.0; TypeScript, NOT Python, git-distributed only \u2014 the directive's assumption corrected), temporal (MIT), kestra (Apache-2.0), solvespace (GPL-3.0-or-later), gdal (MIT-style + enumerated per-file exceptions) \u2014 44 \u2192 49 records, all 'planned'. opentakeoff RE-VERIFIED live on this host (npm opentakeoff-mcp now 0.9.100, published 2026-10-25): the packaged MCP server probed over stdio against tests/fixtures/sheet-a102-plan.pdf \u2014 tools/list = 58 tools; load_plan detected scale 1:100 on all 4 pages incl. the rotated p4; set_scale use_detected \u2192 confirmed:false with the exact metric calibration; measure_polygon matched the analytic rectangle \u2014 MCP-over-stdio recorded as arm's-length under ADR-0004 \u00a72; the upstream NOTICE's Apache-2.0 grant through tag apache-2.0-final recorded as a counsel-only fallback, never relied on. Update 2026-10-30 (TL-Audit-v1): source-verified takeoff-engine audit concluded \u2014 pdf2takeoff (Apache-2.0) added as planned Stage-1 ADOPT per ADR-0011; OpenTakeoff confirmed AGPL-3.0-only (arm's-length MCP policy, no code reuse). Update 2026-10-30 (ADR-0011 Stage 1 SHIPPED): pdf2takeoff is now LIVE \u2014 the pinned checkout (commit f5a1c08\u2026) + the src/engines/adapters/pdf2takeoff.ts arm's-length bridge behind four broker ops (compare_revisions / annotate_takeoff / export_boq_xlsx / fill_area, BROKER_OPERATIONS 15 \u2192 19); the harness corpus gained 9 cases (42 \u2192 51, all 9 pass: analytic A-102 closed forms + four honest-refusal probes); registry 49 records (15 tested / 34 planned \u2014 the five Slice-31 designation rows are planned).",
   "engines": [
     {
       "key": "freecad",
@@ -483,10 +483,10 @@
         "canonical": "https://github.com/Kentucky-ai/opentakeoff",
         "repo": "Kentucky-ai/opentakeoff",
         "licenseSpdx": "AGPL-3.0",
-        "latestStable": "0.9.98",
+        "latestStable": "0.9.100",
         "verified": true,
-        "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /search/repositories?q=opentakeoff (mandated candidate audit \u2014 credible active project located) + /repos/Kentucky-ai/opentakeoff (license field AGPL-3.0; releases/latest tag mcp-v0.9.98) + npm registry opentakeoff-mcp (dist-tag 0.9.98, bin {opentakeoff-mcp: dist/server.js}, license AGPL-3.0-only)"
+        "verifiedAt": "2026-10-31",
+        "verifiedMethod": "github-api /search/repositories?q=opentakeoff (mandated candidate audit \u2014 credible active project located) + /repos/Kentucky-ai/opentakeoff (license field AGPL-3.0; releases/latest tag mcp-v0.9.98) + npm registry opentakeoff-mcp (dist-tag 0.9.98, bin {opentakeoff-mcp: dist/server.js}, license AGPL-3.0-only); re-verified 2026-10-31 (Slice 31 audit): HEAD tree clone (commit c49de42, 2026-10-28) \u2014 LICENSE = full 34,524-byte AGPL-3.0 text + NOTICE; npm registry re-query: 73 versions, latest 0.9.100 published 2026-10-25; the packaged MCP server live-probed over stdio MCP on this host against tests/fixtures/sheet-a102-plan.pdf: tools/list = 58 tools, load_plan detected 1:100 on all 4 pages incl. the rotated p4, set_scale use_detected \u2192 upp 0.057870 ft/px (exact metric 1:100) with confirmed:false (human-confirm gate observed live), measure_polygon 2100\u00d71400 px rectangle \u2192 9846 SF / 405.09 LF matching the analytic values at printed precision"
       },
       "integration": {
         "mechanisms": [
@@ -507,9 +507,11 @@
       ],
       "state": "planned",
       "limitations": [
-        "AGPL-3.0 (npm metadata declares AGPL-3.0-only) \u2014 strict arm's-length process/network boundary (ADR-0004)",
-        "Pre-1.0 (0.9.98) with fast-moving development \u2014 pin exact tag at integration",
-        "Presence-only probe for the npm-installed MCP server binary; version read from npm metadata at adapter time"
+        "AGPL-3.0 (npm metadata declares AGPL-3.0-only) \u2014 strict arm's-length process/network boundary (ADR-0004); MCP-over-stdio counts as arm's-length (recorded by ADR-0009), but npm-installing it as an imported LIBRARY dependency or vendoring its web/src/lib geometry is NOT permitted",
+        "Pre-1.0 (0.9.100 at the Slice-31 re-verify) with fast-moving development \u2014 pin exact tag at integration",
+        "Presence-only probe for the npm-installed MCP server binary; version read from npm metadata at adapter time",
+        "Upstream NOTICE grants Apache-2.0 permanently through tag apache-2.0-final (commit 84c7f48e, 2026-10-10, MCP 0.9.98) \u2014 recorded as a counsel-only fallback route, never relied on: HEAD is AGPL-3.0-only and mixing post-boundary commits contaminates",
+        "MCP server has no OCR module at HEAD (canvas-only on-device OCR in the web app) \u2014 scans rely on view_sheet raster fallback; our tesseract broker adapter stays the provenance-grade OCR path"
       ]
     },
     {
@@ -1735,15 +1737,15 @@
       "key": "pdf2takeoff",
       "name": "pdf2takeoff",
       "domain": "takeoff",
-      "description": "PDF takeoff engine: native PDF annotation round-trip, revision compare, one-click room fill, scale auto-read + dimension witness, XLSX export, and 15 MCP tools for headless/agent use (DOM-free, ports-seamed).",
+      "description": "Open-source (Apache-2.0) PDF/DXF takeoff engine in TypeScript \u2014 a CI-enforced environment-agnostic pure engine shared by a browser app, a Node CLI and a 16-tool MCP server. The permissive-license source for the takeoff capability deltas the platform lacked \u2014 room/region fill, revision compare, standard PDF annotation round-trip (plus the scale-auto-read witness and XLSX/BOQ export) \u2014 now LIVE behind four broker ops.",
       "upstream": {
         "canonical": "https://github.com/ajflow/pdf2takeoff",
         "repo": "ajflow/pdf2takeoff",
         "licenseSpdx": "Apache-2.0",
-        "latestStable": "0.1.0",
+        "latestStable": "0.1.0 (commit f5a1c08, 2026-10-29; no npm/PyPI releases \u2014 the exact commit hash is the pin)",
         "verified": true,
-        "verifiedAt": "2026-10-30",
-        "verifiedMethod": "github-api /repos/ajflow/pdf2takeoff (license field Apache-2.0) + raw LICENSE file (Apache-2.0 text) \u2014 machine-verified via GitHub REST and source-verified from the LICENSE text on audit day 2026-10-30 (TL-Audit-v1, the deep source audit of ADR-0009)"
+        "verifiedAt": "2026-10-31",
+        "verifiedMethod": "github-api /repos/ajflow/pdf2takeoff (license field Apache-2.0) + raw LICENSE file (Apache-2.0 text) \u2014 machine-verified via GitHub REST and source-verified from the LICENSE text on audit day 2026-10-30 (TL-Audit-v1, the deep source audit of ADR-0011); shallow clone at f5a1c08 (2026-10-29): LICENSE full text = Apache-2.0 ('Copyright 2026 pdf2takeoff contributors') + package.json license field; registry checks honest: NOT on npm (registry.npmjs.org/pdf2takeoff \u2192 Not Found) and NOT on PyPI (pypi.org/pypi/pdf2takeoff \u2192 Not Found) \u2014 git-distributed only (npx github:ajflow/pdf2takeoff), Node >=22.13, TypeScript \u2014 the directive's 'Python package' assumption corrected; live-probed headless against our own fixtures: info on tests/fixtures/sheet-a102-plan.pdf (4 pages, page 4 rotated, 0.62 s wall) and ocr on tests/fixtures/sheet-scan-like.pdf (tesseract wasm functional, honest wordCount 0 on the text-free fixture); Stage-1 re-verify 2026-10-30: the pinned checkout drives the live arm's-length bridge (src/engines/adapters/pdf2takeoff.ts) \u2014 9-case harness corpus 9/9 pass (tests/validation/corpus-manifest.json)"
       },
       "integration": {
         "mechanisms": [
@@ -1751,7 +1753,7 @@
           "mcp",
           "node-subprocess"
         ],
-        "notes": "REAL ADAPTER (ADR-0009 Stage 1, 2026-10-30): src/engines/adapters/pdf2takeoff.ts drives the arm's-length pinned checkout (scripts/setup-pdf2takeoff.sh clones ajflow/pdf2takeoff at commit f5a1c08b1308628755867df3b921e96ac2018969 into ~/.local/share/eos-engines/pdf2takeoff, stamps .eos-engine-pin; the bridge refuses any other pin). Four broker ops over ONE adapter: compare_revisions (CLI compare \u2014 per-sheet change fractions + regions + vector diffs, eos-revision-compare/1), annotate_takeoff (CLI annotate \u2014 markups into the PDF as STANDARD annotations, parameters.markups or the revision's own Sheet Measure rows; output embeds a creation timestamp \u2014 structural evidence only, \u00a75.4), export_boq_xlsx (CLI export \u2014 the annotate\u2192export round-trip; XLSX default, CSV optional; the calibration carried as a 1:R string with the platform value recorded in provenance), fill_area (MCP session open_document \u2192 set_scale from_points \u2014 the platform calibration EXACTLY, no ratio rounding \u2192 fill_area Magic Fill; eos-room-fill/1 evidence artifact, the ledger stays human-disposed)."
+        "notes": "REAL ADAPTER (ADR-0011 Stage 1, 2026-10-30): src/engines/adapters/pdf2takeoff.ts drives the arm's-length pinned checkout (scripts/setup-pdf2takeoff.sh clones ajflow/pdf2takeoff at commit f5a1c08b1308628755867df3b921e96ac2018969 into ~/.local/share/eos-engines/pdf2takeoff, stamps .eos-engine-pin; the bridge refuses any other pin). Four broker ops over ONE adapter: compare_revisions (CLI compare \u2014 per-sheet change fractions + regions + vector diffs, eos-revision-compare/1), annotate_takeoff (CLI annotate \u2014 markups into the PDF as STANDARD annotations, parameters.markups or the revision's own Sheet Measure rows; output embeds a creation timestamp \u2014 structural evidence only, \u00a75.4), export_boq_xlsx (CLI export \u2014 the annotate\u2192export round-trip; XLSX default, CSV optional; the calibration carried as a 1:R string with the platform value recorded in provenance), fill_area (MCP session open_document \u2192 set_scale from_points \u2014 the platform calibration EXACTLY, no ratio rounding \u2192 fill_area Magic Fill; eos-room-fill/1 evidence artifact, the ledger stays human-disposed). Slice-31 (ADR-0009 D3) designated this engine adapter-first for the capability deltas \u2014 never a second user-facing takeoff UI; the BOQ serializer stays ours (xlsx watch-item below), and OCR-vote scale detect + ledger disposition from Magic-Fill evidence remain future stages."
       },
       "probes": [
         {
@@ -1769,11 +1771,14 @@
       ],
       "state": "tested",
       "limitations": [
-        "v0.1.0, single-org upstream, installed from a GitHub ref \u2014 pinned to exact commit f5a1c08\u2026 (re-verify at each bump, ADR-0004 \u00a73)",
+        "v0.1.0, single-org upstream, two weeks old at audit (first commit 2026-10-16), one human author with disclosed AI co-authorship \u2014 pinned to the exact commit f5a1c08\u2026 (re-verify and re-run the shared-fixture benchmark at each bump, ADR-0004 \u00a73)",
+        "Not published to npm/PyPI \u2014 git-install only; the git prepare script builds dist-node via tsc and FAILS without dev deps (install with npm install --omit=dev --ignore-scripts, or full npm ci)",
+        "Runtime deps watch-items: xlsx@0.18.5 (SheetJS npm build with known CVEs \u2014 never inherit its export path; our BOQ serializer stays ours) and libheif-js (LGPL-3.0, lazily loaded for HEIC only \u2014 keep out of any redistributed bundle)",
         "Runs its own pdfjs-dist 5.x \u2014 kept in the arm's-length subprocess to avoid worker conflicts with the platform's pinned pdfjs-dist 4.10.38",
         "annotate output embeds a creation timestamp \u2014 byte-determinism NOT claimed (\u00a75.4); re-runs REPLACE pdf2takeoff markups idempotently",
         "fill_area is a raster flood fill \u2014 values pinned at abs 0.1 m\u00b2 (the boundary runs on inner wall faces, not the analytic line); the markup id carries a random suffix (excluded from determinism witnesses honestly)",
-        "export takes the calibration as a 1:R ratio string (4 dp) \u2014 at exact drawing scales this is exact; browser-calibrated values keep 4 significant decimals with the platform value recorded in provenance"
+        "export takes the calibration as a 1:R ratio string (4 dp) \u2014 at exact drawing scales this is exact; browser-calibrated values keep 4 significant decimals with the platform value recorded in provenance",
+        "No cutout/hole semantics in the engine \u2014 src/core/measure.ts areaWithCutouts stays the system of record for cutout math"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
@@ -1782,6 +1787,156 @@
         "result": "pass",
         "note": "p2t-compare-identical (4/4 unchanged, vectorIdentical), p2t-compare-different (onlyInA 3, changed page 1), p2t-annotate-roundtrip (3 markups, %PDF magic, structural \u2014 determinism honestly null, creation timestamp), p2t-export-boq-roundtrip (the A-102 closed forms: bar 10.000001166666667 m, room 40.00001783583051 m\u00b2 at 1:100, rel 1e-9; XLSX PK magic), p2t-fill-area-room (39.4009 m\u00b2 vs the 40.000 m\u00b2 analytic room at abs 0.1 \u2014 the inner-wall-face inset), plus four honest refusals: no-scale verbatim, no-annotations, bad-spec pre-spawn, clicked-on-line (engine verbatim)"
       }
+    },
+    {
+      "key": "temporal",
+      "name": "Temporal",
+      "domain": "workflow",
+      "description": "Durable workflow execution engine (MIT server + MIT TypeScript SDK) \u2014 the single credible external execution-backend candidate. Investigated by the OSS Reuse & Consolidation Audit v1 and NOT adopted (ADR-0009): our executor is retained; Temporal is recorded so the one-engine rule stays source-backed.",
+      "upstream": {
+        "canonical": "https://github.com/temporalio/temporal",
+        "repo": "temporalio/temporal",
+        "licenseSpdx": "MIT",
+        "latestStable": "HEAD 2287bc6a (2026-10-30) \u2014 server release pin deferred to integration time",
+        "verified": true,
+        "verifiedAt": "2026-10-31",
+        "verifiedMethod": "shallow clone (--filter=blob:none): LICENSE full text = MIT (Temporal Technologies Inc 2025 + Uber 2020 cadence lineage; 10,132 commits, active daily); SDK licenses fetched from the upstream repos \u2014 TypeScript SDK MIT (raw.githubusercontent.com/temporalio/sdk-typescript), Go MIT, Python MIT, PHP MIT, .NET MIT, Java Apache-2.0; deployment shape verified in-tree: single Go server binary, dev server runs SQLite (temporal server start-dev), production needs PostgreSQL/MySQL/Cassandra + optional Elasticsearch"
+      },
+      "integration": {
+        "mechanisms": [
+          "server",
+          "rest",
+          "sdk",
+          "cli"
+        ],
+        "notes": "Designated scale-out candidate behind the ADR-0009 execution-adapter seam (enqueue/claim/run-step/approve) \u2014 to be evaluated ONLY if concurrency, scheduling or multi-node execution ever enters contract scope; the one-engine rule forbids adopting it alongside another orchestration platform"
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": [
+            "temporal"
+          ],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "Separate Go server process + production DB backend \u2014 adds an always-on service to the single-systemd-unit deployment (the ADR-0009 retention rationale)",
+        "Human-in-the-loop is a pattern (signals/updates), not an approver-identity model \u2014 our session-user red line, artifact approval machine and audit trail must remain platform code under any future adoption",
+        "Event-history replay durability differs in kind from our verbatim-error step rows \u2014 adoption re-expresses (never ports) the workflow-runtime-contract \u00a78 executor semantics"
+      ]
+    },
+    {
+      "key": "kestra",
+      "name": "Kestra",
+      "domain": "workflow",
+      "description": "Declarative YAML workflow orchestration platform (Apache-2.0, JVM) \u2014 investigated by the OSS Reuse & Consolidation Audit v1 and NOT adopted; registered so the ADR-0009 one-engine rule and rejection rationale stay source-backed.",
+      "upstream": {
+        "canonical": "https://github.com/kestra-io/kestra",
+        "repo": "kestra-io/kestra",
+        "licenseSpdx": "Apache-2.0",
+        "latestStable": "HEAD 6abb68f1 (2026-10-30)",
+        "verified": true,
+        "verifiedAt": "2026-10-31",
+        "verifiedMethod": "shallow clone: LICENSE = full Apache-2.0 text + 'Copyright 2019 Kestra Technologies' (13,459 commits, active daily); deployment personas verified in-tree (kestra server local = embedded H2; standalone = external JDBC postgres/mysql) and the core Approval plugin verified in-source (io.kestra.plugin.core.flow.Approval pauses a flow pending reviewer approval)"
+      },
+      "integration": {
+        "mechanisms": [
+          "server",
+          "rest"
+        ],
+        "notes": "Rejected by ADR-0009: JVM+DB weight on a single-unit host; YAML task-runner execution would bypass the broker (ADR-0005 rule 1); its Approval plugin ships a review UI/API that would move approvals outside our session-user authorization + audit model"
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": [
+            "kestra"
+          ],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "JVM application (GB-scale heap class in real deployments) + external DB for production \u2014 materially the heaviest candidate for this deployment",
+        "Task-runner model executes scripts outside our broker \u2014 would break the single-execution-path rule unless every task wraps a broker op",
+        "Approval plugin duplicates/conflicts with our human-approver red line \u2014 recorded as the decisive overlap, not a feature"
+      ]
+    },
+    {
+      "key": "solvespace",
+      "name": "SolveSpace",
+      "domain": "cad",
+      "description": "Constraint-based parametric 3D CAD with its own NURBS kernel (GPL-3.0-or-later, v3.3 2026-10-20) \u2014 registered for completeness of the CAD candidate list; our parametric lane is served by cadquery (OCCT, installed + tested).",
+      "upstream": {
+        "canonical": "https://github.com/solvespace/solvespace",
+        "repo": "solvespace/solvespace",
+        "licenseSpdx": "GPL-3.0-or-later",
+        "latestStable": "3.3 (2026-10-20)",
+        "verified": true,
+        "verifiedAt": "2026-10-31",
+        "verifiedMethod": "COPYING.txt fetched from the upstream tree (full GPL v3 text; NO linking exception in the file; README: 'distributed under the terms of the GPL v3 or later') + v3.3 tag verified via git ls-remote"
+      },
+      "integration": {
+        "mechanisms": [
+          "executable"
+        ],
+        "notes": "Arm's-length CLI/process only (ADR-0004 \u00a72) \u2014 same class as LibreCAD; deferred unless a constraint-solving need surfaces that OCCT cannot serve (adopting it now would duplicate the parametric CAD capability cadquery already provides)"
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": [
+            "solvespace"
+          ],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "GPL-3.0-or-later strong copyleft \u2014 arm's-length process only, never in-process (ADR-0004 \u00a72)",
+        "No pip-installable headless distribution on this host class \u2014 the same system-binary boundary recorded for FreeCAD",
+        "Capability overlap with cadquery (tested, installed) \u2014 deferred by ADR-0009 to avoid duplicating the parametric modeling capability"
+      ]
+    },
+    {
+      "key": "gdal",
+      "name": "GDAL/OGR",
+      "domain": "gis",
+      "description": "Geospatial raster/vector foundation (MIT-style core license + ~14 enumerated per-file permissive exceptions) \u2014 the data-access layer under the QGIS/GRASS lanes; registered per the GIS candidate list.",
+      "upstream": {
+        "canonical": "https://github.com/OSGeo/gdal",
+        "repo": "OSGeo/gdal",
+        "licenseSpdx": "MIT-style with per-file exceptions (LICENSE.TXT is the truth)",
+        "latestStable": "3.13.3",
+        "verified": true,
+        "verifiedAt": "2026-10-31",
+        "verifiedMethod": "LICENSE.TXT read in full from the upstream tree (467 lines): 'In general GDAL/OGR is licensed under an MIT style license' + the exception sections enumerated per-file (ILM BSD-style, zlib-style minizip, BSD-style thinplatespline/libqhull, Apache-2.0 flatgeobuf, PDFium-method pdfdataset, etc.) + v3.13.3 tag verified via git ls-remote"
+      },
+      "integration": {
+        "mechanisms": [
+          "executable",
+          "python-module"
+        ],
+        "notes": "Foundation layer for the future QGIS (GPL-2.0) / GRASS (GPL-2.0-or-later) lanes \u2014 CRS transforms and raster/vector I/O would ride GDAL before those heavyweight applications; the python-module (osgeo) probe is the preferred in-venv lane if a wheel exists at adapter time"
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "osgeo.gdal",
+          "moduleVersionExpr": "import osgeo.gdal; print(osgeo.gdal.__version__)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "Exception clauses bind only when the excepted files/drivers are built in \u2014 re-verify against the pinned wheel/binary at integration time (ADR-0004 \u00a73)",
+        "Heavy system-native build \u2014 pip-wheel availability on this host class probes at adapter time; the system-binary boundary risk is the same class recorded for OpenFOAM",
+        "GIS lanes remain Phase-5+ backlog \u2014 registering the foundation layer claims no capability (ADR-0005: no capability is complete merely because a dependency exists)"
+      ]
     }
   ]
 }

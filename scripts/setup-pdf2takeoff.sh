@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup-pdf2takeoff.sh — Stage-1 ADR-0009: pin the pdf2takeoff engine checkout.
+# setup-pdf2takeoff.sh — Stage-1 ADR-0011: pin the pdf2takeoff engine checkout.
 #
 # Clones ajflow/pdf2takeoff (Apache-2.0, machine-verified during Audit v1) at
 # the EXACT pinned commit into a user-local engine dir, installs its

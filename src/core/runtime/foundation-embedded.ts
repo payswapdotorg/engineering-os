@@ -5,7 +5,7 @@
  * contract §8) as the default WorkflowExecutionFoundation: the 786-LOC
  * in-process serial queue — durable records, not durable execution; no
  * timers, no distributed workers, no parallelism — described honestly in
- * describe() exactly as the ADR-0009 audit characterized it. Claiming,
+ * describe() exactly as the ADR-0011 audit characterized it. Claiming,
  * step dispatch, retry and orphan recovery delegate to the executor; the
  * platform-owned semantics (approval red line, revision publication, event
  * vocabulary, broker authorization) remain in the executor/routes and are

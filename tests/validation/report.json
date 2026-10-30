@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-10-30T18:35:34.535Z",
+  "ranAt": "2026-10-30T21:22:05.684Z",
   "pythonBin": "/home/z/.venv/bin/python3",
   "manifestPath": "tests/validation/corpus-manifest.json",
   "caseCount": 51,
@@ -89,7 +89,7 @@
     "sheet_takeoff.py": "bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff",
     "dxf_takeoff.py": "07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329",
     "parametric_rebuild.py": "14d62a117314160ffea825ec9aca038e863a550fa7cc5b33babb487295854acf",
-    "pdf2takeoff.ts": "8a975d2d8d752238308deedda6811bb345d295224f6cb086ba065acfb762b2d0",
+    "pdf2takeoff.ts": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344",
     "sheet_ocr.ts": "b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45"
   },
   "cases": [
@@ -2988,7 +2988,7 @@
           "engineKey": "pdf2takeoff",
           "engineVersion": "0.1.0",
           "adapterScript": "pdf2takeoff.ts",
-          "adapterHash": "8a975d2d8d752238308deedda6811bb345d295224f6cb086ba065acfb762b2d0"
+          "adapterHash": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344"
         }
       }
     },
@@ -3120,7 +3120,7 @@
           "engineKey": "pdf2takeoff",
           "engineVersion": "0.1.0",
           "adapterScript": "pdf2takeoff.ts",
-          "adapterHash": "8a975d2d8d752238308deedda6811bb345d295224f6cb086ba065acfb762b2d0"
+          "adapterHash": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344"
         }
       }
     },
@@ -3185,10 +3185,10 @@
             "field": "sizeBytes",
             "ref": null,
             "expected": 4000,
-            "observed": 6169,
+            "observed": 6171,
             "unit": null,
             "bound": "min",
-            "absDiff": 2169,
+            "absDiff": 2171,
             "observedRelError": null,
             "ok": true,
             "problem": "value",
@@ -3200,7 +3200,7 @@
           "engineKey": "pdf2takeoff",
           "engineVersion": "0.1.0",
           "adapterScript": "pdf2takeoff.ts",
-          "adapterHash": "8a975d2d8d752238308deedda6811bb345d295224f6cb086ba065acfb762b2d0"
+          "adapterHash": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344"
         }
       }
     },
@@ -3345,7 +3345,7 @@
           "engineKey": "pdf2takeoff",
           "engineVersion": "0.1.0",
           "adapterScript": "pdf2takeoff.ts",
-          "adapterHash": "8a975d2d8d752238308deedda6811bb345d295224f6cb086ba065acfb762b2d0"
+          "adapterHash": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344"
         }
       }
     },
@@ -3451,7 +3451,7 @@
           "engineKey": "pdf2takeoff",
           "engineVersion": "0.1.0",
           "adapterScript": "pdf2takeoff.ts",
-          "adapterHash": "8a975d2d8d752238308deedda6811bb345d295224f6cb086ba065acfb762b2d0"
+          "adapterHash": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344"
         }
       }
     },
