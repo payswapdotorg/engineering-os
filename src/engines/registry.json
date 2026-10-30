@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters — model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json — 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) — see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py → eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) — 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index — both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod. Update 2026-10-25 (Slice 16-D, registry state-vocabulary reconciliation — closes roadmap-gap-audit finding #15): every engine with a harness-validated adapter driving real broker operations now carries state 'tested' — gmsh (fe-mesh), pandapower (power flow), simpy (DES), libreoffice (headless document conversion) join cadquery and ifcopenshell; the three Slice-15/16 takeoff engines were ADDED with machine-verified upstreams (pdfplumber, ezdxf, tesseract — github-api license + PyPI/releases version checks, 2026-10-25). 'planned' now means exactly: no integrated adapter yet, regardless of installation state. Five license-first probe rows (sfepy/amaranth/yowasp-yosys/pin/pybullet) added 2026-10-29 (Slice 28, the Phase-5 long-tail CFD/chip/robotics probes) — every one verified on the wheel/sdist itself.",
+  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters — model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json — 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) — see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py → eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) — 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index — both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod. Update 2026-10-25 (Slice 16-D, registry state-vocabulary reconciliation — closes roadmap-gap-audit finding #15): every engine with a harness-validated adapter driving real broker operations now carries state 'tested' — gmsh (fe-mesh), pandapower (power flow), simpy (DES), libreoffice (headless document conversion) join cadquery and ifcopenshell; the three Slice-15/16 takeoff engines were ADDED with machine-verified upstreams (pdfplumber, ezdxf, tesseract — github-api license + PyPI/releases version checks, 2026-10-25). 'planned' now means exactly: no integrated adapter yet, regardless of installation state. Five license-first probe rows (sfepy/amaranth/yowasp-yosys/pin/pybullet) added 2026-10-29 (Slice 28, the Phase-5 long-tail CFD/chip/robotics probes) — every one verified on the wheel/sdist itself. Update 2026-10-30 (TL-Audit-v1): source-verified takeoff-engine audit concluded — pdf2takeoff (Apache-2.0) added as planned Stage-1 ADOPT per ADR-0009; OpenTakeoff confirmed AGPL-3.0-only (arm's-length MCP policy, no code reuse).",
   "engines": [
     {
       "key": "freecad",
@@ -1730,6 +1730,43 @@
         "result": "pass",
         "note": "fea cases: uniform-tension MACHINE-PRECISION (16 pins, max rel err 1.7e-13 — the linear exact field reproduced verbatim by tri6), cantilever end-shear vs the Timoshenko closed form (rel 4.7e-3 at refinement 4, inside the 1% mesh-tolerance pin), under-constrained rigid-mode refusal verbatim; double-run byte-identical documents"
       }
+    },
+    {
+      "key": "pdf2takeoff",
+      "name": "pdf2takeoff",
+      "domain": "takeoff",
+      "description": "PDF takeoff engine: native PDF annotation round-trip, revision compare, one-click room fill, scale auto-read + dimension witness, XLSX export, and 15 MCP tools for headless/agent use (DOM-free, ports-seamed).",
+      "upstream": {
+        "canonical": "https://github.com/ajflow/pdf2takeoff",
+        "repo": "ajflow/pdf2takeoff",
+        "licenseSpdx": "Apache-2.0",
+        "latestStable": "0.1.0",
+        "verified": true,
+        "verifiedAt": "2026-10-30",
+        "verifiedMethod": "github-api /repos/ajflow/pdf2takeoff (license field Apache-2.0) + raw LICENSE file (Apache-2.0 text) — machine-verified via GitHub REST and source-verified from the LICENSE text on audit day 2026-10-30 (TL-Audit-v1, the deep source audit of ADR-0009)"
+      },
+      "integration": {
+        "mechanisms": [
+          "cli",
+          "mcp"
+        ],
+        "notes": "STAGE-1 ADOPT (ADR-0009 decision 5): arm's-length Node subprocess bin/pdf2takeoff.js pinned to an exact upstream commit — embeddable per Apache-2.0; runs from the GitHub ref behind the existing broker ops + harness corpus cases (the ADR-0005 arm's-length subprocess contract). Closes the audited takeoff gaps: room detection, revision compare, PDF annotation round-trip, scale auto-read, XLSX export, agent takeoff tools."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": [
+            "pdf2takeoff"
+          ],
+          "versionArgs": [],
+          "versionRegex": null
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "v0.1.0, single-org upstream, installed from a GitHub ref — pin the exact commit and re-verify at each bump (ADR-0004 §3)",
+        "Runs its own pdfjs-dist 5.x — keep in the subprocess to avoid worker conflicts with the platform's pinned pdfjs-dist 4.10.38"
+      ]
     }
   ]
 }
