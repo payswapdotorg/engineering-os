@@ -585,8 +585,8 @@ assert_eq "Slice-29 addendum: the sfepy registry row carries its validation bloc
 assert_eq "Slice-30 addendum: the amaranth AND yowasp-yosys registry rows carry their validation blocks (3 chip harness cases each, pass — the front-end and synthesis halves of the RTL lane)" \
   "pass|3|tested|pass|3|tested" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].state')"
-assert_eq "registry reconciliation: fourteen harness-validated engines (the nine 16-D set + scikit-fem + pyswmm + sfepy + amaranth + yowasp-yosys) carry state 'tested', registry total 44 — the OpenSees row stays 'planned' with the license review closed REJECTED" \
-  "14|44|planned" \
+assert_eq "registry reconciliation: fourteen harness-validated engines (the nine 16-D set + scikit-fem + pyswmm + sfepy + amaranth + yowasp-yosys) carry state 'tested', registry total 49 (slice-31 added pdf2takeoff/temporal/kestra/solvespace/gdal as planned rows — designations, not harness lanes; still fourteen tested) — the OpenSees row stays 'planned' with the license review closed REJECTED" \
+  "14|49|planned" \
   "$(j "$BODY" '[.data.registry[] | select(.state == "tested")] | length')|$(j "$BODY" '.data.registry | length')|$(j "$BODY" '[.data.registry[] | select(.key == "opensees")][0].state')"
 # Slice 28 (the Phase-5 long-tail license-first probe): five new rows with the
 # license reviews closed ACCEPTED on wheel/sdist-verified evidence. Slice 29
