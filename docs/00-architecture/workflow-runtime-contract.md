@@ -224,6 +224,13 @@ verbatim adapter error (never paraphrased).
   adapter honesty: derives either produce real bytes + rows or throw before writes);
   already-succeeded earlier steps keep their outputs — visible in the step table, never
   silently deleted.
+- Foundation seam (ADR-0010, added 2026-10-30): the claiming/recovery mechanics above
+  are reached through the `WorkflowExecutionFoundation` port
+  (src/core/runtime/foundation.ts, flag `EOS_WORKFLOW_RUNTIME`, default and today only
+  `embedded`). The §4 approval red line, §7 event vocabulary, revision publication and
+  broker authorization are PLATFORM-OWNED and are deliberately not expressible through
+  the port — a future foundation swap changes this section's mechanics owner, never its
+  semantics.
 
 ## 9. UI contract (W1 — Agents & Automations workspace)
 

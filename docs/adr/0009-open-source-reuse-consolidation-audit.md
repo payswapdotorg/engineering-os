@@ -96,9 +96,16 @@ Staged, acceptance-suite-protected:
   (AC-P2T-1…12). The unit suite stayed green (791 pass / 0 fail); the
   506-e2e suite runs in CI on the push (the dev sandbox lacks the seeded
   DB — recorded honestly in the AC residuals).
-- **Stage 2:** workflow-foundation spike (Temporal vs Kestra) behind a flag;
-  decision ADR-0010; swap only after e2e-p4 + recovery drill pass on the
-  replacement.
+- **Stage 2 (SHIPPED 2026-10-30, same day):** workflow-foundation spike —
+  the `WorkflowExecutionFoundation` seam + `EOS_WORKFLOW_RUNTIME` flag
+  (fail-fast, default `embedded`), the embedded adapter, route wiring, 10
+  seam pins (flag, port shape, describe honesty, §7 vocabulary freeze);
+  unit suite 801 pass / 0 fail. Decision recorded in
+  [ADR-0010](0010-workflow-foundation-spike.md): RETAIN embedded as the only
+  registered foundation; DESIGNATE Temporal (MIT) the single successor lane
+  behind explicit trigger criteria; REJECT Kestra (flow-semantics absorption
+  of the four binding conditions + JVM footprint); the swap gate
+  (e2e-p4 49 PASS + recovery drill 16 PASS on the replacement) unchanged.
 - **Stage 3:** OpenProject arm's-length integration; project-graph sync
   adapter; `cpm.ts` remains frozen platform core.
 - **Stage 4:** agent takeoff surface over the adopted engine (MCP tools
