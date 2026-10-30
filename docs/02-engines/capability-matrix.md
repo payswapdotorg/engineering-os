@@ -1,6 +1,6 @@
 # Capability Matrix
 
-Owner: Worker 2 (Engines & Integration) · Date: **2026-10-22** · Adapter update: **2026-10-22 (W2-f — Phase-5 disciplines: gmsh FE meshing, pandapower power flow, SimPy DES, LibreOffice conversion; CPM platform core)** · Validation update: **2026-10-21 (W2-c — benchmark harness, both quantity adapters validated 11/11)** · Tessellation update: **2026-10-21 (W2-d — eos-mesh/1 bridge, harness-validated incl. 9 mesh blocks)** · Companion to [engine-inventory.md](engine-inventory.md) · Contract: [ADR-0005](../adr/0005-engine-integration-contract.md) · Status vocabulary: `planned → installed → available → implemented → tested → verified → production-ready` (evidence-linked — never upgraded without a test, command output or acceptance item).
+Owner: Worker 2 (Engines & Integration) · Date: **2026-10-22** · Adapter update: **2026-10-22 (W2-f — Phase-5 disciplines: gmsh FE meshing, pandapower power flow, SimPy DES, LibreOffice conversion; CPM platform core)** · Validation update: **2026-10-21 (W2-c — benchmark harness, both quantity adapters validated 11/11)** · Tessellation update: **2026-10-21 (W2-d — eos-mesh/1 bridge, harness-validated incl. 9 mesh blocks)** · Companion to [engine-inventory.md](engine-inventory.md) · Contract: [ADR-0005](../adr/0005-engine-integration-contract.md) · Status vocabulary: `planned → installed → available → implemented → tested → verified → production-ready` (evidence-linked — never upgraded without a test, command output or acceptance item) · Reuse audit: **2026-10-31 (Slice 31 — [OSS Reuse & Consolidation Audit v1](oss-reuse-consolidation-audit-v1.md) + [ADR-0009](../adr/0009-oss-reuse-consolidation-decisions.md); five registry records added: pdf2takeoff / temporal / kestra / solvespace / gdal — registry 49)**.
 
 ## Reading this matrix
 
@@ -9,6 +9,7 @@ Owner: Worker 2 (Engines & Integration) · Date: **2026-10-22** · Adapter updat
 - **Model tessellation for the 3D viewer is `tested` (harness-validated) as of 2026-10-21 (W2-d)**: the eos-mesh/1 tessellation bridge (`src/engines/adapters/mesh.ts` → `step_mesh.py` / `ifc_mesh.py`) turns STEP/IFC into byte-deterministic viewer meshes; the same harness corpus pins element refs set-equal to the quantity ledger, per-element vertex/triangle counts, byte-determinism and divergence-theorem volumes vs closed forms (9 mesh blocks across 11 cases — planar exact, curved ≤ 1% pinned with observed errors recorded). See the [tessellation section in engine-inventory.md](engine-inventory.md#tessellation-adapters--the-eos-mesh1-bridge-w2-d-2026-10-21) and [validation-report.md](validation-report.md).
 - **Everything else below is `planned`:** those engines are audited upstream (35 verified records) but no adapter exists yet (adapters land in Phase 2+ per ADR-0005), and only cadquery 2.6.1 / ifcopenshell 0.9.0.post1 (uv venv) and LibreOffice 25.2.3.2 (PATH) are installed on the dev host. Detection probes for the rest are specified and tested; adapter capabilities get their own states as evidence accrues. FreeCAD/Bonsai were investigated in this sandbox on 2026-10-21 (not importable, no binaries, no pip-installable distribution) — both stay `planned` for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell.
 - **Platform capabilities (implemented now)** are listed at the end — these are the TL-provided foundation the engines plug into, with their real states.
+- **Open-source reuse decisions are recorded per [ADR-0009](../adr/0009-oss-reuse-consolidation-decisions.md) (2026-10-31)**: the workflow executor, the pure CPM core and the takeoff measurement core are BUILD-retained against source-verified alternatives (Temporal/Kestra, the npm CPM scan, OpenTakeoff/pdf2takeoff — see the [audit](oss-reuse-consolidation-audit-v1.md)); pdf2takeoff (Apache-2.0) is the designated adapter source for the takeoff capability deltas; OpenTakeoff stays behind the MCP wall (AGPL, arm's-length stdio).
 
 ## CAD (Phase 2 focus)
 
@@ -20,6 +21,7 @@ Owner: Worker 2 (Engines & Integration) · Date: **2026-10-22** · Adapter updat
 | DWG conversion (DWG ↔ DXF compatibility boundary) | LibreDWG | planned | 2 | Registry `libredwg` (GPL-3.0, 0.14); CLI-only integration (dwg2dxf/dwgread/dwgwrite); FreeCAD limitation note |
 | Technical drawing export (PDF/SVG) | FreeCAD (TechDraw), LibreCAD | planned | 2 | Same adapters; export via CLI where upstream supports it |
 | 3D BIM host application | Blender | planned | 2 | Registry `blender` (GPL-2.0-or-later, 5.2.2); hosts Bonsai IFC authoring; `blender --version` probe |
+| Constraint-based parametric 3D CAD | SolveSpace | planned (deferred) | — | Registry `solvespace` (GPL-3.0-or-later, 3.3 — 2026-10-20); arm's-length only; deferred by ADR-0009 — cadquery (tested) serves the parametric lane, adopting now would duplicate it |
 
 ## BIM (Phase 2/3)
 
@@ -35,8 +37,9 @@ Owner: Worker 2 (Engines & Integration) · Date: **2026-10-22** · Adapter updat
 
 | Capability | Engine(s) | State | Target phase | Evidence / notes |
 |---|---|---|---|---|
-| PDF drawing measurement (scale-calibrated takeoff) | OpenTakeoff | planned | 3 | Registry `opentakeoff` (AGPL-3.0, 0.9.98) — active upstream found by mandated audit 2026-10-21; MCP + canvas surfaces; strict arm's-length (AGPL) |
+| PDF drawing measurement (scale-calibrated takeoff) | OpenTakeoff | planned | 3 | Registry `opentakeoff` (AGPL-3.0, npm opentakeoff-mcp **0.9.100**) — re-verified LIVE 2026-10-31 (Slice 31): 58 MCP tools probed over stdio against tests/fixtures/sheet-a102-plan.pdf — exact 1:100 scale detection on all 4 pages incl. the rotated p4, set_scale lands `confirmed:false` (human-confirm gate observed live), measure_polygon matches the analytic rectangle; MCP-over-stdio recorded as arm's-length (ADR-0009 D5); canvas/web geometry is AGPL-walled — MCP surface only |
 | Agent-drivable takeoff (tool invocation) | OpenTakeoff (MCP server) | planned | 3 | `opentakeoff-mcp` bin verified via npm registry; broker-only execution path (ADR-0005 rule 1); agent measurements carry review status upstream |
+| Takeoff capability deltas: room/region fill, revision compare, standard PDF annotation round-trip, OCR-vote scale auto-detect | pdf2takeoff | planned | 3+ (audit Phase B/C) | Registry `pdf2takeoff` (Apache-2.0, commit f5a1c08 — TypeScript pure engine + Node CLI + 16-tool MCP; git-distributed, not on npm/PyPI; live-probed headless on our fixtures 2026-10-31). ADR-0009 D3: ours stays the system of record (measure core, ledger, review gates); each delta ships behind its own contract addendum as a broker adapter, never a second user-facing takeoff UI; watch-items recorded (CVE-stale xlsx dep, LGPL libheif, single-author youth — pin the commit) |
 | Model-derived quantities (distinct ledger column) | cadquery (STEP) + IfcOpenShell (IFC) | tested (harness-validated) | 3 (shipped 2026-10-21, W2-b; validated W2-c) | Both adapters live (`src/engines/adapters/`) and **benchmark-validated by the 11-case harness** (`bun run validate:engines`, [validation-report.md](validation-report.md)); W3's derive-quantities route creates ledger rows with method `model-derived` + engine/script-hash provenance. Drawing-derived vs model-derived kept separate by design (ledger schema in `docs/03-data/quantity-ledger-schema.md`) |
 | BOQ assembly (bill of quantities) | platform ledger + OpenTakeoff / IfcOpenShell inputs | planned | 3 | Ledger domain logic: `src/core/ledger.ts` (W3 lane, in progress); no engine is claimed complete for this |
 
@@ -47,6 +50,7 @@ Owner: Worker 2 (Engines & Integration) · Date: **2026-10-22** · Adapter updat
 | Geospatial processing (headless) | QGIS (`qgis_process`) | planned | 5 | Registry `qgis` (GPL-2.0, 3.44.15); probe `qgis_process --version` |
 | Raster/vector geostatistics | GRASS GIS | planned | 5 | Registry `grass` (GPL-2.0-or-later, 8.5.0) |
 | CRS handling (coordinate reference systems) | QGIS, GRASS | planned | 5 | Used to ground site/civil drawings and takeoff scale context |
+| Geospatial raster/vector I/O + CRS foundation | GDAL/OGR | planned | 5 | Registry `gdal` (MIT-style core + enumerated per-file exceptions, 3.13.3); the data-access layer under the QGIS/GRASS lanes; python-module probe registered (osgeo.gdal) |
 | Drainage / stormwater analysis (civil) | EPA SWMM via pyswmm (in-process) | **tested** (Slice 23) | 5 | SHIPPED 2026-10-28 behind phase5 contract §15 — `run_swmm` broker op + `eos-swmm-model/1`/`eos-swmm/1` pair; pyswmm 2.2.0 (BSD-2, wheel-verified) + swmm-toolkit 0.17.0 (CC0/MIT) run the engine in-process; harness 3 cases (mass-balance + Manning closed forms + refusal). Registry `swmm` (public domain, 5.2.4) records the in-process lane; the system binary is not required by the product |
 
 ## Electrical / electronics (Phase 5)
@@ -86,6 +90,13 @@ Owner: Worker 2 (Engines & Integration) · Date: **2026-10-22** · Adapter updat
 | Spreadsheet / BOQ document generation | LibreOffice headless + platform ledger | planned | 3/5 | BOQ data assembled by ledger (shipped as CSV/JSON export); LO-rendered BOQ documents remain future work |
 | Project scheduling (Gantt/CPM desktop) | ProjectLibre | planned | 3 | Registry `projectlibre` (CPAL-1.0, 1.9.8 via SourceForge); presence-only probe |
 | Work-package / schedule server (REST) | OpenProject | planned | 3/5 | Registry `openproject` (GPL-3.0, 17.9.2); arm's-length REST API integration |
+
+## Workflow orchestration (deferred — [ADR-0009](../adr/0009-oss-reuse-consolidation-decisions.md), 2026-10-31)
+
+| Capability | Engine(s) | State | Target phase | Evidence / notes |
+|---|---|---|---|---|
+| Durable execution backend (scale-out option) | Temporal (MIT server + MIT TS SDK) | planned (NOT adopted — designated candidate) | deferred | ADR-0009 D1: our executor (workflow-runtime-contract §1–§8) stays the execution foundation for the in-scope 1..8-step linear world — Temporal is recorded as the single designated candidate behind an execution-adapter seam (enqueue/claim/run-step/approve), evaluated only if concurrency/scheduling/multi-node enters contract scope; the one-engine rule forbids overlapping orchestration platforms |
+| Declarative YAML orchestration | Kestra (Apache-2.0, JVM) | planned (NOT adopted — rejected) | none | ADR-0009 D1: JVM+DB weight on a single-unit host; task-runner execution would bypass the broker (ADR-0005 rule 1); its Approval plugin duplicates/conflicts with the human-approver red line. Registered so the rejection stays source-backed |
 
 ## Platform capabilities (implemented now)
 
