@@ -25,7 +25,7 @@ All of the above are permissive (MIT/Apache-2.0/ISC) — no copyleft in the plat
 
 ## 3. Engine candidates (upstream)
 
-> **34 engine candidates, source-verified 2026-10-21** (Worker 2 audit; GitHub/GitLab/SourceForge APIs, PyPI/npm registries, and pinned-tree LICENSE/COPYING texts — full method and per-engine evidence in [engine-inventory.md](../02-engines/engine-inventory.md), capability states in [capability-matrix.md](../02-engines/capability-matrix.md)). All rows below are `planned` — no engine is installed or redistributed; bundling requires the Phase-6 re-verification (ADR-0004 §3).
+> **Engine candidates, source-verified 2026-10-21/25/29 + the 2026-10-30 reuse audit** (Worker 2 audits + TL-Audit-v1 per [ADR-0009](../adr/0009-open-source-reuse-consolidation-audit.md); GitHub/GitLab/SourceForge APIs, PyPI/npm registries, and pinned-tree LICENSE/COPYING texts — full method and per-engine evidence in [engine-inventory.md](../02-engines/engine-inventory.md), capability states in [capability-matrix.md](../02-engines/capability-matrix.md)). The register no longer means "all planned": the live registry (`src/engines/registry.json`) carried **44 records at audit close — 14 `tested` with real adapters** (cadquery, IfcOpenShell, gmsh, scikit-fem, SfePy, SimPy, pandapower, pyswmm, pdfplumber, ezdxf, tesseract, amaranth, yowasp-yosys, LibreOffice) **and 30 `planned`**; the pdf2takeoff row added below by the same audit raises it to 45 records / 31 `planned`. `tested` means adapter-verified on the dev host, never redistribution — bundling still requires the Phase-6 re-verification (ADR-0004 §3).
 >
 > | Engine | License (SPDX / honest text) | Copyleft class | Integration policy (ADR-0004) |
 > |---|---|---|---|
@@ -40,7 +40,8 @@ All of the above are permissive (MIT/Apache-2.0/ISC) — no copyleft in the plat
 > | GRASS GIS | GPL-2.0-or-later | strong | arm's-length process only (§2) |
 > | EPA SWMM | Public Domain (US Gov, per repo README) | none | solver CLI; record public-domain status at pinning (§3) |
 > | pyswmm | BSD-2-Clause | permissive | python-module after review (§2 exception) |
-> | OpenTakeoff | AGPL-3.0 (npm declares AGPL-3.0-only) | strong + network terms | strict arm's-length MCP/process boundary (§2) |
+> | OpenTakeoff | AGPL-3.0 (npm declares AGPL-3.0-only; re-verified from the repo LICENSE text by the 2026-10-30 reuse audit) | strong + network terms | strict arm's-length MCP/process boundary (§2) |
+> | pdf2takeoff | Apache-2.0 (verified from LICENSE text + GitHub REST on audit day 2026-10-30) | permissive | embeddable per Apache-2.0 — arm's-length Node subprocess (`bin/pdf2takeoff.js`) pinned to exact commit (§2/§3); planned Stage-1 ADOPT per [ADR-0009](../adr/0009-open-source-reuse-consolidation-audit.md) |
 > | KiCad | GPL-3.0-or-later (tree text; seed AGPL claim corrected) | strong | arm's-length process only (§2) |
 > | QElectroTech | GPL-2.0 | strong | arm's-length process only (§2) |
 > | ngspice | BSD-3-Clause ("Modified BSD") | permissive | CLI batch + shared-lib review before in-process use |
@@ -65,6 +66,8 @@ All of the above are permissive (MIT/Apache-2.0/ISC) — no copyleft in the plat
 > | ProjectLibre | CPAL-1.0 | attribution + network-use conditions | arm's-length desktop + attribution notices reviewed at adapter time |
 
 Integration policy (ADR-0004): engines run as separate processes; bundling/redistribution requires per-engine re-verification at release time. `installed` state never implies redistribution.
+
+> **2026-10-30 (ADR-0009 reuse-audit license correction):** Windmill (windmill-labs/windmill) was investigated as a workflow-foundation candidate and found **AGPL-3.0** by direct source check — despite GitHub's license API reporting NOASSERTION for the repo (the license-detection false-negative class the §4 supply-chain rule exists for). Windmill is **EXCLUDED** from any integration (ADR-0009 decision 11); no candidate row is added above because it is not a candidate.
 
 ## 4. Supply-chain rule
 
