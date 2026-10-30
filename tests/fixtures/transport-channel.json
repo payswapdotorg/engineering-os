@@ -1,0 +1,9 @@
+{
+  "format": "eos-cfd-transport-model/1",
+  "name": "Channel transport (Pe = 10)",
+  "domain": { "lengthM": 2.0, "heightM": 0.5 },
+  "diffusivityM2PerS": 0.01,
+  "velocityMPerS": 0.05,
+  "inletConcentration": 1.0,
+  "outletConcentration": 0.0
+}

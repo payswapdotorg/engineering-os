@@ -568,6 +568,7 @@ const OPERATION_LABELS: Record<PlannerOperation, string> = {
   run_powerflow: "Run power flow",
   run_des: "Run discrete-event simulation",
   solve_fea: "Solve plane-stress FEA",
+  solve_transport: "Solve scalar transport (CFD)",
   run_swmm: "Run stormwater drainage (SWMM)",
   convert_document: "Convert document",
   analyze_schedule: "Analyze schedule",

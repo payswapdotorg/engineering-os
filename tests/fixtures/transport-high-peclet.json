@@ -1,0 +1,9 @@
+{
+  "format": "eos-cfd-transport-model/1",
+  "name": "Under-resolved boundary layer (element Péclet 7.8125)",
+  "domain": { "lengthM": 2.0, "heightM": 0.5 },
+  "diffusivityM2PerS": 0.01,
+  "velocityMPerS": 5.0,
+  "inletConcentration": 1.0,
+  "outletConcentration": 0.0
+}

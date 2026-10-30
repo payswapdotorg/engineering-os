@@ -43,6 +43,7 @@ import {
   RefreshCw,
   Ruler,
   TriangleAlert,
+  Waves,
   Zap,
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
@@ -57,6 +58,7 @@ import {
   runFea,
   runPowerFlow,
   runSwmm,
+  runTransport,
   useApi,
   type ArtifactListItem,
   type CpmAnalysisPayload,
@@ -65,6 +67,7 @@ import {
   type FeMeshPayload,
   type FeaPayload,
   type SwmmPayload,
+  type TransportPayload,
   type PowerFlowPayload,
 } from "@/components/product/api"
 import { ApprovalBadge, KindBadge, StalenessBadge } from "@/components/product/badges"
@@ -92,13 +95,14 @@ import { deriveKind } from "@/engines/adapters/derive-kind"
 // ---------------------------------------------------------------------------
 
 /** Which §8 route a register row was produced by (Regenerate needs it). */
-type SimOp = "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "run-swmm" | "analyze-schedule"
+type SimOp = "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "run-swmm" | "analyze-schedule"
 
 const OP_RUN_LABEL: Record<SimOp, string> = {
   "fe-mesh": "Meshing…",
   powerflow: "Solving power flow…",
   simulate: "Running simulation…",
   "solve-fea": "Solving plane-stress FEA…",
+  "solve-transport": "Solving scalar transport…",
   "run-swmm": "Running stormwater drainage…",
   "analyze-schedule": "Analyzing schedule…",
 }
@@ -109,6 +113,7 @@ const FORMAT_ENGINE: Record<string, { engineKey: string; platform: boolean }> = 
   "eos-powerflow/1": { engineKey: "pandapower", platform: false },
   "eos-des/1": { engineKey: "simpy", platform: false },
   "eos-fea/1": { engineKey: "scikit-fem", platform: false },
+  "eos-cfd-transport/1": { engineKey: "sfepy", platform: false },
   "eos-swmm/1": { engineKey: "pyswmm", platform: false },
   "eos-cpm/1": { engineKey: "platform core", platform: true },
 }
@@ -118,6 +123,7 @@ const FORMAT_OP: Record<string, SimOp> = {
   "eos-powerflow/1": "powerflow",
   "eos-des/1": "simulate",
   "eos-fea/1": "solve-fea",
+  "eos-cfd-transport/1": "solve-transport",
   "eos-swmm/1": "run-swmm",
   "eos-cpm/1": "analyze-schedule",
 }
@@ -140,7 +146,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /** Union of every §2 payload this workspace can render. */
-type DerivedPayload = FeMeshPayload | PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload | SwmmPayload
+type DerivedPayload = FeMeshPayload | PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload | TransportPayload | SwmmPayload
 
 /**
  * Read a stored derived payload (§2 formats) from an already-parsed object.
@@ -285,6 +291,48 @@ function readDerivedPayload(parsed: unknown): DerivedPayload | null {
         : undefined,
     } satisfies FeaPayload
   }
+  if (format === "eos-cfd-transport/1") {
+    const mesh = isRecord(parsed.mesh) ? parsed.mesh : {}
+    const domain = isRecord(parsed.domain) ? parsed.domain : {}
+    const samples = Array.isArray(parsed.samples) ? parsed.samples.filter(isRecord) : []
+    return {
+      format,
+      sourceArtifactName: typeof parsed.sourceArtifactName === "string" ? parsed.sourceArtifactName : "—",
+      analysis: "scalar_transport",
+      mesh: {
+        elementType: String(mesh.elementType ?? "—"),
+        approximation: String(mesh.approximation ?? "—"),
+        refinement: Number(mesh.refinement ?? NaN),
+        elementCount: Number(mesh.elementCount ?? NaN),
+        nodeCount: Number(mesh.nodeCount ?? NaN),
+      },
+      domain: {
+        lengthM: Number(domain.lengthM ?? NaN),
+        heightM: Number(domain.heightM ?? NaN),
+      },
+      diffusivityM2PerS: Number(parsed.diffusivityM2PerS ?? NaN),
+      velocityMPerS: Number(parsed.velocityMPerS ?? NaN),
+      inletConcentration: Number(parsed.inletConcentration ?? NaN),
+      outletConcentration: Number(parsed.outletConcentration ?? NaN),
+      pecletNumber: Number(parsed.pecletNumber ?? NaN),
+      meshPecletNumber: Number(parsed.meshPecletNumber ?? NaN),
+      samples: samples.map((s) => ({
+        x: Number(s.x ?? NaN),
+        y: Number(s.y ?? NaN),
+        concentration: Number(s.concentration ?? NaN),
+      })),
+      minConcentration: Number(parsed.minConcentration ?? NaN),
+      maxConcentration: Number(parsed.maxConcentration ?? NaN),
+      generatedBy: isRecord(parsed.generatedBy)
+        ? {
+            engineKey: String(parsed.generatedBy.engineKey ?? "—"),
+            engineVersion: String(parsed.generatedBy.engineVersion ?? "—"),
+            adapterScript: String(parsed.generatedBy.adapterScript ?? "—"),
+            adapterHash: String(parsed.generatedBy.adapterHash ?? "—"),
+          }
+        : undefined,
+    } satisfies TransportPayload
+  }
   if (format === "eos-swmm/1") {
     const rain = isRecord(parsed.rain) ? parsed.rain : {}
     const routing = isRecord(parsed.routing) ? parsed.routing : {}
@@ -337,7 +385,7 @@ function readDerivedPayload(parsed: unknown): DerivedPayload | null {
 // ---------------------------------------------------------------------------
 
 interface CapabilitySpec {
-  op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "run-swmm">
+  op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "run-swmm">
   title: string
   engineKey: string
   icon: typeof Boxes
@@ -429,6 +477,25 @@ const CAPABILITIES: CapabilitySpec[] = [
       "`dataset`). The route validates the model shape and refuses it honestly otherwise.",
   },
   {
+    op: "solve-transport",
+    title: "Scalar transport (CFD)",
+    engineKey: "sfepy",
+    icon: Waves,
+    blurb:
+      "Solves a steady advection-diffusion transport problem of an eos-cfd-transport-model/1 JSON " +
+      "dataset (SfePy, BSD-3) — a rectangular channel with uniform axial velocity, Dirichlet " +
+      "inlet/outlet values and zero-flux walls; the flow Péclet number, 5 centerline concentration " +
+      "stations and the min/max field land in an `analysis` artifact. Meshes whose element " +
+      "Péclet exceeds the probed-monotone bound 2 are refused honestly — never an oscillatory " +
+      "solution.",
+    pickerLabel: "Transport model JSON artifact (kind dataset)",
+    runLabel: "Solve transport",
+    eligible: jsonDatasetEligible,
+    emptyNote:
+      "No .json dataset artifacts in this project yet — upload an eos-cfd-transport-model/1 JSON " +
+      "(kind `dataset`). The route validates the model shape and refuses it honestly otherwise.",
+  },
+  {
     op: "run-swmm",
     title: "Stormwater drainage",
     engineKey: "pyswmm",
@@ -463,7 +530,7 @@ function CapabilityCard({
   artifactsLoading: boolean
   onRetryArtifacts: () => void
   running: SimOp | null
-  onRun: (op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "run-swmm">, artifactId: string) => void
+  onRun: (op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "run-swmm">, artifactId: string) => void
 }) {
   const eligible = useMemo(() => rows.filter(spec.eligible), [rows, spec])
   // The picked id is DERIVED at render time (the react-hooks/set-state-in-effect
@@ -946,6 +1013,66 @@ function PayloadSection({
       </div>
     )
   }
+  if (payload.format === "eos-cfd-transport/1") {
+    const p = payload
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
+          <Badge className="border-transparent bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+            scalar transport
+          </Badge>
+          <span className="font-mono tabular-nums" title="the flow Péclet number a·L/D — advection over diffusion">
+            Pe {Number.isFinite(p.pecletNumber) ? p.pecletNumber : "—"}
+          </span>
+          <span
+            className="font-mono tabular-nums"
+            title="the element Péclet a·h/(2D) at the actual mesh — the adapter refuses values above the probed-monotone bound 2"
+          >
+            Pe<sub>h</sub> {Number.isFinite(p.meshPecletNumber) ? p.meshPecletNumber : "—"}
+          </span>
+          <span className="font-mono tabular-nums" title="the field range over all dofs — the honest oscillation visibility">
+            min {Number.isFinite(p.minConcentration) ? p.minConcentration.toFixed(6) : "—"} · max{" "}
+            {Number.isFinite(p.maxConcentration) ? p.maxConcentration.toFixed(6) : "—"}
+          </span>
+          <span className="font-mono tabular-nums" title="uniform Q2 (9-node quad) mesh at the pinned refinement">
+            {Number.isFinite(p.mesh.elementCount) ? p.mesh.elementCount.toLocaleString() : "—"} {p.mesh.approximation}{" "}
+            elements
+          </span>
+        </div>
+        <div className="eos-scroll max-h-72 overflow-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <caption className="sr-only">
+              Transport results — the 5 centerline concentration stations, verbatim from the engine
+            </caption>
+            <thead className="sticky top-0 bg-muted">
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th scope="col" className="px-3 py-2 font-medium">Station (m)</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">Concentration</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.samples.map((s, i) => (
+                <tr key={`${s.x}-${s.y}-${i}`} className="border-b last:border-0">
+                  <td className="px-3 py-2 font-mono text-xs">
+                    ({Number.isFinite(s.x) ? s.x : "—"}, {Number.isFinite(s.y) ? s.y : "—"})
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(s.concentration) ? s.concentration : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <InfoNote>
+          Steady advection-diffusion solve (SfePy, Q2 elements, direct sparse) — the 5 centerline
+          stations at x ∈ {"{"}L/8 … 7L/8{"}"} with the flow Péclet number and the element Péclet; every
+          number is copied verbatim from the engine. Meshes whose element Péclet exceeds the
+          probed-monotone bound 2 are refused, never oscillated.
+        </InfoNote>
+      </div>
+    )
+  }
   if (payload.format === "eos-swmm/1") {
     const p = payload
     return (
@@ -1217,10 +1344,11 @@ export function SimWorkspace({
       else if (op === "powerflow") result = (await runPowerFlow(projectId, artifactId)).powerflow
       else if (op === "simulate") result = (await runDiscreteEvent(projectId, artifactId)).sim
       else if (op === "solve-fea") result = (await runFea(projectId, artifactId)).fea
+      else if (op === "solve-transport") result = (await runTransport(projectId, artifactId)).transport
       else if (op === "run-swmm") result = (await runSwmm(projectId, artifactId)).swmm
       else result = (await analyzeSchedule(projectId, artifactId)).analysis
       toast.success(
-        `${op === "fe-mesh" ? "FE mesh" : op === "powerflow" ? "Power flow" : op === "simulate" ? "Simulation" : op === "solve-fea" ? "FEA solve" : op === "run-swmm" ? "Drainage simulation" : "Schedule analysis"} complete — ${result.name}${result.revisionNumber ? ` r${result.revisionNumber}` : ""} stored as a derived artifact`,
+        `${op === "fe-mesh" ? "FE mesh" : op === "powerflow" ? "Power flow" : op === "simulate" ? "Simulation" : op === "solve-fea" ? "FEA solve" : op === "solve-transport" ? "Transport solve" : op === "run-swmm" ? "Drainage simulation" : "Schedule analysis"} complete — ${result.name}${result.revisionNumber ? ` r${result.revisionNumber}` : ""} stored as a derived artifact`,
       )
       setRunByArtifact((prev) => ({ ...prev, [result.artifactId]: { op, result } }))
       setSelectedId(result.artifactId)

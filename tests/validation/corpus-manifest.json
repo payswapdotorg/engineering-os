@@ -2230,5 +2230,201 @@
       "errorContains": "the network has no outfall - runoff cannot leave the model, and simulated results are not an option",
       "note": "Two junctions + one conduit, no outfall node: water cannot leave the network. The no-outfall check is the rigid-mode analog -- pure graph math on the node kinds BEFORE the engine opens (contract §15.2/§15.5) -- an undrainable model is refused, never solved by guessing."
     }
+  },
+  {
+    "caseId": "transport-channel",
+    "adapter": "transport",
+    "fixture": "transport-channel.json",
+    "expect": "success",
+    "transport": {
+      "expect": "success",
+      "note": "Steady advection-diffusion down a channel (L=2 m, H=0.5 m, a=0.05 m/s, D=0.01 m²/s → Pe=10; inlet 1, outlet 0, zero-flux walls). The exact 1D closed form u(x) = (e^Pe − e^(Pe·x/L))/(e^Pe − 1) is reproduced by the FULL 2D Q2 assembly (contract §16.1: y-independence probed at 3.0e-15); every station pin below is the hand-derived closed form, tolerance from the measured O(h³) convergence (observed 3.0e-7 at the r=4 default).",
+      "pins": [
+        {
+          "ref": null,
+          "field": "analysis",
+          "value": "scalar_transport",
+          "derivation": "the only analysis shipped this phase (contract §16.2)"
+        },
+        {
+          "ref": null,
+          "field": "engineKey",
+          "value": "sfepy",
+          "derivation": "the CFD lane's pinned engine (contract §16.1)"
+        },
+        {
+          "ref": null,
+          "field": "elementType",
+          "value": "quad",
+          "derivation": "gen_block_mesh 2_4 quads (contract §16.1 probe)"
+        },
+        {
+          "ref": null,
+          "field": "approximation",
+          "value": "Q2",
+          "derivation": "approx_order=2 on quads → 9-node Q2 (contract §16.3)"
+        },
+        {
+          "ref": null,
+          "field": "refinement",
+          "value": 4,
+          "derivation": "the default meshRefinement parameter (contract §16.3)"
+        },
+        {
+          "ref": null,
+          "field": "elementCount",
+          "value": 1024,
+          "derivation": "N=8·2³=64 divisions on the longer (x) axis, y gets round(64·0.5/2)=16 → 64·16=1024 quads (the frozen square-element rule)"
+        },
+        {
+          "ref": null,
+          "field": "nodeCount",
+          "value": 4257,
+          "derivation": "Q2 dofs: 65·17 corners + 64·17 x-midside + 65·16 y-midside + 64·16 centers = 1105+1088+1040+1024 = 4257"
+        },
+        {
+          "ref": null,
+          "field": "pecletNumber",
+          "value": 10.0,
+          "absTolerance": 1e-12,
+          "derivation": "Pe = a·L/D = 0.05·2/0.01 = 10"
+        },
+        {
+          "ref": null,
+          "field": "meshPecletNumber",
+          "value": 0.078125,
+          "absTolerance": 1e-12,
+          "derivation": "Pe_h = a·h/(2D) with h = L/64 = 0.03125 → 0.05·0.03125/0.02 = 0.078125 (far inside the probed-monotone bound 2)"
+        },
+        {
+          "ref": null,
+          "field": "minConcentration",
+          "value": 0.0,
+          "absTolerance": 1e-12,
+          "derivation": "the outlet Dirichlet dof is exactly 0 and the monotone solution never undershoots (Pe_h ≪ 2)"
+        },
+        {
+          "ref": null,
+          "field": "maxConcentration",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "the inlet Dirichlet dof is exactly 1 and the monotone solution never overshoots"
+        },
+        {
+          "ref": "0.25x0.25",
+          "field": "concentration",
+          "value": 0.9998869334714342,
+          "absTolerance": 0.0001,
+          "derivation": "u(L/8) = (e^10 − e^1.25)/(e^10 − 1) = 0.9998869334714342"
+        },
+        {
+          "ref": "0.5x0.25",
+          "field": "concentration",
+          "value": 0.9994922925097303,
+          "absTolerance": 0.0001,
+          "derivation": "u(L/4) = (e^10 − e^2.5)/(e^10 − 1) = 0.9994922925097303"
+        },
+        {
+          "ref": "1.0x0.25",
+          "field": "concentration",
+          "value": 0.9933071490757152,
+          "absTolerance": 0.0001,
+          "derivation": "u(L/2) = (e^10 − e^5)/(e^10 − 1) = 0.9933071490757152"
+        },
+        {
+          "ref": "1.5x0.25",
+          "field": "concentration",
+          "value": 0.9179566765447413,
+          "absTolerance": 0.0001,
+          "derivation": "u(3L/4) = (e^10 − e^7.5)/(e^10 − 1) = 0.9179566765447413"
+        },
+        {
+          "ref": "1.75x0.25",
+          "field": "concentration",
+          "value": 0.7135275972426084,
+          "absTolerance": 0.0001,
+          "derivation": "u(7L/8) = (e^10 − e^8.75)/(e^10 − 1) = 0.7135275972426084 — inside the outlet boundary layer (observed 3.0e-7 at r=4, the O(h³) convergence pin)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "transport-uniform",
+    "adapter": "transport",
+    "fixture": "transport-uniform.json",
+    "expect": "success",
+    "transport": {
+      "expect": "success",
+      "note": "The machine-class assembly pin (the fea-uniform-tension precedent): inlet = outlet = 1 makes u ≡ 1 — the constant satisfies the PDE, both Dirichlet BCs and the zero-flux walls EXACTLY, so the Q2 assembly must reproduce it to machine precision (contract §16.1 probe: max|u−1| = 4.5e-14). Any deviation beyond 1e-12 is an assembly defect.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "pecletNumber",
+          "value": 10.0,
+          "absTolerance": 1e-12,
+          "derivation": "Pe = a·L/D = 10 (same transport regime as the channel case)"
+        },
+        {
+          "ref": null,
+          "field": "minConcentration",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "u ≡ 1: the constant field is the exact solution (observed 0.9999999999999238)"
+        },
+        {
+          "ref": null,
+          "field": "maxConcentration",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "u ≡ 1 (observed exactly 1.0 — the Dirichlet dofs pin the range)"
+        },
+        {
+          "ref": "0.25x0.25",
+          "field": "concentration",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "u ≡ 1 at every station (observed 1 − 1.4e-14)"
+        },
+        {
+          "ref": "0.5x0.25",
+          "field": "concentration",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "u ≡ 1 at every station (observed 1 − 2.5e-14)"
+        },
+        {
+          "ref": "1.0x0.25",
+          "field": "concentration",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "u ≡ 1 at every station (observed 1 − 5.6e-14)"
+        },
+        {
+          "ref": "1.5x0.25",
+          "field": "concentration",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "u ≡ 1 at every station (observed 1 − 7.4e-14)"
+        },
+        {
+          "ref": "1.75x0.25",
+          "field": "concentration",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "u ≡ 1 at every station (observed 1 − 6.1e-14)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "transport-mesh-peclet-refusal",
+    "adapter": "transport",
+    "fixture": "transport-high-peclet.json",
+    "expect": "error",
+    "transport": {
+      "expect": "error",
+      "errorContains": "the mesh does not resolve the transport boundary layer",
+      "note": "The honest stability refusal (contract §16.5): a = 5 m/s at the default r=4 mesh gives element Péclet 5·(2/64)/(2·0.01) = 7.8125 > 2 — central-Galerkin Q2 OVERSHOOTS there (probed: +0.16 at Pe_h=4), so the adapter refuses BEFORE the solve rather than storing an oscillatory solution. The bound 2 is the probed-monotone value."
+    }
   }
 ]

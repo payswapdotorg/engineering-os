@@ -117,6 +117,17 @@ export const DERIVE_SUMMARIES = {
       maxConduitFlowCms: numberField(field(document, "peaks"), "maxConduitFlowCms"),
     }
   },
+  /** eos-cfd-transport/1 → elementCount / nodeCount / Péclet numbers / min-max concentration (Slice 29) */
+  transport(document: unknown): Record<string, unknown> {
+    return {
+      elementCount: numberField(field(document, "mesh"), "elementCount"),
+      nodeCount: numberField(field(document, "mesh"), "nodeCount"),
+      pecletNumber: numberField(document, "pecletNumber"),
+      meshPecletNumber: numberField(document, "meshPecletNumber"),
+      minConcentration: numberField(document, "minConcentration"),
+      maxConcentration: numberField(document, "maxConcentration"),
+    }
+  },
   /** eos-cpm/1 → activityCount / criticalPathCount / durationDays */
   analysis(document: unknown): Record<string, unknown> {
     return {

@@ -423,3 +423,98 @@ Audit action `swmm.ran`; every BrokerOutcome field per §4's rules.
 - Non-rectangular cross-sections (circular/trapezoid), multiple outfall types
   (FIXED/NORMAL/TAPE), US units: out of scope v1 (RECT_CLOSED under open-
   channel depth + FREE outfalls + SI only — each its own future lane).
+
+## 16. Slice-29 addendum — CFD v1: steady scalar transport via SfePy (BSD-3)
+
+The Slice-28 license-first probe opened this lane (BSD-3 verified on the
+sdist's own PKG-INFO + LICENSE); §10's "no CFD" exclusion now closes for the
+STEADY SCALAR-TRANSPORT class. The engine is **SfePy 2026.3** (sdist-built
+cp312 wheel, numpy/scipy + pypardiso-free direct solves). Amendments are
+ADDITIVE to §2/§3/§4/§5/§8/§12; nothing frozen above changes.
+
+### 16.1 Verified engine reality (TL probes, 2026-10-30, dev host)
+
+| Probe | Result |
+|---|---|
+| sfepy 2026.3 import (venv python 3.12) | OK |
+| Channel transport closed form (L=2 m, H=0.5 m, a=0.05 m/s, D=0.01 m²/s → Pe=10; inlet 1, outlet 0, zero-flux walls; Q2 square-element meshes): Linf by longer-axis divisions N: 8→2.62e-3, 16→2.51e-4, 32→1.96e-5, 64→1.38e-6, 128→9.14e-8 | textbook O(h³) Linf (Q2) |
+| y-independence of the channel solution (the no-flux wall class) | spread 3.0e-15 over y at fixed x — machine zero; the 2D assembly is exactly y-uniform |
+| Uniform case (inlet = outlet = 1 → u ≡ 1) | max |u−1| = 4.5e-14 — machine class |
+| General closed form u(x) = u_in + (u_out−u_in)·(e^(Pe·x/L)−1)/(e^Pe−1), Pe = a·L/D | reproduced at the 5 centerline stations to ≤ 4.8e-6 (N=32) |
+| **Oscillation boundary (Q2, EMPIRICAL)**: element Péclet Pe_h = a·h/(2D), h = L/N | monotone through Pe_h = 2.0 (excursion 3.8e-15); over-shoot 7.5e-3 at 2.5; 0.16 at 4.0 → **the adapter refuses Pe_h > 2** (the probed-monotone bound). Cross-check on P1: monotone ≤ 1, oscillatory at 2 — the classic textbook criterion reproduced by the same probe, which validates the method |
+| Determinism | double-run solutions array-identical (direct sparse solve) |
+| Cost | r=7 (N=512, 263,425 dofs) = 12.5 s wall; r=4 (N=32) = 0.01 s |
+| API traps caught live (never remembered) | `Term.new` takes the BARE term name (`dw_laplace(m.D, v, u)`, no `.i.Omega` suffix); `pb.set_solver(Newton({}, lin_solver=ScipyDirect({})))` required before `pb.solve()`; nodal values = `state().reshape(-1)` aligned with `field.get_coor()`; `evaluate_at` returns shape (n,1,1); velocity material shape (2,1) for `dw_advect_div_free`; block mesh cells are `2_4` quads (Q2 field = 9-node quads) |
+
+### 16.2 Input schema `eos-cfd-transport-model/1` (amends §3; zod in `src/core/analysis-schemas.ts`, adapter mirrors)
+
+```json
+{ "format": "eos-cfd-transport-model/1", "name": "string 1..200",
+  "domain": { "lengthM": "number > 0", "heightM": "number > 0" },
+  "diffusivityM2PerS": "number > 0",
+  "velocityMPerS": "number > 0 (axial, left-to-right — the lane's declared direction)",
+  "inletConcentration": "finite number (the x=0 Dirichlet value)",
+  "outletConcentration": "finite number (the x=L Dirichlet value)" }
+```
+
+The walls (y=0, y=H) carry zero diffusive flux (the natural class — no term
+assembled). Verbatim joined error style `invalid transport model: path: msg; …`
+(mirroring §14.2). A non-positive velocity is refused at the schema (the v1
+lane declares left-to-right transport; the pure-diffusion limit and
+right-to-left flow are each their own future lane).
+
+### 16.3 Broker op (amends §4)
+
+| op | inputs | parameters (defaults) | output kind + format | engineKey |
+|---|---|---|---|---|
+| `solve_transport` | `{artifactId}` (eos-cfd-transport-model/1 JSON dataset) | `{meshRefinement: 4}` (integer 1..7) | `"analysis"` / `eos-cfd-transport/1` | `"sfepy"` |
+
+Mesh rule (deterministic): N = 8·2^(r−1) element divisions on the LONGER
+axis; the shorter axis gets max(1, round(N·shorter/longer)) divisions —
+square elements; Q2 (approx_order 2) on the `2_4` block mesh. Audit action
+`transport.solved`; every BrokerOutcome field per §4's rules.
+
+### 16.4 Output document `eos-cfd-transport/1` (amends §2; byte-deterministic by construction)
+
+`{format, sourceArtifactName, analysis:"scalar_transport", mesh:{elementType:"quad", approximation:"Q2", refinement, elementCount, nodeCount}, domain:{lengthM, heightM}, diffusivityM2PerS, velocityMPerS, inletConcentration, outletConcentration, pecletNumber (a·L/D), meshPecletNumber (a·h/(2D) at the actual mesh), samples:[{x, y, concentration}] (the 5 centerline stations x ∈ {L/8, L/4, L/2, 3L/4, 7L/8} at y = H/2, ascending x), minConcentration, maxConcentration (over all dofs — the honest oscillation visibility), generatedBy:{engineKey, engineVersion, adapterScript, adapterHash}}`
+
+### 16.5 Adapter spec (amends §5; `src/engines/adapters/transport_solve.py` + `cfd.ts`)
+
+- Same stdin/argv JSON protocol as §5.2/§14.5: stdin =
+  `{storagePath, parameters}`; stdout = the payload or `{"error": …}` exit 1.
+- Terms: `dw_laplace(m.D, v, u)` + `dw_advect_div_free(m.vel, v, u)` (the
+  velocity is constant, hence divergence-free — the term's own precondition
+  holds by construction); Dirichlet via EssentialBC on the x-facet regions;
+  walls natural.
+- Honest refusals, verbatim:
+  - invalid model → the mirrored-§16.2 defense message;
+  - **mesh-Péclet refusal**: `the mesh does not resolve the transport boundary layer (element Péclet <Pe_h, %.3g> exceeds the stability bound 2) - refine the mesh (increase meshRefinement) or reduce the flow Péclet number; an oscillatory solution is not an option` — computed BEFORE the solve (h = L/N_x along the flow axis; the bound 2 is the probed-monotone value from §16.1, conservative against the observed 2.5 over-shoot);
+  - sfepy not importable → the engine-unavailable class;
+  - any solver failure / non-finite solution → the engine's own text verbatim,
+    never a simulated result.
+- Determinism: fixed block mesh, direct sparse solve, zero randomness; the
+  harness double-run pins byte-identity of the emitted document.
+
+### 16.6 Acceptance (amends §12)
+
+| ID | Item |
+|---|---|
+| AC-CFD-01 | Channel harness case (Pe=10): closed-form pins at the 5 stations (u(x) = (e^Pe − e^(Pe·x/L))/(e^Pe − 1); abs ≤ 1e-4 at r=4 — observed 4.8e-6), peclet/meshPeclet pins, min/max pins, double-run byte-identical |
+| AC-CFD-02 | Uniform harness case (inlet = outlet = 1): u ≡ 1 at every station and every dof (abs ≤ 1e-12; observed 4.5e-14) — the machine-class assembly pin |
+| AC-CFD-03 | Honest refusals: the mesh-Péclet refusal verbatim (a high-Pe model at the default refinement), wrong-format dataset (the §16.2 zod 422 verbatim), non-JSON/absent engine (EngineUnavailableError class) |
+| AC-CFD-04 | e2e p5 block: fixture upload → POST …/transport → 201 with pinned document fields; the two 422 gates + 401 gate; exactly one `transport.solved` audit event; the analysis artifact registers in the Simulation workspace |
+| AC-CFD-05 | Registry: the sfepy row reaches `tested` with the §16.1 probe evidence + validation block (3 harness cases); engines-requirements pins sfepy==2026.3; the openfoam row's note records that the pip-only CFD lane rides sfepy |
+
+### 16.7 Honest exclusions (extends §10)
+
+- Transient transport, cross-flow velocity components (v ≠ 0), space-varying
+  velocity/diffusivity, volumetric sources, reactions/decay: out of scope v1
+  (steady, uniform-property, source-free axial transport — each its own
+  addendum).
+- Pure diffusion (velocity ≤ 0): refused at the schema — the lane declares
+  advective transport; the pure-diffusion limit is its own lane.
+- Non-rectangular domains, unstructured meshes, adaptivity, SUPG/upwind
+  stabilization: out of scope v1 (the rectangular channel + Q2 + the
+  Pe_h ≤ 2 monotonicity gate is the frozen reality).
+- Navier-Stokes, turbulence, buoyancy, multiphase: out of scope — separate
+  lanes entirely (the registry's openfoam row stays the system-binary class).

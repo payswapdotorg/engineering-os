@@ -1,8 +1,8 @@
 {
-  "ranAt": "2026-10-30T00:15:23.244Z",
+  "ranAt": "2026-10-30T06:55:16.906Z",
   "pythonBin": "/home/z/.venv/bin/python",
   "manifestPath": "tests/validation/corpus-manifest.json",
-  "caseCount": 36,
+  "caseCount": 39,
   "environment": {
     "engineAvailability": {
       "step": {
@@ -21,6 +21,9 @@
         "available": true
       },
       "fea": {
+        "available": true
+      },
+      "transport": {
         "available": true
       },
       "swmm": {
@@ -53,6 +56,7 @@
     "pandapower": "3.5.6",
     "simpy": "4.1.2",
     "scikit-fem": "12.0.2",
+    "sfepy": "2026.3",
     "libreoffice": "25.2.3.2",
     "pdfplumber": "0.11.10",
     "ezdxf": "1.4.5",
@@ -73,7 +77,8 @@
     "parametric_rebuild.py": "7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9",
     "sheet_ocr.ts": "b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45",
     "fea_solve.py": "86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef",
-    "swmm_run.py": "6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d"
+    "swmm_run.py": "6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d",
+    "transport_solve.py": "d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b"
   },
   "cases": [
     {
@@ -4755,14 +4760,405 @@
         "errorContains": "the network has no outfall - runoff cannot leave the model, and simulated results are not an option",
         "errorObserved": "the network has no outfall - runoff cannot leave the model, and simulated results are not an option"
       }
+    },
+    {
+      "caseId": "transport-channel",
+      "adapter": "transport",
+      "fixture": "transport-channel.json",
+      "fixturePath": "tests/fixtures/transport-channel.json",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "transport",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
+          {
+            "field": "analysis",
+            "ref": null,
+            "expected": "scalar_transport",
+            "observed": "scalar_transport",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the only analysis shipped this phase (contract §16.2)"
+          },
+          {
+            "field": "engineKey",
+            "ref": null,
+            "expected": "sfepy",
+            "observed": "sfepy",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the CFD lane's pinned engine (contract §16.1)"
+          },
+          {
+            "field": "elementType",
+            "ref": null,
+            "expected": "quad",
+            "observed": "quad",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "gen_block_mesh 2_4 quads (contract §16.1 probe)"
+          },
+          {
+            "field": "approximation",
+            "ref": null,
+            "expected": "Q2",
+            "observed": "Q2",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "approx_order=2 on quads → 9-node Q2 (contract §16.3)"
+          },
+          {
+            "field": "refinement",
+            "ref": null,
+            "expected": 4,
+            "observed": 4,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the default meshRefinement parameter (contract §16.3)"
+          },
+          {
+            "field": "elementCount",
+            "ref": null,
+            "expected": 1024,
+            "observed": 1024,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "N=8·2³=64 divisions on the longer (x) axis, y gets round(64·0.5/2)=16 → 64·16=1024 quads (the frozen square-element rule)"
+          },
+          {
+            "field": "nodeCount",
+            "ref": null,
+            "expected": 4257,
+            "observed": 4257,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "Q2 dofs: 65·17 corners + 64·17 x-midside + 65·16 y-midside + 64·16 centers = 1105+1088+1040+1024 = 4257"
+          },
+          {
+            "field": "pecletNumber",
+            "ref": null,
+            "expected": 10,
+            "observed": 10,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "Pe = a·L/D = 0.05·2/0.01 = 10"
+          },
+          {
+            "field": "meshPecletNumber",
+            "ref": null,
+            "expected": 0.078125,
+            "observed": 0.078125,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "Pe_h = a·h/(2D) with h = L/64 = 0.03125 → 0.05·0.03125/0.02 = 0.078125 (far inside the probed-monotone bound 2)"
+          },
+          {
+            "field": "minConcentration",
+            "ref": null,
+            "expected": 0,
+            "observed": 0,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the outlet Dirichlet dof is exactly 0 and the monotone solution never undershoots (Pe_h ≪ 2)"
+          },
+          {
+            "field": "maxConcentration",
+            "ref": null,
+            "expected": 1,
+            "observed": 1,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the inlet Dirichlet dof is exactly 1 and the monotone solution never overshoots"
+          },
+          {
+            "field": "concentration",
+            "ref": "0.25x0.25",
+            "expected": 0.9998869334714342,
+            "observed": 0.9998869326982239,
+            "unit": null,
+            "bound": "abs:0.0001",
+            "absDiff": 7.732102735857893e-10,
+            "observedRelError": 7.732977076731438e-10,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u(L/8) = (e^10 − e^1.25)/(e^10 − 1) = 0.9998869334714342"
+          },
+          {
+            "field": "concentration",
+            "ref": "0.5x0.25",
+            "expected": 0.9994922925097303,
+            "observed": 0.9994922894467615,
+            "unit": null,
+            "bound": "abs:0.0001",
+            "absDiff": 3.062968767508778e-9,
+            "observedRelError": 3.06452464962751e-9,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u(L/4) = (e^10 − e^2.5)/(e^10 − 1) = 0.9994922925097303"
+          },
+          {
+            "field": "concentration",
+            "ref": "1.0x0.25",
+            "expected": 0.9933071490757152,
+            "observed": 0.9933071215179019,
+            "unit": null,
+            "bound": "abs:0.0001",
+            "absDiff": 2.755781325358697e-8,
+            "observedRelError": 2.7743496338700337e-8,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u(L/2) = (e^10 − e^5)/(e^10 − 1) = 0.9933071490757152"
+          },
+          {
+            "field": "concentration",
+            "ref": "1.5x0.25",
+            "expected": 0.9179566765447413,
+            "observed": 0.9179565067518318,
+            "unit": null,
+            "bound": "abs:0.0001",
+            "absDiff": 1.6979290951013581e-7,
+            "observedRelError": 1.8496832568313488e-7,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u(3L/4) = (e^10 − e^7.5)/(e^10 − 1) = 0.9179566765447413"
+          },
+          {
+            "field": "concentration",
+            "ref": "1.75x0.25",
+            "expected": 0.7135275972426084,
+            "observed": 0.7135273005906637,
+            "unit": null,
+            "bound": "abs:0.0001",
+            "absDiff": 2.9665194467565215e-7,
+            "observedRelError": 4.1575398880442567e-7,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u(7L/8) = (e^10 − e^8.75)/(e^10 − 1) = 0.7135275972426084 — inside the outlet boundary layer (observed 3.0e-7 at r=4, the O(h³) convergence pin)"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "sfepy",
+          "engineVersion": "2026.3",
+          "adapterScript": "transport_solve.py",
+          "adapterHash": "d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b"
+        }
+      }
+    },
+    {
+      "caseId": "transport-uniform",
+      "adapter": "transport",
+      "fixture": "transport-uniform.json",
+      "fixturePath": "tests/fixtures/transport-uniform.json",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "transport",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
+          {
+            "field": "pecletNumber",
+            "ref": null,
+            "expected": 10,
+            "observed": 10,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "Pe = a·L/D = 10 (same transport regime as the channel case)"
+          },
+          {
+            "field": "minConcentration",
+            "ref": null,
+            "expected": 1,
+            "observed": 0.9999999999999238,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 7.616129948928574e-14,
+            "observedRelError": 7.616129948928574e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u ≡ 1: the constant field is the exact solution (observed 0.9999999999999238)"
+          },
+          {
+            "field": "maxConcentration",
+            "ref": null,
+            "expected": 1,
+            "observed": 1,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u ≡ 1 (observed exactly 1.0 — the Dirichlet dofs pin the range)"
+          },
+          {
+            "field": "concentration",
+            "ref": "0.25x0.25",
+            "expected": 1,
+            "observed": 0.9999999999999856,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 1.4432899320127035e-14,
+            "observedRelError": 1.4432899320127035e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u ≡ 1 at every station (observed 1 − 1.4e-14)"
+          },
+          {
+            "field": "concentration",
+            "ref": "0.5x0.25",
+            "expected": 1,
+            "observed": 0.9999999999999747,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 2.531308496145357e-14,
+            "observedRelError": 2.531308496145357e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u ≡ 1 at every station (observed 1 − 2.5e-14)"
+          },
+          {
+            "field": "concentration",
+            "ref": "1.0x0.25",
+            "expected": 1,
+            "observed": 0.9999999999999443,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 5.573319583618286e-14,
+            "observedRelError": 5.573319583618286e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u ≡ 1 at every station (observed 1 − 5.6e-14)"
+          },
+          {
+            "field": "concentration",
+            "ref": "1.5x0.25",
+            "expected": 1,
+            "observed": 0.9999999999999265,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 7.349676423018536e-14,
+            "observedRelError": 7.349676423018536e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u ≡ 1 at every station (observed 1 − 7.4e-14)"
+          },
+          {
+            "field": "concentration",
+            "ref": "1.75x0.25",
+            "expected": 1,
+            "observed": 0.9999999999999389,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 6.106226635438361e-14,
+            "observedRelError": 6.106226635438361e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "u ≡ 1 at every station (observed 1 − 6.1e-14)"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "sfepy",
+          "engineVersion": "2026.3",
+          "adapterScript": "transport_solve.py",
+          "adapterHash": "d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b"
+        }
+      }
+    },
+    {
+      "caseId": "transport-mesh-peclet-refusal",
+      "adapter": "transport",
+      "fixture": "transport-high-peclet.json",
+      "fixturePath": "tests/fixtures/transport-high-peclet.json",
+      "expect": "error",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "transport",
+        "expect": "error",
+        "status": "pass",
+        "determinism": null,
+        "comparisons": [],
+        "problems": [],
+        "errorContains": "the mesh does not resolve the transport boundary layer",
+        "errorObserved": "the mesh does not resolve the transport boundary layer (element Péclet 7.81 exceeds the stability bound 2) - refine the mesh (increase meshRefinement) or reduce the flow Péclet number; an oscillatory solution is not an option"
+      }
     }
   ],
   "summary": {
-    "total": 36,
-    "pass": 36,
+    "total": 39,
+    "pass": 39,
     "fail": 0,
     "skip": 0,
-    "ran": 36,
+    "ran": 39,
     "notRun": false
   }
 }

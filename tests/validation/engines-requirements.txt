@@ -32,3 +32,8 @@ pyswmm==2.2.0
 swmm-toolkit==0.17.0
 aenum==3.1.17
 julian==0.14
+# Slice 29 (2026-10-30, contract §16): sfepy — steady scalar-transport CFD.
+# BSD-3-Clause (verified on the sdist's own PKG-INFO + LICENSE, Slice 28).
+# SDIST-ONLY on PyPI: pip builds the cp312 wheel from source using the declared
+# build deps (gcc/make; ~1.5 min observed in-sandbox). numpy/scipy core.
+sfepy==2026.3

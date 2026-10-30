@@ -42,6 +42,7 @@ import { feMeshFromFile, type FeMeshParameters, type FeMeshResult } from "@/engi
 import { runPowerflowFromFile, type PowerflowBus, type PowerflowLine, type PowerflowTotals } from "@/engines/adapters/powerflow"
 import { runDesFromFile, type DesJob, type DesResource } from "@/engines/adapters/des"
 import { runFeaFromFile, type FeaSample } from "@/engines/adapters/fea"
+import { runTransportFromFile, type TransportSample } from "@/engines/adapters/cfd"
 import { runSwmmFromFile, type SwmmDepthSample } from "@/engines/adapters/swmm"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "@/engines/adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "@/engines/adapters/dxf_takeoff"
@@ -98,6 +99,7 @@ export type BrokerOperation =
   | "run_powerflow"
   | "run_des"
   | "solve_fea"
+  | "solve_transport"
   | "run_swmm"
   | "convert_document"
   | "analyze_schedule"
@@ -987,6 +989,7 @@ export const DES_NO_REVISIONS_MESSAGE = "This artifact has no revisions to simul
 export const FEA_NO_REVISIONS_MESSAGE = "This artifact has no revisions to solve"
 
 export const SWMM_NO_REVISIONS_MESSAGE = "This artifact has no revisions to run"
+export const TRANSPORT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to solve"
 export const CONVERT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to convert"
 export const ANALYZE_NO_REVISIONS_MESSAGE = "This artifact has no revisions to analyze"
 
@@ -1204,6 +1207,71 @@ export function buildFeaDocument(
       sigmaXxMaxMpa: payload.stress.sigmaXxMaxMpa,
       vonMisesMaxMpa: payload.stress.vonMisesMaxMpa,
     },
+    generatedBy: {
+      engineKey: payload.engineKey,
+      engineVersion: payload.engineVersion,
+      adapterScript: payload.adapterScript,
+      adapterHash: payload.adapterHash,
+    },
+  })
+}
+
+/**
+ * Assemble the eos-cfd-transport/1 document bytes (contract §16.4). PURE:
+ * pinned key order format → sourceArtifactName → analysis → mesh → domain →
+ * transport properties → boundary values → Péclet numbers → samples →
+ * min/max → generatedBy; every numeric is the engine's verbatim double
+ * (ADR-0006 §2 — nobody rounds "for presentation").
+ */
+export function buildTransportDocument(
+  sourceArtifactName: string,
+  payload: {
+    analysis: "scalar_transport"
+    mesh: { elementType: string; approximation: string; refinement: number; elementCount: number; nodeCount: number }
+    domain: { lengthM: number; heightM: number }
+    diffusivityM2PerS: number
+    velocityMPerS: number
+    inletConcentration: number
+    outletConcentration: number
+    pecletNumber: number
+    meshPecletNumber: number
+    samples: TransportSample[]
+    minConcentration: number
+    maxConcentration: number
+    engineKey: string
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+  },
+): string {
+  return JSON.stringify({
+    format: "eos-cfd-transport/1",
+    sourceArtifactName,
+    analysis: payload.analysis,
+    mesh: {
+      elementType: payload.mesh.elementType,
+      approximation: payload.mesh.approximation,
+      refinement: payload.mesh.refinement,
+      elementCount: payload.mesh.elementCount,
+      nodeCount: payload.mesh.nodeCount,
+    },
+    domain: {
+      lengthM: payload.domain.lengthM,
+      heightM: payload.domain.heightM,
+    },
+    diffusivityM2PerS: payload.diffusivityM2PerS,
+    velocityMPerS: payload.velocityMPerS,
+    inletConcentration: payload.inletConcentration,
+    outletConcentration: payload.outletConcentration,
+    pecletNumber: payload.pecletNumber,
+    meshPecletNumber: payload.meshPecletNumber,
+    samples: payload.samples.map((sample) => ({
+      x: sample.x,
+      y: sample.y,
+      concentration: sample.concentration,
+    })),
+    minConcentration: payload.minConcentration,
+    maxConcentration: payload.maxConcentration,
     generatedBy: {
       engineKey: payload.engineKey,
       engineVersion: payload.engineVersion,
@@ -2938,6 +3006,130 @@ export async function brokerRunFeaCore(
   }
 }
 
+/** Pinned 201 `transport` response object (exact key order — mirror of the fea 201). */
+export interface BrokerTransportResponse {
+  artifactId: string
+  name: string
+  kind: "analysis"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-cfd-transport/1"
+  analysis: "scalar_transport"
+  pecletNumber: number
+  meshPecletNumber: number
+  minConcentration: number
+  maxConcentration: number
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerTransportResult {
+  transport: BrokerTransportResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of solve_transport (contract §16.3/§16.5): gate the stored JSON as an
+ * eos-cfd-transport-model/1 document, run the SfePy bridge, assemble the
+ * byte-deterministic eos-cfd-transport/1 document, find-or-create the
+ * kind-"analysis" artifact (DRAFT revision per run), exactly ONE
+ * `transport.solved` audit event.
+ */
+export async function brokerRunTransportCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerTransportResult> {
+  const source = await readJsonArtifact(projectId, artifactId, "eos-cfd-transport-model/1", TRANSPORT_NO_REVISIONS_MESSAGE)
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof runTransportFromFile>>
+  try {
+    result = await runTransportFromFile(absPath, parameters)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildTransportDocument(source.artifact.name, result)
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "solve_transport",
+    kind: "analysis",
+    format: "eos-cfd-transport/1",
+    name: `${source.artifact.name} — scalar transport`,
+    description: `Steady scalar transport CFD (${result.engineKey})`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "transport.solved",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        analysis: result.analysis,
+        elementCount: result.mesh.elementCount,
+        nodeCount: result.mesh.nodeCount,
+        pecletNumber: result.pecletNumber,
+        meshPecletNumber: result.meshPecletNumber,
+        maxConcentration: result.maxConcentration,
+      },
+    },
+  })
+
+  return {
+    transport: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-cfd-transport/1",
+      analysis: result.analysis,
+      pecletNumber: result.pecletNumber,
+      meshPecletNumber: result.meshPecletNumber,
+      minConcentration: result.minConcentration,
+      maxConcentration: result.maxConcentration,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
 /** Pinned 201 `swmm` response object (exact key order — mirror of the fea 201). */
 export interface BrokerSwmmResponse {
   artifactId: string
@@ -3614,6 +3806,32 @@ export async function runBrokerOperation(
           elementCount: core.fea.elementCount,
           nodeCount: core.fea.nodeCount,
           maxDisplacementMagnitudeMm: core.fea.maxDisplacementMagnitudeMm,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "solve_transport": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "solve_transport requires inputs.artifactId (one transport model artifact id)")
+      }
+      const core = await brokerRunTransportCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.transport.artifactId,
+          revisionNumber: core.transport.revisionNumber,
+          contentHash: core.transport.contentHash,
+          pecletNumber: core.transport.pecletNumber,
+          meshPecletNumber: core.transport.meshPecletNumber,
+          maxConcentration: core.transport.maxConcentration,
         },
         outputArtifactRevisionId: core.outputArtifactRevisionId,
         engineKey: core.engineKey,

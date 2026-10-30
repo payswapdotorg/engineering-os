@@ -29,7 +29,7 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-30T00:15:23.244Z`
+- Ran at (UTC): `2026-10-30T06:55:16.906Z`
 - Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
@@ -38,6 +38,7 @@
 - Engine availability probe — pandapower (power flow): available
 - Engine availability probe — simpy (discrete-event): available
 - Engine availability probe — scikit-fem (plane-stress FEA): available
+- Engine availability probe — sfepy/SfePy (steady scalar transport CFD): available
 - Engine availability probe — pyswmm/SWMM5 (stormwater drainage): available
 - Engine availability probe — platform CPM core (no engine): available
 - Engine availability probe — libreoffice (document conversion): available
@@ -45,7 +46,7 @@
 - Engine availability probe — ezdxf (DXF takeoff): available
 - Engine availability probe — cadquery (parametric rebuild): available
 - Engine availability probe — tesseract (sheet-text OCR): available
-- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5 · tesseract 5.5.0 · pyswmm 2.2.0
+- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · sfepy 2026.3 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5 · tesseract 5.5.0 · pyswmm 2.2.0
 - Adapter `step_quantities.py` sha256: `950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d`
 - Adapter `ifc_quantities.py` sha256: `68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78`
 - Adapter `step_mesh.py` sha256: `e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c`
@@ -60,7 +61,8 @@
 - Adapter `sheet_ocr.ts` sha256: `b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45`
 - Adapter `fea_solve.py` sha256: `86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef`
 - Adapter `swmm_run.py` sha256: `6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d`
-- Corpus: `tests/validation/corpus-manifest.json` — 36 cases
+- Adapter `transport_solve.py` sha256: `d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b`
+- Corpus: `tests/validation/corpus-manifest.json` — 39 cases
 
 ## Tolerance policy (pinned)
 
@@ -70,7 +72,7 @@
 | `analytic` | \|obs − exp\| ≤ 1e-9 · max(1, \|exp\|) | exact-engine value vs closed form; also used for the PLANAR mesh case, where the divergence-theorem volume / triangle-sum area are mathematically exact (only IEEE rounding remains) |
 | `mesh` | \|obs − exp\| ≤ 1e-2 · \|exp\| | pinned 1% engineering tolerance for triangulated CURVED surfaces (ifcopenshell PyPI wheel has no OCCT backend, `has_occ=False`); the observed relative error is recorded below — the limitation is quantified, not hidden |
 
-## Results — 36 cases: 36 pass / 0 fail / 0 skip
+## Results — 39 cases: 39 pass / 0 fail / 0 skip
 
 | Case | Adapter | Fixture | Expect | Status | Determinism | Quantities (obs / pinned) | Max observed rel error | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -110,6 +112,9 @@
 | `swmm-runoff-balance` | swmm | `swmm-runoff-balance.json` | success | pass | — | — / — | — | swmm: 11 pin(s) · pyswmm 2.2.0 · doc byte-determinism ✅ · max pin rel error 1.652e-2 |
 | `swmm-manning-conduit` | swmm | `swmm-manning-conduit.json` | success | pass | — | — / — | — | swmm: 8 pin(s) · pyswmm 2.2.0 · doc byte-determinism ✅ · max pin rel error 9.948e-3 |
 | `swmm-no-outfall` | swmm | `swmm-no-outfall.json` | error | pass | — | — | — | swmm: threw honest error: `the network has no outfall - runoff cannot leave the model, and simulated results are not an option` · threw honest error: `` |
+| `transport-channel` | transport | `transport-channel.json` | success | pass | — | — / — | — | transport: 16 pin(s) · sfepy 2026.3 · doc byte-determinism ✅ · max pin rel error 4.158e-7 |
+| `transport-uniform` | transport | `transport-uniform.json` | success | pass | — | — / — | — | transport: 8 pin(s) · sfepy 2026.3 · doc byte-determinism ✅ · max pin rel error 7.616e-14 |
+| `transport-mesh-peclet-refusal` | transport | `transport-high-peclet.json` | error | pass | — | — | — | transport: threw honest error: `the mesh does not resolve the transport boundary layer (element Péclet 7.81 exceeds the stability bound 2) - refine the ` · threw honest error: `` |
 
 ## Mesh tessellation validation (W2-d — the eos-mesh/1 bridge)
 
@@ -212,6 +217,9 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 | `swmm-runoff-balance` | swmm | `swmm-runoff-balance.json` | success | pyswmm 2.2.0 | ✅ true | 11 | pass |
 | `swmm-manning-conduit` | swmm | `swmm-manning-conduit.json` | success | pyswmm 2.2.0 | ✅ true | 8 | pass |
 | `swmm-no-outfall` | swmm | `swmm-no-outfall.json` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `transport-channel` | transport | `transport-channel.json` | success | sfepy 2026.3 | ✅ true | 16 | pass |
+| `transport-uniform` | transport | `transport-uniform.json` | success | sfepy 2026.3 | ✅ true | 8 | pass |
+| `transport-mesh-peclet-refusal` | transport | `transport-high-peclet.json` | error | — (platform core, honestly absent) | — | 0 | pass |
 
 ### Discipline pin comparisons (observed vs hand-derived)
 
@@ -416,6 +424,31 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `swmm-manning-conduit` runoffErrorPct: observed **-0.015** vs pinned 0 [bound abs:0.5] · engine .rpt runoff continuity magnitude bound (observed -0.015%)
 - `swmm-manning-conduit` routingErrorPct: observed **-0.02** vs pinned 0 [bound abs:0.5] · engine .rpt routing continuity magnitude bound (observed -0.02%)
 - `swmm-no-outfall` (swmm) threw the honest error: `the network has no outfall - runoff cannot leave the model, and simulated results are not an option`
+- `transport-channel` analysis: observed **"scalar_transport"** vs pinned "scalar_transport" [bound structural] · the only analysis shipped this phase (contract §16.2)
+- `transport-channel` engineKey: observed **"sfepy"** vs pinned "sfepy" [bound structural] · the CFD lane's pinned engine (contract §16.1)
+- `transport-channel` elementType: observed **"quad"** vs pinned "quad" [bound structural] · gen_block_mesh 2_4 quads (contract §16.1 probe)
+- `transport-channel` approximation: observed **"Q2"** vs pinned "Q2" [bound structural] · approx_order=2 on quads → 9-node Q2 (contract §16.3)
+- `transport-channel` refinement: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the default meshRefinement parameter (contract §16.3)
+- `transport-channel` elementCount: observed **1024** vs pinned 1024 [bound abs:0] → rel error 0 (bitwise) · N=8·2³=64 divisions on the longer (x) axis, y gets round(64·0.5/2)=16 → 64·16=1024 quads (the frozen square-element rule)
+- `transport-channel` nodeCount: observed **4257** vs pinned 4257 [bound abs:0] → rel error 0 (bitwise) · Q2 dofs: 65·17 corners + 64·17 x-midside + 65·16 y-midside + 64·16 centers = 1105+1088+1040+1024 = 4257
+- `transport-channel` pecletNumber: observed **10** vs pinned 10 [bound abs:1e-12] → rel error 0 (bitwise) · Pe = a·L/D = 0.05·2/0.01 = 10
+- `transport-channel` meshPecletNumber: observed **0.078125** vs pinned 0.078125 [bound abs:1e-12] → rel error 0 (bitwise) · Pe_h = a·h/(2D) with h = L/64 = 0.03125 → 0.05·0.03125/0.02 = 0.078125 (far inside the probed-monotone bound 2)
+- `transport-channel` minConcentration: observed **0** vs pinned 0 [bound abs:1e-12] · the outlet Dirichlet dof is exactly 0 and the monotone solution never undershoots (Pe_h ≪ 2)
+- `transport-channel` maxConcentration: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · the inlet Dirichlet dof is exactly 1 and the monotone solution never overshoots
+- `transport-channel` concentration @ 0.25x0.25: observed **0.9998869326982239** vs pinned 0.9998869334714342 [bound abs:0.0001] → rel error 7.733e-10 · u(L/8) = (e^10 − e^1.25)/(e^10 − 1) = 0.9998869334714342
+- `transport-channel` concentration @ 0.5x0.25: observed **0.9994922894467615** vs pinned 0.9994922925097303 [bound abs:0.0001] → rel error 3.065e-9 · u(L/4) = (e^10 − e^2.5)/(e^10 − 1) = 0.9994922925097303
+- `transport-channel` concentration @ 1.0x0.25: observed **0.9933071215179019** vs pinned 0.9933071490757152 [bound abs:0.0001] → rel error 2.774e-8 · u(L/2) = (e^10 − e^5)/(e^10 − 1) = 0.9933071490757152
+- `transport-channel` concentration @ 1.5x0.25: observed **0.9179565067518318** vs pinned 0.9179566765447413 [bound abs:0.0001] → rel error 1.850e-7 · u(3L/4) = (e^10 − e^7.5)/(e^10 − 1) = 0.9179566765447413
+- `transport-channel` concentration @ 1.75x0.25: observed **0.7135273005906637** vs pinned 0.7135275972426084 [bound abs:0.0001] → rel error 4.158e-7 · u(7L/8) = (e^10 − e^8.75)/(e^10 − 1) = 0.7135275972426084 — inside the outlet boundary layer (observed 3.0e-7 at r=4, the O(h³) convergence pin)
+- `transport-uniform` pecletNumber: observed **10** vs pinned 10 [bound abs:1e-12] → rel error 0 (bitwise) · Pe = a·L/D = 10 (same transport regime as the channel case)
+- `transport-uniform` minConcentration: observed **0.9999999999999238** vs pinned 1 [bound abs:1e-12] → rel error 7.616e-14 · u ≡ 1: the constant field is the exact solution (observed 0.9999999999999238)
+- `transport-uniform` maxConcentration: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · u ≡ 1 (observed exactly 1.0 — the Dirichlet dofs pin the range)
+- `transport-uniform` concentration @ 0.25x0.25: observed **0.9999999999999856** vs pinned 1 [bound abs:1e-12] → rel error 1.443e-14 · u ≡ 1 at every station (observed 1 − 1.4e-14)
+- `transport-uniform` concentration @ 0.5x0.25: observed **0.9999999999999747** vs pinned 1 [bound abs:1e-12] → rel error 2.531e-14 · u ≡ 1 at every station (observed 1 − 2.5e-14)
+- `transport-uniform` concentration @ 1.0x0.25: observed **0.9999999999999443** vs pinned 1 [bound abs:1e-12] → rel error 5.573e-14 · u ≡ 1 at every station (observed 1 − 5.6e-14)
+- `transport-uniform` concentration @ 1.5x0.25: observed **0.9999999999999265** vs pinned 1 [bound abs:1e-12] → rel error 7.350e-14 · u ≡ 1 at every station (observed 1 − 7.4e-14)
+- `transport-uniform` concentration @ 1.75x0.25: observed **0.9999999999999389** vs pinned 1 [bound abs:1e-12] → rel error 6.106e-14 · u ≡ 1 at every station (observed 1 − 6.1e-14)
+- `transport-mesh-peclet-refusal` (transport) threw the honest error: `the mesh does not resolve the transport boundary layer (element Péclet 7.81 exceeds the stability bound 2) - refine the mesh (increase meshRefinement) or reduce`
 
 ## Regenerate
 

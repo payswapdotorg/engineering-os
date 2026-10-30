@@ -823,3 +823,53 @@ export function parseSwmmModelJsonText(text: string): ParseSchemaResult<SwmmMode
   if (!raw.ok) return { ok: false, error: `invalid SWMM model: ${raw.error}` }
   return parseSwmmModel(raw.value)
 }
+
+// ---------------------------------------------------------------------------
+// §16.2 Transport model (eos-cfd-transport-model/1 — Slice 29, steady scalar
+// transport via SfePy; the CFD lane the Slice-28 license-first probe opened)
+// ---------------------------------------------------------------------------
+
+export const transportModelSchema = z.strictObject(
+  {
+    format: z.literal("eos-cfd-transport-model/1", {
+      message: 'format must be "eos-cfd-transport-model/1"',
+    }),
+    name: nameField(),
+    domain: z.strictObject(
+      {
+        lengthM: positiveNumber("domain.lengthM").refine((v) => v <= 10000, {
+          message: "domain.lengthM must be at most 10000 m",
+        }),
+        heightM: positiveNumber("domain.heightM").refine((v) => v <= 10000, {
+          message: "domain.heightM must be at most 10000 m",
+        }),
+      },
+      { message: "domain must be a JSON object" },
+    ),
+    diffusivityM2PerS: positiveNumber("diffusivityM2PerS").refine((v) => v <= 10, {
+      message: "diffusivityM2PerS must be at most 10 m²/s",
+    }),
+    velocityMPerS: positiveNumber("velocityMPerS").refine((v) => v <= 100, {
+      message: "velocityMPerS must be at most 100 m/s",
+    }),
+    inletConcentration: finiteNumber("inletConcentration"),
+    outletConcentration: finiteNumber("outletConcentration"),
+  },
+  { message: "transport model must be a JSON object" },
+)
+
+export type TransportModelInput = z.infer<typeof transportModelSchema>
+
+/** Parse an unknown value as an eos-cfd-transport-model/1 document. */
+export function parseTransportModel(input: unknown): ParseSchemaResult<TransportModelInput> {
+  const parsed = transportModelSchema.safeParse(input)
+  if (parsed.success) return { ok: true, value: parsed.data }
+  return { ok: false, error: joinZodIssues("invalid transport model", parsed.error) }
+}
+
+/** Parse stored artifact text as an eos-cfd-transport-model/1 document (Slice 29). */
+export function parseTransportModelJsonText(text: string): ParseSchemaResult<TransportModelInput> {
+  const raw = parseJsonText(text)
+  if (!raw.ok) return { ok: false, error: `invalid transport model: ${raw.error}` }
+  return parseTransportModel(raw.value)
+}

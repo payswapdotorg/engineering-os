@@ -1173,8 +1173,27 @@ export interface FeaPayload {
   generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string }
 }
 
+/** eos-cfd-transport/1 — steady scalar-transport result (SfePy, Slice 29). */
+export interface TransportPayload {
+  format: "eos-cfd-transport/1"
+  sourceArtifactName: string
+  analysis: "scalar_transport"
+  mesh: { elementType: string; approximation: string; refinement: number; elementCount: number; nodeCount: number }
+  domain: { lengthM: number; heightM: number }
+  diffusivityM2PerS: number
+  velocityMPerS: number
+  inletConcentration: number
+  outletConcentration: number
+  pecletNumber: number
+  meshPecletNumber: number
+  samples: Array<{ x: number; y: number; concentration: number }>
+  minConcentration: number
+  maxConcentration: number
+  generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string }
+}
+
 /** Which stored payload a derived artifact revision carries (discriminated by format). */
-export type AnalysisPayload = PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload
+export type AnalysisPayload = PowerFlowPayload | DesPayload | CpmAnalysisPayload | FeaPayload | TransportPayload
 
 // --- §8 routes (thin wrappers over broker cores; 422s verbatim) --------------
 
@@ -1302,6 +1321,15 @@ export async function runDiscreteEvent(projectId: string, artifactId: string) {
 export async function runFea(projectId: string, artifactId: string) {
   return apiJson<{ fea: DeriveRunResult }>(
     `/api/projects/${projectId}/artifacts/${artifactId}/fea`,
+    "POST",
+    {},
+  )
+}
+
+/** POST /api/projects/[id]/artifacts/[aid]/transport — 201 {transport} (Slice 29). */
+export async function runTransport(projectId: string, artifactId: string) {
+  return apiJson<{ transport: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/transport`,
     "POST",
     {},
   )

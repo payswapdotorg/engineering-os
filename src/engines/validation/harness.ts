@@ -78,6 +78,7 @@ import { defaultFeMeshParameters, femeshLdLibraryPath, feMeshFromFile, validateF
 import { runPowerflowFromFile, type PowerflowResult } from "../adapters/powerflow"
 import { runDesFromFile, type DesResult } from "../adapters/des"
 import { runFeaFromFile, validateFeaParameters, type FeaParameters, type FeaResult } from "../adapters/fea"
+import { runTransportFromFile, validateTransportParameters, type TransportParameters, type TransportResult } from "../adapters/cfd"
 import { runSwmmFromFile, validateSwmmParameters, type SwmmParameters, type SwmmResult } from "../adapters/swmm"
 import { convertDocumentToFile, type ConversionResult } from "../adapters/convert-document"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "../adapters/sheet_takeoff"
@@ -98,6 +99,7 @@ import {
   buildDesDocument,
   buildFeaDocument,
   buildSwmmDocument,
+  buildTransportDocument,
   buildFeMeshDocument,
   buildPowerflowDocument,
   validateScheduleDocument,
@@ -114,6 +116,7 @@ export type AdapterKind =
   | "powerflow"
   | "des"
   | "fea"
+  | "transport"
   | "swmm"
   | "cpm"
   | "libreoffice"
@@ -132,6 +135,7 @@ export type DisciplineAdapter =
   | "powerflow"
   | "des"
   | "fea"
+  | "transport"
   | "swmm"
   | "cpm"
   | "libreoffice"
@@ -176,6 +180,7 @@ export interface CorpusCase {
   powerflow?: DisciplineExpectation
   des?: DisciplineExpectation
   fea?: DisciplineExpectation
+  transport?: DisciplineExpectation
   swmm?: DisciplineExpectation
   cpm?: DisciplineExpectation
   libreoffice?: DisciplineExpectation
@@ -525,7 +530,7 @@ const LIBREOFFICE_BIN = process.env.EOS_LIBREOFFICE ?? "/usr/bin/libreoffice"
 
 /** Python engines per adapter kind (cpm/libreoffice/ocr are probed differently). */
 const PYTHON_ENGINE_MODULES: Record<
-  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "swmm" | "sheet" | "dxf" | "parametric",
+  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "transport" | "swmm" | "sheet" | "dxf" | "parametric",
   string
 > = {
   step: "cadquery",
@@ -534,6 +539,7 @@ const PYTHON_ENGINE_MODULES: Record<
   powerflow: "pandapower",
   des: "simpy",
   fea: "skfem",
+  transport: "sfepy",
   swmm: "pyswmm",
   sheet: "pdfplumber",
   dxf: "ezdxf",
@@ -557,6 +563,7 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   powerflow: "pandapower (power flow)",
   des: "simpy (discrete-event)",
   fea: "scikit-fem (plane-stress FEA)",
+  transport: "sfepy/SfePy (steady scalar transport CFD)",
   swmm: "pyswmm/SWMM5 (stormwater drainage)",
   cpm: "platform CPM core (no engine)",
   libreoffice: "libreoffice (document conversion)",
@@ -788,8 +795,9 @@ function parseDisciplineExpectation(
     if (!isPlainObject(parameters)) {
       throw new Error(`manifest case ${caseId}: ${blockName}.parameters must be an object`)
     }
-    if (blockName === "fea") {
-      // Slice 22 (contract §14.3): the ONLY parameter is the mesh refinement level.
+    if (blockName === "fea" || blockName === "transport") {
+      // Slice 22 (contract §14.3) / Slice 29 (contract §16.3): the ONLY
+      // parameter is the mesh refinement level.
       const { meshRefinement } = parameters
       if (
         typeof meshRefinement !== "number" ||
@@ -1177,7 +1185,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
     if (!isPlainObject(c)) {
       throw new Error(`manifest case [${i}] is not an object`)
     }
-    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, fea, swmm, cpm, libreoffice, sheet, dxf, parametric, ocr } =
+    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, fea, transport, swmm, cpm, libreoffice, sheet, dxf, parametric, ocr } =
       c
     if (typeof caseId !== "string" || caseId.length === 0) {
       throw new Error(`manifest case [${i}] has no caseId`)
@@ -1192,6 +1200,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "powerflow" ||
       adapter === "des" ||
       adapter === "fea" ||
+      adapter === "transport" ||
       adapter === "swmm" ||
       adapter === "cpm" ||
       adapter === "libreoffice" ||
@@ -1201,7 +1210,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "ocr"
     if (!isModelAdapter && !isDisciplineAdapter) {
       throw new Error(
-        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"swmm"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr" (got ${JSON.stringify(adapter)})`,
+        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"transport"|"swmm"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr" (got ${JSON.stringify(adapter)})`,
       )
     }
     if (typeof fixture !== "string" || fixture.length === 0) {
@@ -2100,6 +2109,46 @@ function feaObserved(r: FeaResult, pin: DisciplinePin): unknown {
   return pin.field === "ux" || pin.field === "uy" ? sampleRecord[pin.field] : undefined
 }
 
+/** Resolve a pin's observed value on a transport result (Slice 29 — the
+ * sample locator ref is "<x>x<y>" in m, e.g. "0.25x0.25" for the (L/8, H/2)
+ * station of the 2×0.5 channel). */
+function transportObserved(r: TransportResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "analysis":
+      return r.analysis
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "elementType":
+      return r.mesh.elementType
+    case "approximation":
+      return r.mesh.approximation
+    case "refinement":
+      return r.mesh.refinement
+    case "elementCount":
+      return r.mesh.elementCount
+    case "nodeCount":
+      return r.mesh.nodeCount
+    case "pecletNumber":
+      return r.pecletNumber
+    case "meshPecletNumber":
+      return r.meshPecletNumber
+    case "minConcentration":
+      return r.minConcentration
+    case "maxConcentration":
+      return r.maxConcentration
+    default:
+      break
+  }
+  if (pin.ref === null) return undefined
+  const mx = pin.ref.match(/^([-\d.]+)x([-\d.]+)$/)
+  if (mx === null) return undefined
+  const sample = r.samples.find((s) => s.x === Number(mx[1]) && s.y === Number(mx[2]))
+  if (sample === undefined) return undefined
+  return pin.field === "concentration" ? sample.concentration : undefined
+}
+
 /** Resolve a pin's observed value on a SWMM result (Slice 23 — the depth
  * locator ref is the node/conduit id, e.g. "C1" or "J1"). */
 function swmmObserved(r: SwmmResult, pin: DisciplinePin): unknown {
@@ -2285,6 +2334,8 @@ async function runDisciplineChecks(
         await runDesFromFile(fixturePath)
       } else if (adapter === "fea") {
         await runFeaFromFile(fixturePath, block.parameters ?? {})
+      } else if (adapter === "transport") {
+        await runTransportFromFile(fixturePath, block.parameters ?? {})
       } else if (adapter === "swmm") {
         await runSwmmFromFile(fixturePath, block.parameters ?? {})
       } else {
@@ -2416,6 +2467,33 @@ async function runDisciplineChecks(
       }
       for (const pin of block.pins ?? []) {
         r.comparisons.push(compareDisciplinePin(pin, feaObserved(first, pin)))
+      }
+    } else if (adapter === "transport") {
+      let params: TransportParameters
+      try {
+        params = validateTransportParameters(block.parameters ?? {})
+      } catch (err) {
+        r.problems.push(`manifest transport parameters failed bridge validation: ${(err as Error).message}`)
+        r.status = "fail"
+        return r
+      }
+      const first = await runTransportFromFile(fixturePath, block.parameters ?? {})
+      const second = await runTransportFromFile(fixturePath, block.parameters ?? {})
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      const documentOf = (res: TransportResult) => buildTransportDocument(sourceName, res)
+      r.determinism = documentOf(first) === documentOf(second)
+      if (!r.determinism) {
+        r.problems.push("two consecutive real runs produced different eos-cfd-transport/1 document bytes — the stored artifact would not be byte-deterministic")
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, transportObserved(first, pin)))
       }
     } else if (adapter === "swmm") {
       let params: SwmmParameters
@@ -3257,6 +3335,7 @@ export async function runHarness(): Promise<HarnessReport> {
         powerflow: probeEngine("powerflow"),
         des: probeEngine("des"),
         fea: probeEngine("fea"),
+        transport: probeEngine("transport"),
         swmm: probeEngine("swmm"),
         cpm: probeEngine("cpm"),
         libreoffice: probeEngine("libreoffice"),
@@ -3273,6 +3352,7 @@ export async function runHarness(): Promise<HarnessReport> {
       pandapower: null,
       simpy: null,
       "scikit-fem": null,
+      sfepy: null,
       libreoffice: null,
       pdfplumber: null,
       ezdxf: null,

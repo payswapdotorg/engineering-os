@@ -25,6 +25,11 @@
 #            harness-validated engines (the four Phase-5 engines + the three
 #            Slice-15/16 takeoff engines added by the 16-D reconciliation)
 #
+# Slice 29 adds the AC-CFD-04 block (steady scalar transport via REAL SfePy —
+# the channel closed form, the mesh-Péclet stability refusal, one
+# transport.solved audit event; contract §16.6) and updates the registry
+# reconciliation to twelve tested engines.
+#
 # Runs LAST of the five scripts. Probe project "P5 Disciplines Probe" is
 # removed on success (KEPT on failure for forensics). Final line
 # "N PASS / M FAIL", nonzero exit on any FAIL.
@@ -227,6 +232,42 @@ assert_contains "under-constrained model → the rigid-mode refusal naming the f
 STATUS_NOAUTH=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/projects/$PROBE_ID/artifacts/$FEAU_ID/fea") || STATUS_NOAUTH="000"
 BODY_NOAUTH=$(cat "$WORK/http.body")
 assert_eq "unauthenticated FEA solve → 401 envelope verbatim (the op rides the same session gate)" \
+  "401|sign in required" \
+  "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
+
+# ===========================================================================
+# AC-CFD-04 — steady scalar transport (REAL SfePy; the channel closed form +
+# the two honest 422 gates + the audit event; contract §16.6, Slice 29)
+# ===========================================================================
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/transport-channel.json" "Transport channel Pe10"
+TRANSPORT_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$TRANSPORT_ID/transport" -H 'Content-Type: application/json' -d '{}'
+assert_eq "transport model JSON → steady scalar-transport solve by REAL SfePy (kind analysis, quad/Q2/1024/4257, Pe=10, engine sfepy 2026.3)" \
+  "201|analysis|eos-cfd-transport/1|scalar_transport|quad|Q2|1024|4257|sfepy|2026.3|10|0.078125" \
+  "$STATUS|$(j "$BODY" '.data.transport.kind')|$(j "$BODY" '.data.transport.document.format')|$(j "$BODY" '.data.transport.document.analysis')|$(j "$BODY" '.data.transport.document.mesh.elementType')|$(j "$BODY" '.data.transport.document.mesh.approximation')|$(j "$BODY" '.data.transport.elementCount')|$(j "$BODY" '.data.transport.nodeCount')|$(j "$BODY" '.data.transport.engineKey')|$(j "$BODY" '.data.transport.engineVersion')|$(j "$BODY" '.data.transport.pecletNumber')|$(j "$BODY" '.data.transport.meshPecletNumber')"
+near "closed-form pin: u(L/8) = (e^10 − e^1.25)/(e^10 − 1) = 0.9998869335 (the exponential channel profile reproduced by the full 2D Q2 assembly; harness-pinned rel 4.2e-7)" \
+  "0.9998869334714342" "$(j "$BODY" '.data.transport.document.samples[] | select(.x == 0.25 and .y == 0.25) | .concentration')" "0.0001"
+near "closed-form pin: u(7L/8) = (e^10 − e^8.75)/(e^10 − 1) = 0.7135275972 — inside the outlet boundary layer" \
+  "0.7135275972426084" "$(j "$BODY" '.data.transport.document.samples[] | select(.x == 1.75 and .y == 0.25) | .concentration')" "0.0001"
+assert_eq "the monotone range is exact: min 0 (the outlet Dirichlet dof) and max 1 (the inlet Dirichlet dof) — no overshoot anywhere" \
+  "0|1" "$(j "$BODY" '.data.transport.minConcentration')|$(j "$BODY" '.data.transport.maxConcentration')"
+http GET "/api/events?projectId=$PROBE_ID&limit=200"
+assert_eq "exactly ONE transport.solved audit event for the run, engine sfepy recorded" \
+  "1|sfepy" "$(j "$BODY" '[.data.events[] | select(.action == "transport.solved")] | length')|$(j "$BODY" '[.data.events[] | select(.action == "transport.solved")][0].detail | fromjson | .engineKey')"
+http POST "/api/projects/$PROBE_ID/artifacts/$DESW_ID/transport" -H 'Content-Type: application/json' -d '{}'
+assert_contains "wrong-format JSON → 422 (the ROUTE zod refuses alien content before the broker — defense-in-depth)" \
+  'format must be "eos-cfd-transport-model/1"' \
+  "$(j "$BODY" '.error.message')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/transport-high-peclet.json" "Transport high Peclet"
+TRANSPORTU_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$TRANSPORTU_ID/transport" -H 'Content-Type: application/json' -d '{}'
+assert_contains "element Péclet 7.8125 > the probed-monotone bound 2 → the stability refusal verbatim (an oscillatory solution is never stored)" \
+  "the mesh does not resolve the transport boundary layer" \
+  "$(j "$BODY" '.error.message')"
+: > "$WORK/http.body"
+STATUS_NOAUTH=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/projects/$PROBE_ID/artifacts/$TRANSPORTU_ID/transport") || STATUS_NOAUTH="000"
+BODY_NOAUTH=$(cat "$WORK/http.body")
+assert_eq "unauthenticated transport solve → 401 envelope verbatim (the op rides the same session gate)" \
   "401|sign in required" \
   "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
 
@@ -485,14 +526,18 @@ assert_eq "Slice-23 addendum: the pyswmm registry row carries its validation blo
 assert_contains "Slice-23 addendum: the EPA swmm row records the in-process lane (pyswmm + swmm-toolkit, CC0-dedicated — no system binary required by the product)" \
   "the in-process lane ships via pyswmm + swmm-toolkit" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "swmm")][0].integration.notes')"
-assert_eq "registry reconciliation: eleven harness-validated engines (the nine 16-D set + scikit-fem + pyswmm) carry state 'tested', registry total 44 — the OpenSees row stays 'planned' with the license review closed REJECTED" \
-  "11|44|planned" \
+assert_eq "Slice-29 addendum: the sfepy registry row carries its validation block too (3 transport harness cases, pass)" \
+  "pass|3|tested" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "sfepy")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "sfepy")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "sfepy")][0].state')"
+assert_eq "registry reconciliation: twelve harness-validated engines (the nine 16-D set + scikit-fem + pyswmm + sfepy) carry state 'tested', registry total 44 — the OpenSees row stays 'planned' with the license review closed REJECTED" \
+  "12|44|planned" \
   "$(j "$BODY" '[.data.registry[] | select(.state == "tested")] | length')|$(j "$BODY" '.data.registry | length')|$(j "$BODY" '[.data.registry[] | select(.key == "opensees")][0].state')"
-# Slice 28 (the Phase-5 long-tail license-first probe): five new rows, all
-# state 'planned' (no capability ships in the probe pass) with the license
-# reviews closed ACCEPTED on wheel/sdist-verified evidence.
-assert_eq "Slice-28 addendum: the five license-first probe rows (sfepy/amaranth/yowasp-yosys/pin/pybullet) are planned with ACCEPTED license reviews" \
-  "planned|planned|planned|planned|planned|5" \
+# Slice 28 (the Phase-5 long-tail license-first probe): five new rows with the
+# license reviews closed ACCEPTED on wheel/sdist-verified evidence. Slice 29
+# promoted sfepy to 'tested' (the transport capability landed); the other
+# four stay 'planned' until their own lanes ship.
+assert_eq "Slice-28/29 addendum: sfepy is now tested (the Slice-29 transport lane) while amaranth/yowasp-yosys/pin/pybullet stay planned, all five with ACCEPTED license reviews" \
+  "tested|planned|planned|planned|planned|5" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "sfepy")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "pybullet")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "sfepy" or .key == "amaranth" or .key == "yowasp-yosys" or .key == "pin" or .key == "pybullet") | select(.integration.notes | contains("LICENSE REVIEW CLOSED ACCEPTED"))] | length')"
 assert_contains "Slice-28 addendum: the pin row records the PyPI name-trap (the real library distributes as 'pin')" \
   "the PyPI distribution named 'pinocchio' (0.5.1) is an UNRELATED package" \

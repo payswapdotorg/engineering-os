@@ -37,7 +37,8 @@ import { WORKFLOW_STATES, isWorkflowState, type WorkflowState } from "./index"
  * Slice 15 added the takeoff pair; Slice 16 adds `rebuild_parametric` (the
  * roadmap-gap-audit item-2 integration — parametric authoring as a durable,
  * cross-session-capable workflow step; parameters.values carries the edits,
- * absent = the authored defaults).
+ * absent = the authored defaults). Slice 29 adds `solve_transport` (the CFD
+ * lane, phase5 contract §16.3 — steady scalar transport via SfePy).
  */
 export const BROKER_OPERATIONS = [
   "derive_quantities",
@@ -47,6 +48,7 @@ export const BROKER_OPERATIONS = [
   "run_powerflow",
   "run_des",
   "solve_fea",
+  "solve_transport",
   "run_swmm",
   "convert_document",
   "analyze_schedule",
