@@ -29,7 +29,7 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-30T18:01:54.246Z`
+- Ran at (UTC): `2026-10-30T18:35:34.535Z`
 - Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python3`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
@@ -60,7 +60,7 @@
 - Adapter `sheet_takeoff.py` sha256: `bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff`
 - Adapter `dxf_takeoff.py` sha256: `07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329`
 - Adapter `parametric_rebuild.py` sha256: `14d62a117314160ffea825ec9aca038e863a550fa7cc5b33babb487295854acf`
-- Adapter `pdf2takeoff.ts` sha256: `9b97433816a0773676d8f3fb4592e14ff03c30083af4e03e6fd2796f486f9728`
+- Adapter `pdf2takeoff.ts` sha256: `8a975d2d8d752238308deedda6811bb345d295224f6cb086ba065acfb762b2d0`
 - Adapter `sheet_ocr.ts` sha256: `b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45`
 - Corpus: `tests/validation/corpus-manifest.json` — 51 cases
 
@@ -358,7 +358,7 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `p2t-annotate-roundtrip` markupCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · the spec carries exactly 3 markups (length + area + count)
 - `p2t-annotate-roundtrip` kept: observed **0** vs pinned 0 [bound abs:0] · the bare fixture carries no pdf2takeoff annotations — nothing to keep
 - `p2t-annotate-roundtrip` isPdf: observed **true** vs pinned true [bound structural] · the annotated output must be a real PDF (%PDF magic)
-- `p2t-annotate-roundtrip` sizeBytes: observed **6168** vs pinned 4000 [bound min] · the 6166-byte dev-host output sizes the floor; an annotated copy of the 4-page fixture cannot be tiny
+- `p2t-annotate-roundtrip` sizeBytes: observed **6169** vs pinned 4000 [bound min] · the 6166-byte dev-host output sizes the floor; an annotated copy of the 4-page fixture cannot be tiny
 - `p2t-export-boq-roundtrip` rowCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · three markups -> three data rows
 - `p2t-export-boq-roundtrip` value @ label:Scale bar: observed **10.000001166666667** vs pinned 10.000001166666667 [bound rel:1e-9] → rel error 0 (bitwise) · 283.4646 pt x 0.03527778 m/pt (the engine's exact 1:100 preset); analytic 100 paper-mm = 10.000 m real
 - `p2t-export-boq-roundtrip` unit @ label:Scale bar: observed **"m"** vs pinned "m" [bound structural] · length export in metres

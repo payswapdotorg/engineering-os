@@ -44,7 +44,7 @@
  * nothing is ever fabricated.
  */
 
-import { spawn } from "node:child_process"
+import { execFile } from "node:child_process"
 import { createHash } from "node:crypto"
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { existsSync, readFileSync } from "node:fs"
@@ -366,47 +366,49 @@ interface ExecOutcome {
   stderr: string
 }
 
-/** Spawn `node bin/pdf2takeoff.js <args…>` and collect the outcome honestly. */
-function runCli(args: string[], timeoutMs: number, stdinData?: string): Promise<ExecOutcome> {
+/** Spawn `node bin/pdf2takeoff.js <args…>` and collect the outcome honestly.
+ * execFile, not spawn — the standalone-output build traces execFile call
+ * shapes (the house convention every bundled adapter follows). A non-zero
+ * exit RESOLVES with its code (the caller maps the engine's stderr tail);
+ * only spawn-level failures (timeout/ENOENT) reject. */
+function runCli(args: string[], timeoutMs: number): Promise<ExecOutcome> {
   const binPath = path.join(PDF2TAKEOFF_DIR, "bin", "pdf2takeoff.js")
   return new Promise((resolve, reject) => {
-    const child = spawn(NODE_BIN, [binPath, ...args], { stdio: ["pipe", "pipe", "pipe"] })
-    let stdout = ""
-    let stderr = ""
-    let settled = false
-    const timer = setTimeout(() => {
-      if (!settled) {
-        child.kill("SIGKILL")
-        settled = true
-        reject(new EngineUnavailableError(`pdf2takeoff CLI timed out after ${timeoutMs}ms and was terminated (${args[0] ?? "cli"})`))
-      }
-    }, timeoutMs)
-    child.stdout.on("data", (d: Buffer) => {
-      stdout += d.toString("utf8")
-    })
-    child.stderr.on("data", (d: Buffer) => {
-      stderr += d.toString("utf8")
-    })
-    child.on("error", (err) => {
-      if (!settled) {
-        settled = true
-        clearTimeout(timer)
-        reject(
-          err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT"
-            ? new EngineUnavailableError(`node is not runnable at "${NODE_BIN}" (EOS_NODE_BIN can override) — the pdf2takeoff engine cannot start`)
-            : new EngineUnavailableError(`pdf2takeoff CLI could not start: ${err.message}`),
-        )
-      }
-    })
-    child.on("close", (code) => {
-      if (!settled) {
-        settled = true
-        clearTimeout(timer)
-        resolve({ code: code ?? -1, stdout, stderr })
-      }
-    })
-    if (stdinData !== undefined) child.stdin.end(stdinData, "utf8")
-    else child.stdin.end()
+    execFile(
+      NODE_BIN,
+      [binPath, ...args],
+      { timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          const e = err as NodeJS.ErrnoException & { killed?: boolean; code?: number | string }
+          if (e.killed) {
+            reject(
+              new EngineUnavailableError(
+                `pdf2takeoff CLI timed out after ${timeoutMs}ms and was terminated (${args[0] ?? "cli"})`,
+              ),
+            )
+            return
+          }
+          if (e.code === "ENOENT") {
+            reject(
+              new EngineUnavailableError(
+                `node is not runnable at "${NODE_BIN}" (EOS_NODE_BIN can override) — the pdf2takeoff engine cannot start`,
+              ),
+            )
+            return
+          }
+          if (typeof e.code === "number") {
+            // the process ran and exited non-zero — the engine's own honest
+            // diagnostic rides stderr; the caller surfaces it verbatim
+            resolve({ code: e.code, stdout: String(stdout ?? ""), stderr: String(stderr ?? "") })
+            return
+          }
+          reject(new EngineUnavailableError(`pdf2takeoff CLI could not start: ${err.message}`))
+          return
+        }
+        resolve({ code: 0, stdout: String(stdout), stderr: String(stderr) })
+      },
+    )
   })
 }
 
@@ -755,31 +757,90 @@ interface McpTextResult {
 }
 
 /**
+ * Start the engine's MCP server as a live subprocess — the EXACT runCli call
+ * shape (Promise-wrapped execFile, rest-args array, full callback signature;
+ * the standalone-output build traces this shape, proven by every bundled
+ * adapter).
+ */
+function startMcpServer(timeoutMs: number, ...cliArgs: string[]): Promise<ReturnType<typeof execFile>> {
+  const binPath = path.join(PDF2TAKEOFF_DIR, "bin", "pdf2takeoff.js")
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      NODE_BIN,
+      [binPath, ...cliArgs],
+      { timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          const e = err as NodeJS.ErrnoException & { killed?: boolean }
+          if (e.killed) {
+            reject(
+              new EngineUnavailableError(
+                `the pdf2takeoff MCP server timed out after ${timeoutMs}ms and was terminated`,
+              ),
+            )
+            return
+          }
+          if (e.code === "ENOENT") {
+            reject(
+              new EngineUnavailableError(
+                `node is not runnable at "${NODE_BIN}" (EOS_NODE_BIN can override) — the pdf2takeoff engine cannot start`,
+              ),
+            )
+            return
+          }
+          // a session that exits non-zero before answering is surfaced by the
+          // close listener; the callback only guards spawn-level failures
+          void stdout
+          void stderr
+        }
+      },
+    )
+    resolve(child)
+  })
+}
+
+/**
  * A minimal MCP stdio client for the engine's documented agent surface —
  * newline-delimited JSON-RPC, exactly the four calls Stage 1 needs
  * (initialize → open_document → set_scale → fill_area). No SDK dependency:
  * the wire format is pinned by the MCP spec and the upstream server.
  */
 class McpSession {
-  private proc: ReturnType<typeof spawn>
+  private proc: ReturnType<typeof execFile>
+  private readonly spawnPromise: Promise<ReturnType<typeof execFile>>
+  private readonly timeoutMs: number
   private buffer = ""
   private nextId = 0
   private pending = new Map<number, { resolve: (v: Record<string, unknown>) => void; reject: (e: Error) => void }>()
   private stderrTail = ""
   private closed = false
 
-  constructor(private readonly timeoutMs: number) {
-    const binPath = path.join(PDF2TAKEOFF_DIR, "bin", "pdf2takeoff.js")
-    this.proc = spawn(NODE_BIN, [binPath, "mcp"], { stdio: ["pipe", "pipe", "pipe"] })
-    if (this.proc.stdout === null || this.proc.stderr === null || this.proc.stdin === null) {
-      this.proc.kill("SIGKILL")
+  constructor(timeoutMs: number) {
+    this.timeoutMs = timeoutMs
+    // execFile (not spawn — the standalone-build tracing convention) still
+    // returns a LIVE ChildProcess: stdin/stdout/stderr are streams, so the
+    // JSON-RPC session streams; the callback only guards spawn failures.
+    this.proc = null as unknown as ReturnType<typeof execFile>
+    this.spawnPromise = startMcpServer(timeoutMs, "mcp")
+  }
+
+  /** Resolve once the server process exists (stream wiring follows). */
+  async ready(): Promise<void> {
+    const child = await this.spawnPromise
+    this.proc = child
+    if (child.stdout === null || child.stderr === null || child.stdin === null) {
+      child.kill("SIGKILL")
       throw new EngineUnavailableError("could not open stdio pipes to the pdf2takeoff MCP server — the session cannot run")
     }
-    this.proc.stdout.on("data", (d: Buffer) => this.onStdout(d))
-    this.proc.stderr.on("data", (d: Buffer) => {
+    child.stdout.on("data", (d: Buffer) => this.onStdout(d))
+    child.stderr.on("data", (d: Buffer) => {
       this.stderrTail = (this.stderrTail + d.toString("utf8")).slice(-800)
     })
-    this.proc.on("close", () => {
+    child.on("error", () => {
+      // spawn failures (ENOENT etc.) also fire 'close' right after — the
+      // close listener rejects every pending waiter honestly
+    })
+    child.on("close", () => {
       this.closed = true
       for (const { reject } of this.pending.values()) {
         reject(new EngineUnavailableError(this.closeMessage()))
@@ -821,7 +882,9 @@ class McpSession {
 
   /** Send a JSON-RPC request and await its result under the session deadline. */
   request(method: string, params: Record<string, unknown>): Promise<Record<string, unknown>> {
-    if (this.closed) return Promise.reject(new EngineUnavailableError(this.closeMessage()))
+    if (this.closed || this.proc.stdin === null) {
+      return Promise.reject(new EngineUnavailableError(this.closeMessage()))
+    }
     const id = ++this.nextId
     return new Promise<Record<string, unknown>>((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -930,6 +993,7 @@ export async function pdf2takeoffFillRoom(
   const engine = await resolvePdf2takeoffEngine()
   const session = new McpSession(MCP_TIMEOUT_MS)
   try {
+    await session.ready()
     await session.request("initialize", {
       protocolVersion: "2025-06-18",
       capabilities: {},
