@@ -98,6 +98,31 @@ jobs:
           /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth; print("engines importable")'
           soffice --version
 
+      # ADR-0009 Stage 1: the ADOPTED takeoff engine (pdf2takeoff, Apache-2.0)
+      # runs as a pinned Node subprocess — the runner's default node (20.x) is
+      # below the engine's >= 22.13 floor, so node 22 goes on PATH first.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The pinned checkout (~/.local/share/eos-engines/pdf2takeoff at commit
+      # f5a1c08…, node_modules installed, .eos-engine-pin stamped) is cached
+      # as one unit; scripts/setup-pdf2takeoff.sh is idempotent (a restored
+      # cache skips the clone) and the explicit `help` run after it is the
+      # arbiter — a broken restore fails loudly, never a silent pass.
+      - name: pdf2takeoff pinned-checkout cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/eos-engines
+          key: eos-pdf2takeoff-f5a1c08b1308628755867df3b921e96ac2018969-v1
+
+      - name: Install the ADOPTED takeoff engine (pdf2takeoff @ pinned commit)
+        run: |
+          set -euo pipefail
+          ./scripts/setup-pdf2takeoff.sh
+          node "$HOME/.local/share/eos-engines/pdf2takeoff/bin/pdf2takeoff.js" help > /dev/null
+          node --version
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
