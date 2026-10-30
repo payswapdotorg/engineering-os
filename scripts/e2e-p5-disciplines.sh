@@ -485,9 +485,21 @@ assert_eq "Slice-23 addendum: the pyswmm registry row carries its validation blo
 assert_contains "Slice-23 addendum: the EPA swmm row records the in-process lane (pyswmm + swmm-toolkit, CC0-dedicated — no system binary required by the product)" \
   "the in-process lane ships via pyswmm + swmm-toolkit" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "swmm")][0].integration.notes')"
-assert_eq "registry reconciliation: eleven harness-validated engines (the nine 16-D set + scikit-fem + pyswmm) carry state 'tested', registry total 39 — the OpenSees row stays 'planned' with the license review closed REJECTED" \
-  "11|39|planned" \
+assert_eq "registry reconciliation: eleven harness-validated engines (the nine 16-D set + scikit-fem + pyswmm) carry state 'tested', registry total 44 — the OpenSees row stays 'planned' with the license review closed REJECTED" \
+  "11|44|planned" \
   "$(j "$BODY" '[.data.registry[] | select(.state == "tested")] | length')|$(j "$BODY" '.data.registry | length')|$(j "$BODY" '[.data.registry[] | select(.key == "opensees")][0].state')"
+# Slice 28 (the Phase-5 long-tail license-first probe): five new rows, all
+# state 'planned' (no capability ships in the probe pass) with the license
+# reviews closed ACCEPTED on wheel/sdist-verified evidence.
+assert_eq "Slice-28 addendum: the five license-first probe rows (sfepy/amaranth/yowasp-yosys/pin/pybullet) are planned with ACCEPTED license reviews" \
+  "planned|planned|planned|planned|planned|5" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "sfepy")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "pybullet")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "sfepy" or .key == "amaranth" or .key == "yowasp-yosys" or .key == "pin" or .key == "pybullet") | select(.integration.notes | contains("LICENSE REVIEW CLOSED ACCEPTED"))] | length')"
+assert_contains "Slice-28 addendum: the pin row records the PyPI name-trap (the real library distributes as 'pin')" \
+  "the PyPI distribution named 'pinocchio' (0.5.1) is an UNRELATED package" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].upstream.verifiedMethod')"
+assert_contains "Slice-28 addendum: the openfoam row records the system-binary reality + the PyPI placeholder finding" \
+  "the PyPI distribution named 'openfoam' (0.1.0) is an unrelated placeholder" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "openfoam")][0].integration.notes')"
 
 # ===========================================================================
 # AC-P5-09 — regression marker (byte-stability of untouched routes is proven by

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters — model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json — 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) — see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py → eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) — 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index — both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod. Update 2026-10-25 (Slice 16-D, registry state-vocabulary reconciliation — closes roadmap-gap-audit finding #15): every engine with a harness-validated adapter driving real broker operations now carries state 'tested' — gmsh (fe-mesh), pandapower (power flow), simpy (DES), libreoffice (headless document conversion) join cadquery and ifcopenshell; the three Slice-15/16 takeoff engines were ADDED with machine-verified upstreams (pdfplumber, ezdxf, tesseract — github-api license + PyPI/releases version checks, 2026-10-25). 'planned' now means exactly: no integrated adapter yet, regardless of installation state.",
+  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters — model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json — 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) — see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py → eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) — 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index — both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod. Update 2026-10-25 (Slice 16-D, registry state-vocabulary reconciliation — closes roadmap-gap-audit finding #15): every engine with a harness-validated adapter driving real broker operations now carries state 'tested' — gmsh (fe-mesh), pandapower (power flow), simpy (DES), libreoffice (headless document conversion) join cadquery and ifcopenshell; the three Slice-15/16 takeoff engines were ADDED with machine-verified upstreams (pdfplumber, ezdxf, tesseract — github-api license + PyPI/releases version checks, 2026-10-25). 'planned' now means exactly: no integrated adapter yet, regardless of installation state. Five license-first probe rows (sfepy/amaranth/yowasp-yosys/pin/pybullet) added 2026-10-29 (Slice 28, the Phase-5 long-tail CFD/chip/robotics probes) — every one verified on the wheel/sdist itself.",
   "engines": [
     {
       "key": "freecad",
@@ -850,7 +850,7 @@
         "mechanisms": [
           "cli"
         ],
-        "notes": "Synthesis step of the open chip-design flow (yosys → openroad) — Phase 5."
+        "notes": "Synthesis step of the open chip-design flow (yosys → openroad) — Phase 5. Slice 28 probe addendum (2026-10-29): the pip-only host class can run yosys synthesis via the yowasp-yosys WASM distribution (separate registry row, ISC) — verified live with two hand-derived synthesis smokes; native yosys remains the canonical system engine and the full flow's P&R half is OpenROAD."
       },
       "probes": [
         {
@@ -941,6 +941,79 @@
       "limitations": [
         "No GitHub releases — stable identified by tags (v2.0)",
         "Toolchain partners (yosys, klayout, openvaf…) each carry their own licenses — verify at bundling"
+      ]
+    },
+    {
+      "key": "amaranth",
+      "name": "Amaranth HDL",
+      "domain": "ee",
+      "description": "Amaranth hardware definition language — the Python-HDL front-end (RTL described in Python, elaborated to RTLIL for yosys-family synthesis), BSD-2-Clause.",
+      "upstream": {
+        "canonical": "https://amaranth-lang.org",
+        "repo": "amaranth-lang/amaranth",
+        "licenseSpdx": "BSD-2-Clause",
+        "latestStable": "0.5.10",
+        "verified": true,
+        "verifiedAt": "2026-10-29",
+        "verifiedMethod": "the installed wheel's own METADATA ('License: BSD-2-clause') + dist-info/licenses/LICENSE.txt ('Copyright (C) 2019-2023 Amaranth HDL contributors', the 2-clause BSD text) — verified ON THE wheel, not the repo page (Slice 28 license-first probe)"
+      },
+      "integration": {
+        "mechanisms": [
+          "python-module"
+        ],
+        "notes": "LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, the chip license-first probe) — BSD-2. Capability probe: imports, elaborates a hand-written 4-bit enable counter, and emits RTLIL via amaranth.back.rtlil.convert(frag, ports=(...)) — the 1145-char RTLIL was consumed by yowasp-yosys and synthesized to EXACTLY 4 $_SDFFE_PP0P_ flip-flops (the hand-derived expectation: one per bit) + 3 $_XOR_/2 $_AND_/1 $_NOT_ increment logic. The pip-only chip front-end: Python RTL → RTLIL → yosys netlist with no system packages. FPGA/board builds additionally need amaranth's platform toolchains (out of scope for the pip lane)."
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "amaranth",
+          "moduleVersionExpr": "import amaranth; print(amaranth.__version__)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "RTLIL emission requires the ports= tuple explicitly (TypeError without it — found live)",
+        "native board/platform flows need extra toolchains; the pip lane is RTL → netlist only"
+      ]
+    },
+    {
+      "key": "yowasp-yosys",
+      "name": "yowasp-yosys (WASM Yosys)",
+      "domain": "ee",
+      "description": "Yosys open synthesis suite compiled to WebAssembly and pip-distributed — the ISC-licensed RTL synthesis engine that runs with NO system packages (wasmtime runtime).",
+      "upstream": {
+        "canonical": "https://yowasp.org",
+        "repo": "YoWASP/yosys",
+        "licenseSpdx": "ISC",
+        "latestStable": "0.70.0.0.post1259",
+        "verified": true,
+        "verifiedAt": "2026-10-29",
+        "verifiedMethod": "the installed wheel's own METADATA ('License-Expression: ISC'; the WASM build of upstream yosys, itself ISC) — verified ON THE wheel, not the repo page (Slice 28 license-first probe). The wheel additionally bundles yosys's share/ vendor architecture data (gowin/lattice/quicklogic) used only by those FPGA targets — generic synthesis touches none of it."
+      },
+      "integration": {
+        "mechanisms": [
+          "cli",
+          "python-module"
+        ],
+        "notes": "LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, the chip license-first probe) — ISC. Runs IN-SANDBOX (verified live): the yowasp-yosys entry point executes the WASM binary via the yowasp-runtime/wasmtime chain — first run prints 'Preparing to run... This might take a while' (WASM warm-up, seconds) then a real Yosys 0.70. Synthesis smokes (both hand-derived expectations EXACT): (1) hand-written Verilog 8-bit counter → 'proc; opt; memory; techmap; opt' → EXACTLY 8 $_SDFF_PP0_ (posedge, sync-reset-to-0 — matching the RTL semantics) + 7 $_XOR_/8 $_AND_/1 $_NOT_ = 24 cells, JSON netlist written; (2) amaranth's RTLIL 4-bit counter → EXACTLY 4 $_SDFFE_PP0P_ (enable + reset) + 3 $_XOR_/2 $_AND_/1 $_NOT_ = 10 cells. The pip-only synthesis half of the open chip flow; place-and-route remains the OpenROAD system class."
+      },
+      "probes": [
+        {
+          "kind": "executable",
+          "executables": [
+            "yowasp-yosys"
+          ],
+          "versionArgs": [
+            "-V"
+          ],
+          "versionRegex": "Yosys ([0-9.]+)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "WASM execution is slower than native yosys (fine for netlist-scale synthesis; measured ~0.03 s per probe synth)",
+        "first invocation per environment pays the WASM warm-up",
+        "synthesis only — no place-and-route (OpenROAD stays the system-binary half of the flow)"
       ]
     },
     {
@@ -1124,7 +1197,7 @@
         "mechanisms": [
           "cli"
         ],
-        "notes": "Solvers/utilities (blockMesh, simpleFoam, …) driven by the broker for CFD cases — Phase 5."
+        "notes": "Solvers/utilities (blockMesh, simpleFoam, …) driven by the broker for CFD cases — Phase 5. Slice 28 probe addendum (2026-10-29): the suite is SYSTEM-BINARY-ONLY (openfoam.org .deb/tarball; no official PyPI wheel — the PyPI distribution named 'openfoam' (0.1.0) is an unrelated placeholder, verified on PyPI); GPL-3.0-or-later is fine for subprocess integration (the gmsh precedent), but the pip-only CI engine contract blocks this row on the sandbox host class — the CFD lane's pip candidate is the sfepy row (BSD, license review ACCEPTED)."
       },
       "probes": [
         {
@@ -1141,6 +1214,40 @@
       "limitations": [
         "Fork duality: OpenFOAM Foundation (openfoam.org, GPL) vs OpenCFD/OpenFOAM.com (also GPL, separate releases e.g. v2506) — choose and record which fork is integrated",
         "Environment-activated toolchain (bashrc sourcing) — presence-only probe; solver versions surfaced via case control dicts at adapter time"
+      ]
+    },
+    {
+      "key": "sfepy",
+      "name": "SfePy",
+      "domain": "simulation",
+      "description": "Simple finite elements in Python — a real FEM/PDE problem-solving environment (heat, diffusion, advection, elasticity, Navier-Stokes lanes) over numpy/scipy, BSD.",
+      "upstream": {
+        "canonical": "https://sfepy.org",
+        "repo": "sfepy/sfepy",
+        "licenseSpdx": "BSD-3-Clause",
+        "latestStable": "2026.3",
+        "verified": true,
+        "verifiedAt": "2026-10-29",
+        "verifiedMethod": "the downloaded sdist's own PKG-INFO ('License: BSD' + Classifier 'License :: OSI Approved :: BSD License') + LICENSE file (the 3-clause BSD text incl. the no-endorsement clause, 'Copyright (c) 2007 - 2014 SfePy Developers') — verified ON THE sdist, not the repo page (Slice 28 license-first probe)"
+      },
+      "integration": {
+        "mechanisms": [
+          "python-module"
+        ],
+        "notes": "LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, the CFD license-first probe) — BSD-3, no copyleft, no SaaS restriction (the exact opposite of the OpenSeesPy class). Install reality: SDIST-ONLY on PyPI (no prebuilt wheel) — pip builds a cp312 wheel from source using the declared build deps (gcc/make; ~1.5 min observed in-sandbox; pulls meshio/pyvista/scooby as runtime deps). Capability probe (the Poisson closed form u=sin(pi·x)sin(pi·y) on the unit square, f=2pi²·sin·sin, P2 on a 64×64 vertex block mesh, 201×201 evaluation grid): center value 1.0000000021 vs the closed-form 1.0 (rel 2.1e-9), L∞ nodal error 9.95e-7, boundary |u| 1.26e-15 — the engine solves a hand-derived closed form to machine-class accuracy. The CFD/continuum lane (advection-diffusion class) rides behind its own contract addendum; the canonical OpenFOAM row stays the system-binary class."
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "sfepy",
+          "moduleVersionExpr": "import sfepy; print(sfepy.__version__)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "sdist-only distribution: every install compiles the C extensions (build deps needed; not the pure-wheel class of scikit-fem/simpy)",
+        "v1 lane scope is whatever its contract addendum freezes (no capability ships in the probe pass)",
+        "upstream is a small-maintainer project — pin the exact version and re-verify closed-form pins on any bump"
       ]
     },
     {
@@ -1315,7 +1422,7 @@
           "cli",
           "server"
         ],
-        "notes": "ros2 CLI tooling for robotics/automation workflows (Phase 5 robotics pack)."
+        "notes": "ros2 CLI tooling for robotics/automation workflows (Phase 5 robotics pack). Slice 28 probe addendum (2026-10-29): system superproject install (apt/colcon) — blocked on the pip-only sandbox host class; the robotics lane's pip candidates are the pin (BSD kinematics/dynamics) and pybullet (zlib simulation) rows."
       },
       "probes": [
         {
@@ -1352,7 +1459,7 @@
           "cli",
           "server"
         ],
-        "notes": "gz sim (headless server mode) for robotics simulation — pairs with ROS 2 (Phase 5)."
+        "notes": "gz sim (headless server mode) for robotics simulation — pairs with ROS 2 (Phase 5). Slice 28 probe addendum (2026-10-29): system distribution (gz-*.deb) — blocked on the pip-only sandbox host class; pairs with ros2, deferred together with it."
       },
       "probes": [
         {
@@ -1370,6 +1477,73 @@
       "state": "planned",
       "limitations": [
         "Gazebo distribution ('Ionic'/'Jetty'-style names) bundles multiple gz-* libraries with their own versions — record the set at integration"
+      ]
+    },
+    {
+      "key": "pin",
+      "name": "Pinocchio (pin)",
+      "domain": "simulation",
+      "description": "Pinocchio rigid-body dynamics library — fast forward/inverse kinematics, Jacobians, and dynamics for robotic mechanisms; pip name 'pin', import name 'pinocchio'; BSD.",
+      "upstream": {
+        "canonical": "https://stack-of-tasks.github.io/pinocchio",
+        "repo": "stack-of-tasks/pinocchio",
+        "licenseSpdx": "BSD-2-Clause",
+        "latestStable": "4.1.0",
+        "verified": true,
+        "verifiedAt": "2026-10-29",
+        "verifiedMethod": "the installed cp312 manylinux wheel's own licenses/LICENSE ('BSD 2-Clause License', 'Copyright (c) 2014-2023, CNRS / (c) 2018-2025, INRIA', the 2-clause text) + METADATA 'License-Expression: BSD-3-Clause' — the METADATA expression says 3-clause while the bundled LICENSE file is the 2-clause text; BOTH permissive, both quoted, discrepancy recorded (Slice 28 license-first probe). NAME-TRAP recorded too: the PyPI distribution named 'pinocchio' (0.5.1) is an UNRELATED package — the real library distributes as 'pin'."
+      },
+      "integration": {
+        "mechanisms": [
+          "python-module"
+        ],
+        "notes": "LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, the robotics license-first probe) — BSD. Capability probe (a programmatic 2-link planar arm, L1=0.5 L2=0.35, two RZ joints): EVERY hand-derived closed form reproduced — EE position + Rz orientation error 0.00e+00 (bit-exact) at both probe configs, LOCAL_WORLD_ALIGNED geometric Jacobian error 5.55e-17, and J·qdot vs the h=1e-7 numerical derivative of the closed form agrees to 1.5e-9 (the numeric noise floor). Install reality: the cmeel wheel chain (boost/eigenpy/coal/urdfdom/assimp/...) arrives PREBUILT — no compile, no system packages. The robotics-dynamics/kinematics lane rides behind its own contract addendum."
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "pinocchio",
+          "moduleVersionExpr": "import pinocchio; print(pinocchio.__version__)"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "dynamics (RNEA/ABA/CRBA) probed only implicitly by the FK/Jacobian closed forms — the lane contract will pin them against hand-derived cases",
+        "URDF/scene tooling (hpp-fcl collisions via coal) is available but unprobed this pass"
+      ]
+    },
+    {
+      "key": "pybullet",
+      "name": "PyBullet (Bullet Physics)",
+      "domain": "simulation",
+      "description": "Bullet physics SDK's Python module — rigid-body dynamics, collision detection, constraint solving, robotics simulation in DIRECT (headless) mode; zlib.",
+      "upstream": {
+        "canonical": "https://pybullet.org",
+        "repo": "bulletphysics/bullet3",
+        "licenseSpdx": "Zlib",
+        "latestStable": "3.2.7",
+        "verified": true,
+        "verifiedAt": "2026-10-29",
+        "verifiedMethod": "the downloaded sdist's own PKG-INFO ('License: zlib' + Classifier 'License :: OSI Approved :: zlib/libpng License') + LICENSE.txt ('The files in this repository are licensed under the zlib license, except for the files under Extras and examples/ThirdPartyLibs') — verified ON THE sdist (Slice 28 license-first probe); the third-party exceptions live in directories a synthesis-free robotics lane never touches."
+      },
+      "integration": {
+        "mechanisms": [
+          "python-module"
+        ],
+        "notes": "LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, the robotics license-first probe) — zlib core. Install reality: SDIST-ONLY (no wheel) — pip compiles Bullet from source at install (gcc/make; the full compile succeeded in-sandbox). Capability probe (DIRECT mode, 240 Hz): a 1 kg r=0.1 sphere dropped from center z=1.0 under g=9.81 → first contact at t=0.433 s with the center at z=0.0874 (soft-contact penetration ~0.01), vs the hand-derived free-fall closed form t=sqrt(2·0.9/9.81)=0.428 s — agreement within one 240 Hz step quantum (4.2 ms) + the penetration margin; 480 steps execute in <0.01 s wall. The simulation-class robotics candidate; contact-solver determinism is the lane contract's pin problem."
+      },
+      "probes": [
+        {
+          "kind": "python-module",
+          "module": "pybullet",
+          "moduleVersionExpr": "import pybullet; print(pybullet.getAPIVersion())"
+        }
+      ],
+      "state": "planned",
+      "limitations": [
+        "sdist-compile at every install (heaviest install of the accepted set — ~9 min observed)",
+        "the contact solver is a fixed-step LCP integrator — byte-determinism is NOT automatic and must be pinned/verified by any lane that relies on it",
+        "bundled third-party dirs (Extras/ThirdPartyLibs) carry non-zlib licenses — the lane must not import from them"
       ]
     },
     {

@@ -1,6 +1,6 @@
 {
-  "ranAt": "2026-10-29T21:31:34.611Z",
-  "pythonBin": "/home/z/.venv/bin/python3",
+  "ranAt": "2026-10-30T00:15:23.244Z",
+  "pythonBin": "/home/z/.venv/bin/python",
   "manifestPath": "tests/validation/corpus-manifest.json",
   "caseCount": 36,
   "environment": {
