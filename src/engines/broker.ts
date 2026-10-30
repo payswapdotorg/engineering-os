@@ -48,6 +48,17 @@ import { runSwmmFromFile, type SwmmDepthSample } from "@/engines/adapters/swmm"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "@/engines/adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "@/engines/adapters/dxf_takeoff"
 import {
+  pdf2takeoffAnnotateTakeoff,
+  pdf2takeoffCompareRevisions,
+  pdf2takeoffExportTakeoff,
+  pdf2takeoffFillRoom,
+  scaleMmPerPtToRatioString,
+  type Pdf2takeoffCompareResult,
+  type Pdf2takeoffEngine,
+  type Pdf2takeoffExportResult,
+  type Pdf2takeoffFillResult,
+} from "@/engines/adapters/pdf2takeoff"
+import {
   parametricRebuildFromStorage,
   parametricSchemaFromStorage,
   resolveParametricParams,
@@ -108,6 +119,10 @@ export type BrokerOperation =
   | "takeoff_sheet"
   | "takeoff_drawing"
   | "rebuild_parametric"
+  | "compare_revisions"
+  | "annotate_takeoff"
+  | "export_boq_xlsx"
+  | "fill_area"
 
 export interface BrokerContext {
   projectId: string
@@ -1570,7 +1585,7 @@ export function platformCoreOutcome(
 interface DerivedPersistSpec {
   /** log label for the honest orphan-log line */
   opLabel: string
-  kind: "fe-mesh" | "analysis" | "pdf" | "model"
+  kind: "fe-mesh" | "analysis" | "pdf" | "model" | "document"
   /** stored-content discriminator (the JSON `format` field); null = binary (pdf, STEP) */
   format: string | null
   name: string
@@ -2326,6 +2341,733 @@ export async function brokerTakeoffDrawingCore(
     engineVersion: result.engineVersion,
     adapterScript: result.adapterScript,
     adapterHash: result.adapterHash,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ADOPTED takeoff engine pdf2takeoff (ADR-0011 decision 5, Stage 1 — the
+// audit's highest-value reuse: room fill, revision compare, annotation
+// round-trip and BOQ export are CONSUMED from the pinned Apache-2.0 upstream
+// at commit f5a1c08…, never rebuilt). Four cores over ONE arm's-length
+// adapter (ADR-0005: the broker is the only engine path): the ledger rows
+// stay HUMAN-disposed exactly like the vector-takeoff lane — these cores
+// persist EVIDENCE artifacts, never ledger quantities.
+// ---------------------------------------------------------------------------
+
+/** Pinned 422 for a pdf2takeoff op handed a non-PDF revision. */
+function p2tPdfRequiredMessage(op: string, name: string): string {
+  return `${op} requires a PDF sheet revision — "${name}" carries no PDF signal (.pdf name or application/pdf MIME)`
+}
+
+/**
+ * Resolve + validate the scale for the pdf2takeoff ops that produce
+ * real-world numbers (export_boq_xlsx / fill_area): explicit positive
+ * parameter first, else the revision's latest calibration markup — the
+ * takeoff_sheet policy verbatim. PURE except the calibration lookup.
+ */
+async function resolveP2tScale(
+  op: string,
+  parameters: Record<string, unknown>,
+  revision: { id: string },
+): Promise<{ scaleMmPerPt: number; scaleSource: "explicit-parameter" | "calibration-markup" }> {
+  if (parameters.scaleMmPerPt !== undefined) {
+    if (
+      typeof parameters.scaleMmPerPt !== "number" ||
+      !Number.isFinite(parameters.scaleMmPerPt) ||
+      parameters.scaleMmPerPt <= 0
+    ) {
+      throw new BrokerRefusalError(
+        "unsupported",
+        `${op} parameters.scaleMmPerPt must be a positive number when provided`,
+      )
+    }
+    return { scaleMmPerPt: parameters.scaleMmPerPt, scaleSource: "explicit-parameter" }
+  }
+  const calibration = await db.sheetMarkup.findFirst({
+    where: { revisionId: revision.id, kind: "calibration" },
+    orderBy: { createdAt: "desc" },
+    select: { value: true },
+  })
+  if (!calibration || !Number.isFinite(calibration.value) || calibration.value <= 0) {
+    throw new BrokerRefusalError(
+      "unsupported",
+      `no calibration for this revision — calibrate the sheet in Sheet Measure first, or pass parameters.scaleMmPerPt explicitly to ${op}`,
+    )
+  }
+  return { scaleMmPerPt: calibration.value, scaleSource: "calibration-markup" }
+}
+
+/** Pinned 201 result shape shared by the four cores (the femesh pattern). */
+export interface BrokerP2tResultCore {
+  output: {
+    artifactId: string
+    name: string
+    kind: string
+    revisionNumber: number
+    contentHash: string
+    sizeBytes: number
+    format: string | null
+    engineKey: "pdf2takeoff"
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+    pinnedCommit: string
+    derivedFromArtifactId: string
+    derivedFromRevisionId: string
+    sourceLatestRevisionId: string
+    staleSource: boolean
+  }
+  outputArtifactRevisionId: string
+  engineKey: "pdf2takeoff"
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+}
+
+/** Validate compare_revisions inputs: exactly two distinct artifact ids. PURE. */
+export function compareRevisionsBrokerInputs(
+  raw: unknown,
+): { ok: true; value: [string, string] } | { ok: false; message: string } {
+  if (!isPlainObject(raw)) return { ok: false, message: "compare_revisions requires inputs" }
+  const ids = (raw as { artifactIds?: unknown }).artifactIds
+  if (!Array.isArray(ids) || ids.length !== 2 || ids.some((id) => typeof id !== "string" || id.length === 0)) {
+    return { ok: false, message: "compare_revisions requires inputs.artifactIds to be an array of exactly 2 artifact ids [old, new]" }
+  }
+  if (ids[0] === ids[1]) {
+    return { ok: false, message: "compare_revisions inputs.artifactIds must be two DIFFERENT revisions to compare" }
+  }
+  return { ok: true, value: [ids[0] as string, ids[1] as string] }
+}
+
+export interface BrokerCompareRevisionsResult extends BrokerP2tResultCore {
+  output: BrokerP2tResultCore["output"] & {
+    format: "eos-revision-compare/1"
+    changedSheets: number
+    comparedSheets: number
+    onlyInOld: number
+    onlyInNew: number
+    oldArtifactId: string
+    newArtifactId: string
+  }
+  compare: Pdf2takeoffCompareResult
+}
+
+/**
+ * Compare two PDF sheet revisions with the adopted engine's raster+vector
+ * diff. Output: an eos-revision-compare/1 analysis artifact derived from the
+ * NEW revision, linked to both inputs.
+ */
+export async function brokerCompareRevisionsCore(
+  projectId: string,
+  artifactIds: [string, string],
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerCompareRevisionsResult> {
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const resolved: Array<{ artifact: { id: string; name: string }; revision: { id: string; storageKey: string; mimeType: string | null } }> = []
+  for (const artifactId of artifactIds) {
+    const artifact = await db.artifact.findUnique({
+      where: { id: artifactId },
+      include: { latestRevision: true },
+    })
+    if (!artifact || artifact.projectId !== projectId) {
+      throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+    }
+    if (!artifact.latestRevision) {
+      throw new BrokerRequestError("bad_request", `Artifact ${artifact.name} has no revisions to compare`)
+    }
+    if (!isPdfSignal(artifact.name, artifact.latestRevision.mimeType) && !isPdfSignal(artifact.latestRevision.storageKey, artifact.latestRevision.mimeType)) {
+      throw new BrokerRefusalError("unsupported", p2tPdfRequiredMessage("compare_revisions", artifact.name))
+    }
+    resolved.push({
+      artifact: { id: artifact.id, name: artifact.name },
+      revision: {
+        id: artifact.latestRevision.id,
+        storageKey: artifact.latestRevision.storageKey,
+        mimeType: artifact.latestRevision.mimeType,
+      },
+    })
+  }
+  const [oldEntry, newEntry] = resolved
+
+  const oldPath = path.join(getStorageRoot(), oldEntry.revision.storageKey, "content")
+  const newPath = path.join(getStorageRoot(), newEntry.revision.storageKey, "content")
+
+  let compare: Pdf2takeoffCompareResult
+  try {
+    compare = await pdf2takeoffCompareRevisions(oldPath, newPath)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+
+  const document = JSON.stringify({
+    format: "eos-revision-compare/1",
+    source: { oldName: oldEntry.artifact.name, newName: newEntry.artifact.name },
+    engine: {
+      engineKey: compare.engineKey,
+      engineVersion: compare.engineVersion,
+      adapterScript: compare.adapterScript,
+      adapterHash: compare.adapterHash,
+      pinnedCommit: compare.pinnedCommit,
+    },
+    provenance: {
+      oldArtifactId: oldEntry.artifact.id,
+      oldRevisionId: oldEntry.revision.id,
+      newArtifactId: newEntry.artifact.id,
+      newRevisionId: newEntry.revision.id,
+    },
+    result: {
+      sheetCountA: compare.sheetCountA,
+      sheetCountB: compare.sheetCountB,
+      comparedSheets: compare.comparedSheets,
+      changedSheets: compare.changedSheets,
+      summary: compare.summary,
+      sheets: compare.sheets,
+    },
+  })
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, newEntry.artifact.id, newEntry.revision.id, {
+    opLabel: "compare_revisions",
+    kind: "analysis",
+    format: "eos-revision-compare/1",
+    name: `${oldEntry.artifact.name} → ${newEntry.artifact.name} — revision compare`,
+    description: `Sheet revision comparison by ${compare.engineKey} (per-sheet change fractions, changed regions, vector diffs)`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${compare.engineKey}`,
+    inputIds: [oldEntry.artifact.id, newEntry.artifact.id],
+    audit: {
+      actor: opts?.actor ?? `adapter:${compare.engineKey}`,
+      action: "takeoff.revisionsCompared",
+      detail: {
+        engineKey: compare.engineKey,
+        engineVersion: compare.engineVersion,
+        adapterScript: compare.adapterScript,
+        adapterHash: compare.adapterHash,
+        pinnedCommit: compare.pinnedCommit,
+        oldArtifactId: oldEntry.artifact.id,
+        newArtifactId: newEntry.artifact.id,
+        comparedSheets: compare.comparedSheets,
+        changedSheets: compare.summary.changed,
+      },
+    },
+  })
+
+  return {
+    output: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-revision-compare/1",
+      changedSheets: compare.summary.changed,
+      comparedSheets: compare.comparedSheets,
+      onlyInOld: compare.summary.onlyInA,
+      onlyInNew: compare.summary.onlyInB,
+      oldArtifactId: oldEntry.artifact.id,
+      newArtifactId: newEntry.artifact.id,
+      engineKey: compare.engineKey,
+      engineVersion: compare.engineVersion,
+      adapterScript: compare.adapterScript,
+      adapterHash: compare.adapterHash,
+      pinnedCommit: compare.pinnedCommit,
+      derivedFromArtifactId: newEntry.artifact.id,
+      derivedFromRevisionId: newEntry.revision.id,
+      sourceLatestRevisionId: newEntry.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: compare.engineKey,
+    engineVersion: compare.engineVersion,
+    adapterScript: compare.adapterScript,
+    adapterHash: compare.adapterHash,
+    compare,
+  }
+}
+
+export interface BrokerAnnotateTakeoffResult extends BrokerP2tResultCore {
+  output: BrokerP2tResultCore["output"] & {
+    kind: "pdf"
+    format: null
+    markupCount: number
+    kept: number
+    mimeType: "application/pdf"
+  }
+}
+
+/**
+ * Publish a takeoff into a PDF as STANDARD annotations (Bluebeam Revu /
+ * Adobe Acrobat / the web app). Markups come from parameters.markups, or —
+ * the product default — from the revision's OWN Sheet Measure rows (the
+ * measured takeoff: length/area/count markups in PDF-point space). Output:
+ * a kind-"pdf" derived artifact (creation timestamp embedded — structural
+ * evidence, the LibreOffice §5.4 convention; re-runs REPLACE idempotently).
+ */
+export async function brokerAnnotateTakeoffCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerAnnotateTakeoffResult> {
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", "This artifact has no revisions to annotate")
+  }
+  const revision = artifact.latestRevision
+  if (!isPdfSignal(artifact.name, revision.mimeType) && !isPdfSignal(revision.storageKey, revision.mimeType)) {
+    throw new BrokerRefusalError("unsupported", p2tPdfRequiredMessage("annotate_takeoff", artifact.name))
+  }
+
+  // Markups: explicit parameter first; else the revision's own Sheet Measure
+  // rows (length/area/count — calibration and hit-transcripts don't annotate).
+  let markups: unknown = parameters.markups
+  let markupSource: "explicit-parameter" | "sheet-measure-rows" = "explicit-parameter"
+  if (markups === undefined) {
+    const rows = await db.sheetMarkup.findMany({
+      where: { revisionId: revision.id, kind: { in: ["length", "area", "count"] } },
+      orderBy: { createdAt: "asc" },
+    })
+    if (rows.length === 0) {
+      throw new BrokerRefusalError(
+        "unsupported",
+        "no markups to annotate — measure the sheet in Sheet Measure first, or pass parameters.markups explicitly",
+      )
+    }
+    if (rows.length > 200) {
+      throw new BrokerRefusalError("unsupported", `this revision carries ${rows.length} measurable markups — the annotate cap is 200`)
+    }
+    markups = rows.map((row) => {
+      let pts: Array<{ x: number; y: number }> = []
+      try {
+        pts = JSON.parse(row.points) as Array<{ x: number; y: number }>
+      } catch {
+        throw new BrokerRefusalError("unsupported", `markup row ${row.id} carries unparsable points — refusing to annotate garbage`)
+      }
+      return {
+        type: row.kind,
+        page: row.page,
+        ...(row.label ? { label: row.label } : {}),
+        points: pts.map((p) => [p.x, p.y]),
+      }
+    })
+    markupSource = "sheet-measure-rows"
+  }
+  if (parameters.keepExisting !== undefined && typeof parameters.keepExisting !== "boolean") {
+    throw new BrokerRefusalError("unsupported", "annotate_takeoff parameters.keepExisting must be a boolean when provided")
+  }
+
+  const absPath = path.join(getStorageRoot(), revision.storageKey, "content")
+  let result: Awaited<ReturnType<typeof pdf2takeoffAnnotateTakeoff>>
+  try {
+    result = await pdf2takeoffAnnotateTakeoff(absPath, {
+      markups,
+      ...(parameters.keepExisting === true ? { keepExisting: true } : {}),
+    })
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, revision.id, {
+    opLabel: "annotate_takeoff",
+    kind: "pdf",
+    format: null, // binary content — the kind is unique to this op (§2, the convert_document precedent)
+    name: `${artifact.name} — annotated takeoff`,
+    description: `Takeoff markups written into the PDF as standard annotations by ${result.engineKey} (opens in Bluebeam Revu, Adobe Acrobat and the web app)`,
+    bytes: result.pdfBytes,
+    mimeType: "application/pdf",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "takeoff.pdfAnnotated",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        pinnedCommit: result.pinnedCommit,
+        markupCount: result.markupCount,
+        kept: result.kept,
+        markupSource,
+        sizeBytes: result.pdfBytes.byteLength,
+      },
+    },
+  })
+
+  return {
+    output: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "pdf",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: null,
+      markupCount: result.markupCount,
+      kept: result.kept,
+      mimeType: "application/pdf",
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      pinnedCommit: result.pinnedCommit,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: revision.id,
+      sourceLatestRevisionId: revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+  }
+}
+
+/** Validate export_boq_xlsx parameters (unit/format defaults). PURE. */
+export function exportBoqBrokerParameters(
+  raw: Record<string, unknown>,
+): { ok: true; value: { unit: string; format: "xlsx" | "csv" } } | { ok: false; message: string } {
+  let unit = "m"
+  if (raw.unit !== undefined) {
+    if (typeof raw.unit !== "string" || !["m", "mm", "cm", "ft", "in"].includes(raw.unit)) {
+      return { ok: false, message: 'export_boq_xlsx parameters.unit must be one of "m"|"mm"|"cm"|"ft"|"in" when provided' }
+    }
+    unit = raw.unit
+  }
+  let format: "xlsx" | "csv" = "xlsx"
+  if (raw.format !== undefined) {
+    if (raw.format !== "xlsx" && raw.format !== "csv") {
+      return { ok: false, message: 'export_boq_xlsx parameters.format must be "xlsx"|"csv" when provided' }
+    }
+    format = raw.format
+  }
+  return { ok: true, value: { unit, format } }
+}
+
+export interface BrokerExportBoqResult extends BrokerP2tResultCore {
+  output: BrokerP2tResultCore["output"] & {
+    kind: "document"
+    format: null
+    mimeType: string
+    formatRequested: "xlsx" | "csv"
+    rowCount: number
+    scaleMmPerPt: number
+    scaleRatio: string
+    scaleSource: "explicit-parameter" | "calibration-markup"
+  }
+  export: Pdf2takeoffExportResult
+}
+
+/**
+ * Read a PDF's pdf2takeoff annotations back out as a BOQ table (XLSX by
+ * default, CSV optional — typically the annotate_takeoff output or an
+ * externally annotated upload). The resolved calibration is carried to the
+ * engine as a 1:R ratio string (4 dp); BOTH the platform value and the
+ * emitted string are recorded in provenance.
+ */
+export async function brokerExportBoqCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerExportBoqResult> {
+  const params = exportBoqBrokerParameters(parameters)
+  if (!params.ok) throw new BrokerRefusalError("unsupported", params.message)
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", "This artifact has no revisions to export from")
+  }
+  const revision = artifact.latestRevision
+  if (!isPdfSignal(artifact.name, revision.mimeType) && !isPdfSignal(revision.storageKey, revision.mimeType)) {
+    throw new BrokerRefusalError("unsupported", p2tPdfRequiredMessage("export_boq_xlsx", artifact.name))
+  }
+
+  const { scaleMmPerPt, scaleSource } = await resolveP2tScale("export_boq_xlsx", parameters, revision)
+  const scaleRatio = scaleMmPerPtToRatioString(scaleMmPerPt)
+
+  const absPath = path.join(getStorageRoot(), revision.storageKey, "content")
+  let result: Pdf2takeoffExportResult
+  try {
+    result = await pdf2takeoffExportTakeoff(absPath, { scaleRatio, unit: params.value.unit, format: params.value.format })
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+
+  const bytes = params.value.format === "xlsx" ? (result.xlsxBytes as Buffer) : Buffer.from(result.csv ?? "", "utf8")
+  const mimeType =
+    params.value.format === "xlsx"
+      ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      : "text/csv"
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, revision.id, {
+    opLabel: "export_boq_xlsx",
+    kind: "document",
+    format: null, // binary content — the kind is unique to this op (§2)
+    name: `${artifact.name} — BOQ export (${params.value.format})`,
+    description: `Bill-of-quantities table exported from the PDF's takeoff annotations by ${result.engineKey} (scale ${scaleRatio}, unit ${params.value.unit})`,
+    bytes,
+    mimeType,
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "takeoff.boqExported",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        pinnedCommit: result.pinnedCommit,
+        format: params.value.format,
+        rowCount: result.rows.length,
+        scaleMmPerPt,
+        scaleRatio,
+        scaleSource,
+        unit: params.value.unit,
+      },
+    },
+  })
+
+  return {
+    output: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "document",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: null,
+      mimeType,
+      formatRequested: params.value.format,
+      rowCount: result.rows.length,
+      scaleMmPerPt,
+      scaleRatio,
+      scaleSource,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      pinnedCommit: result.pinnedCommit,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: revision.id,
+      sourceLatestRevisionId: revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    export: result,
+  }
+}
+
+/** Validate fill_area parameters: at REQUIRED, pageNo/label optional. PURE. */
+export function fillAreaBrokerParameters(
+  raw: Record<string, unknown>,
+): { ok: true; value: { pageNo: number; at: [number, number]; label?: string } } | { ok: false; message: string } {
+  let pageNo = 1
+  if (raw.pageNo !== undefined) {
+    if (typeof raw.pageNo !== "number" || !Number.isInteger(raw.pageNo) || raw.pageNo < 1) {
+      return { ok: false, message: "fill_area parameters.pageNo must be a positive integer when provided" }
+    }
+    pageNo = raw.pageNo
+  }
+  const at = raw.at
+  if (
+    !Array.isArray(at) ||
+    at.length !== 2 ||
+    at.some((v) => typeof v !== "number" || !Number.isFinite(v))
+  ) {
+    return { ok: false, message: "fill_area requires parameters.at — a finite [x, y] point INSIDE the room, PDF points" }
+  }
+  if (raw.label !== undefined && (typeof raw.label !== "string" || raw.label.length === 0 || raw.label.length > 120)) {
+    return { ok: false, message: "fill_area parameters.label must be a 1..120-char string when provided" }
+  }
+  return {
+    ok: true,
+    value: { pageNo, at: [at[0] as number, at[1] as number], ...(raw.label !== undefined ? { label: raw.label as string } : {}) },
+  }
+}
+
+export interface BrokerFillAreaResult extends BrokerP2tResultCore {
+  output: BrokerP2tResultCore["output"] & {
+    format: "eos-room-fill/1"
+    value: number
+    unit: "m2"
+    vertices: number
+    pageNo: number
+    scaleMmPerPt: number
+    scaleSource: "explicit-parameter" | "calibration-markup"
+  }
+  fill: Pdf2takeoffFillResult
+}
+
+/**
+ * Measure a room by clicking inside it (the adopted engine's Magic Fill).
+ * The output is an eos-room-fill/1 EVIDENCE artifact — the geometry and the
+ * engine's full provenance, ready for human review; recording a ledger
+ * quantity from it stays a human Sheet Measure action (the 16-V discipline).
+ */
+export async function brokerFillAreaCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerFillAreaResult> {
+  const params = fillAreaBrokerParameters(parameters)
+  if (!params.ok) throw new BrokerRefusalError("unsupported", params.message)
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", "This artifact has no revisions to measure")
+  }
+  const revision = artifact.latestRevision
+  if (!isPdfSignal(artifact.name, revision.mimeType) && !isPdfSignal(revision.storageKey, revision.mimeType)) {
+    throw new BrokerRefusalError("unsupported", p2tPdfRequiredMessage("fill_area", artifact.name))
+  }
+
+  const { scaleMmPerPt, scaleSource } = await resolveP2tScale("fill_area", parameters, revision)
+
+  const absPath = path.join(getStorageRoot(), revision.storageKey, "content")
+  let result: Pdf2takeoffFillResult
+  try {
+    result = await pdf2takeoffFillRoom(absPath, { ...params.value, scaleMmPerPt })
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+
+  const document = JSON.stringify({
+    format: "eos-room-fill/1",
+    source: { name: artifact.name, kind: "sheet" },
+    engine: {
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      pinnedCommit: result.pinnedCommit,
+    },
+    provenance: {
+      pageNo: params.value.pageNo,
+      at: params.value.at,
+      scaleMmPerPt,
+      scaleSource,
+      method: "magic fill: flood fill from the point, door gaps closed between wall ends, boundary on the inner wall faces",
+      bbox: result.bbox,
+      doorwayClosesUpToM: result.doorwayClosesUpToM,
+      roomLabelsOnSheet: result.roomLabelsOnSheet,
+    },
+    result: {
+      value: result.value,
+      unit: result.unit,
+      vertices: result.vertices,
+      markupId: result.markupId,
+      label: result.label,
+    },
+  })
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, revision.id, {
+    opLabel: "fill_area",
+    kind: "analysis",
+    format: "eos-room-fill/1",
+    name: `${artifact.name} — room fill (p${params.value.pageNo})`,
+    description: `Room area measured by the adopted engine's Magic Fill (${result.value} m², ${result.vertices} boundary vertices)`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "takeoff.roomFilled",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        pinnedCommit: result.pinnedCommit,
+        pageNo: params.value.pageNo,
+        value: result.value,
+        vertices: result.vertices,
+        scaleMmPerPt,
+        scaleSource,
+      },
+    },
+  })
+
+  return {
+    output: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-room-fill/1",
+      value: result.value,
+      unit: "m2",
+      vertices: result.vertices,
+      pageNo: params.value.pageNo,
+      scaleMmPerPt,
+      scaleSource,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      pinnedCommit: result.pinnedCommit,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: revision.id,
+      sourceLatestRevisionId: revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    fill: result,
   }
 }
 
@@ -4148,6 +4890,104 @@ export async function runBrokerOperation(
         core.outputArtifactRevisionId,
         Date.now() - startedAt,
       )
+    }
+
+    case "compare_revisions": {
+      const validatedInputs = compareRevisionsBrokerInputs(inputs)
+      if (!validatedInputs.ok) throw new BrokerRefusalError("unsupported", validatedInputs.message)
+      const core = await brokerCompareRevisionsCore(ctx.projectId, validatedInputs.value, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.output.artifactId,
+          revisionNumber: core.output.revisionNumber,
+          contentHash: core.output.contentHash,
+          comparedSheets: core.output.comparedSheets,
+          changedSheets: core.output.changedSheets,
+          onlyInOld: core.output.onlyInOld,
+          onlyInNew: core.output.onlyInNew,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "annotate_takeoff": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "annotate_takeoff requires inputs.artifactId (one PDF sheet artifact id)")
+      }
+      const core = await brokerAnnotateTakeoffCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.output.artifactId,
+          revisionNumber: core.output.revisionNumber,
+          contentHash: core.output.contentHash,
+          sizeBytes: core.output.sizeBytes,
+          markupCount: core.output.markupCount,
+          kept: core.output.kept,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "export_boq_xlsx": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "export_boq_xlsx requires inputs.artifactId (one annotated PDF artifact id)")
+      }
+      const core = await brokerExportBoqCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.output.artifactId,
+          revisionNumber: core.output.revisionNumber,
+          contentHash: core.output.contentHash,
+          sizeBytes: core.output.sizeBytes,
+          format: core.output.formatRequested,
+          rowCount: core.output.rowCount,
+          scaleRatio: core.output.scaleRatio,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "fill_area": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "fill_area requires inputs.artifactId (one PDF sheet artifact id)")
+      }
+      const core = await brokerFillAreaCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.output.artifactId,
+          revisionNumber: core.output.revisionNumber,
+          contentHash: core.output.contentHash,
+          value: core.output.value,
+          unit: core.output.unit,
+          vertices: core.output.vertices,
+          pageNo: core.output.pageNo,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        durationMs: Date.now() - startedAt,
+      }
     }
 
     default:

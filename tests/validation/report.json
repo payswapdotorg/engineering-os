@@ -1,36 +1,44 @@
 {
-  "ranAt": "2026-10-30T08:22:56.094Z",
-  "pythonBin": "/home/z/.venv/bin/python",
+  "ranAt": "2026-10-30T21:22:05.684Z",
+  "pythonBin": "/home/z/.venv/bin/python3",
   "manifestPath": "tests/validation/corpus-manifest.json",
-  "caseCount": 42,
+  "caseCount": 51,
   "environment": {
     "engineAvailability": {
       "step": {
         "available": true
       },
       "ifc": {
-        "available": true
+        "available": false,
+        "reason": "ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1)"
       },
       "femesh": {
-        "available": true
+        "available": false,
+        "reason": "gmsh is not importable in /home/z/.venv/bin/python3 (exit code 1) — missing system libs? run scripts/setup-engine-libs.sh"
       },
       "powerflow": {
-        "available": true
+        "available": false,
+        "reason": "pandapower is not importable in /home/z/.venv/bin/python3 (exit code 1)"
       },
       "des": {
-        "available": true
+        "available": false,
+        "reason": "simpy is not importable in /home/z/.venv/bin/python3 (exit code 1)"
       },
       "fea": {
-        "available": true
+        "available": false,
+        "reason": "skfem is not importable in /home/z/.venv/bin/python3 (exit code 1)"
       },
       "transport": {
-        "available": true
+        "available": false,
+        "reason": "sfepy is not importable in /home/z/.venv/bin/python3 (exit code 1)"
       },
       "chip": {
-        "available": true
+        "available": false,
+        "reason": "amaranth is not importable in /home/z/.venv/bin/python3 (exit code 1)"
       },
       "swmm": {
-        "available": true
+        "available": false,
+        "reason": "pyswmm is not importable in /home/z/.venv/bin/python3 (exit code 1)"
       },
       "cpm": {
         "available": true
@@ -49,41 +57,40 @@
       },
       "ocr": {
         "available": true
+      },
+      "pdf2takeoff": {
+        "available": true
       }
     }
   },
   "engineVersions": {
     "cadquery": "2.6.1",
-    "ifcopenshell": "0.9.0.post1",
-    "gmsh": "4.15.2",
-    "pandapower": "3.5.6",
-    "simpy": "4.1.2",
-    "scikit-fem": "12.0.2",
-    "sfepy": "2026.3",
+    "ifcopenshell": null,
+    "gmsh": null,
+    "pandapower": null,
+    "simpy": null,
+    "scikit-fem": null,
+    "sfepy": null,
     "libreoffice": "25.2.3.2",
-    "pdfplumber": "0.11.10",
-    "ezdxf": "1.4.5",
-    "tesseract": "5.5.0",
-    "pyswmm": "2.2.0",
-    "amaranth": "0.5.10"
+    "pdfplumber": "0.11.9",
+    "ezdxf": "1.4.3",
+    "pdf2takeoff": "0.1.0",
+    "tesseract": "5.5.0"
   },
   "adapterHashes": {
     "step_quantities.py": "950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d",
-    "ifc_quantities.py": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78",
+    "ifc_quantities.py": null,
     "step_mesh.py": "e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c",
-    "ifc_mesh.py": "6854d6c0a170daf29de36991af88996af10f2169084d5850083fad03b9747465",
-    "step_femesh.py": "3770e13ab779e6cbbe3db9162533bf028a26b4087dcbb476d92742f927a34b3f",
-    "powerflow.py": "a1a8fc441d0cf321e95bbd655fc368cb04c22e17ee693090f9b7193fdb380606",
-    "des.py": "9295a66271617f068f9dfab63f9339e814f993db59605df7b7ce86a0c3842550",
+    "ifc_mesh.py": null,
+    "step_femesh.py": null,
+    "powerflow.py": null,
+    "des.py": null,
     "convert-document.ts": "4b1bb3d10fdcaa3f85ebb654a652092acb3ac5a59812f1f0fd9c5074b15540d0",
     "sheet_takeoff.py": "bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff",
     "dxf_takeoff.py": "07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329",
-    "parametric_rebuild.py": "7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9",
-    "sheet_ocr.ts": "b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45",
-    "fea_solve.py": "86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef",
-    "swmm_run.py": "6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d",
-    "transport_solve.py": "d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b",
-    "rtl_synthesize.py": "dfd179e6be39f1bea0b70e8ac889c8e56ffa39554ce85188d85d9cde8a37fba7"
+    "parametric_rebuild.py": "14d62a117314160ffea825ec9aca038e863a550fa7cc5b33babb487295854acf",
+    "pdf2takeoff.ts": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344",
+    "sheet_ocr.ts": "b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45"
   },
   "cases": [
     {
@@ -620,159 +627,13 @@
       "fixture": "wall-quantities.ifc",
       "fixturePath": "tests/fixtures/wall-quantities.ifc",
       "expect": "success",
-      "status": "pass",
-      "determinism": true,
-      "quantityCount": 10,
+      "status": "skip",
+      "determinism": null,
+      "quantityCount": null,
       "groundTruthCount": 10,
-      "comparisons": [
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "length",
-          "expected": 3,
-          "observed": 3,
-          "unit": "m",
-          "observedUnit": "m",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "declared BaseQuantities 'Length' — authored wall 3.0 × 0.2 × 2.0 m (closed form in make_fixture_wall.py)"
-        },
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "length",
-          "expected": 0.2,
-          "observed": 0.2,
-          "unit": "m",
-          "observedUnit": "m",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "declared BaseQuantities 'Width' = 0.2 m"
-        },
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "length",
-          "expected": 2,
-          "observed": 2,
-          "unit": "m",
-          "observedUnit": "m",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "declared BaseQuantities 'Height' = 2.0 m"
-        },
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "area",
-          "expected": 12.8,
-          "observed": 12.8,
-          "unit": "m²",
-          "observedUnit": "m²",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "declared 'GrossSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
-        },
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "area",
-          "expected": 12.8,
-          "observed": 12.8,
-          "unit": "m²",
-          "observedUnit": "m²",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "declared 'NetSideArea' = 2·(3.0 + 0.2)·2.0 = 12.8 m²"
-        },
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "area",
-          "expected": 0.6,
-          "observed": 0.6,
-          "unit": "m²",
-          "observedUnit": "m²",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "declared 'GrossFootprintArea' = 3.0 · 0.2 = 0.6 m²"
-        },
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "area",
-          "expected": 0.6,
-          "observed": 0.6,
-          "unit": "m²",
-          "observedUnit": "m²",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "declared 'NetFootprintArea' = 3.0 · 0.2 = 0.6 m²"
-        },
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "volume",
-          "expected": 1.2,
-          "observed": 1.2,
-          "unit": "m³",
-          "observedUnit": "m³",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "declared 'GrossVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
-        },
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "volume",
-          "expected": 1.2,
-          "observed": 1.2,
-          "unit": "m³",
-          "observedUnit": "m³",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "declared 'NetVolume' = 3.0 · 0.2 · 2.0 = 1.2 m³"
-        },
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "count",
-          "expected": 2,
-          "observed": 2,
-          "unit": "count",
-          "observedUnit": "count",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "declared 'WallTieCount' = 2 (dimensionless IfcQuantityCount)"
-        }
-      ],
+      "comparisons": null,
       "problems": [],
-      "engine": {
-        "engineKey": "ifcopenshell",
-        "engineVersion": "0.9.0.post1",
-        "adapterScript": "ifc_quantities.py",
-        "adapterHash": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78"
-      }
+      "skipReason": "engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "ifc-two-elements",
@@ -780,438 +641,13 @@
       "fixture": "two-elements.ifc",
       "fixturePath": "tests/fixtures/two-elements.ifc",
       "expect": "success",
-      "status": "pass",
-      "determinism": true,
-      "quantityCount": 15,
+      "status": "skip",
+      "determinism": null,
+      "quantityCount": null,
       "groundTruthCount": 15,
-      "comparisons": [
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "length",
-          "expected": 4,
-          "observed": 4,
-          "unit": "m",
-          "observedUnit": "m",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Wall A 'Length' — 4.0 × 0.25 × 2.8 m wall"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "length",
-          "expected": 0.25,
-          "observed": 0.25,
-          "unit": "m",
-          "observedUnit": "m",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Wall A 'Width' = 0.25 m"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "length",
-          "expected": 2.8,
-          "observed": 2.8,
-          "unit": "m",
-          "observedUnit": "m",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Wall A 'Height' = 2.8 m"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "area",
-          "expected": 23.8,
-          "observed": 23.8,
-          "unit": "m²",
-          "observedUnit": "m²",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Wall A 'GrossSideArea' = 2·(4.0 + 0.25)·2.8 = 23.8 m²"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "volume",
-          "expected": 2.8,
-          "observed": 2.8,
-          "unit": "m³",
-          "observedUnit": "m³",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Wall A 'NetVolume' = 4.0 · 0.25 · 2.8 = 2.8 m³"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-          "quantityType": "length",
-          "expected": 2,
-          "observed": 2,
-          "unit": "m",
-          "observedUnit": "m",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Wall B 'Length' — 2.0 × 0.15 × 2.8 m wall"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-          "quantityType": "length",
-          "expected": 0.15,
-          "observed": 0.15,
-          "unit": "m",
-          "observedUnit": "m",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Wall B 'Width' = 0.15 m"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-          "quantityType": "length",
-          "expected": 2.8,
-          "observed": 2.8,
-          "unit": "m",
-          "observedUnit": "m",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Wall B 'Height' = 2.8 m"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-          "quantityType": "area",
-          "expected": 12.04,
-          "observed": 12.04,
-          "unit": "m²",
-          "observedUnit": "m²",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Wall B 'NetSideArea' = 2·(2.0 + 0.15)·2.8 = 12.04 m²"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-          "quantityType": "area",
-          "expected": 0.3,
-          "observed": 0.3,
-          "unit": "m²",
-          "observedUnit": "m²",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Wall B 'NetFootprintArea' = 2.0 · 0.15 = 0.3 m²"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-          "quantityType": "volume",
-          "expected": 0.84,
-          "observed": 0.84,
-          "unit": "m³",
-          "observedUnit": "m³",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Wall B 'NetVolume' = 2.0 · 0.15 · 2.8 = 0.84 m³"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-          "quantityType": "length",
-          "expected": 5,
-          "observed": 5,
-          "unit": "m",
-          "observedUnit": "m",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Slab S 'Length' — 5.0 × 3.0 × 0.2 m slab"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-          "quantityType": "length",
-          "expected": 3,
-          "observed": 3,
-          "unit": "m",
-          "observedUnit": "m",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Slab S 'Width' = 3.0 m"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-          "quantityType": "area",
-          "expected": 15,
-          "observed": 15,
-          "unit": "m²",
-          "observedUnit": "m²",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Slab S 'GrossArea' = 5.0 · 3.0 = 15.0 m²"
-        },
-        {
-          "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-          "quantityType": "volume",
-          "expected": 3,
-          "observed": 3,
-          "unit": "m³",
-          "observedUnit": "m³",
-          "tolerance": "exact",
-          "absDiff": 0,
-          "observedRelError": 0,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "Slab S 'NetVolume' = 5.0 · 3.0 · 0.2 = 3.0 m³"
-        }
-      ],
+      "comparisons": null,
       "problems": [],
-      "engine": {
-        "engineKey": "ifcopenshell",
-        "engineVersion": "0.9.0.post1",
-        "adapterScript": "ifc_quantities.py",
-        "adapterHash": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78"
-      },
-      "mesh": {
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "elementCount": 3,
-        "vertexCount": 24,
-        "triangleCount": 36,
-        "comparisons": [
-          {
-            "kind": "upAxis",
-            "elementRef": null,
-            "expected": "z",
-            "observed": "z",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned payload upAxis (the adapter never rewrites the source up-axis)",
-            "problem": "matched"
-          },
-          {
-            "kind": "tolerance",
-            "elementRef": null,
-            "expected": 0.001,
-            "observed": 0.001,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned payload tolerance in meters (the adapter documents its native deflection)",
-            "problem": "matched"
-          },
-          {
-            "kind": "refs",
-            "elementRef": null,
-            "expected": "#3rUnE8CnPHBwLdZzIqZkf1, #3rUnE8CnPHBwLdZzIqZkf2, #3rUnE8CnPHBwLdZzIqZkf3",
-            "observed": "#3rUnE8CnPHBwLdZzIqZkf1, #3rUnE8CnPHBwLdZzIqZkf2, #3rUnE8CnPHBwLdZzIqZkf3",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned manifest mesh.elementRefs (set equality — extras and missing both fail)",
-            "problem": "matched"
-          },
-          {
-            "kind": "refs",
-            "elementRef": null,
-            "expected": "#3rUnE8CnPHBwLdZzIqZkf1, #3rUnE8CnPHBwLdZzIqZkf2, #3rUnE8CnPHBwLdZzIqZkf3",
-            "observed": "#3rUnE8CnPHBwLdZzIqZkf1, #3rUnE8CnPHBwLdZzIqZkf2, #3rUnE8CnPHBwLdZzIqZkf3",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "cross-reference contract with the quantity ledger: mesh elementRefs set-equal the quantity adapter's element-level refs",
-            "problem": "matched"
-          },
-          {
-            "kind": "name",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-            "expected": "Wall A",
-            "observed": "Wall A",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
-            "problem": "matched"
-          },
-          {
-            "kind": "vertexCount",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-            "expected": 8,
-            "observed": 8,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
-            "problem": "matched"
-          },
-          {
-            "kind": "triangleCount",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-            "expected": 12,
-            "observed": 12,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
-            "problem": "matched"
-          },
-          {
-            "kind": "name",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-            "expected": "Wall B",
-            "observed": "Wall B",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
-            "problem": "matched"
-          },
-          {
-            "kind": "vertexCount",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-            "expected": 8,
-            "observed": 8,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
-            "problem": "matched"
-          },
-          {
-            "kind": "triangleCount",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-            "expected": 12,
-            "observed": 12,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
-            "problem": "matched"
-          },
-          {
-            "kind": "name",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-            "expected": "Slab S",
-            "observed": "Slab S",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
-            "problem": "matched"
-          },
-          {
-            "kind": "vertexCount",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-            "expected": 8,
-            "observed": 8,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
-            "problem": "matched"
-          },
-          {
-            "kind": "triangleCount",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-            "expected": 12,
-            "observed": 12,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
-            "problem": "matched"
-          },
-          {
-            "kind": "volume",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf1",
-            "expected": 2.8,
-            "observed": 2.8000000000000003,
-            "tolerance": "analytic",
-            "absDiff": 4.440892098500626e-16,
-            "observedRelError": 1.5860328923216522e-16,
-            "ok": true,
-            "derivation": "Wall A 4.0 × 0.25 × 2.8 m = 2.8 m³ (PLANAR → divergence-theorem mesh volume exact; metres authored and verified)",
-            "problem": "matched"
-          },
-          {
-            "kind": "volume",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf2",
-            "expected": 0.84,
-            "observed": 0.84,
-            "tolerance": "analytic",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "derivation": "Wall B 2.0 × 0.15 × 2.8 m = 0.84 m³ (PLANAR → exact)",
-            "problem": "matched"
-          },
-          {
-            "kind": "volume",
-            "elementRef": "#3rUnE8CnPHBwLdZzIqZkf3",
-            "expected": 3,
-            "observed": 3,
-            "tolerance": "analytic",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "derivation": "Slab S 5.0 × 3.0 × 0.2 m = 3.0 m³ (PLANAR → exact)",
-            "problem": "matched"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "ifcopenshell",
-          "engineVersion": "0.9.0.post1",
-          "adapterScript": "ifc_mesh.py",
-          "adapterHash": "6854d6c0a170daf29de36991af88996af10f2169084d5850083fad03b9747465"
-        }
-      }
+      "skipReason": "engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "ifc-wall-geometry-mesh",
@@ -1219,160 +655,13 @@
       "fixture": "wall-geometry.ifc",
       "fixturePath": "tests/fixtures/wall-geometry.ifc",
       "expect": "success",
-      "status": "pass",
-      "determinism": true,
-      "quantityCount": 2,
+      "status": "skip",
+      "determinism": null,
+      "quantityCount": null,
       "groundTruthCount": 2,
-      "comparisons": [
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "volume",
-          "expected": 1.2,
-          "observed": 1.2000000000000002,
-          "unit": "m³",
-          "observedUnit": "m³",
-          "tolerance": "analytic",
-          "absDiff": 2.220446049250313e-16,
-          "observedRelError": 1.8503717077085943e-16,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³. Tolerance 'analytic' (not 'mesh') is justified: the mesh path is divergence-theorem volume over planar triangles, which is mathematically EXACT for planar solids — only IEEE rounding remains (observed 1.2000000000000002, rel ≈ 2e-16)"
-        },
-        {
-          "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "area",
-          "expected": 14,
-          "observed": 14.000000000000002,
-          "unit": "m²",
-          "observedUnit": "m²",
-          "tolerance": "analytic",
-          "absDiff": 1.7763568394002505e-15,
-          "observedRelError": 1.2688263138573217e-16,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "total box surface 2·(3·0.2) + 2·(3·2) + 2·(0.2·2) = 1.2 + 12 + 0.8 = 14.0 m². Tolerance 'analytic' justified: triangle-sum area over planar faces is exact in exact arithmetic (observed 14.000000000000002, rel ≈ 1e-16)"
-        }
-      ],
+      "comparisons": null,
       "problems": [],
-      "engine": {
-        "engineKey": "ifcopenshell",
-        "engineVersion": "0.9.0.post1",
-        "adapterScript": "ifc_quantities.py",
-        "adapterHash": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78"
-      },
-      "mesh": {
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "elementCount": 1,
-        "vertexCount": 8,
-        "triangleCount": 12,
-        "comparisons": [
-          {
-            "kind": "upAxis",
-            "elementRef": null,
-            "expected": "z",
-            "observed": "z",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned payload upAxis (the adapter never rewrites the source up-axis)",
-            "problem": "matched"
-          },
-          {
-            "kind": "tolerance",
-            "elementRef": null,
-            "expected": 0.001,
-            "observed": 0.001,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned payload tolerance in meters (the adapter documents its native deflection)",
-            "problem": "matched"
-          },
-          {
-            "kind": "refs",
-            "elementRef": null,
-            "expected": "#2rUnE8CnPHBwLdZzIqZkf1",
-            "observed": "#2rUnE8CnPHBwLdZzIqZkf1",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned manifest mesh.elementRefs (set equality — extras and missing both fail)",
-            "problem": "matched"
-          },
-          {
-            "kind": "refs",
-            "elementRef": null,
-            "expected": "#2rUnE8CnPHBwLdZzIqZkf1",
-            "observed": "#2rUnE8CnPHBwLdZzIqZkf1",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "cross-reference contract with the quantity ledger: mesh elementRefs set-equal the quantity adapter's element-level refs",
-            "problem": "matched"
-          },
-          {
-            "kind": "name",
-            "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-            "expected": "Quantity Wall",
-            "observed": "Quantity Wall",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
-            "problem": "matched"
-          },
-          {
-            "kind": "vertexCount",
-            "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-            "expected": 8,
-            "observed": 8,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
-            "problem": "matched"
-          },
-          {
-            "kind": "triangleCount",
-            "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-            "expected": 12,
-            "observed": 12,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
-            "problem": "matched"
-          },
-          {
-            "kind": "volume",
-            "elementRef": "#2rUnE8CnPHBwLdZzIqZkf1",
-            "expected": 1.2,
-            "observed": 1.2000000000000002,
-            "tolerance": "analytic",
-            "absDiff": 2.220446049250313e-16,
-            "observedRelError": 1.8503717077085943e-16,
-            "ok": true,
-            "derivation": "box 3.0 × 0.2 × 2.0 m = 1.2 m³ (PLANAR → divergence-theorem mesh volume is mathematically exact; the mesh elementRef set-equals the quantity ledger ref)",
-            "problem": "matched"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "ifcopenshell",
-          "engineVersion": "0.9.0.post1",
-          "adapterScript": "ifc_mesh.py",
-          "adapterHash": "6854d6c0a170daf29de36991af88996af10f2169084d5850083fad03b9747465"
-        }
-      }
+      "skipReason": "engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "ifc-cylinder-geometry-mesh",
@@ -1380,160 +669,13 @@
       "fixture": "cylinder-geometry.ifc",
       "fixturePath": "tests/fixtures/cylinder-geometry.ifc",
       "expect": "success",
-      "status": "pass",
-      "determinism": true,
-      "quantityCount": 2,
+      "status": "skip",
+      "determinism": null,
+      "quantityCount": null,
       "groundTruthCount": 2,
-      "comparisons": [
-        {
-          "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "volume",
-          "expected": 0.3769911184307752,
-          "observed": 0.3757673725921769,
-          "unit": "m³",
-          "observedUnit": "m³",
-          "tolerance": "mesh",
-          "absDiff": 0.0012237458385983002,
-          "observedRelError": 0.003246086655017603,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance: the PyPI ifcopenshell wheel has no OCCT backend (has_occ=False), so this curved surface is triangulated — an APPROXIMATION; the harness records the observed relative error to quantify that limitation honestly"
-        },
-        {
-          "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
-          "quantityType": "area",
-          "expected": 4.0212385965949355,
-          "observed": 4.017361163910887,
-          "unit": "m²",
-          "observedUnit": "m²",
-          "tolerance": "mesh",
-          "absDiff": 0.0038774326840487205,
-          "observedRelError": 0.0009642384033944205,
-          "ok": true,
-          "problem": "matched",
-          "derivation": "lateral 2π·0.2·3.0 = 1.2π plus two caps 2·π·0.2² = 0.08π → 1.28π m². 'mesh' tolerance (1% pinned): triangulated curved surface — observed relative error recorded per run"
-        }
-      ],
+      "comparisons": null,
       "problems": [],
-      "engine": {
-        "engineKey": "ifcopenshell",
-        "engineVersion": "0.9.0.post1",
-        "adapterScript": "ifc_quantities.py",
-        "adapterHash": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78"
-      },
-      "mesh": {
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "elementCount": 1,
-        "vertexCount": 90,
-        "triangleCount": 176,
-        "comparisons": [
-          {
-            "kind": "upAxis",
-            "elementRef": null,
-            "expected": "z",
-            "observed": "z",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned payload upAxis (the adapter never rewrites the source up-axis)",
-            "problem": "matched"
-          },
-          {
-            "kind": "tolerance",
-            "elementRef": null,
-            "expected": 0.001,
-            "observed": 0.001,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned payload tolerance in meters (the adapter documents its native deflection)",
-            "problem": "matched"
-          },
-          {
-            "kind": "refs",
-            "elementRef": null,
-            "expected": "#4rUnE8CnPHBwLdZzIqZkf1",
-            "observed": "#4rUnE8CnPHBwLdZzIqZkf1",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned manifest mesh.elementRefs (set equality — extras and missing both fail)",
-            "problem": "matched"
-          },
-          {
-            "kind": "refs",
-            "elementRef": null,
-            "expected": "#4rUnE8CnPHBwLdZzIqZkf1",
-            "observed": "#4rUnE8CnPHBwLdZzIqZkf1",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "cross-reference contract with the quantity ledger: mesh elementRefs set-equal the quantity adapter's element-level refs",
-            "problem": "matched"
-          },
-          {
-            "kind": "name",
-            "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
-            "expected": "Mesh Column",
-            "observed": "Mesh Column",
-            "tolerance": null,
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned element name (STEP 'Solid <i+1>'; IFC element Name with GlobalId fallback)",
-            "problem": "matched"
-          },
-          {
-            "kind": "vertexCount",
-            "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
-            "expected": 90,
-            "observed": 90,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned per-element vertexCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
-            "problem": "matched"
-          },
-          {
-            "kind": "triangleCount",
-            "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
-            "expected": 176,
-            "observed": 176,
-            "tolerance": null,
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "derivation": "pinned per-element triangleCount (real-engine tessellation pin — changes with the engine pin must update the manifest together)",
-            "problem": "matched"
-          },
-          {
-            "kind": "volume",
-            "elementRef": "#4rUnE8CnPHBwLdZzIqZkf1",
-            "expected": 0.3769911184307752,
-            "observed": 0.3757673725921769,
-            "tolerance": "mesh",
-            "absDiff": 0.0012237458385983002,
-            "observedRelError": 0.003246086655017603,
-            "ok": true,
-            "derivation": "π · 0.2² · 3.0 = 0.12π m³ (Ø400 × 3000 mm column). 'mesh' tolerance (pinned 1%): the default-settings triangulation (44 segments) is an APPROXIMATION on the curved surface — the harness records the observed relative error per run (same triangulation the quantity adapter's fallback reports on)",
-            "problem": "matched"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "ifcopenshell",
-          "engineVersion": "0.9.0.post1",
-          "adapterScript": "ifc_mesh.py",
-          "adapterHash": "6854d6c0a170daf29de36991af88996af10f2169084d5850083fad03b9747465"
-        }
-      }
+      "skipReason": "engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "ifc-wall-stripped-empty",
@@ -1541,30 +683,13 @@
       "fixture": "wall-stripped.ifc",
       "fixturePath": "tests/fixtures/wall-stripped.ifc",
       "expect": "success",
-      "status": "pass",
-      "determinism": true,
-      "quantityCount": 0,
+      "status": "skip",
+      "determinism": null,
+      "quantityCount": null,
       "groundTruthCount": 0,
-      "comparisons": [],
+      "comparisons": null,
       "problems": [],
-      "engine": {
-        "engineKey": "ifcopenshell",
-        "engineVersion": "0.9.0.post1",
-        "adapterScript": "ifc_quantities.py",
-        "adapterHash": "68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78"
-      },
-      "mesh": {
-        "expect": "error",
-        "status": "pass",
-        "determinism": null,
-        "elementCount": null,
-        "vertexCount": null,
-        "triangleCount": null,
-        "comparisons": [],
-        "problems": [],
-        "errorContains": "no meshable geometry",
-        "errorObserved": "no meshable geometry found in IFC file (1 element(s) examined, 0 produced a triangulation) — cannot tessellate, and simulated meshes are not an option"
-      }
+      "skipReason": "engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "ifc-nonmodel-file",
@@ -1572,26 +697,13 @@
       "fixture": "site-notes.md",
       "fixturePath": "tests/fixtures/site-notes.md",
       "expect": "error",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "errorContains": "could not open the file",
-      "errorObserved": "ifcopenshell could not open the file: Error: Unable to parse IFC SPF header",
-      "mesh": {
-        "expect": "error",
-        "status": "pass",
-        "determinism": null,
-        "elementCount": null,
-        "vertexCount": null,
-        "triangleCount": null,
-        "comparisons": [],
-        "problems": [],
-        "errorContains": "could not open the file",
-        "errorObserved": "ifcopenshell could not open the file: Error: Unable to parse IFC SPF header"
-      }
+      "skipReason": "engine unavailable for the ifc adapter: ifcopenshell is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "femesh-bracket-solid",
@@ -1599,118 +711,13 @@
       "fixture": "bracket-solid.step",
       "fixturePath": "tests/fixtures/bracket-solid.step",
       "expect": "success",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "femesh",
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "comparisons": [
-          {
-            "field": "nodes",
-            "ref": null,
-            "expected": 1088,
-            "observed": 1088,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "live-observed node count at MeshSizeMin 2.0 / MeshSizeMax 4.0, gmsh 4.15.2 linear tets — pinned after the TL smoke run"
-          },
-          {
-            "field": "elements",
-            "ref": null,
-            "expected": 3482,
-            "observed": 3482,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "live-observed tet4 count under the same pinned options"
-          },
-          {
-            "field": "solidRefOrderOk",
-            "ref": null,
-            "expected": true,
-            "observed": true,
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "solids[i].ref === step:solid:i for every index (the pinned ascending order)"
-          },
-          {
-            "field": "tetSumOk",
-            "ref": null,
-            "expected": true,
-            "observed": true,
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "sum of per-solid tetCounts === elements.count (payload self-consistency)"
-          },
-          {
-            "field": "qualityRangeOk",
-            "ref": null,
-            "expected": true,
-            "observed": true,
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "gmsh element qualities in (0,1] with min <= mean (observed min 0.2997 / mean 0.7848 live)"
-          },
-          {
-            "field": "tetCount",
-            "ref": "step:solid:0",
-            "expected": 3482,
-            "observed": 3482,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "single-solid fixture: the whole tet count"
-          },
-          {
-            "field": "meshVolume",
-            "ref": "step:solid:0",
-            "expected": 32984.071,
-            "observed": 33286.26390462647,
-            "unit": "mm3",
-            "bound": "rel:0.02",
-            "absDiff": 302.19290462646313,
-            "observedRelError": 0.009161783111201255,
-            "ok": true,
-            "problem": "value",
-            "derivation": "closed form 36000 - 960*pi mm3 (40x30x30 block minus two r=4 h=30 through-holes; pi=3.14159265358979 -> 32984.07105). Linear tets under-trap the curved holes so the mesh volume runs HIGH: live-observed 33286.264 = +0.92%, the expected O(h^2) bias at these sizes; pinned at the contract's 2%"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "gmsh",
-          "engineVersion": "4.15.2",
-          "adapterScript": "step_femesh.py",
-          "adapterHash": "3770e13ab779e6cbbe3db9162533bf028a26b4087dcbb476d92742f927a34b3f"
-        }
-      }
+      "skipReason": "engine unavailable for the femesh adapter: gmsh is not importable in /home/z/.venv/bin/python3 (exit code 1) — missing system libs? run scripts/setup-engine-libs.sh"
     },
     {
       "caseId": "femesh-two-solids",
@@ -1718,105 +725,13 @@
       "fixture": "two-solids.step",
       "fixturePath": "tests/fixtures/two-solids.step",
       "expect": "success",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "femesh",
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "comparisons": [
-          {
-            "field": "nodes",
-            "ref": null,
-            "expected": 479,
-            "observed": 479,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "live-observed node count, gmsh 4.15.2 defaults"
-          },
-          {
-            "field": "elements",
-            "ref": null,
-            "expected": 1378,
-            "observed": 1378,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "live-observed tet4 count"
-          },
-          {
-            "field": "tetCount",
-            "ref": "step:solid:0",
-            "expected": 599,
-            "observed": 599,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "live-observed per-solid split (599 + 779 = 1378)"
-          },
-          {
-            "field": "tetCount",
-            "ref": "step:solid:1",
-            "expected": 779,
-            "observed": 779,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "live-observed per-solid split"
-          },
-          {
-            "field": "meshVolume",
-            "ref": "step:solid:0",
-            "expected": 6000,
-            "observed": 5999.999999999992,
-            "unit": "mm3",
-            "bound": "rel:1e-12",
-            "absDiff": 8.185452315956354e-12,
-            "observedRelError": 1.3642420526593924e-15,
-            "ok": true,
-            "problem": "value",
-            "derivation": "closed form 30x20x10 mm = 6000 mm3 (make_fixture_step_solids.py); planar -> EXACT by divergence theorem"
-          },
-          {
-            "field": "meshVolume",
-            "ref": "step:solid:1",
-            "expected": 9000,
-            "observed": 9000.000000000005,
-            "unit": "mm3",
-            "bound": "rel:1e-12",
-            "absDiff": 5.4569682106375694e-12,
-            "observedRelError": 6.063298011819521e-16,
-            "ok": true,
-            "problem": "value",
-            "derivation": "closed form 15x15x40 mm = 9000 mm3; planar -> EXACT by divergence theorem"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "gmsh",
-          "engineVersion": "4.15.2",
-          "adapterScript": "step_femesh.py",
-          "adapterHash": "3770e13ab779e6cbbe3db9162533bf028a26b4087dcbb476d92742f927a34b3f"
-        }
-      }
+      "skipReason": "engine unavailable for the femesh adapter: gmsh is not importable in /home/z/.venv/bin/python3 (exit code 1) — missing system libs? run scripts/setup-engine-libs.sh"
     },
     {
       "caseId": "femesh-geometry-free",
@@ -1824,22 +739,13 @@
       "fixture": "bracket.step",
       "fixturePath": "tests/fixtures/bracket.step",
       "expect": "error",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "femesh",
-        "expect": "error",
-        "status": "pass",
-        "determinism": null,
-        "comparisons": [],
-        "problems": [],
-        "errorContains": "no solid geometry found in STEP file",
-        "errorObserved": "no solid geometry found in STEP file (import produced 0 solids) - cannot generate an FE mesh, and simulated meshes are not an option"
-      }
+      "skipReason": "engine unavailable for the femesh adapter: gmsh is not importable in /home/z/.venv/bin/python3 (exit code 1) — missing system libs? run scripts/setup-engine-libs.sh"
     },
     {
       "caseId": "femesh-ifc-refused",
@@ -1847,22 +753,13 @@
       "fixture": "wall-quantities.ifc",
       "fixturePath": "tests/fixtures/wall-quantities.ifc",
       "expect": "error",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "femesh",
-        "expect": "error",
-        "status": "pass",
-        "determinism": null,
-        "comparisons": [],
-        "problems": [],
-        "errorContains": "gmsh cannot import IFC geometry",
-        "errorObserved": "gmsh cannot import IFC geometry (gmsh has no IFC import reader - OCC STEP/IGES/BRep only) - cannot generate an FE mesh, and simulated meshes are not an option"
-      }
+      "skipReason": "engine unavailable for the femesh adapter: gmsh is not importable in /home/z/.venv/bin/python3 (exit code 1) — missing system libs? run scripts/setup-engine-libs.sh"
     },
     {
       "caseId": "powerflow-2bus-closed-form",
@@ -1870,157 +767,13 @@
       "fixture": "powerflow-2bus.json",
       "fixturePath": "tests/fixtures/powerflow-2bus.json",
       "expect": "success",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "powerflow",
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "comparisons": [
-          {
-            "field": "converged",
-            "ref": null,
-            "expected": true,
-            "observed": true,
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "lossless radial 2-bus with a light load: NR from a flat start converges to the high branch"
-          },
-          {
-            "field": "busCount",
-            "ref": null,
-            "expected": 2,
-            "observed": 2,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "fixture declares 2 buses"
-          },
-          {
-            "field": "lineCount",
-            "ref": null,
-            "expected": 1,
-            "observed": 1,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "fixture declares 1 line"
-          },
-          {
-            "field": "lossMw",
-            "ref": null,
-            "expected": 0,
-            "observed": 0,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "r = 0 ohm/km -> I^2*R losses are identically zero; pandapower's residual rounding pinned at 1e-9"
-          },
-          {
-            "field": "loadMw",
-            "ref": null,
-            "expected": 2,
-            "observed": 2,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the single declared load (2 MW)"
-          },
-          {
-            "field": "vmPu",
-            "ref": "bus-1",
-            "expected": 1,
-            "observed": 1,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "slack bus holds the external-grid setpoint exactly"
-          },
-          {
-            "field": "vmPu",
-            "ref": "bus-2",
-            "expected": 0.9999875,
-            "observed": 0.9999874997656195,
-            "unit": null,
-            "bound": "rel:0.000001",
-            "absDiff": 2.3438051499624635e-10,
-            "observedRelError": 2.343834447893062e-10,
-            "ok": true,
-            "problem": "value",
-            "derivation": "V2 = sqrt((1 + sqrt(1 - 4*(p*x)^2)) / 2) with p = P/baseMva = 2/100 = 0.02 pu and x = Xohm/baseZ = (0.1 ohm/km * 10 km) / ((20 kV)^2 / 100 MVA) = 1 / 4 = 0.25 pu -> p*x = 5e-3 -> 4*(px)^2 = 1e-4 -> V2^2 = (1 + 0.99995)/2 = 0.999975 -> V2 = 0.9999875 (the high branch NR converges to). [An earlier draft of this derivation wrote 1/4 as 0.025 — the harness caught the 10x slip against the real engine, which is exactly its job.]"
-          },
-          {
-            "field": "angleDeg",
-            "ref": "bus-2",
-            "expected": -0.28647895,
-            "observed": -0.28648367232412064,
-            "unit": null,
-            "bound": "abs:0.0001",
-            "absDiff": 0.000004722324120631782,
-            "observedRelError": 0.000016484017833183843,
-            "ok": true,
-            "problem": "value",
-            "derivation": "sin(delta) = p*x/V2 = 5.00000625e-3 rad = 0.28647895 degrees across the line (lossless: P = V1*V2*sin(delta)/X); bus-2 LAGS the slack reference so pandapower reports the negative angle; absTolerance 1e-4 deg absorbs NR's convergence residual (observed -0.28648367, residual 4.7e-6 deg — the solver's own tolerance, not a formula error)"
-          },
-          {
-            "field": "iKa",
-            "ref": "bus-1>bus-2",
-            "expected": 0.057735749,
-            "observed": 0.057735748617323765,
-            "unit": null,
-            "bound": "rel:0.00001",
-            "absDiff": 3.8267623791998773e-10,
-            "observedRelError": 6.628063973327647e-9,
-            "ok": true,
-            "problem": "value",
-            "derivation": "I = P / (sqrt(3) * V2_LL * ...) with the SOLVED V2: 2 MW / (1.7320508 * 20 kV * 0.9999875) = 0.05773575 kA (the current reflects the actual end-of-line voltage, not the nominal)"
-          },
-          {
-            "field": "pLossMw",
-            "ref": "bus-1>bus-2",
-            "expected": 0,
-            "observed": 0,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "r = 0 -> zero active loss on the line"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "pandapower",
-          "engineVersion": "3.5.6",
-          "adapterScript": "powerflow.py",
-          "adapterHash": "a1a8fc441d0cf321e95bbd655fc368cb04c22e17ee693090f9b7193fdb380606"
-        }
-      }
+      "skipReason": "engine unavailable for the powerflow adapter: pandapower is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "powerflow-islanded",
@@ -2028,22 +781,13 @@
       "fixture": "powerflow-islanded.json",
       "fixturePath": "tests/fixtures/powerflow-islanded.json",
       "expect": "error",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "powerflow",
-        "expect": "error",
-        "status": "pass",
-        "determinism": null,
-        "comparisons": [],
-        "problems": [],
-        "errorContains": "islanded network - buses with no path to the external grid",
-        "errorObserved": "power flow did not produce results for all buses (islanded network - buses with no path to the external grid: bus-3) - results are not available, and simulated results are not an option"
-      }
+      "skipReason": "engine unavailable for the powerflow adapter: pandapower is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "des-flowshop-makespan",
@@ -2051,170 +795,13 @@
       "fixture": "des-flowshop.json",
       "fixturePath": "tests/fixtures/des-flowshop.json",
       "expect": "success",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "des",
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "comparisons": [
-          {
-            "field": "policy",
-            "ref": null,
-            "expected": "fifo",
-            "observed": "fifo",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the only policy shipped (contract §3.3)"
-          },
-          {
-            "field": "jobCount",
-            "ref": null,
-            "expected": 3,
-            "observed": 3,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "fixture declares 3 jobs"
-          },
-          {
-            "field": "resourceCount",
-            "ref": null,
-            "expected": 2,
-            "observed": 2,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "fixture declares 2 machines"
-          },
-          {
-            "field": "makespan",
-            "ref": null,
-            "expected": 13,
-            "observed": 13,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "hand trace: m1 serves j1[0,2] j2[2,5] j3[5,6] (busy 6); m2 serves j1[2,6] then j2[6,8] (j2 arrives at 5, waits), then j3[8,13] -> last completion 13"
-          },
-          {
-            "field": "utilizationInvariantOk",
-            "ref": null,
-            "expected": true,
-            "observed": true,
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "utilization === busy/makespan for every resource (payload self-consistency)"
-          },
-          {
-            "field": "busy",
-            "ref": "m1",
-            "expected": 6,
-            "observed": 6,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "sum of m1 task durations 2+3+1"
-          },
-          {
-            "field": "busy",
-            "ref": "m2",
-            "expected": 11,
-            "observed": 11,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "sum of m2 task durations 4+2+5"
-          },
-          {
-            "field": "utilization",
-            "ref": "m1",
-            "expected": 0.46153846153846156,
-            "observed": 0.46153846153846156,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "6/13 (busy/makespan)"
-          },
-          {
-            "field": "utilization",
-            "ref": "m2",
-            "expected": 0.8461538461538461,
-            "observed": 0.8461538461538461,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "11/13"
-          },
-          {
-            "field": "endAt",
-            "ref": "j1",
-            "expected": 6,
-            "observed": 6,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "j1: m1 [0,2] then m2 [2,6]"
-          },
-          {
-            "field": "endAt",
-            "ref": "j3",
-            "expected": 13,
-            "observed": 13,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "j3: m1 [5,6] then m2 [8,13] (waits for m2 to clear j2 at 8)"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "simpy",
-          "engineVersion": "4.1.2",
-          "adapterScript": "des.py",
-          "adapterHash": "9295a66271617f068f9dfab63f9339e814f993db59605df7b7ce86a0c3842550"
-        }
-      }
+      "skipReason": "engine unavailable for the des adapter: simpy is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "des-invalid-resource",
@@ -2222,22 +809,13 @@
       "fixture": "des-invalid-resource.json",
       "fixturePath": "tests/fixtures/des-invalid-resource.json",
       "expect": "error",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "des",
-        "expect": "error",
-        "status": "pass",
-        "determinism": null,
-        "comparisons": [],
-        "problems": [],
-        "errorContains": "references unknown resource",
-        "errorObserved": "jobs[0].tasks[1] references unknown resource \"crane\""
-      }
+      "skipReason": "engine unavailable for the des adapter: simpy is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "cpm-platform-rollout",
@@ -3232,7 +1810,7 @@
         "problems": [],
         "engine": {
           "engineKey": "pdfplumber",
-          "engineVersion": "0.11.10",
+          "engineVersion": "0.11.9",
           "adapterScript": "sheet_takeoff.py",
           "adapterHash": "bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff"
         }
@@ -3338,7 +1916,7 @@
         "problems": [],
         "engine": {
           "engineKey": "pdfplumber",
-          "engineVersion": "0.11.10",
+          "engineVersion": "0.11.9",
           "adapterScript": "sheet_takeoff.py",
           "adapterHash": "bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff"
         }
@@ -3558,7 +2136,7 @@
         "problems": [],
         "engine": {
           "engineKey": "ezdxf",
-          "engineVersion": "1.4.5",
+          "engineVersion": "1.4.3",
           "adapterScript": "dxf_takeoff.py",
           "adapterHash": "07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329"
         }
@@ -3653,7 +2231,7 @@
           "engineKey": "cadquery",
           "engineVersion": "2.6.1",
           "adapterScript": "parametric_rebuild.py",
-          "adapterHash": "7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9"
+          "adapterHash": "14d62a117314160ffea825ec9aca038e863a550fa7cc5b33babb487295854acf"
         }
       }
     },
@@ -3798,7 +2376,7 @@
           "engineKey": "cadquery",
           "engineVersion": "2.6.1",
           "adapterScript": "parametric_rebuild.py",
-          "adapterHash": "7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9"
+          "adapterHash": "14d62a117314160ffea825ec9aca038e863a550fa7cc5b33babb487295854acf"
         }
       }
     },
@@ -3943,7 +2521,7 @@
           "engineKey": "cadquery",
           "engineVersion": "2.6.1",
           "adapterScript": "parametric_rebuild.py",
-          "adapterHash": "7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9"
+          "adapterHash": "14d62a117314160ffea825ec9aca038e863a550fa7cc5b33babb487295854acf"
         }
       }
     },
@@ -4120,235 +2698,13 @@
       "fixture": "fea-uniform-tension.json",
       "fixturePath": "tests/fixtures/fea-uniform-tension.json",
       "expect": "success",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "fea",
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "comparisons": [
-          {
-            "field": "analysis",
-            "ref": null,
-            "expected": "plane_stress",
-            "observed": "plane_stress",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the only analysis shipped this phase (contract §14.2)"
-          },
-          {
-            "field": "elementType",
-            "ref": null,
-            "expected": "tri6",
-            "observed": "tri6",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "ElementVector(ElementTriP2()) — quadratic triangles, 6 nodes (contract §14.5)"
-          },
-          {
-            "field": "refinement",
-            "ref": null,
-            "expected": 4,
-            "observed": 4,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the default meshRefinement parameter (contract §14.3)"
-          },
-          {
-            "field": "elementCount",
-            "ref": null,
-            "expected": 512,
-            "observed": 512,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "MeshTri().refined(4): the base 2 triangles × 4^4 = 512 — deterministic uniform mesh"
-          },
-          {
-            "field": "nodeCount",
-            "ref": null,
-            "expected": 2178,
-            "observed": 2178,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "P2 dof points of the refined(4) mesh: 81 vertices + 144 midside points × 2 components interleaved = 2178/2 scalar points… pinned as the deterministic dof-point count"
-          },
-          {
-            "field": "ux",
-            "ref": "0x0",
-            "expected": 0,
-            "observed": 0,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u_x = σx/E = 0 at x = 0 (the left edge ux support is exactly compatible)"
-          },
-          {
-            "field": "uy",
-            "ref": "0x0",
-            "expected": 0,
-            "observed": 0,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u_y = −νσy/E = 0 at y = 0 (the bottom edge uy support is exactly compatible)"
-          },
-          {
-            "field": "uy",
-            "ref": "0x200",
-            "expected": -0.003,
-            "observed": -0.003000000000000113,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 1.1275702593849246e-16,
-            "observedRelError": 3.758567531283082e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u_y(H) = −νσH/E = −0.3·10·200/200000 = −0.003 mm (Poisson contraction, free left-edge uy)"
-          },
-          {
-            "field": "ux",
-            "ref": "200x100",
-            "expected": 0.01,
-            "observed": 0.01000000000000092,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 9.194034422677078e-16,
-            "observedRelError": 9.194034422677078e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u_x(W/2) = σ(W/2)/E = 10·200/200000 = 0.01 mm"
-          },
-          {
-            "field": "uy",
-            "ref": "200x100",
-            "expected": -0.0015,
-            "observed": -0.0014999999999999666,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 3.3393426912553537e-17,
-            "observedRelError": 2.2262284608369025e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u_y(H/2) = −νσ(H/2)/E = −0.0015 mm"
-          },
-          {
-            "field": "ux",
-            "ref": "400x0",
-            "expected": 0.02,
-            "observed": 0.02000000000000134,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 1.339206523454095e-15,
-            "observedRelError": 6.696032617270475e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u_x(W) = σW/E = 10·400/200000 = 0.02 mm — the Hooke's-law anchor"
-          },
-          {
-            "field": "ux",
-            "ref": "400x200",
-            "expected": 0.02,
-            "observed": 0.02000000000000105,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 1.0512424264419451e-15,
-            "observedRelError": 5.2562121322097255e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u_x(W) = σW/E = 0.02 mm at the far corner (uniform field: independent of y)"
-          },
-          {
-            "field": "uy",
-            "ref": "400x200",
-            "expected": -0.003,
-            "observed": -0.002999999999999486,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 5.139118297581291e-16,
-            "observedRelError": 1.713039432527097e-13,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u_y(H) = −νσH/E = −0.003 mm at the far corner"
-          },
-          {
-            "field": "sigmaXxMinMpa",
-            "ref": null,
-            "expected": 10,
-            "observed": 9.999999999999728,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 2.717825964282383e-13,
-            "observedRelError": 2.7178259642823833e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "σ_xx = σ = 10 MPa uniform (plane stress, σ_yy = τ_xy = 0) — the per-element mean equals the constant exactly"
-          },
-          {
-            "field": "vonMisesMaxMpa",
-            "ref": null,
-            "expected": 10,
-            "observed": 10.000000000001068,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 1.0675904604795505e-12,
-            "observedRelError": 1.0675904604795506e-13,
-            "ok": true,
-            "problem": "value",
-            "derivation": "von Mises of uniaxial σ: √(σ²) = σ = 10 MPa"
-          },
-          {
-            "field": "maxDisplacementMagnitudeMm",
-            "ref": null,
-            "expected": 0.020223748416157,
-            "observed": 0.02022374841615765,
-            "unit": null,
-            "bound": "abs:1e-9",
-            "absDiff": 6.487865800153259e-16,
-            "observedRelError": 3.208043171151211e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "hypot(u_x(W), u_y(H)) = √(0.02² + 0.003²) = √0.000409 = 0.020223748416157 mm at the far corner"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "scikit-fem",
-          "engineVersion": "12.0.2",
-          "adapterScript": "fea_solve.py",
-          "adapterHash": "86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef"
-        }
-      }
+      "skipReason": "engine unavailable for the fea adapter: skfem is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "fea-cantilever-end-shear",
@@ -4356,66 +2712,13 @@
       "fixture": "fea-cantilever-plate.json",
       "fixturePath": "tests/fixtures/fea-cantilever-plate.json",
       "expect": "success",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "fea",
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "comparisons": [
-          {
-            "field": "elementCount",
-            "ref": null,
-            "expected": 512,
-            "observed": 512,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "MeshTri().refined(4) on the scaled 2000×500 domain — same deterministic 512 tri6 elements"
-          },
-          {
-            "field": "uy",
-            "ref": "2000x0",
-            "expected": -1.3424,
-            "observed": -1.336151125569775,
-            "unit": null,
-            "bound": "rel:0.01",
-            "absDiff": 0.006248874430225149,
-            "observedRelError": 0.004655001810358424,
-            "ok": true,
-            "problem": "value",
-            "derivation": "Timoshenko tip deflection at the bottom-right corner: PL³/3EI + PL/κGA = 1.28 + 0.0624 = 1.3424 mm (positive shear acts along the CCW tangent = −y on the right edge, so the plate bends DOWN); the corner carries the centerline deflection (the section rotation displaces the tip corners horizontally, not vertically)"
-          },
-          {
-            "field": "uy",
-            "ref": "2000x500",
-            "expected": -1.3424,
-            "observed": -1.3361125402122764,
-            "unit": null,
-            "bound": "rel:0.01",
-            "absDiff": 0.006287459787723604,
-            "observedRelError": 0.0046837453722613255,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the top-right corner mirrors the bottom within the solver's clamp-boundary-layer difference — both carry the Timoshenko centerline value (observed 1.3361 vs 1.3362)"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "scikit-fem",
-          "engineVersion": "12.0.2",
-          "adapterScript": "fea_solve.py",
-          "adapterHash": "86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef"
-        }
-      }
+      "skipReason": "engine unavailable for the fea adapter: skfem is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "fea-underconstrained",
@@ -4423,22 +2726,13 @@
       "fixture": "fea-underconstrained.json",
       "fixturePath": "tests/fixtures/fea-underconstrained.json",
       "expect": "error",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "fea",
-        "expect": "error",
-        "status": "pass",
-        "determinism": null,
-        "comparisons": [],
-        "problems": [],
-        "errorContains": "the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z)",
-        "errorObserved": "the supports do not constrain the model's rigid-body motion (free: translation in y, rotation about z) - an unconstrained model cannot be solved, and simulated results are not an option"
-      }
+      "skipReason": "engine unavailable for the fea adapter: skfem is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "swmm-runoff-balance",
@@ -4446,170 +2740,13 @@
       "fixture": "swmm-runoff-balance.json",
       "fixturePath": "tests/fixtures/swmm-runoff-balance.json",
       "expect": "success",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "swmm",
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "comparisons": [
-          {
-            "field": "analysis",
-            "ref": null,
-            "expected": "drainage",
-            "observed": "drainage",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the only analysis shipped this phase (contract §15.4)"
-          },
-          {
-            "field": "engineKey",
-            "ref": null,
-            "expected": "pyswmm",
-            "observed": "pyswmm",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the pip-pinned pyswmm distribution drives the EPA SWMM5 engine in-process (contract §15.5)"
-          },
-          {
-            "field": "routingStepSec",
-            "ref": null,
-            "expected": 10,
-            "observed": 10,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the default routingStepSec parameter (contract §15.3)"
-          },
-          {
-            "field": "rainVolumeM3",
-            "ref": null,
-            "expected": 500,
-            "observed": 500,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "i.A.t = 0.025 m/hr x 2 hr x 10 000 m2 = 500 m3 -- the adapter's own rain block must agree exactly"
-          },
-          {
-            "field": "outfallVolumeM3",
-            "ref": null,
-            "expected": 500,
-            "observed": 500.02193805825715,
-            "unit": null,
-            "bound": "rel:0.001",
-            "absDiff": 0.021938058257148896,
-            "observedRelError": 0.000043876116514297794,
-            "ok": true,
-            "problem": "value",
-            "derivation": "mass conservation: all rain that fell drains by end of window (probe-observed rel 4.4e-5)"
-          },
-          {
-            "field": "maxRunoffCms",
-            "ref": null,
-            "expected": 0.06944444444444443,
-            "observed": 0.06945220755175956,
-            "unit": null,
-            "bound": "rel:0.01",
-            "absDiff": 0.000007763107315122975,
-            "observedRelError": 0.00011178874533777085,
-            "ok": true,
-            "problem": "value",
-            "derivation": "equilibrium runoff = i.A = 25/1000/3600 x 10 000 = 0.0694444 m3/s, approached asymptotically (observed rel 1.1e-4)"
-          },
-          {
-            "field": "maxConduitFlowCms",
-            "ref": null,
-            "expected": 0.06944444444444443,
-            "observed": 0.07059164318103153,
-            "unit": null,
-            "bound": "rel:0.03",
-            "absDiff": 0.001147198736587099,
-            "observedRelError": 0.016519661806854227,
-            "ok": true,
-            "problem": "value",
-            "derivation": "equilibrium flow + the kinematic-wave numerical surge (probe-observed +1.6%)"
-          },
-          {
-            "field": "maxDepthM",
-            "ref": "C1",
-            "expected": 0.14486665688316655,
-            "observed": 0.14486048192340867,
-            "unit": null,
-            "bound": "abs:0.005",
-            "absDiff": 0.000006174959757881959,
-            "observedRelError": 0.00004262512776050323,
-            "ok": true,
-            "problem": "value",
-            "derivation": "Manning normal depth: (1/0.015).0.5.y.(0.5y/(0.5+2y))^(2/3).sqrt(0.005) = 0.0694444 -> y_N = 0.144866657 m (observed abs 6.2e-6)"
-          },
-          {
-            "field": "maxDepthM",
-            "ref": "J1",
-            "expected": 0.14486665688316655,
-            "observed": 0.14486048196573673,
-            "unit": null,
-            "bound": "abs:0.005",
-            "absDiff": 0.000006174917429824234,
-            "observedRelError": 0.00004262483557416694,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the junction's max depth equals the conduit's equilibrium depth (observed abs 6.2e-6)"
-          },
-          {
-            "field": "runoffErrorPct",
-            "ref": null,
-            "expected": 0,
-            "observed": -0.012,
-            "unit": null,
-            "bound": "abs:0.5",
-            "absDiff": 0.012,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the engine's own .rpt runoff continuity error, pinned as a magnitude bound (observed -0.012%)"
-          },
-          {
-            "field": "routingErrorPct",
-            "ref": null,
-            "expected": 0,
-            "observed": -0.055,
-            "unit": null,
-            "bound": "abs:0.5",
-            "absDiff": 0.055,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the engine's own .rpt flow-routing continuity error, pinned as a magnitude bound (observed -0.055%)"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "pyswmm",
-          "engineVersion": "2.2.0",
-          "adapterScript": "swmm_run.py",
-          "adapterHash": "6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d"
-        }
-      }
+      "skipReason": "engine unavailable for the swmm adapter: pyswmm is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "swmm-manning-conduit",
@@ -4617,131 +2754,13 @@
       "fixture": "swmm-manning-conduit.json",
       "fixturePath": "tests/fixtures/swmm-manning-conduit.json",
       "expect": "success",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "swmm",
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "comparisons": [
-          {
-            "field": "rainVolumeM3",
-            "ref": null,
-            "expected": 2000,
-            "observed": 2000,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "i.A.t = 0.05 x 2 x 20 000 = 2 000 m3"
-          },
-          {
-            "field": "outfallVolumeM3",
-            "ref": null,
-            "expected": 2000,
-            "observed": 2000.2177313394764,
-            "unit": null,
-            "bound": "rel:0.001",
-            "absDiff": 0.2177313394763587,
-            "observedRelError": 0.00010886566973817935,
-            "ok": true,
-            "problem": "value",
-            "derivation": "mass conservation on the bigger storm (probe-observed rel 1.1e-4)"
-          },
-          {
-            "field": "maxRunoffCms",
-            "ref": null,
-            "expected": 0.2777777777777778,
-            "observed": 0.2778088311533788,
-            "unit": null,
-            "bound": "rel:0.01",
-            "absDiff": 0.00003105337560099786,
-            "observedRelError": 0.00011179215216359228,
-            "ok": true,
-            "problem": "value",
-            "derivation": "equilibrium runoff = i.A = 50/1000/3600 x 20 000 = 0.2777778 m3/s (observed rel 1.1e-4)"
-          },
-          {
-            "field": "maxConduitFlowCms",
-            "ref": null,
-            "expected": 0.2777777777777778,
-            "observed": 0.28054116263223894,
-            "unit": null,
-            "bound": "rel:0.03",
-            "absDiff": 0.0027633848544611483,
-            "observedRelError": 0.009948185476060134,
-            "ok": true,
-            "problem": "value",
-            "derivation": "equilibrium + surge (probe-observed +1.0%)"
-          },
-          {
-            "field": "maxDepthM",
-            "ref": "J1",
-            "expected": 0.1809516359327449,
-            "observed": 0.18094179310931605,
-            "unit": null,
-            "bound": "abs:0.005",
-            "absDiff": 0.00000984282342886278,
-            "observedRelError": 0.000054394774482840844,
-            "ok": true,
-            "problem": "value",
-            "derivation": "Manning cubic: (1/0.013).0.8.y.(0.8y/(0.8+2y))^(2/3).sqrt(0.01) = 0.2777778 -> y_N = 0.180951636 m (observed abs 9.8e-6)"
-          },
-          {
-            "field": "maxDepthM",
-            "ref": "C1",
-            "expected": 0.1809516359327449,
-            "observed": 0.18094179310920122,
-            "unit": null,
-            "bound": "abs:0.005",
-            "absDiff": 0.000009842823543687595,
-            "observedRelError": 0.000054394775117401655,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the conduit's own equilibrium depth mirrors the junction (observed abs 9.8e-6)"
-          },
-          {
-            "field": "runoffErrorPct",
-            "ref": null,
-            "expected": 0,
-            "observed": -0.015,
-            "unit": null,
-            "bound": "abs:0.5",
-            "absDiff": 0.015,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "engine .rpt runoff continuity magnitude bound (observed -0.015%)"
-          },
-          {
-            "field": "routingErrorPct",
-            "ref": null,
-            "expected": 0,
-            "observed": -0.02,
-            "unit": null,
-            "bound": "abs:0.5",
-            "absDiff": 0.02,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "engine .rpt routing continuity magnitude bound (observed -0.02%)"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "pyswmm",
-          "engineVersion": "2.2.0",
-          "adapterScript": "swmm_run.py",
-          "adapterHash": "6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d"
-        }
-      }
+      "skipReason": "engine unavailable for the swmm adapter: pyswmm is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "swmm-no-outfall",
@@ -4749,22 +2768,13 @@
       "fixture": "swmm-no-outfall.json",
       "fixturePath": "tests/fixtures/swmm-no-outfall.json",
       "expect": "error",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "swmm",
-        "expect": "error",
-        "status": "pass",
-        "determinism": null,
-        "comparisons": [],
-        "problems": [],
-        "errorContains": "the network has no outfall - runoff cannot leave the model, and simulated results are not an option",
-        "errorObserved": "the network has no outfall - runoff cannot leave the model, and simulated results are not an option"
-      }
+      "skipReason": "engine unavailable for the swmm adapter: pyswmm is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "transport-channel",
@@ -4772,235 +2782,13 @@
       "fixture": "transport-channel.json",
       "fixturePath": "tests/fixtures/transport-channel.json",
       "expect": "success",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "transport",
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "comparisons": [
-          {
-            "field": "analysis",
-            "ref": null,
-            "expected": "scalar_transport",
-            "observed": "scalar_transport",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the only analysis shipped this phase (contract §16.2)"
-          },
-          {
-            "field": "engineKey",
-            "ref": null,
-            "expected": "sfepy",
-            "observed": "sfepy",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the CFD lane's pinned engine (contract §16.1)"
-          },
-          {
-            "field": "elementType",
-            "ref": null,
-            "expected": "quad",
-            "observed": "quad",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "gen_block_mesh 2_4 quads (contract §16.1 probe)"
-          },
-          {
-            "field": "approximation",
-            "ref": null,
-            "expected": "Q2",
-            "observed": "Q2",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "approx_order=2 on quads → 9-node Q2 (contract §16.3)"
-          },
-          {
-            "field": "refinement",
-            "ref": null,
-            "expected": 4,
-            "observed": 4,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the default meshRefinement parameter (contract §16.3)"
-          },
-          {
-            "field": "elementCount",
-            "ref": null,
-            "expected": 1024,
-            "observed": 1024,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "N=8·2³=64 divisions on the longer (x) axis, y gets round(64·0.5/2)=16 → 64·16=1024 quads (the frozen square-element rule)"
-          },
-          {
-            "field": "nodeCount",
-            "ref": null,
-            "expected": 4257,
-            "observed": 4257,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "Q2 dofs: 65·17 corners + 64·17 x-midside + 65·16 y-midside + 64·16 centers = 1105+1088+1040+1024 = 4257"
-          },
-          {
-            "field": "pecletNumber",
-            "ref": null,
-            "expected": 10,
-            "observed": 10,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "Pe = a·L/D = 0.05·2/0.01 = 10"
-          },
-          {
-            "field": "meshPecletNumber",
-            "ref": null,
-            "expected": 0.078125,
-            "observed": 0.078125,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "Pe_h = a·h/(2D) with h = L/64 = 0.03125 → 0.05·0.03125/0.02 = 0.078125 (far inside the probed-monotone bound 2)"
-          },
-          {
-            "field": "minConcentration",
-            "ref": null,
-            "expected": 0,
-            "observed": 0,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 0,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the outlet Dirichlet dof is exactly 0 and the monotone solution never undershoots (Pe_h ≪ 2)"
-          },
-          {
-            "field": "maxConcentration",
-            "ref": null,
-            "expected": 1,
-            "observed": 1,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the inlet Dirichlet dof is exactly 1 and the monotone solution never overshoots"
-          },
-          {
-            "field": "concentration",
-            "ref": "0.25x0.25",
-            "expected": 0.9998869334714342,
-            "observed": 0.9998869326982239,
-            "unit": null,
-            "bound": "abs:0.0001",
-            "absDiff": 7.732102735857893e-10,
-            "observedRelError": 7.732977076731438e-10,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u(L/8) = (e^10 − e^1.25)/(e^10 − 1) = 0.9998869334714342"
-          },
-          {
-            "field": "concentration",
-            "ref": "0.5x0.25",
-            "expected": 0.9994922925097303,
-            "observed": 0.9994922894467615,
-            "unit": null,
-            "bound": "abs:0.0001",
-            "absDiff": 3.062968767508778e-9,
-            "observedRelError": 3.06452464962751e-9,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u(L/4) = (e^10 − e^2.5)/(e^10 − 1) = 0.9994922925097303"
-          },
-          {
-            "field": "concentration",
-            "ref": "1.0x0.25",
-            "expected": 0.9933071490757152,
-            "observed": 0.9933071215179019,
-            "unit": null,
-            "bound": "abs:0.0001",
-            "absDiff": 2.755781325358697e-8,
-            "observedRelError": 2.7743496338700337e-8,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u(L/2) = (e^10 − e^5)/(e^10 − 1) = 0.9933071490757152"
-          },
-          {
-            "field": "concentration",
-            "ref": "1.5x0.25",
-            "expected": 0.9179566765447413,
-            "observed": 0.9179565067518318,
-            "unit": null,
-            "bound": "abs:0.0001",
-            "absDiff": 1.6979290951013581e-7,
-            "observedRelError": 1.8496832568313488e-7,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u(3L/4) = (e^10 − e^7.5)/(e^10 − 1) = 0.9179566765447413"
-          },
-          {
-            "field": "concentration",
-            "ref": "1.75x0.25",
-            "expected": 0.7135275972426084,
-            "observed": 0.7135273005906637,
-            "unit": null,
-            "bound": "abs:0.0001",
-            "absDiff": 2.9665194467565215e-7,
-            "observedRelError": 4.1575398880442567e-7,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u(7L/8) = (e^10 − e^8.75)/(e^10 − 1) = 0.7135275972426084 — inside the outlet boundary layer (observed 3.0e-7 at r=4, the O(h³) convergence pin)"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "sfepy",
-          "engineVersion": "2026.3",
-          "adapterScript": "transport_solve.py",
-          "adapterHash": "d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b"
-        }
-      }
+      "skipReason": "engine unavailable for the transport adapter: sfepy is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "transport-uniform",
@@ -5008,131 +2796,13 @@
       "fixture": "transport-uniform.json",
       "fixturePath": "tests/fixtures/transport-uniform.json",
       "expect": "success",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "transport",
-        "expect": "success",
-        "status": "pass",
-        "determinism": true,
-        "comparisons": [
-          {
-            "field": "pecletNumber",
-            "ref": null,
-            "expected": 10,
-            "observed": 10,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "Pe = a·L/D = 10 (same transport regime as the channel case)"
-          },
-          {
-            "field": "minConcentration",
-            "ref": null,
-            "expected": 1,
-            "observed": 0.9999999999999238,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 7.616129948928574e-14,
-            "observedRelError": 7.616129948928574e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u ≡ 1: the constant field is the exact solution (observed 0.9999999999999238)"
-          },
-          {
-            "field": "maxConcentration",
-            "ref": null,
-            "expected": 1,
-            "observed": 1,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u ≡ 1 (observed exactly 1.0 — the Dirichlet dofs pin the range)"
-          },
-          {
-            "field": "concentration",
-            "ref": "0.25x0.25",
-            "expected": 1,
-            "observed": 0.9999999999999856,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 1.4432899320127035e-14,
-            "observedRelError": 1.4432899320127035e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u ≡ 1 at every station (observed 1 − 1.4e-14)"
-          },
-          {
-            "field": "concentration",
-            "ref": "0.5x0.25",
-            "expected": 1,
-            "observed": 0.9999999999999747,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 2.531308496145357e-14,
-            "observedRelError": 2.531308496145357e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u ≡ 1 at every station (observed 1 − 2.5e-14)"
-          },
-          {
-            "field": "concentration",
-            "ref": "1.0x0.25",
-            "expected": 1,
-            "observed": 0.9999999999999443,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 5.573319583618286e-14,
-            "observedRelError": 5.573319583618286e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u ≡ 1 at every station (observed 1 − 5.6e-14)"
-          },
-          {
-            "field": "concentration",
-            "ref": "1.5x0.25",
-            "expected": 1,
-            "observed": 0.9999999999999265,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 7.349676423018536e-14,
-            "observedRelError": 7.349676423018536e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u ≡ 1 at every station (observed 1 − 7.4e-14)"
-          },
-          {
-            "field": "concentration",
-            "ref": "1.75x0.25",
-            "expected": 1,
-            "observed": 0.9999999999999389,
-            "unit": null,
-            "bound": "abs:1e-12",
-            "absDiff": 6.106226635438361e-14,
-            "observedRelError": 6.106226635438361e-14,
-            "ok": true,
-            "problem": "value",
-            "derivation": "u ≡ 1 at every station (observed 1 − 6.1e-14)"
-          }
-        ],
-        "problems": [],
-        "engine": {
-          "engineKey": "sfepy",
-          "engineVersion": "2026.3",
-          "adapterScript": "transport_solve.py",
-          "adapterHash": "d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b"
-        }
-      }
+      "skipReason": "engine unavailable for the transport adapter: sfepy is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "transport-mesh-peclet-refusal",
@@ -5140,28 +2810,61 @@
       "fixture": "transport-high-peclet.json",
       "fixturePath": "tests/fixtures/transport-high-peclet.json",
       "expect": "error",
-      "status": "pass",
+      "status": "skip",
       "determinism": null,
       "quantityCount": null,
       "groundTruthCount": null,
       "comparisons": null,
       "problems": [],
-      "discipline": {
-        "adapter": "transport",
-        "expect": "error",
-        "status": "pass",
-        "determinism": null,
-        "comparisons": [],
-        "problems": [],
-        "errorContains": "the mesh does not resolve the transport boundary layer",
-        "errorObserved": "the mesh does not resolve the transport boundary layer (element Péclet 7.81 exceeds the stability bound 2) - refine the mesh (increase meshRefinement) or reduce the flow Péclet number; an oscillatory solution is not an option"
-      }
+      "skipReason": "engine unavailable for the transport adapter: sfepy is not importable in /home/z/.venv/bin/python3 (exit code 1)"
     },
     {
       "caseId": "rtl-counter-4bit",
       "adapter": "chip",
       "fixture": "rtl-counter-4bit.json",
       "fixturePath": "tests/fixtures/rtl-counter-4bit.json",
+      "expect": "success",
+      "status": "skip",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "skipReason": "engine unavailable for the chip adapter: amaranth is not importable in /home/z/.venv/bin/python3 (exit code 1)"
+    },
+    {
+      "caseId": "rtl-counter-8bit",
+      "adapter": "chip",
+      "fixture": "rtl-counter-8bit.json",
+      "fixturePath": "tests/fixtures/rtl-counter-8bit.json",
+      "expect": "success",
+      "status": "skip",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "skipReason": "engine unavailable for the chip adapter: amaranth is not importable in /home/z/.venv/bin/python3 (exit code 1)"
+    },
+    {
+      "caseId": "rtl-invalid-kind",
+      "adapter": "chip",
+      "fixture": "rtl-invalid-kind.json",
+      "fixturePath": "tests/fixtures/rtl-invalid-kind.json",
+      "expect": "error",
+      "status": "skip",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "skipReason": "engine unavailable for the chip adapter: amaranth is not importable in /home/z/.venv/bin/python3 (exit code 1)"
+    },
+    {
+      "caseId": "p2t-compare-identical",
+      "adapter": "pdf2takeoff",
+      "fixture": "sheet-a102-plan.pdf",
+      "fixturePath": "tests/fixtures/sheet-a102-plan.pdf",
       "expect": "success",
       "status": "pass",
       "determinism": null,
@@ -5170,65 +2873,13 @@
       "comparisons": null,
       "problems": [],
       "discipline": {
-        "adapter": "chip",
+        "adapter": "pdf2takeoff",
         "expect": "success",
         "status": "pass",
         "determinism": true,
         "comparisons": [
           {
-            "field": "analysis",
-            "ref": null,
-            "expected": "rtl_synthesis",
-            "observed": "rtl_synthesis",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the only analysis shipped this phase (contract §17.4)"
-          },
-          {
-            "field": "engineKey",
-            "ref": null,
-            "expected": "amaranth",
-            "observed": "amaranth",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the lane's front-end engine (contract §17.3)"
-          },
-          {
-            "field": "engineVersion",
-            "ref": null,
-            "expected": "0.5.10",
-            "observed": "0.5.10",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the pinned amaranth wheel (engines-requirements)"
-          },
-          {
-            "field": "deviceKind",
-            "ref": null,
-            "expected": "enable_counter",
-            "observed": "enable_counter",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the frozen v1 device class (contract §17.2)"
-          },
-          {
-            "field": "widthBits",
+            "field": "comparedSheets",
             "ref": null,
             "expected": 4,
             "observed": 4,
@@ -5238,10 +2889,36 @@
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "the fixture's register width"
+            "derivation": "the A-102 fixture has 4 pages; both revisions identical, so all 4 pair up"
           },
           {
-            "field": "flipFlopCount",
+            "field": "changedSheetCount",
+            "ref": null,
+            "expected": 0,
+            "observed": 0,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "byte-identical revisions cannot differ on any sheet"
+          },
+          {
+            "field": "summary.changed",
+            "ref": null,
+            "expected": 0,
+            "observed": 0,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "same — the summary counts the sheets array"
+          },
+          {
+            "field": "summary.unchanged",
             "ref": null,
             "expected": 4,
             "observed": 4,
@@ -5251,60 +2928,130 @@
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "the closed form: a W-bit register has exactly W storage elements — probed at every width (§17.1)"
+            "derivation": "all four pages identical"
           },
           {
-            "field": "totalCells",
+            "field": "summary.onlyInA",
             "ref": null,
-            "expected": 10,
-            "observed": 10,
+            "expected": 0,
+            "observed": 0,
             "unit": null,
             "bound": "abs:0",
             "absDiff": 0,
-            "observedRelError": 0,
+            "observedRelError": null,
             "ok": true,
             "problem": "value",
-            "derivation": "4 $_SDFFE_PP0P_ + 3 $_XOR_ + 2 $_AND_ + 1 $_NOT_ (§17.1 probe)"
+            "derivation": "same page count on both sides — nothing unmatched"
           },
           {
-            "field": "cellTypes",
+            "field": "summary.onlyInB",
             "ref": null,
-            "expected": [
-              "$_AND_",
-              "$_NOT_",
-              "$_SDFFE_PP0P_",
-              "$_XOR_"
-            ],
-            "observed": [
-              "$_AND_",
-              "$_NOT_",
-              "$_SDFFE_PP0P_",
-              "$_XOR_"
-            ],
+            "expected": 0,
+            "observed": 0,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "same page count on both sides — nothing unmatched"
+          },
+          {
+            "field": "changedFraction",
+            "ref": "page:1",
+            "expected": 0,
+            "observed": 0,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "identical raster → zero changed pixels"
+          },
+          {
+            "field": "vectorIdentical",
+            "ref": "page:4",
+            "expected": true,
+            "observed": true,
             "unit": null,
             "bound": "structural",
             "absDiff": null,
             "observedRelError": null,
             "ok": true,
             "problem": "value",
-            "derivation": "the exact cell-type set, sorted"
-          },
+            "derivation": "identical vector operators (the portrait panel-schedule page included)"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "pdf2takeoff",
+          "engineVersion": "0.1.0",
+          "adapterScript": "pdf2takeoff.ts",
+          "adapterHash": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344"
+        }
+      }
+    },
+    {
+      "caseId": "p2t-compare-different",
+      "adapter": "pdf2takeoff",
+      "fixture": "sheet-a102-plan.pdf",
+      "fixturePath": "tests/fixtures/sheet-a102-plan.pdf",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "pdf2takeoff",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
           {
-            "field": "cellCount",
-            "ref": "$_SDFFE_PP0P_",
-            "expected": 4,
-            "observed": 4,
+            "field": "comparedSheets",
+            "ref": null,
+            "expected": 1,
+            "observed": 1,
             "unit": null,
             "bound": "abs:0",
             "absDiff": 0,
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "one $_SDFFE_PP0P_ per register bit — the yosys $_SDFFE mapping of the sync-domain enable register"
+            "derivation": "only page 1 exists on both sides (curve fixture is single-sheet)"
           },
           {
-            "field": "cellCount",
-            "ref": "$_XOR_",
+            "field": "changedSheetCount",
+            "ref": null,
+            "expected": 1,
+            "observed": 1,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the paired page 1 differs (completely different drawing content)"
+          },
+          {
+            "field": "summary.changed",
+            "ref": null,
+            "expected": 1,
+            "observed": 1,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "page 1 changed"
+          },
+          {
+            "field": "summary.onlyInA",
+            "ref": null,
             "expected": 3,
             "observed": 3,
             "unit": null,
@@ -5313,127 +3060,75 @@
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "W−1 = 3 XOR gates: each upper bit XORs its carry-in (the closed form at every width)"
+            "derivation": "A-102 pages 2, 3, 4 have no counterpart in the single-page curve revision"
           },
           {
-            "field": "cellCount",
-            "ref": "$_AND_",
-            "expected": 2,
-            "observed": 2,
+            "field": "summary.onlyInB",
+            "ref": null,
+            "expected": 0,
+            "observed": 0,
             "unit": null,
             "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "every curve-sheet page (just page 1) has an A-counterpart"
+          },
+          {
+            "field": "changed",
+            "ref": "page:1",
+            "expected": true,
+            "observed": true,
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "different drawings on the paired page"
+          },
+          {
+            "field": "changedFraction",
+            "ref": "page:1",
+            "expected": 0.0059,
+            "observed": 0.0059,
+            "unit": null,
+            "bound": "abs:0.005",
             "absDiff": 0,
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "empirical: the yosys carry-chain sharing at W=4 (§17.1)"
+            "derivation": "engine-observed raster-diff fraction on the dev host (title bar + room rectangle + wall regions); abs 0.005 keeps the pin honest across raster hosts"
           },
           {
-            "field": "cellCount",
-            "ref": "$_NOT_",
+            "field": "regionCount",
+            "ref": "page:1",
             "expected": 1,
-            "observed": 1,
+            "observed": 18,
             "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the constant NOT (one at every width)"
-          },
-          {
-            "field": "synthesisEngineKey",
-            "ref": null,
-            "expected": "yowasp-yosys",
-            "observed": "yowasp-yosys",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
+            "bound": "min",
+            "absDiff": 17,
             "observedRelError": null,
             "ok": true,
             "problem": "value",
-            "derivation": "the synthesis half of the lane (contract §17.3)"
-          },
-          {
-            "field": "synthesisEngineVersion",
-            "ref": null,
-            "expected": "0.70.0.0.post1259",
-            "observed": "0.70.0.0.post1259",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the pinned yowasp-yosys wheel"
-          },
-          {
-            "field": "netlistSha256",
-            "ref": null,
-            "expected": "549bbd3fc1205712bd044282ca09da9360f2149e5c319f70f38015daf3548dd4",
-            "observed": "549bbd3fc1205712bd044282ca09da9360f2149e5c319f70f38015daf3548dd4",
-            "unit": null,
-            "bound": "structural",
-            "absDiff": null,
-            "observedRelError": null,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the src-stripped netlist is byte-identical across hosts — probed via three different source paths (§17.1)"
-          },
-          {
-            "field": "stepCount",
-            "ref": null,
-            "expected": 25,
-            "observed": 25,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the frozen stimulus: 18 enabled, 1 disabled, 6 enabled (contract §17.4)"
-          },
-          {
-            "field": "count",
-            "ref": "cycle19",
-            "expected": 2,
-            "observed": 2,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "cycle 19 is the DISABLED cycle: 18 enabled before it → 18 mod 16 = 2, and the register HOLDS (the closed-form hold pin)"
-          },
-          {
-            "field": "count",
-            "ref": "cycle25",
-            "expected": 8,
-            "observed": 8,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the final step: 24 enabled cycles → 24 mod 16 = 8 — the WRAP the closed form predicts (visible at W=4)"
+            "derivation": "at least one changed region localizes the change (the engine reported 3 on the dev host)"
           }
         ],
         "problems": [],
         "engine": {
-          "engineKey": "amaranth",
-          "engineVersion": "0.5.10",
-          "adapterScript": "rtl_synthesize.py",
-          "adapterHash": "dfd179e6be39f1bea0b70e8ac889c8e56ffa39554ce85188d85d9cde8a37fba7"
+          "engineKey": "pdf2takeoff",
+          "engineVersion": "0.1.0",
+          "adapterScript": "pdf2takeoff.ts",
+          "adapterHash": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344"
         }
       }
     },
     {
-      "caseId": "rtl-counter-8bit",
-      "adapter": "chip",
-      "fixture": "rtl-counter-8bit.json",
-      "fixturePath": "tests/fixtures/rtl-counter-8bit.json",
+      "caseId": "p2t-annotate-roundtrip",
+      "adapter": "pdf2takeoff",
+      "fixture": "sheet-a102-plan.pdf",
+      "fixturePath": "tests/fixtures/sheet-a102-plan.pdf",
       "expect": "success",
       "status": "pass",
       "determinism": null,
@@ -5442,115 +3137,159 @@
       "comparisons": null,
       "problems": [],
       "discipline": {
-        "adapter": "chip",
+        "adapter": "pdf2takeoff",
         "expect": "success",
         "status": "pass",
-        "determinism": true,
+        "determinism": null,
         "comparisons": [
           {
-            "field": "widthBits",
+            "field": "markupCount",
             "ref": null,
-            "expected": 8,
-            "observed": 8,
+            "expected": 3,
+            "observed": 3,
             "unit": null,
             "bound": "abs:0",
             "absDiff": 0,
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "the fixture's register width"
+            "derivation": "the spec carries exactly 3 markups (length + area + count)"
           },
           {
-            "field": "flipFlopCount",
+            "field": "kept",
             "ref": null,
-            "expected": 8,
-            "observed": 8,
+            "expected": 0,
+            "observed": 0,
             "unit": null,
             "bound": "abs:0",
             "absDiff": 0,
-            "observedRelError": 0,
+            "observedRelError": null,
             "ok": true,
             "problem": "value",
-            "derivation": "the closed form at W=8"
+            "derivation": "the bare fixture carries no pdf2takeoff annotations — nothing to keep"
           },
           {
-            "field": "totalCells",
+            "field": "isPdf",
             "ref": null,
-            "expected": 24,
-            "observed": 24,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "8 $_SDFFE_PP0P_ + 7 $_XOR_ + 8 $_AND_ + 1 $_NOT_ (§17.1 probe)"
-          },
-          {
-            "field": "cellTypes",
-            "ref": null,
-            "expected": [
-              "$_AND_",
-              "$_NOT_",
-              "$_SDFFE_PP0P_",
-              "$_XOR_"
-            ],
-            "observed": [
-              "$_AND_",
-              "$_NOT_",
-              "$_SDFFE_PP0P_",
-              "$_XOR_"
-            ],
+            "expected": true,
+            "observed": true,
             "unit": null,
             "bound": "structural",
             "absDiff": null,
             "observedRelError": null,
             "ok": true,
             "problem": "value",
-            "derivation": "the same four cell types at every width ≥ 2"
+            "derivation": "the annotated output must be a real PDF (%PDF magic)"
           },
           {
-            "field": "cellCount",
-            "ref": "$_SDFFE_PP0P_",
-            "expected": 8,
-            "observed": 8,
+            "field": "sizeBytes",
+            "ref": null,
+            "expected": 4000,
+            "observed": 6171,
+            "unit": null,
+            "bound": "min",
+            "absDiff": 2171,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the 6166-byte dev-host output sizes the floor; an annotated copy of the 4-page fixture cannot be tiny"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "pdf2takeoff",
+          "engineVersion": "0.1.0",
+          "adapterScript": "pdf2takeoff.ts",
+          "adapterHash": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344"
+        }
+      }
+    },
+    {
+      "caseId": "p2t-export-boq-roundtrip",
+      "adapter": "pdf2takeoff",
+      "fixture": "sheet-a102-plan.pdf",
+      "fixturePath": "tests/fixtures/sheet-a102-plan.pdf",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "pdf2takeoff",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
+          {
+            "field": "rowCount",
+            "ref": null,
+            "expected": 3,
+            "observed": 3,
             "unit": null,
             "bound": "abs:0",
             "absDiff": 0,
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "one storage element per bit"
+            "derivation": "three markups -> three data rows"
           },
           {
-            "field": "cellCount",
-            "ref": "$_XOR_",
-            "expected": 7,
-            "observed": 7,
+            "field": "value",
+            "ref": "label:Scale bar",
+            "expected": 10.000001166666667,
+            "observed": 10.000001166666667,
             "unit": null,
-            "bound": "abs:0",
+            "bound": "rel:1e-9",
             "absDiff": 0,
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "W−1 = 7 (the XOR closed form)"
+            "derivation": "283.4646 pt x 0.03527778 m/pt (the engine's exact 1:100 preset); analytic 100 paper-mm = 10.000 m real"
           },
           {
-            "field": "cellCount",
-            "ref": "$_AND_",
-            "expected": 8,
-            "observed": 8,
+            "field": "unit",
+            "ref": "label:Scale bar",
+            "expected": "m",
+            "observed": "m",
             "unit": null,
-            "bound": "abs:0",
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "length export in metres"
+          },
+          {
+            "field": "value",
+            "ref": "label:Room 101",
+            "expected": 40.00001783583051,
+            "observed": 40.00001783583051,
+            "unit": null,
+            "bound": "rel:1e-9",
             "absDiff": 0,
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "empirical carry-chain sharing at W=8 (§17.1: 2W − 2log2W − 2 = 16−6−2)"
+            "derivation": "226.7717 x 141.7323 pt at 1:100 -> 80x50 paper-mm -> 8.000 x 5.000 m = 40.000 m2 analytic"
           },
           {
-            "field": "cellCount",
-            "ref": "$_NOT_",
+            "field": "type",
+            "ref": "label:Room 101",
+            "expected": "area",
+            "observed": "area",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the spec's area markup exports as an area row"
+          },
+          {
+            "field": "value",
+            "ref": "label:Socket",
             "expected": 1,
             "observed": 1,
             "unit": null,
@@ -5559,62 +3298,168 @@
             "observedRelError": 0,
             "ok": true,
             "problem": "value",
-            "derivation": "the constant NOT"
+            "derivation": "one count markup at (205, 505) on page 2 (the S13 lighting-layout socket grid, first symbol)"
           },
           {
-            "field": "stepCount",
+            "field": "unit",
+            "ref": "label:Socket",
+            "expected": "each",
+            "observed": "each",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "counts export in each"
+          },
+          {
+            "field": "isXlsx",
             "ref": null,
-            "expected": 25,
-            "observed": 25,
+            "expected": true,
+            "observed": true,
             "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
             "ok": true,
             "problem": "value",
-            "derivation": "the same frozen stimulus"
+            "derivation": "the XLSX export must be a real workbook (PK zip magic)"
           },
           {
-            "field": "count",
-            "ref": "cycle19",
-            "expected": 18,
-            "observed": 18,
+            "field": "sizeBytes",
+            "ref": null,
+            "expected": 3000,
+            "observed": 17914,
             "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
+            "bound": "min",
+            "absDiff": 14914,
+            "observedRelError": null,
             "ok": true,
             "problem": "value",
-            "derivation": "the disabled cycle 19 HOLDS the register at 18 enabled cycles — at W=8 there is no wrap (18 < 256), so the held value IS 18 (the W=4 case wraps it to 2; the hold itself is width-independent)"
-          },
-          {
-            "field": "count",
-            "ref": "cycle25",
-            "expected": 24,
-            "observed": 24,
-            "unit": null,
-            "bound": "abs:0",
-            "absDiff": 0,
-            "observedRelError": 0,
-            "ok": true,
-            "problem": "value",
-            "derivation": "the final step: 24 enabled cycles, no wrap at W=8 (24 < 256) — the non-wrapping regime pinned honestly"
+            "derivation": "a 3-row workbook with styles sizes the floor (dev host: ~5 KB)"
           }
         ],
         "problems": [],
         "engine": {
-          "engineKey": "amaranth",
-          "engineVersion": "0.5.10",
-          "adapterScript": "rtl_synthesize.py",
-          "adapterHash": "dfd179e6be39f1bea0b70e8ac889c8e56ffa39554ce85188d85d9cde8a37fba7"
+          "engineKey": "pdf2takeoff",
+          "engineVersion": "0.1.0",
+          "adapterScript": "pdf2takeoff.ts",
+          "adapterHash": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344"
         }
       }
     },
     {
-      "caseId": "rtl-invalid-kind",
-      "adapter": "chip",
-      "fixture": "rtl-invalid-kind.json",
-      "fixturePath": "tests/fixtures/rtl-invalid-kind.json",
+      "caseId": "p2t-fill-area-room",
+      "adapter": "pdf2takeoff",
+      "fixture": "sheet-a102-plan.pdf",
+      "fixturePath": "tests/fixtures/sheet-a102-plan.pdf",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "pdf2takeoff",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
+          {
+            "field": "value",
+            "ref": null,
+            "expected": 39.4009,
+            "observed": 39.4009,
+            "unit": null,
+            "bound": "abs:0.1",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "analytic 40.000 m2 minus the inner-wall-face inset of the 1-pt stroke (~0.67 pt/side); engine-observed 39.4009 on the dev host"
+          },
+          {
+            "field": "vertices",
+            "ref": null,
+            "expected": 8,
+            "observed": 8,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the room rectangle's 4 corners + the interior wall's 2 boundary intersections + the 2 jogs where the boundary turns along the wall — the dev-host raster polygon"
+          },
+          {
+            "field": "unit",
+            "ref": null,
+            "expected": "m2",
+            "observed": "m2",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the fill records an area in square metres"
+          },
+          {
+            "field": "calibrated",
+            "ref": null,
+            "expected": true,
+            "observed": true,
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the bridge ALWAYS calibrates the session (from_points carries the platform scale exactly)"
+          },
+          {
+            "field": "bboxX0",
+            "ref": null,
+            "expected": 500.67,
+            "observed": 500.67,
+            "unit": null,
+            "bound": "abs:1",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the analytic left edge is x=500; the fill boundary sits ~0.67 pt inside it (pen half-width)"
+          },
+          {
+            "field": "bboxX1",
+            "ref": null,
+            "expected": 726.33,
+            "observed": 726.33,
+            "unit": null,
+            "bound": "abs:1",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the analytic right edge is x=726.7717; inset ~0.44 pt on the dev host"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "pdf2takeoff",
+          "engineVersion": "0.1.0",
+          "adapterScript": "pdf2takeoff.ts",
+          "adapterHash": "7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344"
+        }
+      }
+    },
+    {
+      "caseId": "p2t-fill-no-scale",
+      "adapter": "pdf2takeoff",
+      "fixture": "sheet-a102-plan.pdf",
+      "fixturePath": "tests/fixtures/sheet-a102-plan.pdf",
       "expect": "error",
       "status": "pass",
       "determinism": null,
@@ -5623,23 +3468,88 @@
       "comparisons": null,
       "problems": [],
       "discipline": {
-        "adapter": "chip",
+        "adapter": "pdf2takeoff",
         "expect": "error",
         "status": "pass",
         "determinism": null,
         "comparisons": [],
         "problems": [],
-        "errorContains": "rtl model device.kind must be \"enable_counter\"",
-        "errorObserved": "rtl model device.kind must be \"enable_counter\" (the v1 device class; every other class is its own future lane) (got \"alu\")"
+        "errorObserved": "fill_area parameters.scaleMmPerPt must be a positive number — calibrate the sheet first or pass it explicitly (an uncalibrated takeoff number is a fabricated number)"
+      }
+    },
+    {
+      "caseId": "p2t-export-no-annotations",
+      "adapter": "pdf2takeoff",
+      "fixture": "sheet-a102-plan.pdf",
+      "fixturePath": "tests/fixtures/sheet-a102-plan.pdf",
+      "expect": "error",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "pdf2takeoff",
+        "expect": "error",
+        "status": "pass",
+        "determinism": null,
+        "comparisons": [],
+        "problems": [],
+        "errorObserved": "pdf2takeoff export failed: pdf2takeoff: no pdf2takeoff annotations found in /home/z/engineering-os/tests/fixtures/sheet-a102-plan.pdf (annotate it first, or open it in the web app)"
+      }
+    },
+    {
+      "caseId": "p2t-annotate-bad-spec",
+      "adapter": "pdf2takeoff",
+      "fixture": "sheet-a102-plan.pdf",
+      "fixturePath": "tests/fixtures/sheet-a102-plan.pdf",
+      "expect": "error",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "pdf2takeoff",
+        "expect": "error",
+        "status": "pass",
+        "determinism": null,
+        "comparisons": [],
+        "problems": [],
+        "errorObserved": "annotate_takeoff parameters.markups[0].points must be an array of 2..64 [x,y] pairs for type area"
+      }
+    },
+    {
+      "caseId": "p2t-fill-click-on-line",
+      "adapter": "pdf2takeoff",
+      "fixture": "sheet-a102-plan.pdf",
+      "fixturePath": "tests/fixtures/sheet-a102-plan.pdf",
+      "expect": "error",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "pdf2takeoff",
+        "expect": "error",
+        "status": "pass",
+        "determinism": null,
+        "comparisons": [],
+        "problems": [],
+        "errorObserved": "pdf2takeoff fill_area refused: you clicked on a line — click inside the region"
       }
     }
   ],
   "summary": {
-    "total": 42,
-    "pass": 42,
+    "total": 51,
+    "pass": 25,
     "fail": 0,
-    "skip": 0,
-    "ran": 42,
+    "skip": 26,
+    "ran": 25,
     "notRun": false
   }
 }

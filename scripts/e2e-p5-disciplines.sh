@@ -34,7 +34,8 @@
 # yowasp-yosys — the flip-flop closed form, the exact cell histogram, the
 # 25-cycle trajectory wrap/hold pins, one rtl.synthesized audit event with
 # both engines attributed; contract §17.6) and updates the registry
-# reconciliation to fourteen tested engines.
+# reconciliation (now fifteen tested / forty-nine total after the slice-31
+# union — ADR-0011 Stage 1 + the slice-31 designation rows).
 #
 # Runs LAST of the five scripts. Probe project "P5 Disciplines Probe" is
 # removed on success (KEPT on failure for forensics). Final line
@@ -585,9 +586,12 @@ assert_eq "Slice-29 addendum: the sfepy registry row carries its validation bloc
 assert_eq "Slice-30 addendum: the amaranth AND yowasp-yosys registry rows carry their validation blocks (3 chip harness cases each, pass — the front-end and synthesis halves of the RTL lane)" \
   "pass|3|tested|pass|3|tested" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].state')"
-assert_eq "registry reconciliation: fourteen harness-validated engines (the nine 16-D set + scikit-fem + pyswmm + sfepy + amaranth + yowasp-yosys) carry state 'tested', registry total 49 (slice-31 added pdf2takeoff/temporal/kestra/solvespace/gdal as planned rows — designations, not harness lanes; still fourteen tested) — the OpenSees row stays 'planned' with the license review closed REJECTED" \
-  "14|49|planned" \
+assert_eq "registry reconciliation: fifteen harness-validated engines (the nine 16-D set + scikit-fem + pyswmm + sfepy + amaranth + yowasp-yosys + the Stage-1 ADOPTED pdf2takeoff) carry state 'tested', registry total 49 (slice-31 added temporal/kestra/solvespace/gdal as planned designation rows — pdf2takeoff's slice-31 duplicate merged into the single tested row) — the OpenSees row stays 'planned' with the license review closed REJECTED" \
+  "15|49|planned" \
   "$(j "$BODY" '[.data.registry[] | select(.state == "tested")] | length')|$(j "$BODY" '.data.registry | length')|$(j "$BODY" '[.data.registry[] | select(.key == "opensees")][0].state')"
+assert_eq "ADR-0011 Stage-1 addendum: the ADOPTED takeoff engine's registry row carries its validation block (9 pdf2takeoff harness cases, pass) and the tested state" \
+  "pass|9|tested" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "pdf2takeoff")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "pdf2takeoff")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "pdf2takeoff")][0].state')"
 # Slice 28 (the Phase-5 long-tail license-first probe): five new rows with the
 # license reviews closed ACCEPTED on wheel/sdist-verified evidence. Slice 29
 # promoted sfepy (the transport lane); Slice 30 promoted amaranth +

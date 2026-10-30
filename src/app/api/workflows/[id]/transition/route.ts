@@ -10,11 +10,12 @@ import {
 } from "@/core/workflow"
 import {
   approveWorkflow,
-  enqueueWorkflow,
   recordWorkflowEvent,
   snapshotStepInputs,
   type StepSnapshot,
 } from "@/core/runtime/executor"
+import { getFoundation } from "@/core/runtime/foundation"
+import "@/core/runtime/foundation-embedded" // registers the embedded foundation + fail-fast flag resolution (ADR-0010)
 import { recordEvent } from "@/lib/audit"
 import { jsonError, jsonOk, ERR, parseBody } from "@/lib/api-utils"
 import { getSessionUser } from "@/lib/auth"
@@ -209,7 +210,7 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
       entityId: id,
       detail: { action, from: current, to: next, note },
     })
-    enqueueWorkflow(id) // fire-and-forget claim; execution is never awaited here
+    getFoundation().enqueue(id) // fire-and-forget claim; execution is never awaited here
     return jsonOk({ workflow: await db.workflow.findUnique({ where: { id } }) })
   }
 
@@ -288,7 +289,7 @@ export const POST = handler<{ id: string }>(async (req, ctx) => {
       entityId: id,
       detail: { action, from: current, to: next, note },
     })
-    enqueueWorkflow(id)
+    getFoundation().enqueue(id)
     return jsonOk({ workflow: await db.workflow.findUnique({ where: { id } }) })
   }
 

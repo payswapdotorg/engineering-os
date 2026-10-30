@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run — via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters — model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json — 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) — see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py → eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) — 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index — both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod. Update 2026-10-25 (Slice 16-D, registry state-vocabulary reconciliation — closes roadmap-gap-audit finding #15): every engine with a harness-validated adapter driving real broker operations now carries state 'tested' — gmsh (fe-mesh), pandapower (power flow), simpy (DES), libreoffice (headless document conversion) join cadquery and ifcopenshell; the three Slice-15/16 takeoff engines were ADDED with machine-verified upstreams (pdfplumber, ezdxf, tesseract — github-api license + PyPI/releases version checks, 2026-10-25). 'planned' now means exactly: no integrated adapter yet, regardless of installation state. Five license-first probe rows (sfepy/amaranth/yowasp-yosys/pin/pybullet) added 2026-10-29 (Slice 28, the Phase-5 long-tail CFD/chip/robotics probes) — every one verified on the wheel/sdist itself. Update 2026-10-31 (Slice 31 — the OSS Reuse & Consolidation Audit v1, ADR-0009): five candidates ADDED source-verified — pdf2takeoff (Apache-2.0; TypeScript, NOT Python, git-distributed only — the directive's assumption corrected), temporal (MIT), kestra (Apache-2.0), solvespace (GPL-3.0-or-later), gdal (MIT-style + enumerated per-file exceptions) — 44 → 49 records, all 'planned'. opentakeoff RE-VERIFIED live on this host (npm opentakeoff-mcp now 0.9.100, published 2026-10-25): the packaged MCP server probed over stdio against tests/fixtures/sheet-a102-plan.pdf — tools/list = 58 tools; load_plan detected scale 1:100 on all 4 pages incl. the rotated p4; set_scale use_detected → confirmed:false with the exact metric calibration; measure_polygon matched the analytic rectangle — MCP-over-stdio recorded as arm's-length under ADR-0004 §2; the upstream NOTICE's Apache-2.0 grant through tag apache-2.0-final recorded as a counsel-only fallback, never relied on.",
+  "note": "Full source-verified engine inventory (Worker 2 audit, 2026-10-21). Every upstream record was machine-verified during this run \u2014 via GitHub REST API (/repos, /releases/latest, /tags, /contents), GitLab API, SourceForge REST, PyPI JSON / npm registry, or the upstream project's own docs page; see upstream.verifiedMethod per engine. All engines were 'planned' at audit time: none was installed on the dev host, and no capability is complete merely because a dependency exists (ADR-0005). Update 2026-10-21 (W2-b): cadquery 2.6.1 and ifcopenshell 0.9.0.post1 are now INSTALLED in the uv venv (/home/z/.venv) and drive the first REAL engine adapters \u2014 model-derived quantities (state 'tested', see src/engines/adapters/); every other engine stays 'planned' until evidence accrues. Update 2026-10-21 (W2-c): both quantity adapters are now validated by the benchmark harness (src/engines/validation/, corpus tests/validation/corpus-manifest.json \u2014 11 cases: hand-derived closed-form ground truth, set equality, bitwise determinism, honest error probes; run `bun run validate:engines`) \u2014 see the per-engine `validation` fields. Update 2026-10-21 (W2-d): both engines now also drive REAL tessellation adapters (src/engines/adapters/step_mesh.py / ifc_mesh.py \u2192 eos-mesh/1 via the mesh bridge src/engines/adapters/mesh.ts); the harness corpus gained mesh expectations on 9 of the 11 cases (pinned element refs set-equal to the quantity ledger refs, pinned per-element vertex/triangle counts, byte-deterministic double-runs, divergence-theorem mesh volumes vs closed forms) \u2014 11/11 pass, latest run 11 pass / 0 fail. FreeCAD/Bonsai sandbox investigation (2026-10-21): FreeCAD is not importable, no freecad/FreeCADCmd/blender binaries exist on PATH, and no pip-installable FreeCAD distribution or Blender python module (bpy) is available from this host's index \u2014 both stay 'planned' for editor/authoring; this slice's geometry is served by cadquery/IfcOpenShell. Bundling or redistribution of any engine requires the Phase-6 license re-verification (ADR-0004). GitHub's license.spdx_id is treated as a hint; where it returned NOASSERTION or conflicted with the source tree, the pinned-tree LICENSE/COPYING text was fetched and is cited in verifiedMethod. Update 2026-10-25 (Slice 16-D, registry state-vocabulary reconciliation \u2014 closes roadmap-gap-audit finding #15): every engine with a harness-validated adapter driving real broker operations now carries state 'tested' \u2014 gmsh (fe-mesh), pandapower (power flow), simpy (DES), libreoffice (headless document conversion) join cadquery and ifcopenshell; the three Slice-15/16 takeoff engines were ADDED with machine-verified upstreams (pdfplumber, ezdxf, tesseract \u2014 github-api license + PyPI/releases version checks, 2026-10-25). 'planned' now means exactly: no integrated adapter yet, regardless of installation state. Five license-first probe rows (sfepy/amaranth/yowasp-yosys/pin/pybullet) added 2026-10-29 (Slice 28, the Phase-5 long-tail CFD/chip/robotics probes) \u2014 every one verified on the wheel/sdist itself. Update 2026-10-31 (Slice 31 \u2014 the OSS Reuse & Consolidation Audit v1, ADR-0009): five candidates ADDED source-verified \u2014 pdf2takeoff (Apache-2.0; TypeScript, NOT Python, git-distributed only \u2014 the directive's assumption corrected), temporal (MIT), kestra (Apache-2.0), solvespace (GPL-3.0-or-later), gdal (MIT-style + enumerated per-file exceptions) \u2014 44 \u2192 49 records, all 'planned'. opentakeoff RE-VERIFIED live on this host (npm opentakeoff-mcp now 0.9.100, published 2026-10-25): the packaged MCP server probed over stdio against tests/fixtures/sheet-a102-plan.pdf \u2014 tools/list = 58 tools; load_plan detected scale 1:100 on all 4 pages incl. the rotated p4; set_scale use_detected \u2192 confirmed:false with the exact metric calibration; measure_polygon matched the analytic rectangle \u2014 MCP-over-stdio recorded as arm's-length under ADR-0004 \u00a72; the upstream NOTICE's Apache-2.0 grant through tag apache-2.0-final recorded as a counsel-only fallback, never relied on. Update 2026-10-30 (TL-Audit-v1): source-verified takeoff-engine audit concluded \u2014 pdf2takeoff (Apache-2.0) added as planned Stage-1 ADOPT per ADR-0011; OpenTakeoff confirmed AGPL-3.0-only (arm's-length MCP policy, no code reuse). Update 2026-10-30 (ADR-0011 Stage 1 SHIPPED): pdf2takeoff is now LIVE \u2014 the pinned checkout (commit f5a1c08\u2026) + the src/engines/adapters/pdf2takeoff.ts arm's-length bridge behind four broker ops (compare_revisions / annotate_takeoff / export_boq_xlsx / fill_area, BROKER_OPERATIONS 15 \u2192 19); the harness corpus gained 9 cases (42 \u2192 51, all 9 pass: analytic A-102 closed forms + four honest-refusal probes); registry 49 records (15 tested / 34 planned \u2014 the five Slice-31 designation rows are planned).",
   "engines": [
     {
       "key": "freecad",
@@ -40,9 +40,9 @@
       ],
       "state": "planned",
       "limitations": [
-        "DWG read/write requires external converter (LibreDWG) — separate compatibility program",
-        "GitHub license field is the legacy shorthand LGPL-2.1; upstream declares LGPL-2.1-or-later — exact 'only/or-later' scope to be pinned at Phase-6 release review",
-        "Sandbox investigation (2026-10-21, W2-d): FreeCAD is not importable in the engine venv, no freecad/FreeCADCmd binary is on PATH, and pip finds no FreeCAD distribution ('No matching distribution found') — it stays 'planned' for editor/authoring; the Phase-2 geometry pipeline is served by cadquery/IfcOpenShell"
+        "DWG read/write requires external converter (LibreDWG) \u2014 separate compatibility program",
+        "GitHub license field is the legacy shorthand LGPL-2.1; upstream declares LGPL-2.1-or-later \u2014 exact 'only/or-later' scope to be pinned at Phase-6 release review",
+        "Sandbox investigation (2026-10-21, W2-d): FreeCAD is not importable in the engine venv, no freecad/FreeCADCmd binary is on PATH, and pip finds no FreeCAD distribution ('No matching distribution found') \u2014 it stays 'planned' for editor/authoring; the Phase-2 geometry pipeline is served by cadquery/IfcOpenShell"
       ]
     },
     {
@@ -57,13 +57,13 @@
         "latestStable": "2.8.0",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/CadQuery/cadquery (repo live, id 155099400; some follow-up API calls rate-limited from this host — recorded) + /tags (v2.8.0 latest, installed v2.6.1 tag exists) + raw LICENSE file (Apache-2.0 text) + PyPI JSON (cadquery 2.8.0, Apache-2.0 classifier, home_page = the repo)"
+        "verifiedMethod": "github-api /repos/CadQuery/cadquery (repo live, id 155099400; some follow-up API calls rate-limited from this host \u2014 recorded) + /tags (v2.8.0 latest, installed v2.6.1 tag exists) + raw LICENSE file (Apache-2.0 text) + PyPI JSON (cadquery 2.8.0, Apache-2.0 classifier, home_page = the repo)"
       },
       "integration": {
         "mechanisms": [
           "python-module"
         ],
-        "notes": "FIRST REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/step_quantities.py computes model-derived quantities (per-solid volume, total surface area, bbox diagonal) from STEP files via OCCT BRepGProp, spawned as an arm's-length subprocess of the uv venv python. Bridge: src/engines/adapters/quantities.ts (deriveFromFile); tests: quantities.test.ts (analytic cross-check on tests/fixtures/bracket-solid.step, 2% tolerance). TESSELLATION ADAPTER (W2-d, 2026-10-21): src/engines/adapters/step_mesh.py emits eos-mesh/1 (vertices in metres, converted from the file's declared unit; solids enumerated identically to the quantity adapter; linear deflection pinned at 0.0001 m = native 0.1 in mm files). Bridge: src/engines/adapters/mesh.ts (tessellateFromFile); tests: mesh.test.ts (pinned counts, mm→m conversion, divergence-volume cross-check, byte-determinism)."
+        "notes": "FIRST REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/step_quantities.py computes model-derived quantities (per-solid volume, total surface area, bbox diagonal) from STEP files via OCCT BRepGProp, spawned as an arm's-length subprocess of the uv venv python. Bridge: src/engines/adapters/quantities.ts (deriveFromFile); tests: quantities.test.ts (analytic cross-check on tests/fixtures/bracket-solid.step, 2% tolerance). TESSELLATION ADAPTER (W2-d, 2026-10-21): src/engines/adapters/step_mesh.py emits eos-mesh/1 (vertices in metres, converted from the file's declared unit; solids enumerated identically to the quantity adapter; linear deflection pinned at 0.0001 m = native 0.1 in mm files). Bridge: src/engines/adapters/mesh.ts (tessellateFromFile); tests: mesh.test.ts (pinned counts, mm\u2192m conversion, divergence-volume cross-check, byte-determinism)."
       },
       "probes": [
         {
@@ -83,15 +83,15 @@
           "cases": 4,
           "lastRun": "2026-10-25",
           "result": "pass",
-          "note": "2 tessellation success cases (two-solids.step 2×24v/12t planar-exact volumes; cylinder-solid.step 506v/500t at 0.0414% on the curved surface) + 2 honest-error probes (0-solid STEP, non-model file)"
+          "note": "2 tessellation success cases (two-solids.step 2\u00d724v/12t planar-exact volumes; cylinder-solid.step 506v/500t at 0.0414% on the curved surface) + 2 honest-error probes (0-solid STEP, non-model file)"
         }
       },
       "limitations": [
-        "Engine is a venv python library, not a CLI on PATH — the registry probe reports 'installed' only when EOS_PYTHON points at the uv venv interpreter (/home/z/.venv/bin/python3)",
+        "Engine is a venv python library, not a CLI on PATH \u2014 the registry probe reports 'installed' only when EOS_PYTHON points at the uv venv interpreter (/home/z/.venv/bin/python3)",
         "import cadquery emits fontconfig warnings to stderr on this host (cosmetic; the adapter redirects fd-level stdout so they can never contaminate the JSON protocol)",
-        "STEP adapter emits per-solid volume, total surface area and overall bounding-box diagonal only — no per-face/feature-level quantities yet",
-        "Solid enumeration order follows OCCT's compound order — elementRef step:solid:i indices are engine-determined, not semantically meaningful",
-        "STEP tessellation (step_mesh.py, W2-d) emits per-face nodes — vertices are duplicated across shared face edges (OCCT BRepMesh behaviour: a box tessellates to 24 verts/12 tris); the linear deflection is pinned at 0.0001 m (native 0.1 in mm-authored files) and must be re-pinned together with the engine pin if counts change"
+        "STEP adapter emits per-solid volume, total surface area and overall bounding-box diagonal only \u2014 no per-face/feature-level quantities yet",
+        "Solid enumeration order follows OCCT's compound order \u2014 elementRef step:solid:i indices are engine-determined, not semantically meaningful",
+        "STEP tessellation (step_mesh.py, W2-d) emits per-face nodes \u2014 vertices are duplicated across shared face edges (OCCT BRepMesh behaviour: a box tessellates to 24 verts/12 tris); the linear deflection is pinned at 0.0001 m (native 0.1 in mm-authored files) and must be re-pinned together with the engine pin if counts change"
       ]
     },
     {
@@ -129,7 +129,7 @@
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2 — arm's-length process integration only (ADR-0004)",
+        "GPLv2 \u2014 arm's-length process integration only (ADR-0004)",
         "GitHub license detection returned NOASSERTION; GPLv2 read from repo LICENSE text"
       ]
     },
@@ -137,7 +137,7 @@
       "key": "libredwg",
       "name": "LibreDWG",
       "domain": "cad",
-      "description": "GNU library and CLI tools (dwg2dxf, dwgread, dwgwrite) for DWG reading/writing — the DWG compatibility layer.",
+      "description": "GNU library and CLI tools (dwg2dxf, dwgread, dwgwrite) for DWG reading/writing \u2014 the DWG compatibility layer.",
       "upstream": {
         "canonical": "https://savannah.gnu.org/projects/libredwg/",
         "repo": "LibreDWG/libredwg",
@@ -151,7 +151,7 @@
         "mechanisms": [
           "cli"
         ],
-        "notes": "CLI conversion service for DWG↔DXF in CAD/BIM workflows (Phase 2 compatibility program)."
+        "notes": "CLI conversion service for DWG\u2194DXF in CAD/BIM workflows (Phase 2 compatibility program)."
       },
       "probes": [
         {
@@ -169,8 +169,8 @@
       ],
       "state": "planned",
       "limitations": [
-        "GPLv3 — arm's-length CLI process boundary only (ADR-0004); never linked in-process",
-        "DWG support is reverse-engineered; upstream keeps a compatibility test suite — pin versions per release"
+        "GPLv3 \u2014 arm's-length CLI process boundary only (ADR-0004); never linked in-process",
+        "DWG support is reverse-engineered; upstream keeps a compatibility test suite \u2014 pin versions per release"
       ]
     },
     {
@@ -209,9 +209,9 @@
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2+ — arm's-length process integration only (ADR-0004)",
+        "GPLv2+ \u2014 arm's-length process integration only (ADR-0004)",
         "GitHub mirror carries no releases; stable versions identified by tags (v5.2.2) and blender.org",
-        "Sandbox investigation (2026-10-21, W2-d): no blender binary on PATH and pip finds no installable Blender-as-python-module (bpy: 'Could not find a version that satisfies the requirement'); the PyPI package named 'blender' (1.4) is an unrelated third-party package, NOT the Blender 3D suite — Bonsai (BlenderBIM) stays 'planned' for IFC authoring"
+        "Sandbox investigation (2026-10-21, W2-d): no blender binary on PATH and pip finds no installable Blender-as-python-module (bpy: 'Could not find a version that satisfies the requirement'); the PyPI package named 'blender' (1.4) is an unrelated third-party package, NOT the Blender 3D suite \u2014 Bonsai (BlenderBIM) stays 'planned' for IFC authoring"
       ]
     },
     {
@@ -233,7 +233,7 @@
           "python-module",
           "cli"
         ],
-        "notes": "REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/ifc_quantities.py extracts per-element declared quantities (IfcElementQuantity, BaseQuantities first; elementRef '#<GlobalId>') with an ifcopenshell.geom mesh-triangulation fallback for geometry-only models. Installed in the uv venv via uv pip install (PyPI ifcopenshell==0.9.0.post1, network available). Bridge: src/engines/adapters/quantities.ts; tests: quantities.test.ts (declared-value round-trip on tests/fixtures/wall-quantities.ifc + analytic mesh cross-check on tests/fixtures/wall-geometry.ifc). TESSELLATION ADAPTER (W2-d, 2026-10-21): src/engines/adapters/ifc_mesh.py emits eos-mesh/1 via ifcopenshell.geom with DEFAULT settings (the proven create_shape iteration from the quantities fallback; coordinates arrive in SI metres regardless of project units — verified with an mm-authored probe; tolerance = the runtime default mesher-linear-deflection, 0.001 m). Bridge: src/engines/adapters/mesh.ts (tessellateFromFile); tests: mesh.test.ts (pinned counts, refs set-equal the quantity ledger, divergence-volume cross-checks, byte-determinism)."
+        "notes": "REAL ADAPTER (W2-b, 2026-10-21): src/engines/adapters/ifc_quantities.py extracts per-element declared quantities (IfcElementQuantity, BaseQuantities first; elementRef '#<GlobalId>') with an ifcopenshell.geom mesh-triangulation fallback for geometry-only models. Installed in the uv venv via uv pip install (PyPI ifcopenshell==0.9.0.post1, network available). Bridge: src/engines/adapters/quantities.ts; tests: quantities.test.ts (declared-value round-trip on tests/fixtures/wall-quantities.ifc + analytic mesh cross-check on tests/fixtures/wall-geometry.ifc). TESSELLATION ADAPTER (W2-d, 2026-10-21): src/engines/adapters/ifc_mesh.py emits eos-mesh/1 via ifcopenshell.geom with DEFAULT settings (the proven create_shape iteration from the quantities fallback; coordinates arrive in SI metres regardless of project units \u2014 verified with an mm-authored probe; tolerance = the runtime default mesher-linear-deflection, 0.001 m). Bridge: src/engines/adapters/mesh.ts (tessellateFromFile); tests: mesh.test.ts (pinned counts, refs set-equal the quantity ledger, divergence-volume cross-checks, byte-determinism)."
       },
       "probes": [
         {
@@ -253,15 +253,15 @@
           "cases": 5,
           "lastRun": "2026-10-25",
           "result": "pass",
-          "note": "3 tessellation success cases (two-elements.ifc 3×8v/12t planar-exact volumes; wall-geometry.ifc 8v/12t exact; cylinder-geometry.ifc 90v/176t at 0.3246% on the curved column) + 2 honest-error probes (geometry-free IFC, non-model file)"
+          "note": "3 tessellation success cases (two-elements.ifc 3\u00d78v/12t planar-exact volumes; wall-geometry.ifc 8v/12t exact; cylinder-geometry.ifc 90v/176t at 0.3246% on the curved column) + 2 honest-error probes (geometry-free IFC, non-model file)"
         }
       },
       "limitations": [
-        "GitHub 'latest' release is a Bonsai 0.9.1 alpha (date-coded tags); stable distribution channel is PyPI (0.9.0.post1) — pin exact channel at integration",
-        "PyPI wheel ships WITHOUT the OCCT geometry backend (ifcopenshell.geom.has_occ == False on this host) — the adapter's geometric fallback uses mesh triangulation: exact for planar solids, approximate for curved surfaces (recorded in every quantity's raw.method)",
-        "IfcQuantityWeight/Time and complex quantities are skipped honestly (no 'weight' slot in the DerivedQuantity contract) — skipped names are recorded in raw.skippedUnsupportedQuantities",
-        "Bonsai (Blender add-on) authoring/editing remains Phase 2 — this adapter is read-only quantity extraction",
-        "The tessellation adapter (ifc_mesh.py, W2-d) rides the same no-OCCT triangulation — curved surfaces are approximated (observed 0.32% divergence-volume error on the Ø400×3000 mm column fixture at the default 0.001 m deflection; planar solids exact); coordinates arrive in SI metres regardless of project units (verified with an mm-authored probe)"
+        "GitHub 'latest' release is a Bonsai 0.9.1 alpha (date-coded tags); stable distribution channel is PyPI (0.9.0.post1) \u2014 pin exact channel at integration",
+        "PyPI wheel ships WITHOUT the OCCT geometry backend (ifcopenshell.geom.has_occ == False on this host) \u2014 the adapter's geometric fallback uses mesh triangulation: exact for planar solids, approximate for curved surfaces (recorded in every quantity's raw.method)",
+        "IfcQuantityWeight/Time and complex quantities are skipped honestly (no 'weight' slot in the DerivedQuantity contract) \u2014 skipped names are recorded in raw.skippedUnsupportedQuantities",
+        "Bonsai (Blender add-on) authoring/editing remains Phase 2 \u2014 this adapter is read-only quantity extraction",
+        "The tessellation adapter (ifc_mesh.py, W2-d) rides the same no-OCCT triangulation \u2014 curved surfaces are approximated (observed 0.32% divergence-volume error on the \u00d8400\u00d73000 mm column fixture at the default 0.001 m deflection; planar solids exact); coordinates arrive in SI metres regardless of project units (verified with an mm-authored probe)"
       ]
     },
     {
@@ -282,20 +282,20 @@
         "mechanisms": [
           "web-module"
         ],
-        "notes": "npm/ESM web components consumed by the Engineering OS web viewer (Phase 2 model viewer). 'web-module' is a proposed addition to the ADR-0005 mechanism vocabulary — flagged for TL approval."
+        "notes": "npm/ESM web components consumed by the Engineering OS web viewer (Phase 2 model viewer). 'web-module' is a proposed addition to the ADR-0005 mechanism vocabulary \u2014 flagged for TL approval."
       },
       "probes": [],
       "state": "planned",
       "limitations": [
-        "Suggested slug ThatOpen/engine 404s — That Open Engine is a component family (engine_components MIT, engine_web-ifc MPL-2.0, engine_fragment MIT); engine_components recorded as primary upstream",
-        "JS library detected via package-lock inspection at integration time — no PATH/python probe applies (probe defined at adapter time)"
+        "Suggested slug ThatOpen/engine 404s \u2014 That Open Engine is a component family (engine_components MIT, engine_web-ifc MPL-2.0, engine_fragment MIT); engine_components recorded as primary upstream",
+        "JS library detected via package-lock inspection at integration time \u2014 no PATH/python probe applies (probe defined at adapter time)"
       ]
     },
     {
       "key": "web-ifc",
       "name": "web-ifc",
       "domain": "bim",
-      "description": "WASM/JS library for reading and writing IFC files at native speeds — the fast IFC parsing core of That Open Engine.",
+      "description": "WASM/JS library for reading and writing IFC files at native speeds \u2014 the fast IFC parsing core of That Open Engine.",
       "upstream": {
         "canonical": "https://thatopen.github.io/engine_web-ifc/demo",
         "repo": "ThatOpen/engine_web-ifc",
@@ -314,8 +314,8 @@
       "probes": [],
       "state": "planned",
       "limitations": [
-        "MPL-2.0 — file-level copyleft; in-process use reviewed under ADR-0004 exception path",
-        "WASM/JS module detected via package-lock inspection at integration time — no PATH/python probe applies"
+        "MPL-2.0 \u2014 file-level copyleft; in-process use reviewed under ADR-0004 exception path",
+        "WASM/JS module detected via package-lock inspection at integration time \u2014 no PATH/python probe applies"
       ]
     },
     {
@@ -337,7 +337,7 @@
           "cli",
           "native-process"
         ],
-        "notes": "qgis_process for headless geospatial operations (CRS-aware takeoff context, site/civil data) — Phase 5 GIS pack."
+        "notes": "qgis_process for headless geospatial operations (CRS-aware takeoff context, site/civil data) \u2014 Phase 5 GIS pack."
       },
       "probes": [
         {
@@ -353,7 +353,7 @@
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2 (upstream site describes GPLv2+) — arm's-length process integration only (ADR-0004)"
+        "GPLv2 (upstream site describes GPLv2+) \u2014 arm's-length process integration only (ADR-0004)"
       ]
     },
     {
@@ -391,14 +391,14 @@
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2+ with third-party exceptions — arm's-length integration only (ADR-0004)"
+        "GPLv2+ with third-party exceptions \u2014 arm's-length integration only (ADR-0004)"
       ]
     },
     {
       "key": "swmm",
       "name": "EPA SWMM",
       "domain": "gis",
-      "description": "US EPA Stormwater Management Model — dynamic hydrology-hydraulic water quality simulation for stormwater/wastewater collection systems (civil/drainage).",
+      "description": "US EPA Stormwater Management Model \u2014 dynamic hydrology-hydraulic water quality simulation for stormwater/wastewater collection systems (civil/drainage).",
       "upstream": {
         "canonical": "https://www.epa.gov/water-research/storm-water-management-model-swmm",
         "repo": "USEPA/Stormwater-Management-Model",
@@ -406,13 +406,13 @@
         "latestStable": "5.2.4",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/USEPA/Stormwater-Management-Model (no LICENSE file in tree; repo README states source 'is released in the Public Domain') + releases/latest tag v5.2.4. Note: suggested slug USEPA/SWMM 404s — canonical repo is USEPA/Stormwater-Management-Model"
+        "verifiedMethod": "github-api /repos/USEPA/Stormwater-Management-Model (no LICENSE file in tree; repo README states source 'is released in the Public Domain') + releases/latest tag v5.2.4. Note: suggested slug USEPA/SWMM 404s \u2014 canonical repo is USEPA/Stormwater-Management-Model"
       },
       "integration": {
         "mechanisms": [
           "cli"
         ],
-        "notes": "Solver-only CLI (runswmm/swmm5) driven for drainage analysis; python-level via pyswmm (separate row). Slice 23 update: the in-process lane ships via pyswmm + swmm-toolkit (the OWA distribution of this engine, CC0-dedicated) — no system binary is required by the product"
+        "notes": "Solver-only CLI (runswmm/swmm5) driven for drainage analysis; python-level via pyswmm (separate row). Slice 23 update: the in-process lane ships via pyswmm + swmm-toolkit (the OWA distribution of this engine, CC0-dedicated) \u2014 no system binary is required by the product"
       },
       "probes": [
         {
@@ -427,8 +427,8 @@
       ],
       "state": "planned",
       "limitations": [
-        "No SPDX id: public-domain US Government work per repo README (no LICENSE file) — record kept honest as such",
-        "Solver repo has no version flag — presence-only probe; versions pinned by release tag",
+        "No SPDX id: public-domain US Government work per repo README (no LICENSE file) \u2014 record kept honest as such",
+        "Solver repo has no version flag \u2014 presence-only probe; versions pinned by release tag",
         "Repo activity is release-driven (last push 2025-05-01 at audit)"
       ]
     },
@@ -436,7 +436,7 @@
       "key": "pyswmm",
       "name": "pyswmm",
       "domain": "gis",
-      "description": "Python wrappers for the SWMM engine — node/link system analysis and stepwise simulation control.",
+      "description": "Python wrappers for the SWMM engine \u2014 node/link system analysis and stepwise simulation control.",
       "upstream": {
         "canonical": "https://www.pyswmm.org",
         "repo": "pyswmm/pyswmm",
@@ -444,13 +444,13 @@
         "latestStable": "2.2.0",
         "verified": true,
         "verifiedAt": "2026-10-28",
-        "verifiedMethod": "github-api /repos/pyswmm/pyswmm (license field NOASSERTION) + repo LICENSE.txt text (BSD-2-Clause) + releases/latest tag v2.2.0; RE-VERIFIED ON THE WHEEL 2026-10-28: METADATA License-Expression BSD-2-Clause + OSI classifier, and the bundled swmm-toolkit 0.17.0 wheel carries 'CC0-1.0 AND (MIT OR Apache-2.0)' with the OWA engine LICENSE.md naming the MIT/Apache split — NO cloud-service restriction clause anywhere (the openseespy contrast)"
+        "verifiedMethod": "github-api /repos/pyswmm/pyswmm (license field NOASSERTION) + repo LICENSE.txt text (BSD-2-Clause) + releases/latest tag v2.2.0; RE-VERIFIED ON THE WHEEL 2026-10-28: METADATA License-Expression BSD-2-Clause + OSI classifier, and the bundled swmm-toolkit 0.17.0 wheel carries 'CC0-1.0 AND (MIT OR Apache-2.0)' with the OWA engine LICENSE.md naming the MIT/Apache split \u2014 NO cloud-service restriction clause anywhere (the openseespy contrast)"
       },
       "integration": {
         "mechanisms": [
           "python-module"
         ],
-        "notes": "Stormwater drainage simulation service (Slice 23, phase5 contract §15) — the run_swmm broker op's engine, driving the EPA SWMM5 engine (public domain, CC0-dedicated in the OWA distribution) in-process via swmm-toolkit; adds only aenum + julian transitively (coexistence-clean)"
+        "notes": "Stormwater drainage simulation service (Slice 23, phase5 contract \u00a715) \u2014 the run_swmm broker op's engine, driving the EPA SWMM5 engine (public domain, CC0-dedicated in the OWA distribution) in-process via swmm-toolkit; adds only aenum + julian transitively (coexistence-clean)"
       },
       "probes": [
         {
@@ -461,24 +461,24 @@
       ],
       "state": "tested",
       "limitations": [
-        "Bundles its own compiled SWMM engine (swmm-toolkit 0.17.0) — version may differ from a system-installed EPA SWMM binary",
-        "v1 scope (contract §15.7): impervious catchments, one uniform rain event, kinematic-wave routing, rectangular conduits, FREE outfalls, SI — no pervious infiltration, no dynamic wave, no pumps/regulators, no water quality",
-        "The INTENSITY rain-gage consumes its TIMESERIES per recording interval — the adapter spreads uniform events at the fixed 5-minute cadence (the §15.1 probe record: a two-entry series rains exactly one interval)",
-        "Upstream is a small-maintainer project — pin the exact version (tests/validation/engines-requirements.txt: pyswmm==2.2.0 + swmm-toolkit==0.17.0) and re-verify the analytic pins on any bump"
+        "Bundles its own compiled SWMM engine (swmm-toolkit 0.17.0) \u2014 version may differ from a system-installed EPA SWMM binary",
+        "v1 scope (contract \u00a715.7): impervious catchments, one uniform rain event, kinematic-wave routing, rectangular conduits, FREE outfalls, SI \u2014 no pervious infiltration, no dynamic wave, no pumps/regulators, no water quality",
+        "The INTENSITY rain-gage consumes its TIMESERIES per recording interval \u2014 the adapter spreads uniform events at the fixed 5-minute cadence (the \u00a715.1 probe record: a two-entry series rains exactly one interval)",
+        "Upstream is a small-maintainer project \u2014 pin the exact version (tests/validation/engines-requirements.txt: pyswmm==2.2.0 + swmm-toolkit==0.17.0) and re-verify the analytic pins on any bump"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 3,
         "lastRun": "2026-10-28",
         "result": "pass",
-        "note": "swmm cases: runoff-balance MASS CONSERVATION (11 pins — outfall volume vs i.A.t rel 4.4e-5 observed / 1e-3 pinned, equilibrium runoff = i.A, Manning normal-depth cubic abs 6.2e-6 observed / 0.005 pinned, engine .rpt continuity magnitudes <= 0.5%), manning-conduit on the steeper network (8 pins, depth abs 9.8e-6 observed, peak flow within the 3% surge allowance), no-outfall refusal verbatim (the rigid-mode analog, pure graph math before the engine); double-run byte-identical documents"
+        "note": "swmm cases: runoff-balance MASS CONSERVATION (11 pins \u2014 outfall volume vs i.A.t rel 4.4e-5 observed / 1e-3 pinned, equilibrium runoff = i.A, Manning normal-depth cubic abs 6.2e-6 observed / 0.005 pinned, engine .rpt continuity magnitudes <= 0.5%), manning-conduit on the steeper network (8 pins, depth abs 9.8e-6 observed, peak flow within the 3% surge allowance), no-outfall refusal verbatim (the rigid-mode analog, pure graph math before the engine); double-run byte-identical documents"
       }
     },
     {
       "key": "opentakeoff",
       "name": "OpenTakeoff",
       "domain": "takeoff",
-      "description": "Open-source (AGPL-3.0) PDF takeoff engine for construction & flooring — browser canvas for estimators plus an MCP tool surface for agents (npm: opentakeoff-mcp).",
+      "description": "Open-source (AGPL-3.0) PDF takeoff engine for construction & flooring \u2014 browser canvas for estimators plus an MCP tool surface for agents (npm: opentakeoff-mcp).",
       "upstream": {
         "canonical": "https://github.com/Kentucky-ai/opentakeoff",
         "repo": "Kentucky-ai/opentakeoff",
@@ -486,14 +486,14 @@
         "latestStable": "0.9.100",
         "verified": true,
         "verifiedAt": "2026-10-31",
-        "verifiedMethod": "github-api /search/repositories?q=opentakeoff (mandated candidate audit — credible active project located) + /repos/Kentucky-ai/opentakeoff (license field AGPL-3.0; releases/latest tag mcp-v0.9.98) + npm registry opentakeoff-mcp (dist-tag 0.9.98, bin {opentakeoff-mcp: dist/server.js}, license AGPL-3.0-only); re-verified 2026-10-31 (Slice 31 audit): HEAD tree clone (commit c49de42, 2026-10-28) — LICENSE = full 34,524-byte AGPL-3.0 text + NOTICE; npm registry re-query: 73 versions, latest 0.9.100 published 2026-10-25; the packaged MCP server live-probed over stdio MCP on this host against tests/fixtures/sheet-a102-plan.pdf: tools/list = 58 tools, load_plan detected 1:100 on all 4 pages incl. the rotated p4, set_scale use_detected → upp 0.057870 ft/px (exact metric 1:100) with confirmed:false (human-confirm gate observed live), measure_polygon 2100×1400 px rectangle → 9846 SF / 405.09 LF matching the analytic values at printed precision"
+        "verifiedMethod": "github-api /search/repositories?q=opentakeoff (mandated candidate audit \u2014 credible active project located) + /repos/Kentucky-ai/opentakeoff (license field AGPL-3.0; releases/latest tag mcp-v0.9.98) + npm registry opentakeoff-mcp (dist-tag 0.9.98, bin {opentakeoff-mcp: dist/server.js}, license AGPL-3.0-only); re-verified 2026-10-31 (Slice 31 audit): HEAD tree clone (commit c49de42, 2026-10-28) \u2014 LICENSE = full 34,524-byte AGPL-3.0 text + NOTICE; npm registry re-query: 73 versions, latest 0.9.100 published 2026-10-25; the packaged MCP server live-probed over stdio MCP on this host against tests/fixtures/sheet-a102-plan.pdf: tools/list = 58 tools, load_plan detected 1:100 on all 4 pages incl. the rotated p4, set_scale use_detected \u2192 upp 0.057870 ft/px (exact metric 1:100) with confirmed:false (human-confirm gate observed live), measure_polygon 2100\u00d71400 px rectangle \u2192 9846 SF / 405.09 LF matching the analytic values at printed precision"
       },
       "integration": {
         "mechanisms": [
           "mcp",
           "server"
         ],
-        "notes": "MCP server (opentakeoff-mcp) as the first agent-drivable takeoff engine; web canvas for human review — Phase 3 takeoff pack."
+        "notes": "MCP server (opentakeoff-mcp) as the first agent-drivable takeoff engine; web canvas for human review \u2014 Phase 3 takeoff pack."
       },
       "probes": [
         {
@@ -507,11 +507,11 @@
       ],
       "state": "planned",
       "limitations": [
-        "AGPL-3.0 (npm metadata declares AGPL-3.0-only) — strict arm's-length process/network boundary (ADR-0004); MCP-over-stdio counts as arm's-length (recorded by ADR-0009), but npm-installing it as an imported LIBRARY dependency or vendoring its web/src/lib geometry is NOT permitted",
-        "Pre-1.0 (0.9.100 at the Slice-31 re-verify) with fast-moving development — pin exact tag at integration",
+        "AGPL-3.0 (npm metadata declares AGPL-3.0-only) \u2014 strict arm's-length process/network boundary (ADR-0004); MCP-over-stdio counts as arm's-length (recorded by ADR-0009), but npm-installing it as an imported LIBRARY dependency or vendoring its web/src/lib geometry is NOT permitted",
+        "Pre-1.0 (0.9.100 at the Slice-31 re-verify) with fast-moving development \u2014 pin exact tag at integration",
         "Presence-only probe for the npm-installed MCP server binary; version read from npm metadata at adapter time",
-        "Upstream NOTICE grants Apache-2.0 permanently through tag apache-2.0-final (commit 84c7f48e, 2026-10-10, MCP 0.9.98) — recorded as a counsel-only fallback route, never relied on: HEAD is AGPL-3.0-only and mixing post-boundary commits contaminates",
-        "MCP server has no OCR module at HEAD (canvas-only on-device OCR in the web app) — scans rely on view_sheet raster fallback; our tesseract broker adapter stays the provenance-grade OCR path"
+        "Upstream NOTICE grants Apache-2.0 permanently through tag apache-2.0-final (commit 84c7f48e, 2026-10-10, MCP 0.9.98) \u2014 recorded as a counsel-only fallback route, never relied on: HEAD is AGPL-3.0-only and mixing post-boundary commits contaminates",
+        "MCP server has no OCR module at HEAD (canvas-only on-device OCR in the web app) \u2014 scans rely on view_sheet raster fallback; our tesseract broker adapter stays the provenance-grade OCR path"
       ]
     },
     {
@@ -526,13 +526,13 @@
         "latestStable": "0.11.10",
         "verified": true,
         "verifiedAt": "2026-10-25",
-        "verifiedMethod": "github-api /repos/jsvine/pdfplumber (license MIT) + PyPI JSON /pypi/pdfplumber/json (0.11.10, MIT classifier) — 2026-10-25 machine-verified during the Slice-16 registry reconciliation"
+        "verifiedMethod": "github-api /repos/jsvine/pdfplumber (license MIT) + PyPI JSON /pypi/pdfplumber/json (0.11.10, MIT classifier) \u2014 2026-10-25 machine-verified during the Slice-16 registry reconciliation"
       },
       "integration": {
         "mechanisms": [
           "python-module"
         ],
-        "notes": "REAL ADAPTER (Slice 15, 2026-10-25): src/engines/adapters/sheet_takeoff.py walks the DRAWN path operators (lines/rects/curves, curve control points via the pdfminer pathset with pinned N=32 flattening) plus the embedded text layer — vector sheets need no OCR. Bridge: the takeoff_sheet broker op persists a byte-deterministic eos-vector-takeoff/1 document. Raster-only pages are refused verbatim (never simulated)."
+        "notes": "REAL ADAPTER (Slice 15, 2026-10-25): src/engines/adapters/sheet_takeoff.py walks the DRAWN path operators (lines/rects/curves, curve control points via the pdfminer pathset with pinned N=32 flattening) plus the embedded text layer \u2014 vector sheets need no OCR. Bridge: the takeoff_sheet broker op persists a byte-deterministic eos-vector-takeoff/1 document. Raster-only pages are refused verbatim (never simulated)."
       },
       "probes": [
         {
@@ -550,9 +550,9 @@
         "note": "sheet-vector-plan (18 pins incl. per-entity locators), sheet-vector-curve (quarter-arc pi*r/2 at pinned flattening, rel 4.0e-5), sheet-vector-refusal (verbatim raster refusal)"
       },
       "limitations": [
-        "Pinned at 0.11.10 in tests/validation/engines-requirements.txt — the wheel's internal pdfminer lineage reports its own version string; upgrades re-pin with the harness",
-        "Vector PDFs only: a raster-only page is refused with the pinned message (no OCR on this path — the Sheet Measure OCR tool covers raster regions)",
-        "Curve lengths use the pinned N=32 flattening — the tolerance policy quantifies, never hides, the discretization"
+        "Pinned at 0.11.10 in tests/validation/engines-requirements.txt \u2014 the wheel's internal pdfminer lineage reports its own version string; upgrades re-pin with the harness",
+        "Vector PDFs only: a raster-only page is refused with the pinned message (no OCR on this path \u2014 the Sheet Measure OCR tool covers raster regions)",
+        "Curve lengths use the pinned N=32 flattening \u2014 the tolerance policy quantifies, never hides, the discretization"
       ]
     },
     {
@@ -567,13 +567,13 @@
         "latestStable": "1.4.5",
         "verified": true,
         "verifiedAt": "2026-10-25",
-        "verifiedMethod": "github-api /repos/mozman/ezdxf (license MIT) + PyPI JSON /pypi/ezdxf/json (1.4.5, MIT classifier) — 2026-10-25 machine-verified during the Slice-16 registry reconciliation"
+        "verifiedMethod": "github-api /repos/mozman/ezdxf (license MIT) + PyPI JSON /pypi/ezdxf/json (1.4.5, MIT classifier) \u2014 2026-10-25 machine-verified during the Slice-16 registry reconciliation"
       },
       "integration": {
         "mechanisms": [
           "python-module"
         ],
-        "notes": "REAL ADAPTER (Slice 15, 2026-10-25): src/engines/adapters/dxf_takeoff.py extracts per-layer counts/lengths/areas with EXACT arc + circle math (declared-mm units only). Bridge: the takeoff_drawing broker op persists a byte-deterministic eos-vector-takeoff/1 document. DWG is refused with the pinned converter guidance (ODA/LibreDWG) — no open CI-pinnable path exists."
+        "notes": "REAL ADAPTER (Slice 15, 2026-10-25): src/engines/adapters/dxf_takeoff.py extracts per-layer counts/lengths/areas with EXACT arc + circle math (declared-mm units only). Bridge: the takeoff_drawing broker op persists a byte-deterministic eos-vector-takeoff/1 document. DWG is refused with the pinned converter guidance (ODA/LibreDWG) \u2014 no open CI-pinnable path exists."
       },
       "probes": [
         {
@@ -592,7 +592,7 @@
       },
       "limitations": [
         "DXF-native only: DWG inputs are refused with the documented operator-conversion boundary (ODA File Converter / LibreDWG)",
-        "Declared-mm units only — a drawing without a declared unit is refused rather than guessed",
+        "Declared-mm units only \u2014 a drawing without a declared unit is refused rather than guessed",
         "Pinned at 1.4.5 in tests/validation/engines-requirements.txt; upgrades re-pin with the harness"
       ]
     },
@@ -608,13 +608,13 @@
         "latestStable": "5.5.3",
         "verified": true,
         "verifiedAt": "2026-10-25",
-        "verifiedMethod": "github-api /repos/tesseract-ocr/tesseract (license Apache-2.0) + /releases/latest (5.5.3) — 2026-10-25 machine-verified during the Slice-16 registry reconciliation; the dev host runs the Ubuntu 24.04 package build 5.5.0"
+        "verifiedMethod": "github-api /repos/tesseract-ocr/tesseract (license Apache-2.0) + /releases/latest (5.5.3) \u2014 2026-10-25 machine-verified during the Slice-16 registry reconciliation; the dev host runs the Ubuntu 24.04 package build 5.5.0"
       },
       "integration": {
         "mechanisms": [
           "cli"
         ],
-        "notes": "REAL ADAPTER (Slice 16-B, 2026-10-25): src/engines/adapters/sheet_ocr.ts runs the tesseract binary (EOS_TESSERACT-overridable) on the fixed 4x-page-scale PNG region rendered by Sheet Measure, TSV-parsed with confidence floors; the vendored tests/fixtures/tessdata/eng.traineddata pins the model (byte-identical to the ubuntu-24.04 package model) for dev/CI determinism. The Ø glyph is never read natively — the documented @400→Ø400 callout-context normalization always preserves the RAW transcript alongside."
+        "notes": "REAL ADAPTER (Slice 16-B, 2026-10-25): src/engines/adapters/sheet_ocr.ts runs the tesseract binary (EOS_TESSERACT-overridable) on the fixed 4x-page-scale PNG region rendered by Sheet Measure, TSV-parsed with confidence floors; the vendored tests/fixtures/tessdata/eng.traineddata pins the model (byte-identical to the ubuntu-24.04 package model) for dev/CI determinism. The \u00d8 glyph is never read natively \u2014 the documented @400\u2192\u00d8400 callout-context normalization always preserves the RAW transcript alongside."
       },
       "probes": [
         {
@@ -637,10 +637,10 @@
         "note": "sheet-ocr-callout (9 pins; tesseract 5.5.0; doc byte-determinism)"
       },
       "limitations": [
-        "OCR reads raster regions the operator picks — it never mines the whole sheet silently; the transcript is evidence for a human ledger decision, never an auto-recorded quantity",
-        "The Ø glyph is not in the base eng model: the @400→Ø400 normalization is documented callout-context mapping with the raw transcript always preserved (harness-pinned)",
-        "Model determinism requires the vendored eng.traineddata (dev/CI) or a fixed system tessdata — deployments should pin their OS package version in the runbook",
-        "Low-contrast or rotated text degrades conf floors — words under the floor are dropped, never guessed"
+        "OCR reads raster regions the operator picks \u2014 it never mines the whole sheet silently; the transcript is evidence for a human ledger decision, never an auto-recorded quantity",
+        "The \u00d8 glyph is not in the base eng model: the @400\u2192\u00d8400 normalization is documented callout-context mapping with the raw transcript always preserved (harness-pinned)",
+        "Model determinism requires the vendored eng.traineddata (dev/CI) or a fixed system tessdata \u2014 deployments should pin their OS package version in the runbook",
+        "Low-contrast or rotated text degrades conf floors \u2014 words under the floor are dropped, never guessed"
       ]
     },
     {
@@ -655,14 +655,14 @@
         "latestStable": "10.0.7",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/KiCad/kicad-source-mirror (suggested slug KiCad/kicad redirects here; canonical development repo is GitLab) — license field GPL-3.0, repo LICENSE = GPLv3 text, LICENSE.README states 'developed and distributed under the terms of the GPLv3 or later' + releases/latest tag 10.0.7"
+        "verifiedMethod": "github-api /repos/KiCad/kicad-source-mirror (suggested slug KiCad/kicad redirects here; canonical development repo is GitLab) \u2014 license field GPL-3.0, repo LICENSE = GPLv3 text, LICENSE.README states 'developed and distributed under the terms of the GPLv3 or later' + releases/latest tag 10.0.7"
       },
       "integration": {
         "mechanisms": [
           "cli",
           "native-process"
         ],
-        "notes": "kicad-cli for headless exports (gerber/step/netlist) — Phase 5 EE pack."
+        "notes": "kicad-cli for headless exports (gerber/step/netlist) \u2014 Phase 5 EE pack."
       },
       "probes": [
         {
@@ -678,7 +678,7 @@
       ],
       "state": "planned",
       "limitations": [
-        "SEED CORRECTED: the earlier AGPL-3.0 claim is not supported by the pinned source tree — LICENSE/LICENSE.README say GPLv3-or-later (GitHub license field GPL-3.0). AGPL re-verification removed; GPLv3 still requires arm's-length process integration (ADR-0004)"
+        "SEED CORRECTED: the earlier AGPL-3.0 claim is not supported by the pinned source tree \u2014 LICENSE/LICENSE.README say GPLv3-or-later (GitHub license field GPL-3.0). AGPL re-verification removed; GPLv3 still requires arm's-length process integration (ADR-0004)"
       ]
     },
     {
@@ -700,7 +700,7 @@
           "cli",
           "native-process"
         ],
-        "notes": "Schematic authoring; headless capabilities limited — file-driven interchange (.qet, DXF/SVG/PDF export) reviewed at adapter time."
+        "notes": "Schematic authoring; headless capabilities limited \u2014 file-driven interchange (.qet, DXF/SVG/PDF export) reviewed at adapter time."
       },
       "probes": [
         {
@@ -714,8 +714,8 @@
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2 — arm's-length process integration only (ADR-0004)",
-        "No documented --version flag — presence-only probe",
+        "GPLv2 \u2014 arm's-length process integration only (ADR-0004)",
+        "No documented --version flag \u2014 presence-only probe",
         "Elements collection maintained in a separate upstream repo (qelectrotech-elements)"
       ]
     },
@@ -738,7 +738,7 @@
           "cli",
           "server"
         ],
-        "notes": "Batch SPICE netlist simulation (ngspice -b) driven by the broker for circuit analysis — Phase 5 EE pack; shared-library (shared-ngspice) mode possible after license review."
+        "notes": "Batch SPICE netlist simulation (ngspice -b) driven by the broker for circuit analysis \u2014 Phase 5 EE pack; shared-library (shared-ngspice) mode possible after license review."
       },
       "probes": [
         {
@@ -754,7 +754,7 @@
       ],
       "state": "planned",
       "limitations": [
-        "A few vendored components carry different licenses (tclspice LGPLv2, OSDI MPLv2.0) per upstream COPYING — reviewed at bundling time",
+        "A few vendored components carry different licenses (tclspice LGPLv2, OSDI MPLv2.0) per upstream COPYING \u2014 reviewed at bundling time",
         "Canonical is on SourceForge (no GitHub releases); version verified via SourceForge best_release.json"
       ]
     },
@@ -776,7 +776,7 @@
         "mechanisms": [
           "python-module"
         ],
-        "notes": "In-process python module for power-system analysis (permissive BSD-3 — ADR-0004 exception path permitted after license review)."
+        "notes": "In-process python module for power-system analysis (permissive BSD-3 \u2014 ADR-0004 exception path permitted after license review)."
       },
       "probes": [
         {
@@ -787,7 +787,7 @@
       ],
       "state": "tested",
       "limitations": [
-        "GitHub license field returned NOASSERTION — BSD-3-Clause read from repo LICENSE text"
+        "GitHub license field returned NOASSERTION \u2014 BSD-3-Clause read from repo LICENSE text"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
@@ -831,14 +831,14 @@
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2 — arm's-length CLI process integration only (ADR-0004)"
+        "GPLv2 \u2014 arm's-length CLI process integration only (ADR-0004)"
       ]
     },
     {
       "key": "yosys",
       "name": "Yosys",
       "domain": "ee",
-      "description": "Open SYnthesis Suite — framework for RTL synthesis of Verilog and other HDLs.",
+      "description": "Open SYnthesis Suite \u2014 framework for RTL synthesis of Verilog and other HDLs.",
       "upstream": {
         "canonical": "https://yosyshq.net/yosys/",
         "repo": "YosysHQ/yosys",
@@ -852,7 +852,7 @@
         "mechanisms": [
           "cli"
         ],
-        "notes": "Synthesis step of the open chip-design flow (yosys → openroad) — Phase 5. Slice 28 probe addendum (2026-10-29): the pip-only host class can run yosys synthesis via the yowasp-yosys WASM distribution (separate registry row, ISC) — verified live with two hand-derived synthesis smokes; native yosys remains the canonical system engine and the full flow's P&R half is OpenROAD."
+        "notes": "Synthesis step of the open chip-design flow (yosys \u2192 openroad) \u2014 Phase 5. Slice 28 probe addendum (2026-10-29): the pip-only host class can run yosys synthesis via the yowasp-yosys WASM distribution (separate registry row, ISC) \u2014 verified live with two hand-derived synthesis smokes; native yosys remains the canonical system engine and the full flow's P&R half is OpenROAD."
       },
       "probes": [
         {
@@ -903,7 +903,7 @@
       ],
       "state": "planned",
       "limitations": [
-        "No GitHub releases — stable identified by tags (v5.052)",
+        "No GitHub releases \u2014 stable identified by tags (v5.052)",
         "GitHub license detection returned NOASSERTION; dual license read from upstream docs + repo LICENSE text"
       ]
     },
@@ -941,15 +941,15 @@
       ],
       "state": "planned",
       "limitations": [
-        "No GitHub releases — stable identified by tags (v2.0)",
-        "Toolchain partners (yosys, klayout, openvaf…) each carry their own licenses — verify at bundling"
+        "No GitHub releases \u2014 stable identified by tags (v2.0)",
+        "Toolchain partners (yosys, klayout, openvaf\u2026) each carry their own licenses \u2014 verify at bundling"
       ]
     },
     {
       "key": "amaranth",
       "name": "Amaranth HDL",
       "domain": "ee",
-      "description": "Amaranth hardware definition language — the Python-HDL front-end (RTL described in Python, elaborated to RTLIL for yosys-family synthesis), BSD-2-Clause.",
+      "description": "Amaranth hardware definition language \u2014 the Python-HDL front-end (RTL described in Python, elaborated to RTLIL for yosys-family synthesis), BSD-2-Clause.",
       "upstream": {
         "canonical": "https://amaranth-lang.org",
         "repo": "amaranth-lang/amaranth",
@@ -957,13 +957,13 @@
         "latestStable": "0.5.10",
         "verified": true,
         "verifiedAt": "2026-10-29",
-        "verifiedMethod": "the installed wheel's own METADATA ('License: BSD-2-clause') + dist-info/licenses/LICENSE.txt ('Copyright (C) 2019-2023 Amaranth HDL contributors', the 2-clause BSD text) — verified ON THE wheel, not the repo page (Slice 28 license-first probe)"
+        "verifiedMethod": "the installed wheel's own METADATA ('License: BSD-2-clause') + dist-info/licenses/LICENSE.txt ('Copyright (C) 2019-2023 Amaranth HDL contributors', the 2-clause BSD text) \u2014 verified ON THE wheel, not the repo page (Slice 28 license-first probe)"
       },
       "integration": {
         "mechanisms": [
           "python-module"
         ],
-        "notes": "TESTED 2026-10-31 (Slice 30, contract §17 — the chip RTL-synthesis lane): drives the synthesize_rtl broker op as the FRONT-END half (elaboration of the eos-chip-rtl-model/1 device class, RTLIL emission, and the behavioral pysim trajectory — amaranth.sim, RFC-27 API). Probe evidence (§17.1): the enable counter at every width W ∈ {1,2,4,8,16,32,64} elaborates and emits RTLIL byte-identically (ports= tuple REQUIRED); the pysim trajectory matches the closed form count == enabled mod 2^W at every step (W=4 wraps to 8, the disabled cycle holds); W=4 histogram EXACTLY the Slice-28 probe (4 $_SDFFE_PP0P_ + 3 $_XOR_/2 $_AND_/1 $_NOT_). HARNESS: 3 cases (rtl-counter-4bit / rtl-counter-8bit / rtl-invalid-kind refusal verbatim), double-run byte-identical documents. BSD-2 (LICENSE REVIEW CLOSED ACCEPTED 2026-10-29, Slice 28 — verified on the wheel's own METADATA + LICENSE.txt)."
+        "notes": "TESTED 2026-10-31 (Slice 30, contract \u00a717 \u2014 the chip RTL-synthesis lane): drives the synthesize_rtl broker op as the FRONT-END half (elaboration of the eos-chip-rtl-model/1 device class, RTLIL emission, and the behavioral pysim trajectory \u2014 amaranth.sim, RFC-27 API). Probe evidence (\u00a717.1): the enable counter at every width W \u2208 {1,2,4,8,16,32,64} elaborates and emits RTLIL byte-identically (ports= tuple REQUIRED); the pysim trajectory matches the closed form count == enabled mod 2^W at every step (W=4 wraps to 8, the disabled cycle holds); W=4 histogram EXACTLY the Slice-28 probe (4 $_SDFFE_PP0P_ + 3 $_XOR_/2 $_AND_/1 $_NOT_). HARNESS: 3 cases (rtl-counter-4bit / rtl-counter-8bit / rtl-invalid-kind refusal verbatim), double-run byte-identical documents. BSD-2 (LICENSE REVIEW CLOSED ACCEPTED 2026-10-29, Slice 28 \u2014 verified on the wheel's own METADATA + LICENSE.txt)."
       },
       "probes": [
         {
@@ -974,22 +974,22 @@
       ],
       "state": "tested",
       "limitations": [
-        "RTLIL emission requires the ports= tuple explicitly (TypeError without it — found live)",
-        "native board/platform flows need extra toolchains; the pip lane is RTL → netlist only"
+        "RTLIL emission requires the ports= tuple explicitly (TypeError without it \u2014 found live)",
+        "native board/platform flows need extra toolchains; the pip lane is RTL \u2192 netlist only"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 3,
         "lastRun": "2026-10-31",
         "result": "pass",
-        "note": "chip cases (the amaranth half: elaboration + RTLIL + pysim): rtl-counter-4bit (12 pins — the full cell histogram exact, FF closed form 4, the trajectory wrap 24 mod 16 = 8 + the cycle-19 hold), rtl-counter-8bit (9 pins — histogram exact, FF 8, final count 24), rtl-invalid-kind (the §17.2 zod refusal verbatim); double-run byte-identical documents"
+        "note": "chip cases (the amaranth half: elaboration + RTLIL + pysim): rtl-counter-4bit (12 pins \u2014 the full cell histogram exact, FF closed form 4, the trajectory wrap 24 mod 16 = 8 + the cycle-19 hold), rtl-counter-8bit (9 pins \u2014 histogram exact, FF 8, final count 24), rtl-invalid-kind (the \u00a717.2 zod refusal verbatim); double-run byte-identical documents"
       }
     },
     {
       "key": "yowasp-yosys",
       "name": "yowasp-yosys (WASM Yosys)",
       "domain": "ee",
-      "description": "Yosys open synthesis suite compiled to WebAssembly and pip-distributed — the ISC-licensed RTL synthesis engine that runs with NO system packages (wasmtime runtime).",
+      "description": "Yosys open synthesis suite compiled to WebAssembly and pip-distributed \u2014 the ISC-licensed RTL synthesis engine that runs with NO system packages (wasmtime runtime).",
       "upstream": {
         "canonical": "https://yowasp.org",
         "repo": "YoWASP/yosys",
@@ -997,14 +997,14 @@
         "latestStable": "0.70.0.0.post1259",
         "verified": true,
         "verifiedAt": "2026-10-29",
-        "verifiedMethod": "the installed wheel's own METADATA ('License-Expression: ISC'; the WASM build of upstream yosys, itself ISC) — verified ON THE wheel, not the repo page (Slice 28 license-first probe). The wheel additionally bundles yosys's share/ vendor architecture data (gowin/lattice/quicklogic) used only by those FPGA targets — generic synthesis touches none of it."
+        "verifiedMethod": "the installed wheel's own METADATA ('License-Expression: ISC'; the WASM build of upstream yosys, itself ISC) \u2014 verified ON THE wheel, not the repo page (Slice 28 license-first probe). The wheel additionally bundles yosys's share/ vendor architecture data (gowin/lattice/quicklogic) used only by those FPGA targets \u2014 generic synthesis touches none of it."
       },
       "integration": {
         "mechanisms": [
           "cli",
           "python-module"
         ],
-        "notes": "TESTED 2026-10-31 (Slice 30, contract §17 — the chip RTL-synthesis lane): drives the SYNTHESIS half of the synthesize_rtl broker op (amaranth's RTLIL → gate-level netlist through the FROZEN script 'hierarchy -top top; proc; opt; memory; techmap; opt; attrmap -remove src; attrmap -modattr -remove src'). Probe evidence (§17.1): 0.2–0.26 s per run warm; the FF closed form holds at EVERY width (exactly W $_SDFFE_PP0P_ cells for a W-bit register — hand-derived); XOR = W−1 at every width; the W=4/W=8 histograms EXACTLY the Slice-28 probe. TWO live traps recorded: the WASI sandbox preopens ONLY the CWD (absolute paths fail — the adapter runs it with cwd=<tempdir> + relative names), and amaranth's \\src attributes survive into write_json (the attrmap strip makes the netlist bytes cross-host stable — three different source paths → identical bytes). HARNESS: the same 3 chip cases' netlist structure pins. ISC (LICENSE REVIEW CLOSED ACCEPTED 2026-10-29, Slice 28 — verified on the wheel's own METADATA License-Expression). Place-and-route stays the OpenROAD system class."
+        "notes": "TESTED 2026-10-31 (Slice 30, contract \u00a717 \u2014 the chip RTL-synthesis lane): drives the SYNTHESIS half of the synthesize_rtl broker op (amaranth's RTLIL \u2192 gate-level netlist through the FROZEN script 'hierarchy -top top; proc; opt; memory; techmap; opt; attrmap -remove src; attrmap -modattr -remove src'). Probe evidence (\u00a717.1): 0.2\u20130.26 s per run warm; the FF closed form holds at EVERY width (exactly W $_SDFFE_PP0P_ cells for a W-bit register \u2014 hand-derived); XOR = W\u22121 at every width; the W=4/W=8 histograms EXACTLY the Slice-28 probe. TWO live traps recorded: the WASI sandbox preopens ONLY the CWD (absolute paths fail \u2014 the adapter runs it with cwd=<tempdir> + relative names), and amaranth's \\src attributes survive into write_json (the attrmap strip makes the netlist bytes cross-host stable \u2014 three different source paths \u2192 identical bytes). HARNESS: the same 3 chip cases' netlist structure pins. ISC (LICENSE REVIEW CLOSED ACCEPTED 2026-10-29, Slice 28 \u2014 verified on the wheel's own METADATA License-Expression). Place-and-route stays the OpenROAD system class."
       },
       "probes": [
         {
@@ -1022,7 +1022,7 @@
       "limitations": [
         "WASM execution is slower than native yosys (fine for netlist-scale synthesis; measured ~0.03 s per probe synth)",
         "first invocation per environment pays the WASM warm-up",
-        "synthesis only — no place-and-route (OpenROAD stays the system-binary half of the flow)"
+        "synthesis only \u2014 no place-and-route (OpenROAD stays the system-binary half of the flow)"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
@@ -1044,14 +1044,14 @@
         "latestStable": "4.15.2",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "upstream docs page gmsh.info ('Current stable release (version 4.15.2, 24 March 2026)') + gmsh.info/LICENSE.txt text (GPL 'Version 2 or later' with linking exception). Canonical code host gitlab.onelab.info/gmsh/gmsh was NOT machine-verifiable this run — its API returns a bot-challenge page; no credible official GitHub mirror found (search returned only automated clones)"
+        "verifiedMethod": "upstream docs page gmsh.info ('Current stable release (version 4.15.2, 24 March 2026)') + gmsh.info/LICENSE.txt text (GPL 'Version 2 or later' with linking exception). Canonical code host gitlab.onelab.info/gmsh/gmsh was NOT machine-verifiable this run \u2014 its API returns a bot-challenge page; no credible official GitHub mirror found (search returned only automated clones)"
       },
       "integration": {
         "mechanisms": [
           "cli",
           "python-module"
         ],
-        "notes": "Meshing service for FEA workflows (gmsh CLI + gmsh python API) — Phase 5 simulation pack."
+        "notes": "Meshing service for FEA workflows (gmsh CLI + gmsh python API) \u2014 Phase 5 simulation pack."
       },
       "probes": [
         {
@@ -1067,23 +1067,23 @@
       ],
       "state": "tested",
       "limitations": [
-        "GPLv2+ with a linking exception for Netgen/METIS/OpenCASCADE/ParaView — read upstream LICENSE.txt before any bundling",
-        "Canonical GitLab (onelab) API unreachable from audit host (bot challenge) — upstream docs used instead; re-verify against pinned tree at Phase 6",
-        "Registry-probe note (2026-10-25, Slice 16-D): the plain `gmsh --version` invocation fails on a host without libGLU.so.1 on the loader path — the probe still reports the binary present (installed, version null: presence is the truth); the REAL adapter spawns carry the LD_LIBRARY_PATH bridge to ~/.local/lib/eos-engine-libs (scripts/setup-engine-libs.sh), so the fe_mesh broker op is the authoritative capability proof"
+        "GPLv2+ with a linking exception for Netgen/METIS/OpenCASCADE/ParaView \u2014 read upstream LICENSE.txt before any bundling",
+        "Canonical GitLab (onelab) API unreachable from audit host (bot challenge) \u2014 upstream docs used instead; re-verify against pinned tree at Phase 6",
+        "Registry-probe note (2026-10-25, Slice 16-D): the plain `gmsh --version` invocation fails on a host without libGLU.so.1 on the loader path \u2014 the probe still reports the binary present (installed, version null: presence is the truth); the REAL adapter spawns carry the LD_LIBRARY_PATH bridge to ~/.local/lib/eos-engine-libs (scripts/setup-engine-libs.sh), so the fe_mesh broker op is the authoritative capability proof"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 4,
         "lastRun": "2026-10-25",
         "result": "pass",
-        "note": "fe-mesh cases: bracket-solid (1088 v / 3482 tet4, mesh volume within 2% of 36000-960pi — linear-tet curved-hole bias 0.92%), two-solids planar EXACT at rel 1.4e-15, geometry-free + IFC honest refusals; requires scripts/setup-engine-libs.sh on clean hosts"
+        "note": "fe-mesh cases: bracket-solid (1088 v / 3482 tet4, mesh volume within 2% of 36000-960pi \u2014 linear-tet curved-hole bias 0.92%), two-solids planar EXACT at rel 1.4e-15, geometry-free + IFC honest refusals; requires scripts/setup-engine-libs.sh on clean hosts"
       }
     },
     {
       "key": "code-aster",
       "name": "Code_Aster",
       "domain": "simulation",
-      "description": "Structure and thermomechanics finite-element analysis (EDF R&D) — the solver behind Salome-Meca.",
+      "description": "Structure and thermomechanics finite-element analysis (EDF R&D) \u2014 the solver behind Salome-Meca.",
       "upstream": {
         "canonical": "https://www.code-aster.org",
         "repo": "codeaster/src (gitlab.com)",
@@ -1098,7 +1098,7 @@
           "cli",
           "python-module"
         ],
-        "notes": "Study runner (as_run) and python API for FEA jobs — Phase 5 structural pack."
+        "notes": "Study runner (as_run) and python API for FEA jobs \u2014 Phase 5 structural pack."
       },
       "probes": [
         {
@@ -1113,9 +1113,9 @@
       ],
       "state": "planned",
       "limitations": [
-        "GPLv3 — arm's-length process integration only (ADR-0004)",
+        "GPLv3 \u2014 arm's-length process integration only (ADR-0004)",
         "Version pinning needs care: stable (17.5.x) and development (18.1.x) tag series coexist",
-        "No documented --version flag — presence-only probe"
+        "No documented --version flag \u2014 presence-only probe"
       ]
     },
     {
@@ -1137,7 +1137,7 @@
           "cli",
           "native-process"
         ],
-        "notes": "ElmerSolver/ElmerGrid batch runs for FEA/multiphysics — Phase 5."
+        "notes": "ElmerSolver/ElmerGrid batch runs for FEA/multiphysics \u2014 Phase 5."
       },
       "probes": [
         {
@@ -1152,15 +1152,15 @@
       ],
       "state": "planned",
       "limitations": [
-        "GPLv2 — arm's-length process integration only (ADR-0004)",
-        "No documented --version flag — presence-only probe (solver banners vary by build)"
+        "GPLv2 \u2014 arm's-length process integration only (ADR-0004)",
+        "No documented --version flag \u2014 presence-only probe (solver banners vary by build)"
       ]
     },
     {
       "key": "opensees",
       "name": "OpenSees",
       "domain": "simulation",
-      "description": "Open System for Earthquake Engineering Simulation — framework for structural/geotechnical nonlinear analysis (Tcl + OpenSeesPy).",
+      "description": "Open System for Earthquake Engineering Simulation \u2014 framework for structural/geotechnical nonlinear analysis (Tcl + OpenSeesPy).",
       "upstream": {
         "canonical": "https://opensees.berkeley.edu",
         "repo": "OpenSees/OpenSees",
@@ -1175,7 +1175,7 @@
           "cli",
           "python-module"
         ],
-        "notes": "Structural analysis engine (OpenSees CLI / OpenSeesPy) — LICENSE REVIEW CLOSED REJECTED 2026-10-28 (Slice 22): the openseespy 3.8.0.0 wheel's bundled LICENSE.md states 'free for research, education, and internal use. Commercial redistribution … such as … an application or cloud-based service that uses import openseespy, requires a license' — this product is exactly that class; no adapter ships. The scikit-fem (BSD-3) plane-stress lane (contract §14) carries the FEA capability instead. Empirical addendum from the same probe session: the elasticBeamColumn lane is machine-precision but the truss element is broken on CPython 3.12 in both 3.8.0.0 and 3.7.1.2 (zero-stiffness element; canonical docs example → singular system), and the openseespy install resolver REMOVES ifcopenshell/gmsh/pandapower/simpy from a shared venv (scipy pin conflict) — recorded as upstream evidence."
+        "notes": "Structural analysis engine (OpenSees CLI / OpenSeesPy) \u2014 LICENSE REVIEW CLOSED REJECTED 2026-10-28 (Slice 22): the openseespy 3.8.0.0 wheel's bundled LICENSE.md states 'free for research, education, and internal use. Commercial redistribution \u2026 such as \u2026 an application or cloud-based service that uses import openseespy, requires a license' \u2014 this product is exactly that class; no adapter ships. The scikit-fem (BSD-3) plane-stress lane (contract \u00a714) carries the FEA capability instead. Empirical addendum from the same probe session: the elasticBeamColumn lane is machine-precision but the truss element is broken on CPython 3.12 in both 3.8.0.0 and 3.7.1.2 (zero-stiffness element; canonical docs example \u2192 singular system), and the openseespy install resolver REMOVES ifcopenshell/gmsh/pandapower/simpy from a shared venv (scipy pin conflict) \u2014 recorded as upstream evidence."
       },
       "probes": [
         {
@@ -1190,8 +1190,8 @@
       ],
       "state": "planned",
       "limitations": [
-        "LICENSE REJECTED (2026-10-28, Slice 22): custom non-commercial UC Regents license; the openseespy wheel's own LICENSE.md requires a written license for 'an application or cloud-based service that uses import openseespy' — state stays 'planned' permanently unless upstream relicenses; do NOT ship an adapter",
-        "Binary is an interactive Tcl shell — presence-only probe; never executed without input",
+        "LICENSE REJECTED (2026-10-28, Slice 22): custom non-commercial UC Regents license; the openseespy wheel's own LICENSE.md requires a written license for 'an application or cloud-based service that uses import openseespy' \u2014 state stays 'planned' permanently unless upstream relicenses; do NOT ship an adapter",
+        "Binary is an interactive Tcl shell \u2014 presence-only probe; never executed without input",
         "Upstream binding defects observed 2026-10-28 (evidence, not ours to fix): truss elements contribute zero stiffness on CPython 3.12 (both 3.8.0.0 and 3.7.1.2); the pip package's dependency pins conflict with ifcopenshell/gmsh/pandapower/simpy coexistence in one venv"
       ]
     },
@@ -1207,13 +1207,13 @@
         "latestStable": "14",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /users/OpenFOAM/repos (Foundation publishes per-version repositories; suggested org lookup /orgs/OpenFOAM is a user, not an org) + /repos/OpenFOAM/OpenFOAM-14 + repo COPYING text ('GNU General Public License version 3 … or (at your option) any later version') + /tags version-14"
+        "verifiedMethod": "github-api /users/OpenFOAM/repos (Foundation publishes per-version repositories; suggested org lookup /orgs/OpenFOAM is a user, not an org) + /repos/OpenFOAM/OpenFOAM-14 + repo COPYING text ('GNU General Public License version 3 \u2026 or (at your option) any later version') + /tags version-14"
       },
       "integration": {
         "mechanisms": [
           "cli"
         ],
-        "notes": "Solvers/utilities (blockMesh, simpleFoam, …) driven by the broker for CFD cases — Phase 5. Slice 28 probe addendum (2026-10-29): the suite is SYSTEM-BINARY-ONLY (openfoam.org .deb/tarball; no official PyPI wheel — the PyPI distribution named 'openfoam' (0.1.0) is an unrelated placeholder, verified on PyPI); GPL-3.0-or-later is fine for subprocess integration (the gmsh precedent), but the pip-only CI engine contract blocks this row on the sandbox host class — the CFD lane's pip candidate is the sfepy row (BSD, license review ACCEPTED)."
+        "notes": "Solvers/utilities (blockMesh, simpleFoam, \u2026) driven by the broker for CFD cases \u2014 Phase 5. Slice 28 probe addendum (2026-10-29): the suite is SYSTEM-BINARY-ONLY (openfoam.org .deb/tarball; no official PyPI wheel \u2014 the PyPI distribution named 'openfoam' (0.1.0) is an unrelated placeholder, verified on PyPI); GPL-3.0-or-later is fine for subprocess integration (the gmsh precedent), but the pip-only CI engine contract blocks this row on the sandbox host class \u2014 the CFD lane's pip candidate is the sfepy row (BSD, license review ACCEPTED)."
       },
       "probes": [
         {
@@ -1228,15 +1228,15 @@
       ],
       "state": "planned",
       "limitations": [
-        "Fork duality: OpenFOAM Foundation (openfoam.org, GPL) vs OpenCFD/OpenFOAM.com (also GPL, separate releases e.g. v2506) — choose and record which fork is integrated",
-        "Environment-activated toolchain (bashrc sourcing) — presence-only probe; solver versions surfaced via case control dicts at adapter time"
+        "Fork duality: OpenFOAM Foundation (openfoam.org, GPL) vs OpenCFD/OpenFOAM.com (also GPL, separate releases e.g. v2506) \u2014 choose and record which fork is integrated",
+        "Environment-activated toolchain (bashrc sourcing) \u2014 presence-only probe; solver versions surfaced via case control dicts at adapter time"
       ]
     },
     {
       "key": "sfepy",
       "name": "SfePy",
       "domain": "simulation",
-      "description": "Simple finite elements in Python — a real FEM/PDE problem-solving environment (heat, diffusion, advection, elasticity, Navier-Stokes lanes) over numpy/scipy, BSD.",
+      "description": "Simple finite elements in Python \u2014 a real FEM/PDE problem-solving environment (heat, diffusion, advection, elasticity, Navier-Stokes lanes) over numpy/scipy, BSD.",
       "upstream": {
         "canonical": "https://sfepy.org",
         "repo": "sfepy/sfepy",
@@ -1244,13 +1244,13 @@
         "latestStable": "2026.3",
         "verified": true,
         "verifiedAt": "2026-10-29",
-        "verifiedMethod": "the downloaded sdist's own PKG-INFO ('License: BSD' + Classifier 'License :: OSI Approved :: BSD License') + LICENSE file (the 3-clause BSD text incl. the no-endorsement clause, 'Copyright (c) 2007 - 2014 SfePy Developers') — verified ON THE sdist, not the repo page (Slice 28 license-first probe)"
+        "verifiedMethod": "the downloaded sdist's own PKG-INFO ('License: BSD' + Classifier 'License :: OSI Approved :: BSD License') + LICENSE file (the 3-clause BSD text incl. the no-endorsement clause, 'Copyright (c) 2007 - 2014 SfePy Developers') \u2014 verified ON THE sdist, not the repo page (Slice 28 license-first probe)"
       },
       "integration": {
         "mechanisms": [
           "python-module"
         ],
-        "notes": "Steady scalar-transport CFD solving service (Slice 29, phase5 contract §16) — the solve_transport broker op's engine. numpy/scipy core; sdist-only distribution (pip builds the cp312 wheel from source, ~1.5 min). LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, BSD-3 verified on the sdist's own PKG-INFO + LICENSE). The capability landed 2026-10-30: channel-transport closed form reproduced by the full 2D Q2 assembly (Linf 1.4e-6 at the r=4 default; y-independence 3.0e-15), the uniform-field machine pin 4.5e-14, and the honest mesh-Péclet stability refusal at the probed-monotone bound 2 (over-shoot observed at 2.5) — the harness pins all three. The canonical OpenFOAM row stays the system-binary class."
+        "notes": "Steady scalar-transport CFD solving service (Slice 29, phase5 contract \u00a716) \u2014 the solve_transport broker op's engine. numpy/scipy core; sdist-only distribution (pip builds the cp312 wheel from source, ~1.5 min). LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, BSD-3 verified on the sdist's own PKG-INFO + LICENSE). The capability landed 2026-10-30: channel-transport closed form reproduced by the full 2D Q2 assembly (Linf 1.4e-6 at the r=4 default; y-independence 3.0e-15), the uniform-field machine pin 4.5e-14, and the honest mesh-P\u00e9clet stability refusal at the probed-monotone bound 2 (over-shoot observed at 2.5) \u2014 the harness pins all three. The canonical OpenFOAM row stays the system-binary class."
       },
       "probes": [
         {
@@ -1261,17 +1261,17 @@
       ],
       "state": "tested",
       "limitations": [
-        "v1 scope (contract §16.7): steady source-free scalar transport on a rectangular channel with uniform axial velocity and constant diffusivity — no transients, no cross-flow, no sources, no Navier-Stokes, no turbulence (each its own addendum)",
-        "central-Galerkin Q2 monotonicity gate: models whose element Péclet a·h/(2D) > 2 are REFUSED (the probed-monotone bound; over-shoot observed at 2.5) — never an oscillatory solution",
+        "v1 scope (contract \u00a716.7): steady source-free scalar transport on a rectangular channel with uniform axial velocity and constant diffusivity \u2014 no transients, no cross-flow, no sources, no Navier-Stokes, no turbulence (each its own addendum)",
+        "central-Galerkin Q2 monotonicity gate: models whose element P\u00e9clet a\u00b7h/(2D) > 2 are REFUSED (the probed-monotone bound; over-shoot observed at 2.5) \u2014 never an oscillatory solution",
         "sdist-only distribution: every install compiles the C extensions (build deps needed; not the pure-wheel class of scikit-fem/simpy)",
-        "upstream is a small-maintainer project — pin the exact version and re-verify closed-form pins on any bump"
+        "upstream is a small-maintainer project \u2014 pin the exact version and re-verify closed-form pins on any bump"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 3,
         "lastRun": "2026-10-30",
         "result": "pass",
-        "note": "transport cases: channel-transport closed form (16 pins, max rel err 4.2e-7 — the exponential profile reproduced by the full 2D Q2 assembly), uniform-field machine pin (8 pins, max rel err 7.6e-14), mesh-Péclet stability refusal verbatim; double-run byte-identical documents"
+        "note": "transport cases: channel-transport closed form (16 pins, max rel err 4.2e-7 \u2014 the exponential profile reproduced by the full 2D Q2 assembly), uniform-field machine pin (8 pins, max rel err 7.6e-14), mesh-P\u00e9clet stability refusal verbatim; double-run byte-identical documents"
       }
     },
     {
@@ -1293,7 +1293,7 @@
           "cli",
           "native-process"
         ],
-        "notes": "Post-processing/visualization of solver outputs (pvpython/pvbatch headless rendering) — Phase 5."
+        "notes": "Post-processing/visualization of solver outputs (pvpython/pvbatch headless rendering) \u2014 Phase 5."
       },
       "probes": [
         {
@@ -1310,7 +1310,7 @@
       ],
       "state": "planned",
       "limitations": [
-        "No GitHub releases — stable identified by tags (v6.2.0)"
+        "No GitHub releases \u2014 stable identified by tags (v6.2.0)"
       ]
     },
     {
@@ -1332,7 +1332,7 @@
           "cli",
           "native-process"
         ],
-        "notes": "omc (Modelica compiler/simulator) for system-level dynamics and FMU workflows — Phase 5."
+        "notes": "omc (Modelica compiler/simulator) for system-level dynamics and FMU workflows \u2014 Phase 5."
       },
       "probes": [
         {
@@ -1348,7 +1348,7 @@
       ],
       "state": "planned",
       "limitations": [
-        "Dual AGPL-3.0 / OSMC-PL-1.8 — arm's-length CLI integration (omc) keeps both options open; never bundle without choosing and recording the license path"
+        "Dual AGPL-3.0 / OSMC-PL-1.8 \u2014 arm's-length CLI integration (omc) keeps both options open; never bundle without choosing and recording the license path"
       ]
     },
     {
@@ -1370,7 +1370,7 @@
           "native-process",
           "cli"
         ],
-        "notes": "Process simulation flowsheets via DWSIM CLI/automation surface — Phase 5."
+        "notes": "Process simulation flowsheets via DWSIM CLI/automation surface \u2014 Phase 5."
       },
       "probes": [
         {
@@ -1384,8 +1384,8 @@
       ],
       "state": "planned",
       "limitations": [
-        "Upstream moved: historical repo DanWBR/dwsim is ARCHIVED; active development is in DanWBR/dwsim10 (.NET 10) — track the new repo",
-        "Binary/CLI surface name varies by installer — presence-only probe; adapter defines exact entry point"
+        "Upstream moved: historical repo DanWBR/dwsim is ARCHIVED; active development is in DanWBR/dwsim10 (.NET 10) \u2014 track the new repo",
+        "Binary/CLI surface name varies by installer \u2014 presence-only probe; adapter defines exact entry point"
       ]
     },
     {
@@ -1400,13 +1400,13 @@
         "latestStable": "4.1.2",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "PyPI JSON api pypi.org/pypi/simpy/json (version 4.1.2; project source URL = gitlab.com/team-simpy/simpy — suggested slug simpy/simpy 404s, the project has moved) + gitlab-api repository/tags (4.1.2) + license via PyPI sdist LICENSE text (MIT)"
+        "verifiedMethod": "PyPI JSON api pypi.org/pypi/simpy/json (version 4.1.2; project source URL = gitlab.com/team-simpy/simpy \u2014 suggested slug simpy/simpy 404s, the project has moved) + gitlab-api repository/tags (4.1.2) + license via PyPI sdist LICENSE text (MIT)"
       },
       "integration": {
         "mechanisms": [
           "python-module"
         ],
-        "notes": "In-process discrete-event simulation for construction-process/queueing models (MIT — ADR-0004 exception path)."
+        "notes": "In-process discrete-event simulation for construction-process/queueing models (MIT \u2014 ADR-0004 exception path)."
       },
       "probes": [
         {
@@ -1417,7 +1417,7 @@
       ],
       "state": "tested",
       "limitations": [
-        "Source host is GitLab (team-simpy/simpy), not GitHub — npm-style package presence is pip-only"
+        "Source host is GitLab (team-simpy/simpy), not GitHub \u2014 npm-style package presence is pip-only"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
@@ -1431,7 +1431,7 @@
       "key": "ros2",
       "name": "ROS 2",
       "domain": "simulation",
-      "description": "Robot Operating System 2 — libraries and tools for robotics applications (DDS middleware, ros2 CLI).",
+      "description": "Robot Operating System 2 \u2014 libraries and tools for robotics applications (DDS middleware, ros2 CLI).",
       "upstream": {
         "canonical": "https://github.com/ros2",
         "repo": "ros2/ros2",
@@ -1439,14 +1439,14 @@
         "latestStable": "release-lyrical-20260807",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/ros2/ros2 (superproject release repository; releases/latest tag release-lyrical-20260807 = the 'Lyrical' distribution release). License: the superproject carries no LICENSE file of its own — core components are permissive (e.g. /repos/ros2/rclcpp → Apache-2.0); per-component verification required at integration"
+        "verifiedMethod": "github-api /repos/ros2/ros2 (superproject release repository; releases/latest tag release-lyrical-20260807 = the 'Lyrical' distribution release). License: the superproject carries no LICENSE file of its own \u2014 core components are permissive (e.g. /repos/ros2/rclcpp \u2192 Apache-2.0); per-component verification required at integration"
       },
       "integration": {
         "mechanisms": [
           "cli",
           "server"
         ],
-        "notes": "ros2 CLI tooling for robotics/automation workflows (Phase 5 robotics pack). Slice 28 probe addendum (2026-10-29): system superproject install (apt/colcon) — blocked on the pip-only sandbox host class; the robotics lane's pip candidates are the pin (BSD kinematics/dynamics) and pybullet (zlib simulation) rows."
+        "notes": "ros2 CLI tooling for robotics/automation workflows (Phase 5 robotics pack). Slice 28 probe addendum (2026-10-29): system superproject install (apt/colcon) \u2014 blocked on the pip-only sandbox host class; the robotics lane's pip candidates are the pin (BSD kinematics/dynamics) and pybullet (zlib simulation) rows."
       },
       "probes": [
         {
@@ -1460,8 +1460,8 @@
       ],
       "state": "planned",
       "limitations": [
-        "Multi-license ecosystem (Apache-2.0/BSD-3-Clause core, per-component variety) — verify each integrated component's license",
-        "ros2 CLI has no --version — presence-only probe; distribution version surfaced via ROS_DISTRO env at adapter time"
+        "Multi-license ecosystem (Apache-2.0/BSD-3-Clause core, per-component variety) \u2014 verify each integrated component's license",
+        "ros2 CLI has no --version \u2014 presence-only probe; distribution version surfaced via ROS_DISTRO env at adapter time"
       ]
     },
     {
@@ -1483,7 +1483,7 @@
           "cli",
           "server"
         ],
-        "notes": "gz sim (headless server mode) for robotics simulation — pairs with ROS 2 (Phase 5). Slice 28 probe addendum (2026-10-29): system distribution (gz-*.deb) — blocked on the pip-only sandbox host class; pairs with ros2, deferred together with it."
+        "notes": "gz sim (headless server mode) for robotics simulation \u2014 pairs with ROS 2 (Phase 5). Slice 28 probe addendum (2026-10-29): system distribution (gz-*.deb) \u2014 blocked on the pip-only sandbox host class; pairs with ros2, deferred together with it."
       },
       "probes": [
         {
@@ -1500,14 +1500,14 @@
       ],
       "state": "planned",
       "limitations": [
-        "Gazebo distribution ('Ionic'/'Jetty'-style names) bundles multiple gz-* libraries with their own versions — record the set at integration"
+        "Gazebo distribution ('Ionic'/'Jetty'-style names) bundles multiple gz-* libraries with their own versions \u2014 record the set at integration"
       ]
     },
     {
       "key": "pin",
       "name": "Pinocchio (pin)",
       "domain": "simulation",
-      "description": "Pinocchio rigid-body dynamics library — fast forward/inverse kinematics, Jacobians, and dynamics for robotic mechanisms; pip name 'pin', import name 'pinocchio'; BSD.",
+      "description": "Pinocchio rigid-body dynamics library \u2014 fast forward/inverse kinematics, Jacobians, and dynamics for robotic mechanisms; pip name 'pin', import name 'pinocchio'; BSD.",
       "upstream": {
         "canonical": "https://stack-of-tasks.github.io/pinocchio",
         "repo": "stack-of-tasks/pinocchio",
@@ -1515,13 +1515,13 @@
         "latestStable": "4.1.0",
         "verified": true,
         "verifiedAt": "2026-10-29",
-        "verifiedMethod": "the installed cp312 manylinux wheel's own licenses/LICENSE ('BSD 2-Clause License', 'Copyright (c) 2014-2023, CNRS / (c) 2018-2025, INRIA', the 2-clause text) + METADATA 'License-Expression: BSD-3-Clause' — the METADATA expression says 3-clause while the bundled LICENSE file is the 2-clause text; BOTH permissive, both quoted, discrepancy recorded (Slice 28 license-first probe). NAME-TRAP recorded too: the PyPI distribution named 'pinocchio' (0.5.1) is an UNRELATED package — the real library distributes as 'pin'."
+        "verifiedMethod": "the installed cp312 manylinux wheel's own licenses/LICENSE ('BSD 2-Clause License', 'Copyright (c) 2014-2023, CNRS / (c) 2018-2025, INRIA', the 2-clause text) + METADATA 'License-Expression: BSD-3-Clause' \u2014 the METADATA expression says 3-clause while the bundled LICENSE file is the 2-clause text; BOTH permissive, both quoted, discrepancy recorded (Slice 28 license-first probe). NAME-TRAP recorded too: the PyPI distribution named 'pinocchio' (0.5.1) is an UNRELATED package \u2014 the real library distributes as 'pin'."
       },
       "integration": {
         "mechanisms": [
           "python-module"
         ],
-        "notes": "LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, the robotics license-first probe) — BSD. Capability probe (a programmatic 2-link planar arm, L1=0.5 L2=0.35, two RZ joints): EVERY hand-derived closed form reproduced — EE position + Rz orientation error 0.00e+00 (bit-exact) at both probe configs, LOCAL_WORLD_ALIGNED geometric Jacobian error 5.55e-17, and J·qdot vs the h=1e-7 numerical derivative of the closed form agrees to 1.5e-9 (the numeric noise floor). Install reality: the cmeel wheel chain (boost/eigenpy/coal/urdfdom/assimp/...) arrives PREBUILT — no compile, no system packages. The robotics-dynamics/kinematics lane rides behind its own contract addendum."
+        "notes": "LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, the robotics license-first probe) \u2014 BSD. Capability probe (a programmatic 2-link planar arm, L1=0.5 L2=0.35, two RZ joints): EVERY hand-derived closed form reproduced \u2014 EE position + Rz orientation error 0.00e+00 (bit-exact) at both probe configs, LOCAL_WORLD_ALIGNED geometric Jacobian error 5.55e-17, and J\u00b7qdot vs the h=1e-7 numerical derivative of the closed form agrees to 1.5e-9 (the numeric noise floor). Install reality: the cmeel wheel chain (boost/eigenpy/coal/urdfdom/assimp/...) arrives PREBUILT \u2014 no compile, no system packages. The robotics-dynamics/kinematics lane rides behind its own contract addendum."
       },
       "probes": [
         {
@@ -1532,7 +1532,7 @@
       ],
       "state": "planned",
       "limitations": [
-        "dynamics (RNEA/ABA/CRBA) probed only implicitly by the FK/Jacobian closed forms — the lane contract will pin them against hand-derived cases",
+        "dynamics (RNEA/ABA/CRBA) probed only implicitly by the FK/Jacobian closed forms \u2014 the lane contract will pin them against hand-derived cases",
         "URDF/scene tooling (hpp-fcl collisions via coal) is available but unprobed this pass"
       ]
     },
@@ -1540,7 +1540,7 @@
       "key": "pybullet",
       "name": "PyBullet (Bullet Physics)",
       "domain": "simulation",
-      "description": "Bullet physics SDK's Python module — rigid-body dynamics, collision detection, constraint solving, robotics simulation in DIRECT (headless) mode; zlib.",
+      "description": "Bullet physics SDK's Python module \u2014 rigid-body dynamics, collision detection, constraint solving, robotics simulation in DIRECT (headless) mode; zlib.",
       "upstream": {
         "canonical": "https://pybullet.org",
         "repo": "bulletphysics/bullet3",
@@ -1548,13 +1548,13 @@
         "latestStable": "3.2.7",
         "verified": true,
         "verifiedAt": "2026-10-29",
-        "verifiedMethod": "the downloaded sdist's own PKG-INFO ('License: zlib' + Classifier 'License :: OSI Approved :: zlib/libpng License') + LICENSE.txt ('The files in this repository are licensed under the zlib license, except for the files under Extras and examples/ThirdPartyLibs') — verified ON THE sdist (Slice 28 license-first probe); the third-party exceptions live in directories a synthesis-free robotics lane never touches."
+        "verifiedMethod": "the downloaded sdist's own PKG-INFO ('License: zlib' + Classifier 'License :: OSI Approved :: zlib/libpng License') + LICENSE.txt ('The files in this repository are licensed under the zlib license, except for the files under Extras and examples/ThirdPartyLibs') \u2014 verified ON THE sdist (Slice 28 license-first probe); the third-party exceptions live in directories a synthesis-free robotics lane never touches."
       },
       "integration": {
         "mechanisms": [
           "python-module"
         ],
-        "notes": "LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, the robotics license-first probe) — zlib core. Install reality: SDIST-ONLY (no wheel) — pip compiles Bullet from source at install (gcc/make; the full compile succeeded in-sandbox). Capability probe (DIRECT mode, 240 Hz): a 1 kg r=0.1 sphere dropped from center z=1.0 under g=9.81 → first contact at t=0.433 s with the center at z=0.0874 (soft-contact penetration ~0.01), vs the hand-derived free-fall closed form t=sqrt(2·0.9/9.81)=0.428 s — agreement within one 240 Hz step quantum (4.2 ms) + the penetration margin; 480 steps execute in <0.01 s wall. The simulation-class robotics candidate; contact-solver determinism is the lane contract's pin problem."
+        "notes": "LICENSE REVIEW CLOSED ACCEPTED 2026-10-29 (Slice 28, the robotics license-first probe) \u2014 zlib core. Install reality: SDIST-ONLY (no wheel) \u2014 pip compiles Bullet from source at install (gcc/make; the full compile succeeded in-sandbox). Capability probe (DIRECT mode, 240 Hz): a 1 kg r=0.1 sphere dropped from center z=1.0 under g=9.81 \u2192 first contact at t=0.433 s with the center at z=0.0874 (soft-contact penetration ~0.01), vs the hand-derived free-fall closed form t=sqrt(2\u00b70.9/9.81)=0.428 s \u2014 agreement within one 240 Hz step quantum (4.2 ms) + the penetration margin; 480 steps execute in <0.01 s wall. The simulation-class robotics candidate; contact-solver determinism is the lane contract's pin problem."
       },
       "probes": [
         {
@@ -1565,9 +1565,9 @@
       ],
       "state": "planned",
       "limitations": [
-        "sdist-compile at every install (heaviest install of the accepted set — ~9 min observed)",
-        "the contact solver is a fixed-step LCP integrator — byte-determinism is NOT automatic and must be pinned/verified by any lane that relies on it",
-        "bundled third-party dirs (Extras/ThirdPartyLibs) carry non-zlib licenses — the lane must not import from them"
+        "sdist-compile at every install (heaviest install of the accepted set \u2014 ~9 min observed)",
+        "the contact solver is a fixed-step LCP integrator \u2014 byte-determinism is NOT automatic and must be pinned/verified by any lane that relies on it",
+        "bundled third-party dirs (Extras/ThirdPartyLibs) carry non-zlib licenses \u2014 the lane must not import from them"
       ]
     },
     {
@@ -1582,7 +1582,7 @@
         "latestStable": "26.8",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/LibreOffice/core (read-only official mirror; license field GPL-3.0; repo COPYING at master = pure GPLv3 text) + upstream site libreoffice.org/download (LibreOffice 26.8; 26.2 also listed). CONFLICT recorded: libreoffice.org/about-us/licenses describes dual 'MPL-2.0 OR LGPL-3.0-or-later' — mirror COPYING text and site statements disagree; resolves at Phase-6 pinning"
+        "verifiedMethod": "github-api /repos/LibreOffice/core (read-only official mirror; license field GPL-3.0; repo COPYING at master = pure GPLv3 text) + upstream site libreoffice.org/download (LibreOffice 26.8; 26.2 also listed). CONFLICT recorded: libreoffice.org/about-us/licenses describes dual 'MPL-2.0 OR LGPL-3.0-or-later' \u2014 mirror COPYING text and site statements disagree; resolves at Phase-6 pinning"
       },
       "integration": {
         "mechanisms": [
@@ -1606,7 +1606,7 @@
       ],
       "state": "tested",
       "limitations": [
-        "LICENSE CONFLICT: GitHub mirror COPYING shows GPLv3 text (GitHub license field GPL-3.0) while libreoffice.org states MPL-2.0 OR LGPL-3.0-or-later — must be resolved against the pinned release tree before bundling/redistribution (ADR-0004)",
+        "LICENSE CONFLICT: GitHub mirror COPYING shows GPLv3 text (GitHub license field GPL-3.0) while libreoffice.org states MPL-2.0 OR LGPL-3.0-or-later \u2014 must be resolved against the pinned release tree before bundling/redistribution (ADR-0004)",
         "Mirror carries no GitHub releases/tags; versions published on libreoffice.org"
       ],
       "validation": {
@@ -1636,7 +1636,7 @@
           "server",
           "cli"
         ],
-        "notes": "Rails server — REST API integration for schedule/controls workflows (Phase 3/5); packaged installs provide an 'openproject' CLI."
+        "notes": "Rails server \u2014 REST API integration for schedule/controls workflows (Phase 3/5); packaged installs provide an 'openproject' CLI."
       },
       "probes": [
         {
@@ -1650,7 +1650,7 @@
       ],
       "state": "planned",
       "limitations": [
-        "GPLv3 server — integrate at arm's length via documented REST API; no --version flag documented on the packaged CLI — presence-only probe",
+        "GPLv3 server \u2014 integrate at arm's length via documented REST API; no --version flag documented on the packaged CLI \u2014 presence-only probe",
         "Server deployment (docker/DEB) is the realistic integration target, not a per-workstation binary"
       ]
     },
@@ -1666,7 +1666,7 @@
         "latestStable": "1.9.8",
         "verified": true,
         "verifiedAt": "2026-10-21",
-        "verifiedMethod": "github-api /repos/smartqubit/projectlibre (official GitHub mirror of the SourceForge project; no LICENSE file at root — license dir openproj_build/license confirms 'Common Public Attribution License Version 1.0 (CPAL)'; mirror last push 2022-10-04, no GitHub releases) + sourceforge REST /rest/p/projectlibre (license category 'CPAL 1.0') + best_release.json (ProjectLibre 1.9.8, 2025-04-28). Canonical marketing site projectlibre.com returned HTTP 403 from the audit host — releases verified via SourceForge"
+        "verifiedMethod": "github-api /repos/smartqubit/projectlibre (official GitHub mirror of the SourceForge project; no LICENSE file at root \u2014 license dir openproj_build/license confirms 'Common Public Attribution License Version 1.0 (CPAL)'; mirror last push 2022-10-04, no GitHub releases) + sourceforge REST /rest/p/projectlibre (license category 'CPAL 1.0') + best_release.json (ProjectLibre 1.9.8, 2025-04-28). Canonical marketing site projectlibre.com returned HTTP 403 from the audit host \u2014 releases verified via SourceForge"
       },
       "integration": {
         "mechanisms": [
@@ -1687,16 +1687,16 @@
       ],
       "state": "planned",
       "limitations": [
-        "CPAL-1.0 (OSI-approved, attribution + network-use conditions) — arm's-length desktop integration; review notice requirements at adapter time",
-        "GitHub mirror inactive since 2022; current releases distributed through SourceForge (1.9.8) — pin exact installer at integration",
-        "No --version flag documented — presence-only probe"
+        "CPAL-1.0 (OSI-approved, attribution + network-use conditions) \u2014 arm's-length desktop integration; review notice requirements at adapter time",
+        "GitHub mirror inactive since 2022; current releases distributed through SourceForge (1.9.8) \u2014 pin exact installer at integration",
+        "No --version flag documented \u2014 presence-only probe"
       ]
     },
     {
       "key": "scikit-fem",
       "name": "scikit-fem",
       "domain": "simulation",
-      "description": "Simple finite element assemblers in Python — pure-Python FEM assembly + direct solve (numpy/scipy), BSD-3-Clause.",
+      "description": "Simple finite element assemblers in Python \u2014 pure-Python FEM assembly + direct solve (numpy/scipy), BSD-3-Clause.",
       "upstream": {
         "canonical": "https://kinnala.github.io/scikit-fem/",
         "repo": "kinnala/scikit-fem",
@@ -1704,13 +1704,13 @@
         "latestStable": "12.0.2",
         "verified": true,
         "verifiedAt": "2026-10-28",
-        "verifiedMethod": "the installed wheel's own LICENSE file (standard BSD 2-clause text, 'Copyright 2018-26 scikit-fem developers') + METADATA Classifier 'License :: OSI Approved :: BSD License' — verified ON THE WHEEL, not the repo page"
+        "verifiedMethod": "the installed wheel's own LICENSE file (standard BSD 2-clause text, 'Copyright 2018-26 scikit-fem developers') + METADATA Classifier 'License :: OSI Approved :: BSD License' \u2014 verified ON THE WHEEL, not the repo page"
       },
       "integration": {
         "mechanisms": [
           "python-module"
         ],
-        "notes": "Plane-stress FEA solving service (Slice 22, phase5 contract §14) — the solve_fea broker op's engine. numpy+scipy only (no system deps, no GB-scale env)."
+        "notes": "Plane-stress FEA solving service (Slice 22, phase5 contract \u00a714) \u2014 the solve_fea broker op's engine. numpy+scipy only (no system deps, no GB-scale env)."
       },
       "probes": [
         {
@@ -1721,71 +1721,86 @@
       ],
       "state": "tested",
       "limitations": [
-        "v1 scope (contract §14.7): linear plane stress on rectangular domains with per-edge supports and uniform traction/shear loads — no plane strain, no 3D, no modal/buckling, no adaptivity",
-        "Per-element stress statistics are P0 mass-lumped element MEANS (a linear field's mean = its centroid value) — the clamp stress concentration is under-read ~6% at refinement 4 by design of the projection (recorded in the harness case notes)",
-        "Upstream is a small-maintainer project — pin the exact version (engines-requirements.txt: scikit-fem==12.0.2) and re-verify the analytic pins on any bump"
+        "v1 scope (contract \u00a714.7): linear plane stress on rectangular domains with per-edge supports and uniform traction/shear loads \u2014 no plane strain, no 3D, no modal/buckling, no adaptivity",
+        "Per-element stress statistics are P0 mass-lumped element MEANS (a linear field's mean = its centroid value) \u2014 the clamp stress concentration is under-read ~6% at refinement 4 by design of the projection (recorded in the harness case notes)",
+        "Upstream is a small-maintainer project \u2014 pin the exact version (engines-requirements.txt: scikit-fem==12.0.2) and re-verify the analytic pins on any bump"
       ],
       "validation": {
         "harness": "tests/validation/corpus-manifest.json",
         "cases": 3,
         "lastRun": "2026-10-28",
         "result": "pass",
-        "note": "fea cases: uniform-tension MACHINE-PRECISION (16 pins, max rel err 1.7e-13 — the linear exact field reproduced verbatim by tri6), cantilever end-shear vs the Timoshenko closed form (rel 4.7e-3 at refinement 4, inside the 1% mesh-tolerance pin), under-constrained rigid-mode refusal verbatim; double-run byte-identical documents"
+        "note": "fea cases: uniform-tension MACHINE-PRECISION (16 pins, max rel err 1.7e-13 \u2014 the linear exact field reproduced verbatim by tri6), cantilever end-shear vs the Timoshenko closed form (rel 4.7e-3 at refinement 4, inside the 1% mesh-tolerance pin), under-constrained rigid-mode refusal verbatim; double-run byte-identical documents"
       }
     },
     {
       "key": "pdf2takeoff",
       "name": "pdf2takeoff",
       "domain": "takeoff",
-      "description": "Open-source (Apache-2.0) PDF/DXF takeoff engine in TypeScript — a CI-enforced environment-agnostic pure engine shared by a browser app, a Node CLI and a 16-tool MCP server. The permissive-license candidate for the takeoff capability deltas the platform lacks: room/region fill, revision compare and standard PDF annotation round-trip.",
+      "description": "Open-source (Apache-2.0) PDF/DXF takeoff engine in TypeScript \u2014 a CI-enforced environment-agnostic pure engine shared by a browser app, a Node CLI and a 16-tool MCP server. The permissive-license source for the takeoff capability deltas the platform lacked \u2014 room/region fill, revision compare, standard PDF annotation round-trip (plus the scale-auto-read witness and XLSX/BOQ export) \u2014 now LIVE behind four broker ops.",
       "upstream": {
         "canonical": "https://github.com/ajflow/pdf2takeoff",
         "repo": "ajflow/pdf2takeoff",
         "licenseSpdx": "Apache-2.0",
-        "latestStable": "commit f5a1c08 (2026-10-29; no npm/PyPI releases — pin the exact commit hash at integration)",
+        "latestStable": "0.1.0 (commit f5a1c08, 2026-10-29; no npm/PyPI releases \u2014 the exact commit hash is the pin)",
         "verified": true,
         "verifiedAt": "2026-10-31",
-        "verifiedMethod": "shallow clone at f5a1c08 (2026-10-29): LICENSE full text = Apache-2.0 ('Copyright 2026 pdf2takeoff contributors') + package.json license field; registry checks honest: NOT on npm (registry.npmjs.org/pdf2takeoff → Not Found) and NOT on PyPI (pypi.org/pypi/pdf2takeoff → Not Found) — git-distributed only (npx github:ajflow/pdf2takeoff), Node >=22.13, TypeScript — the directive's 'Python package' assumption corrected; live-probed headless against our own fixtures: info on tests/fixtures/sheet-a102-plan.pdf (4 pages, page 4 rotated, 0.62 s wall) and ocr on tests/fixtures/sheet-scan-like.pdf (tesseract wasm functional, honest wordCount 0 on the text-free fixture)"
+        "verifiedMethod": "github-api /repos/ajflow/pdf2takeoff (license field Apache-2.0) + raw LICENSE file (Apache-2.0 text) \u2014 machine-verified via GitHub REST and source-verified from the LICENSE text on audit day 2026-10-30 (TL-Audit-v1, the deep source audit of ADR-0011); shallow clone at f5a1c08 (2026-10-29): LICENSE full text = Apache-2.0 ('Copyright 2026 pdf2takeoff contributors') + package.json license field; registry checks honest: NOT on npm (registry.npmjs.org/pdf2takeoff \u2192 Not Found) and NOT on PyPI (pypi.org/pypi/pdf2takeoff \u2192 Not Found) \u2014 git-distributed only (npx github:ajflow/pdf2takeoff), Node >=22.13, TypeScript \u2014 the directive's 'Python package' assumption corrected; live-probed headless against our own fixtures: info on tests/fixtures/sheet-a102-plan.pdf (4 pages, page 4 rotated, 0.62 s wall) and ocr on tests/fixtures/sheet-scan-like.pdf (tesseract wasm functional, honest wordCount 0 on the text-free fixture); Stage-1 re-verify 2026-10-30: the pinned checkout drives the live arm's-length bridge (src/engines/adapters/pdf2takeoff.ts) \u2014 9-case harness corpus 9/9 pass (tests/validation/corpus-manifest.json)"
       },
       "integration": {
         "mechanisms": [
           "cli",
           "mcp",
-          "library"
+          "node-subprocess"
         ],
-        "notes": "Phase B adapter source per the OSS Reuse & Consolidation Audit v1 + ADR-0009: room fill (fill_area), revision compare (pixel diff + quantity delta), annotation round-trip (Bluebeam/Acrobat) and OCR-vote scale auto-detect — each behind its own contract addendum, broker-executed, never a second user-facing takeoff UI; any code adoption must first win the shared-fixture benchmark against our adapters"
+        "notes": "REAL ADAPTER (ADR-0011 Stage 1, 2026-10-30): src/engines/adapters/pdf2takeoff.ts drives the arm's-length pinned checkout (scripts/setup-pdf2takeoff.sh clones ajflow/pdf2takeoff at commit f5a1c08b1308628755867df3b921e96ac2018969 into ~/.local/share/eos-engines/pdf2takeoff, stamps .eos-engine-pin; the bridge refuses any other pin). Four broker ops over ONE adapter: compare_revisions (CLI compare \u2014 per-sheet change fractions + regions + vector diffs, eos-revision-compare/1), annotate_takeoff (CLI annotate \u2014 markups into the PDF as STANDARD annotations, parameters.markups or the revision's own Sheet Measure rows; output embeds a creation timestamp \u2014 structural evidence only, \u00a75.4), export_boq_xlsx (CLI export \u2014 the annotate\u2192export round-trip; XLSX default, CSV optional; the calibration carried as a 1:R string with the platform value recorded in provenance), fill_area (MCP session open_document \u2192 set_scale from_points \u2014 the platform calibration EXACTLY, no ratio rounding \u2192 fill_area Magic Fill; eos-room-fill/1 evidence artifact, the ledger stays human-disposed). Slice-31 (ADR-0009 D3) designated this engine adapter-first for the capability deltas \u2014 never a second user-facing takeoff UI; the BOQ serializer stays ours (xlsx watch-item below), and OCR-vote scale detect + ledger disposition from Magic-Fill evidence remain future stages."
       },
       "probes": [
         {
           "kind": "executable",
           "executables": [
-            "pdf2takeoff"
+            "node"
           ],
-          "versionArgs": [],
-          "versionRegex": null
+          "versionArgs": [
+            "~/.local/share/eos-engines/pdf2takeoff/bin/pdf2takeoff.js",
+            "help"
+          ],
+          "versionRegex": null,
+          "note": "EOS_PDF2TAKEOFF_DIR overrides the checkout root; the probe verifies pin + node_modules + a runnable CLI"
         }
       ],
-      "state": "planned",
+      "state": "tested",
       "limitations": [
-        "Two weeks old at audit (first commit 2026-10-16), one human author with disclosed AI co-authorship — pin the exact commit hash at integration and re-run the shared-fixture benchmark on every bump",
-        "Not published to npm/PyPI — git-install only; the git prepare script builds dist-node via tsc and FAILS without dev deps (install with npm install --omit=dev --ignore-scripts, or full npm ci)",
-        "Runtime deps watch-items: xlsx@0.18.5 (SheetJS npm build with known CVEs — never inherit its export path; our BOQ serializer stays ours) and libheif-js (LGPL-3.0, lazily loaded for HEIC only — keep out of any redistributed bundle)",
-        "No cutout/hole semantics in the engine — src/core/measure.ts areaWithCutouts stays the system of record for cutout math"
-      ]
+        "v0.1.0, single-org upstream, two weeks old at audit (first commit 2026-10-16), one human author with disclosed AI co-authorship \u2014 pinned to the exact commit f5a1c08\u2026 (re-verify and re-run the shared-fixture benchmark at each bump, ADR-0004 \u00a73)",
+        "Not published to npm/PyPI \u2014 git-install only; the git prepare script builds dist-node via tsc and FAILS without dev deps (install with npm install --omit=dev --ignore-scripts, or full npm ci)",
+        "Runtime deps watch-items: xlsx@0.18.5 (SheetJS npm build with known CVEs \u2014 never inherit its export path; our BOQ serializer stays ours) and libheif-js (LGPL-3.0, lazily loaded for HEIC only \u2014 keep out of any redistributed bundle)",
+        "Runs its own pdfjs-dist 5.x \u2014 kept in the arm's-length subprocess to avoid worker conflicts with the platform's pinned pdfjs-dist 4.10.38",
+        "annotate output embeds a creation timestamp \u2014 byte-determinism NOT claimed (\u00a75.4); re-runs REPLACE pdf2takeoff markups idempotently",
+        "fill_area is a raster flood fill \u2014 values pinned at abs 0.1 m\u00b2 (the boundary runs on inner wall faces, not the analytic line); the markup id carries a random suffix (excluded from determinism witnesses honestly)",
+        "export takes the calibration as a 1:R ratio string (4 dp) \u2014 at exact drawing scales this is exact; browser-calibrated values keep 4 significant decimals with the platform value recorded in provenance",
+        "No cutout/hole semantics in the engine \u2014 src/core/measure.ts areaWithCutouts stays the system of record for cutout math"
+      ],
+      "validation": {
+        "harness": "tests/validation/corpus-manifest.json",
+        "cases": 9,
+        "lastRun": "2026-10-30",
+        "result": "pass",
+        "note": "p2t-compare-identical (4/4 unchanged, vectorIdentical), p2t-compare-different (onlyInA 3, changed page 1), p2t-annotate-roundtrip (3 markups, %PDF magic, structural \u2014 determinism honestly null, creation timestamp), p2t-export-boq-roundtrip (the A-102 closed forms: bar 10.000001166666667 m, room 40.00001783583051 m\u00b2 at 1:100, rel 1e-9; XLSX PK magic), p2t-fill-area-room (39.4009 m\u00b2 vs the 40.000 m\u00b2 analytic room at abs 0.1 \u2014 the inner-wall-face inset), plus four honest refusals: no-scale verbatim, no-annotations, bad-spec pre-spawn, clicked-on-line (engine verbatim)"
+      }
     },
     {
       "key": "temporal",
       "name": "Temporal",
       "domain": "workflow",
-      "description": "Durable workflow execution engine (MIT server + MIT TypeScript SDK) — the single credible external execution-backend candidate. Investigated by the OSS Reuse & Consolidation Audit v1 and NOT adopted (ADR-0009): our executor is retained; Temporal is recorded so the one-engine rule stays source-backed.",
+      "description": "Durable workflow execution engine (MIT server + MIT TypeScript SDK) \u2014 the single credible external execution-backend candidate. Investigated by the OSS Reuse & Consolidation Audit v1 and NOT adopted (ADR-0009): our executor is retained; Temporal is recorded so the one-engine rule stays source-backed.",
       "upstream": {
         "canonical": "https://github.com/temporalio/temporal",
         "repo": "temporalio/temporal",
         "licenseSpdx": "MIT",
-        "latestStable": "HEAD 2287bc6a (2026-10-30) — server release pin deferred to integration time",
+        "latestStable": "HEAD 2287bc6a (2026-10-30) \u2014 server release pin deferred to integration time",
         "verified": true,
         "verifiedAt": "2026-10-31",
-        "verifiedMethod": "shallow clone (--filter=blob:none): LICENSE full text = MIT (Temporal Technologies Inc 2025 + Uber 2020 cadence lineage; 10,132 commits, active daily); SDK licenses fetched from the upstream repos — TypeScript SDK MIT (raw.githubusercontent.com/temporalio/sdk-typescript), Go MIT, Python MIT, PHP MIT, .NET MIT, Java Apache-2.0; deployment shape verified in-tree: single Go server binary, dev server runs SQLite (temporal server start-dev), production needs PostgreSQL/MySQL/Cassandra + optional Elasticsearch"
+        "verifiedMethod": "shallow clone (--filter=blob:none): LICENSE full text = MIT (Temporal Technologies Inc 2025 + Uber 2020 cadence lineage; 10,132 commits, active daily); SDK licenses fetched from the upstream repos \u2014 TypeScript SDK MIT (raw.githubusercontent.com/temporalio/sdk-typescript), Go MIT, Python MIT, PHP MIT, .NET MIT, Java Apache-2.0; deployment shape verified in-tree: single Go server binary, dev server runs SQLite (temporal server start-dev), production needs PostgreSQL/MySQL/Cassandra + optional Elasticsearch"
       },
       "integration": {
         "mechanisms": [
@@ -1794,7 +1809,7 @@
           "sdk",
           "cli"
         ],
-        "notes": "Designated scale-out candidate behind the ADR-0009 execution-adapter seam (enqueue/claim/run-step/approve) — to be evaluated ONLY if concurrency, scheduling or multi-node execution ever enters contract scope; the one-engine rule forbids adopting it alongside another orchestration platform"
+        "notes": "Designated scale-out candidate behind the ADR-0009 execution-adapter seam (enqueue/claim/run-step/approve) \u2014 to be evaluated ONLY if concurrency, scheduling or multi-node execution ever enters contract scope; the one-engine rule forbids adopting it alongside another orchestration platform"
       },
       "probes": [
         {
@@ -1808,16 +1823,16 @@
       ],
       "state": "planned",
       "limitations": [
-        "Separate Go server process + production DB backend — adds an always-on service to the single-systemd-unit deployment (the ADR-0009 retention rationale)",
-        "Human-in-the-loop is a pattern (signals/updates), not an approver-identity model — our session-user red line, artifact approval machine and audit trail must remain platform code under any future adoption",
-        "Event-history replay durability differs in kind from our verbatim-error step rows — adoption re-expresses (never ports) the workflow-runtime-contract §8 executor semantics"
+        "Separate Go server process + production DB backend \u2014 adds an always-on service to the single-systemd-unit deployment (the ADR-0009 retention rationale)",
+        "Human-in-the-loop is a pattern (signals/updates), not an approver-identity model \u2014 our session-user red line, artifact approval machine and audit trail must remain platform code under any future adoption",
+        "Event-history replay durability differs in kind from our verbatim-error step rows \u2014 adoption re-expresses (never ports) the workflow-runtime-contract \u00a78 executor semantics"
       ]
     },
     {
       "key": "kestra",
       "name": "Kestra",
       "domain": "workflow",
-      "description": "Declarative YAML workflow orchestration platform (Apache-2.0, JVM) — investigated by the OSS Reuse & Consolidation Audit v1 and NOT adopted; registered so the ADR-0009 one-engine rule and rejection rationale stay source-backed.",
+      "description": "Declarative YAML workflow orchestration platform (Apache-2.0, JVM) \u2014 investigated by the OSS Reuse & Consolidation Audit v1 and NOT adopted; registered so the ADR-0009 one-engine rule and rejection rationale stay source-backed.",
       "upstream": {
         "canonical": "https://github.com/kestra-io/kestra",
         "repo": "kestra-io/kestra",
@@ -1846,16 +1861,16 @@
       ],
       "state": "planned",
       "limitations": [
-        "JVM application (GB-scale heap class in real deployments) + external DB for production — materially the heaviest candidate for this deployment",
-        "Task-runner model executes scripts outside our broker — would break the single-execution-path rule unless every task wraps a broker op",
-        "Approval plugin duplicates/conflicts with our human-approver red line — recorded as the decisive overlap, not a feature"
+        "JVM application (GB-scale heap class in real deployments) + external DB for production \u2014 materially the heaviest candidate for this deployment",
+        "Task-runner model executes scripts outside our broker \u2014 would break the single-execution-path rule unless every task wraps a broker op",
+        "Approval plugin duplicates/conflicts with our human-approver red line \u2014 recorded as the decisive overlap, not a feature"
       ]
     },
     {
       "key": "solvespace",
       "name": "SolveSpace",
       "domain": "cad",
-      "description": "Constraint-based parametric 3D CAD with its own NURBS kernel (GPL-3.0-or-later, v3.3 2026-10-20) — registered for completeness of the CAD candidate list; our parametric lane is served by cadquery (OCCT, installed + tested).",
+      "description": "Constraint-based parametric 3D CAD with its own NURBS kernel (GPL-3.0-or-later, v3.3 2026-10-20) \u2014 registered for completeness of the CAD candidate list; our parametric lane is served by cadquery (OCCT, installed + tested).",
       "upstream": {
         "canonical": "https://github.com/solvespace/solvespace",
         "repo": "solvespace/solvespace",
@@ -1869,7 +1884,7 @@
         "mechanisms": [
           "executable"
         ],
-        "notes": "Arm's-length CLI/process only (ADR-0004 §2) — same class as LibreCAD; deferred unless a constraint-solving need surfaces that OCCT cannot serve (adopting it now would duplicate the parametric CAD capability cadquery already provides)"
+        "notes": "Arm's-length CLI/process only (ADR-0004 \u00a72) \u2014 same class as LibreCAD; deferred unless a constraint-solving need surfaces that OCCT cannot serve (adopting it now would duplicate the parametric CAD capability cadquery already provides)"
       },
       "probes": [
         {
@@ -1883,16 +1898,16 @@
       ],
       "state": "planned",
       "limitations": [
-        "GPL-3.0-or-later strong copyleft — arm's-length process only, never in-process (ADR-0004 §2)",
-        "No pip-installable headless distribution on this host class — the same system-binary boundary recorded for FreeCAD",
-        "Capability overlap with cadquery (tested, installed) — deferred by ADR-0009 to avoid duplicating the parametric modeling capability"
+        "GPL-3.0-or-later strong copyleft \u2014 arm's-length process only, never in-process (ADR-0004 \u00a72)",
+        "No pip-installable headless distribution on this host class \u2014 the same system-binary boundary recorded for FreeCAD",
+        "Capability overlap with cadquery (tested, installed) \u2014 deferred by ADR-0009 to avoid duplicating the parametric modeling capability"
       ]
     },
     {
       "key": "gdal",
       "name": "GDAL/OGR",
       "domain": "gis",
-      "description": "Geospatial raster/vector foundation (MIT-style core license + ~14 enumerated per-file permissive exceptions) — the data-access layer under the QGIS/GRASS lanes; registered per the GIS candidate list.",
+      "description": "Geospatial raster/vector foundation (MIT-style core license + ~14 enumerated per-file permissive exceptions) \u2014 the data-access layer under the QGIS/GRASS lanes; registered per the GIS candidate list.",
       "upstream": {
         "canonical": "https://github.com/OSGeo/gdal",
         "repo": "OSGeo/gdal",
@@ -1907,7 +1922,7 @@
           "executable",
           "python-module"
         ],
-        "notes": "Foundation layer for the future QGIS (GPL-2.0) / GRASS (GPL-2.0-or-later) lanes — CRS transforms and raster/vector I/O would ride GDAL before those heavyweight applications; the python-module (osgeo) probe is the preferred in-venv lane if a wheel exists at adapter time"
+        "notes": "Foundation layer for the future QGIS (GPL-2.0) / GRASS (GPL-2.0-or-later) lanes \u2014 CRS transforms and raster/vector I/O would ride GDAL before those heavyweight applications; the python-module (osgeo) probe is the preferred in-venv lane if a wheel exists at adapter time"
       },
       "probes": [
         {
@@ -1918,9 +1933,9 @@
       ],
       "state": "planned",
       "limitations": [
-        "Exception clauses bind only when the excepted files/drivers are built in — re-verify against the pinned wheel/binary at integration time (ADR-0004 §3)",
-        "Heavy system-native build — pip-wheel availability on this host class probes at adapter time; the system-binary boundary risk is the same class recorded for OpenFOAM",
-        "GIS lanes remain Phase-5+ backlog — registering the foundation layer claims no capability (ADR-0005: no capability is complete merely because a dependency exists)"
+        "Exception clauses bind only when the excepted files/drivers are built in \u2014 re-verify against the pinned wheel/binary at integration time (ADR-0004 \u00a73)",
+        "Heavy system-native build \u2014 pip-wheel availability on this host class probes at adapter time; the system-binary boundary risk is the same class recorded for OpenFOAM",
+        "GIS lanes remain Phase-5+ backlog \u2014 registering the foundation layer claims no capability (ADR-0005: no capability is complete merely because a dependency exists)"
       ]
     }
   ]

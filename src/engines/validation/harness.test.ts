@@ -146,7 +146,40 @@ describe("validation corpus manifest (integrity — engine independent)", () => 
     // the raw transcript + conf floor + the Ø-rule form); the ground truth is
     // the case-level narrative string, like takeoff/parametric.
     const OCR_ADAPTERS = new Set(["ocr"])
+    // ADR-0011 Stage 1 — the ADOPTED takeoff engine: pins live under runs[]
+    // (like takeoff/parametric), with the op + otherFixture block shape.
+    const P2T_ADAPTERS = new Set(["pdf2takeoff"])
     for (const c of manifest) {
+      if (P2T_ADAPTERS.has(c.adapter)) {
+        const block = (c as unknown as Record<string, unknown>).pdf2takeoff as
+          | { op?: string; otherFixture?: string; errorContains?: string; runs?: Array<{ pins?: Array<{ derivation: string }>; errorContains?: string }> }
+          | undefined
+        expect(typeof block).toBe("object")
+        expect(typeof block?.op).toBe("string")
+        expect(["compare", "annotate", "export", "fill"]).toContain(block?.op ?? "")
+        if (block?.op === "compare") {
+          expect(typeof block.otherFixture).toBe("string")
+          expect((block.otherFixture ?? "").length).toBeGreaterThan(0)
+        }
+        if (c.expect === "error") {
+          expect((block?.runs ?? []).length).toBeGreaterThan(0)
+          for (const run of block?.runs ?? []) {
+            expect(typeof run.errorContains).toBe("string")
+            expect((run.errorContains ?? "").length).toBeGreaterThan(0)
+          }
+          expect(c.groundTruth).toBeUndefined()
+          continue
+        }
+        expect(typeof c.pdf2takeoffGroundTruth).toBe("string")
+        expect((c.pdf2takeoffGroundTruth ?? "").length).toBeGreaterThan(0)
+        for (const run of block?.runs ?? []) {
+          expect((run.pins ?? []).length).toBeGreaterThan(0)
+          for (const pin of run.pins ?? []) {
+            expect(pin.derivation.length).toBeGreaterThan(0)
+          }
+        }
+        continue
+      }
       if (OCR_ADAPTERS.has(c.adapter)) {
         const block = (c as unknown as Record<string, unknown>).ocr as
           | { expect?: string; runs?: Array<{ expectedWords?: Array<{ text: string }>; errorContains?: string }> }
@@ -333,6 +366,7 @@ function syntheticReport(): HarnessReport {
         dxf: { available: false, reason: "synthetic: engine absent" },
         parametric: { available: false, reason: "synthetic: engine absent" },
         ocr: { available: false, reason: "synthetic: engine absent" },
+        pdf2takeoff: { available: false, reason: "synthetic: engine absent" },
       },
     },
     engineVersions: { cadquery: "synthetic", ifcopenshell: null },

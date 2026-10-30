@@ -33,7 +33,7 @@ All of the above are permissive (MIT/Apache-2.0/ISC/Unlicense) — no copyleft i
 
 ## 3. Engine candidates (upstream)
 
-> **49 engine candidates in the registry, source-verified 2026-10-21 → 2026-10-31** (Worker 2 audit + Slice 28 license-first probes + Slice 31 OSS Reuse & Consolidation Audit v1; GitHub/GitLab/SourceForge APIs, PyPI/npm registries, and pinned-tree LICENSE/COPYING texts — full method and per-engine evidence in [engine-inventory.md](../02-engines/engine-inventory.md), capability states in [capability-matrix.md](../02-engines/capability-matrix.md), reuse decisions in [ADR-0009](../adr/0009-oss-reuse-consolidation-decisions.md) + the [audit](../02-engines/oss-reuse-consolidation-audit-v1.md)). Rows are `planned`/`tested` per the registry — no engine is redistributed; bundling requires the Phase-6 re-verification (ADR-0004 §3).
+> **49 engine candidates in the registry, source-verified 2026-10-21 → 2026-10-31** (Worker 2 audit + Slice 28 license-first probes + the two reuse-audit lines — Slice 31 per [ADR-0009](../adr/0009-oss-reuse-consolidation-decisions.md) with the [audit](../02-engines/oss-reuse-consolidation-audit-v1.md), the TL line per [ADR-0011](../adr/0011-reuse-audit-stages.md); GitHub/GitLab/SourceForge APIs, PyPI/npm registries, and pinned-tree LICENSE/COPYING texts — full method and per-engine evidence in [engine-inventory.md](../02-engines/engine-inventory.md), capability states in [capability-matrix.md](../02-engines/capability-matrix.md)). The live registry (`src/engines/registry.json`) carries **49 records — 15 `tested` with real adapters** (cadquery, IfcOpenShell, gmsh, scikit-fem, SfePy, SimPy, pandapower, pyswmm, pdfplumber, ezdxf, tesseract, amaranth, yowasp-yosys, LibreOffice, pdf2takeoff) **and 34 `planned`** (incl. the slice-31 designation rows: temporal, kestra, solvespace, gdal, and the future OpenTakeoff MCP lane). `tested` means adapter-verified on the dev host, never redistribution — bundling still requires the Phase-6 re-verification (ADR-0004 §3).
 >
 > | Engine | License (SPDX / honest text) | Copyleft class | Integration policy (ADR-0004) |
 > |---|---|---|---|
@@ -48,7 +48,8 @@ All of the above are permissive (MIT/Apache-2.0/ISC/Unlicense) — no copyleft i
 > | GRASS GIS | GPL-2.0-or-later | strong | arm's-length process only (§2) |
 > | EPA SWMM | Public Domain (US Gov, per repo README) | none | solver CLI; record public-domain status at pinning (§3) |
 > | pyswmm | BSD-2-Clause | permissive | python-module after review (§2 exception) |
-> | OpenTakeoff | AGPL-3.0 (npm declares AGPL-3.0-only) | strong + network terms | strict arm's-length MCP/process boundary (§2) |
+> | OpenTakeoff | AGPL-3.0 (npm declares AGPL-3.0-only; re-verified from the repo LICENSE text by the 2026-10-30 reuse audit) | strong + network terms | strict arm's-length MCP/process boundary (§2) |
+> | pdf2takeoff | Apache-2.0 (verified from LICENSE text + GitHub REST on audit day 2026-10-30) | permissive | embeddable per Apache-2.0 — arm's-length Node subprocess (`bin/pdf2takeoff.js`) pinned to exact commit (§2/§3); planned Stage-1 ADOPT per [ADR-0009](../adr/0009-open-source-reuse-consolidation-audit.md) |
 > | KiCad | GPL-3.0-or-later (tree text; seed AGPL claim corrected) | strong | arm's-length process only (§2) |
 > | QElectroTech | GPL-2.0 | strong | arm's-length process only (§2) |
 > | ngspice | BSD-3-Clause ("Modified BSD") | permissive | CLI batch + shared-lib review before in-process use |
@@ -78,6 +79,8 @@ All of the above are permissive (MIT/Apache-2.0/ISC/Unlicense) — no copyleft i
 > | GDAL/OGR | MIT-style core + enumerated per-file exceptions | permissive (exceptions per-file) | arm's-length CLI/python; re-verify the exception set against the pinned build (§3) |
 
 Integration policy (ADR-0004): engines run as separate processes; bundling/redistribution requires per-engine re-verification at release time. `installed` state never implies redistribution.
+
+> **2026-10-30 (ADR-0009 reuse-audit license correction):** Windmill (windmill-labs/windmill) was investigated as a workflow-foundation candidate and found **AGPL-3.0** by direct source check — despite GitHub's license API reporting NOASSERTION for the repo (the license-detection false-negative class the §4 supply-chain rule exists for). Windmill is **EXCLUDED** from any integration (ADR-0009 decision 11); no candidate row is added above because it is not a candidate.
 
 ## 4. Supply-chain rule
 
