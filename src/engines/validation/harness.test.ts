@@ -475,8 +475,16 @@ describe.skipIf(!enginesAvailable)("engine validation harness (real engine runs)
         if (c.discipline !== undefined) {
           // W2-f discipline cases: determinism lives on the discipline block
           // (null only where byte-determinism is honestly NOT claimed —
-          // libreoffice); every pin comparison must be ok.
-          if (c.discipline.adapter === "libreoffice") {
+          // libreoffice's PDFs embed timestamps §5.4, and the pdf2takeoff
+          // ANNOTATE op's output PDF embeds a creation timestamp, so that op
+          // runs once with structural pins only); the per-op policy is
+          // mirrored here from the manifest itself (caseId → pdf2takeoff.op)
+          // — the metatest never invents a second policy source; every pin
+          // comparison must be ok.
+          const manifestCase = manifest.find((x: CorpusCase) => x.caseId === c.caseId)
+          const annotateNullPolicy =
+            c.discipline.adapter === "pdf2takeoff" && manifestCase?.pdf2takeoff?.op === "annotate"
+          if (c.discipline.adapter === "libreoffice" || annotateNullPolicy) {
             expect(c.discipline.determinism).toBeNull() // PDFs embed timestamps — §5.4
           } else {
             expect(c.discipline.determinism).toBe(true)

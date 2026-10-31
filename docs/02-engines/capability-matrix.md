@@ -93,7 +93,7 @@ Owner: Worker 2 (Engines & Integration) · Date: **2026-10-30** · Registry upda
 | Document conversion / rendering (other formats) | LibreOffice | planned (beyond PDF) | 5b | PDF shipped above; other targets (e.g. docx→odt) are additive later |
 | Spreadsheet / BOQ document generation | LibreOffice headless + platform ledger | planned | 3/5 | BOQ data assembled by ledger (shipped as CSV/JSON export); LO-rendered BOQ documents remain future work |
 | Project scheduling (Gantt/CPM desktop) | ProjectLibre | planned | 3 | Registry `projectlibre` (CPAL-1.0, 1.9.8 via SourceForge); presence-only probe |
-| Work-package / schedule server (REST) | OpenProject | planned | 3/5 | Registry `openproject` (GPL-3.0, 17.9.2); arm's-length REST API integration |
+| Work-package / schedule server (REST) | OpenProject | planned (ADR-0012 Stage-3 lane SHIPPED 2026-10-31) | 3/5 | Registry `openproject` (GPL-3.0, 17.9.2); arm's-length REST v3 integration — `openproject_sync` broker op + the `eos-openproject-sync/1` mapping; promotion to tested gated on the first deployed-instance run |
 
 ## Workflow orchestration (deferred — [ADR-0009](../adr/0009-oss-reuse-consolidation-decisions.md), 2026-10-31)
 

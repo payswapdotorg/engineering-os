@@ -1636,7 +1636,7 @@
           "server",
           "cli"
         ],
-        "notes": "Rails server \u2014 REST API integration for schedule/controls workflows (Phase 3/5); packaged installs provide an 'openproject' CLI."
+        "notes": "Rails server \u2014 REST API integration for schedule/controls workflows (Phase 3/5); packaged installs provide an 'openproject' CLI. ADR-0012 Stage 3 SHIPPED 2026-10-31: the openproject_sync broker op + the arm's-length REST v3 wire (semantics source-verified against the tagged v17.9.2 tree); row stays 'planned' \u2014 promotion to 'tested' gated on the first deployed-instance run."
       },
       "probes": [
         {

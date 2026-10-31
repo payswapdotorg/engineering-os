@@ -222,8 +222,17 @@ describe.skipIf(!pandapowerAvailable)("runPowerflowFromFile — pandapower Newto
       expect(Math.abs(bus1.pMw - -(P_MW + 0))).toBeLessThanOrEqual(1e-9)
       expect(Math.abs(bus2.pMw - P_MW)).toBeLessThanOrEqual(1e-9)
       expect(Math.abs(bus2.qMvar - 0.0)).toBeLessThanOrEqual(1e-9)
-      // slack sources the line's reactive consumption: −qLoss (closed form)
-      expect(Math.abs(bus1.qMvar - -Q_LOSS_CLOSED_FORM) / Q_LOSS_CLOSED_FORM).toBeLessThanOrEqual(1e-6)
+      // slack sources the line's reactive consumption: −qLoss (closed form).
+      // ABSOLUTE 1e-6 Mvar pin (16× margin over the observed 6.25e-8 Mvar):
+      // slack Q is a cancellation of small quantities (q_from − q_to ≈ 1e-4 pu),
+      // so its RELATIVE error inherits the NR solver's absolute residual
+      // (~1e-10 pu) — and that residual is OpenBLAS-kernel dependent: the same
+      // wheel produced rel 6.25e-6 on one host CPU and ≤ 1e-6 on GitHub's
+      // runners (bit-identical across numpy versions on the SAME host, so it
+      // is microarchitecture, not version drift). Mirrors the manifest pin
+      // conventions (angleDeg absTol 1e-4, iKa relTol 1e-5, qMvar unpinned
+      // there): an absolute Mvar bound is the honest form for this quantity.
+      expect(Math.abs(bus1.qMvar - -Q_LOSS_CLOSED_FORM)).toBeLessThanOrEqual(1e-6)
 
       // line: |I| = p/v pu → kA via I_base; P loss = 0 (r = 0); Q loss = I²x
       expect(result.lines).toHaveLength(1)

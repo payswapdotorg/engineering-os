@@ -43,7 +43,9 @@ import { WORKFLOW_STATES, isWorkflowState, type WorkflowState } from "./index"
  * RTL synthesis via amaranth + yowasp-yosys).
  * ADR-0011 Stage 1 adds the ADOPTED takeoff engine's four ops
  * (`compare_revisions`, `annotate_takeoff`, `export_boq_xlsx`, `fill_area` —
- * pdf2takeoff, Apache-2.0, pinned commit f5a1c08…).
+ * pdf2takeoff, Apache-2.0, pinned commit f5a1c08…). ADR-0012 Stage 3 adds
+ * `openproject_sync` (the OpenProject arm's-length project-graph sync —
+ * GPL-3.0 external application over REST v3, never embedded).
  */
 export const BROKER_OPERATIONS = [
   "derive_quantities",
@@ -65,6 +67,7 @@ export const BROKER_OPERATIONS = [
   "annotate_takeoff",
   "export_boq_xlsx",
   "fill_area",
+  "openproject_sync",
 ] as const
 export type BrokerOperation = (typeof BROKER_OPERATIONS)[number]
 

@@ -11,9 +11,10 @@
 > retained — and are reconciled in the merge that brought this branch onto
 > main's tree: ADR-0009 records the decisions; this ADR records the audit
 > and carries the implementation stages (Stage 1 = the pdf2takeoff bridge,
-> Stage 2 = the foundation seam, both SHIPPED).
+> Stage 2 = the foundation seam, Stage 3 = the OpenProject arm's-length
+> sync — all SHIPPED).
 
-Status: accepted (2026-10-30, Audit v1 — binding Open-Source Reuse Directive compliance, delivered before the next capability expansion) · **Stage 1 SHIPPED same day** (see the migration-plan note below: the pdf2takeoff arm's-length bridge is live — 4 broker ops, 9/9 harness cases, registry `tested`) · Supersedes: none · Extends: [ADR-0004](0004-license-and-copyleft-boundary.md) (license boundary), [ADR-0005](0005-engine-integration-contract.md) (engine contract), [ADR-0006](0006-agent-safety-and-approval-gates.md) (approval red line), [ADR-0008](0008-llm-planner-untrusted-advisor.md) (planner contract)
+Status: accepted (2026-10-30, Audit v1 — binding Open-Source Reuse Directive compliance, delivered before the next capability expansion) · **Stage 1 SHIPPED same day** (see the migration-plan note below: the pdf2takeoff arm's-length bridge is live — 4 broker ops, 9/9 harness cases, registry `tested`) · **Stage 3 SHIPPED 2026-10-31** ([ADR-0012](0012-openproject-arms-length-sync.md): the OpenProject arm's-length project-graph sync — the twentieth op `openproject_sync`; registry row honestly stays `planned` pending the first deployed-instance run) · Supersedes: none · Extends: [ADR-0004](0004-license-and-copyleft-boundary.md) (license boundary), [ADR-0005](0005-engine-integration-contract.md) (engine contract), [ADR-0006](0006-agent-safety-and-approval-gates.md) (approval red line), [ADR-0008](0008-llm-planner-untrusted-advisor.md) (planner contract)
 
 ## Context
 
@@ -119,8 +120,16 @@ Staged, acceptance-suite-protected:
   behind explicit trigger criteria; REJECT Kestra (flow-semantics absorption
   of the four binding conditions + JVM footprint); the swap gate
   (e2e-p4 49 PASS + recovery drill 16 PASS on the replacement) unchanged.
-- **Stage 3:** OpenProject arm's-length integration; project-graph sync
-  adapter; `cpm.ts` remains frozen platform core.
+- **Stage 3 (SHIPPED 2026-10-31):** OpenProject arm's-length integration — the
+  `openproject_sync` broker op (vocabulary 19 → 20) over the ONE wire module
+  (`src/lib/openproject-wire.ts`, llm.ts precedent) and the pure core
+  (`src/core/openproject-sync.ts`): the UTC calendar projection, the
+  diff-based `eos-openproject-sync/1` mapping (update/create/NEVER-delete,
+  orphans recorded, interrupted-partial fold), 50 unit pins over an
+  in-process fake v3 server. Registry row stays honestly `planned` —
+  promotion gated on the first deployed-instance run. `cpm.ts` untouched —
+  the frozen platform core computes every date. See
+  [ADR-0012](0012-openproject-arms-length-sync.md).
 - **Stage 4:** agent takeoff surface over the adopted engine (MCP tools
   exposed through ADR-0006 human-approval gates only).
 - **Stage 5:** upstream contributions (pdfplumber PR) and license-register

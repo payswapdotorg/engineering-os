@@ -580,6 +580,7 @@ const OPERATION_LABELS: Record<PlannerOperation, string> = {
   annotate_takeoff: "Publish takeoff into the PDF (annotations)",
   export_boq_xlsx: "Export BOQ table (XLSX/CSV)",
   fill_area: "Room fill (Magic Fill)",
+  openproject_sync: "Sync schedule to OpenProject",
 }
 
 /**

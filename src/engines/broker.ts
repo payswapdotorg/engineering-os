@@ -35,6 +35,21 @@ import path from "node:path"
 
 import { LedgerError, makeQuantityRecord, type QuantityRecord } from "@/core"
 import { analyzeCpm, type CpmActivity, type CpmActivityResult } from "@/core/cpm"
+import {
+  foldRelationSync,
+  foldWorkPackageSync,
+  mappingDocumentBytes,
+  parseOpenProjectMappingDocument,
+  parseOpenProjectSyncRequest,
+  planRelationSync,
+  planWorkPackageSync,
+  type OpenProjectMappingDocument,
+} from "@/core/openproject-sync"
+import {
+  executeRelationWirePlan,
+  executeWorkPackageWirePlan,
+  openProjectWireConfigFromEnv,
+} from "@/lib/openproject-wire"
 import { deriveKind } from "@/engines/adapters/derive-kind"
 import { EngineUnavailableError, deriveFromFile, isPlainObject, type DeriveResult } from "@/engines/adapters/quantities"
 import { tessellateFromFile } from "@/engines/adapters/mesh"
@@ -123,6 +138,7 @@ export type BrokerOperation =
   | "annotate_takeoff"
   | "export_boq_xlsx"
   | "fill_area"
+  | "openproject_sync"
 
 export interface BrokerContext {
   projectId: string
@@ -4434,6 +4450,216 @@ export async function brokerAnalyzeScheduleCore(
 }
 
 // ---------------------------------------------------------------------------
+// openproject_sync — the ADR-0012 Stage-3 arm's-length integration
+// ---------------------------------------------------------------------------
+
+export const OPENPROJECT_SYNC_NO_REVISIONS_MESSAGE =
+  "This artifact has no revisions to sync to OpenProject"
+
+export interface BrokerOpenProjectSyncResult {
+  sync: {
+    artifactId: string
+    name: string
+    kind: "analysis"
+    revisionNumber: number
+    contentHash: string
+    sizeBytes: number
+    format: "eos-openproject-sync/1"
+    targetProjectId: number
+    anchorDate: string
+    created: number
+    adopted: number
+    updated: number
+    recreated: number
+    orphans: number
+    relationsEnsured: number
+    relationsReused: number
+    failed: number
+    derivedFromArtifactId: string
+    derivedFromRevisionId: string
+    sourceLatestRevisionId: string
+    staleSource: false
+  }
+  outputArtifactRevisionId: string
+}
+
+/**
+ * Find the prior eos-openproject-sync/1 mapping artifact of a schedule (the
+ * SAME lineage discovery persistDerivedArtifactRevision uses: derived_from
+ * this schedule, kind analysis, latest-revision format match) — read-only.
+ */
+async function findDerivedMappingArtifactId(
+  projectId: string,
+  sourceArtifactId: string,
+): Promise<string | null> {
+  const seedLinks = await db.artifactLink.findMany({
+    where: {
+      relationType: "derived_from",
+      toArtifactId: sourceArtifactId,
+      fromArtifact: { kind: "analysis", projectId },
+    },
+    orderBy: { createdAt: "asc" },
+    include: { fromArtifact: { include: { latestRevision: { select: { storageKey: true } } } } },
+  })
+  for (const link of [...new Map(seedLinks.map((l) => [l.fromArtifactId, l])).values()]) {
+    const fmt = link.fromArtifact.latestRevision
+      ? await storedJsonFormat(link.fromArtifact.latestRevision.storageKey)
+      : null
+    if (fmt === "eos-openproject-sync/1") return link.fromArtifactId
+  }
+  return null
+}
+
+/**
+ * Core of the openproject_sync broker op (ADR-0012 — OpenProject INTEGRATED
+ * at arm's length ONLY: REST v3 to an external, GPL-3.0, never-embedded
+ * application; no engine subprocess runs, and the outcome honestly leaves
+ * the engine fields absent like analyze_schedule). The frozen platform core
+ * computes every date (cpm.ts → the UTC calendar projection); the wire
+ * (src/lib/openproject-wire.ts, the llm.ts precedent) transports the plan;
+ * this core gates, plans, folds and persists the canonical
+ * eos-openproject-sync/1 mapping (find-or-create by lineage, DRAFT revision
+ * per run). Exactly ONE `schedule.synced` audit event.
+ */
+export async function brokerOpenProjectSyncCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerOpenProjectSyncResult> {
+  // 1. the schedule source — the same gate as analyze_schedule
+  const source = await readJsonArtifact(projectId, artifactId, "eos-schedule/1", OPENPROJECT_SYNC_NO_REVISIONS_MESSAGE)
+  const schedule = validateScheduleDocument(source.json)
+  if (!schedule.ok) throw new BrokerRequestError("validation_failed", schedule.error)
+
+  // 2. the CPM (the frozen platform core computes every date)
+  const analysis = analyzeCpm(schedule.value)
+  if (!analysis.ok) throw new BrokerRequestError("validation_failed", analysis.error)
+
+  // 3. the sync request (op parameters: anchorDate + first-sync targetProjectId)
+  const request = parseOpenProjectSyncRequest(parameters)
+  if (!request.ok) throw new BrokerRequestError("validation_failed", request.error)
+
+  // 4. the prior mapping (lineage-discovered; a corrupt mapping refuses honestly)
+  const priorArtifactId = await findDerivedMappingArtifactId(projectId, artifactId)
+  let priorMapping: OpenProjectMappingDocument | null = null
+  if (priorArtifactId !== null) {
+    const priorDoc = await readJsonArtifact(
+      projectId,
+      priorArtifactId,
+      "eos-openproject-sync/1",
+      OPENPROJECT_SYNC_NO_REVISIONS_MESSAGE,
+    )
+    const parsed = parseOpenProjectMappingDocument(priorDoc.json)
+    if (!parsed.ok) throw new BrokerRequestError("validation_failed", parsed.error)
+    priorMapping = parsed.value
+  }
+
+  // 5. plan pass 1 — the work-package diff (update/create/never-delete)
+  const wpPlan = planWorkPackageSync(analysis.value, request.value, priorMapping)
+  if (!wpPlan.ok) throw new BrokerRequestError("validation_failed", wpPlan.error)
+
+  // 6. the wire — honest refusal when the integration is not configured
+  const config = openProjectWireConfigFromEnv()
+  if (config === null) {
+    throw new BrokerRefusalError(
+      "engine_unavailable",
+      "OpenProject instance not configured — set EOS_OPENPROJECT_URL and EOS_OPENPROJECT_APIKEY (the ADR-0012 arm's-length integration)",
+    )
+  }
+  const wpOutcome = await executeWorkPackageWirePlan(config, wpPlan.value)
+  if (!wpOutcome.ok) throw new BrokerRefusalError("engine_unavailable", wpOutcome.error)
+
+  // 7. fold pass 1 → the intermediate mapping (relation planning needs the
+  //    resolved work-package ids of THIS run, adopted and recreated included)
+  const foldContext = {
+    targetProjectId: wpPlan.value.targetProjectId,
+    anchorDate: wpPlan.value.anchorDate,
+    sourceScheduleArtifactId: artifactId,
+    sourceRevisionId: source.revision.id,
+  }
+  const wpFold = foldWorkPackageSync(analysis.value, wpPlan.value, wpOutcome.results, priorMapping, foldContext)
+
+  // 8. plan pass 2 (the follows relations) + wire + fold pass 2
+  const relationPlan = planRelationSync(schedule.value, wpFold.mapping)
+  const relationOutcome = await executeRelationWirePlan(config, relationPlan)
+  if (!relationOutcome.ok) throw new BrokerRefusalError("engine_unavailable", relationOutcome.error)
+  const relationFold = foldRelationSync(wpFold.mapping, relationPlan, relationOutcome.results)
+
+  // 9. the honest all-failed boundary: the plan ran but nothing succeeded —
+  //    refuse (nothing is persisted; the first error is the verbatim lead)
+  const wireItemCount = wpPlan.value.items.length + relationPlan.items.length
+  const failedCount = wpFold.stats.failed + relationFold.stats.failed
+  if (wireItemCount > 0 && failedCount === wireItemCount) {
+    const first = [...wpFold.failures, ...relationFold.failures][0] ?? "unknown error"
+    throw new BrokerRefusalError(
+      "engine_unavailable",
+      `openproject_sync: all ${wireItemCount} wire operations failed — the instance is likely misconfigured or unreachable; first error: ${first}`,
+    )
+  }
+
+  // 10. canonical bytes → persist (find-or-create by lineage, DRAFT revision per run)
+  const bytes = Buffer.from(mappingDocumentBytes(relationFold.mapping), "utf8")
+  const actor = opts?.actor ?? "local-operator"
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "openproject_sync",
+    kind: "analysis",
+    format: "eos-openproject-sync/1",
+    name: `${source.artifact.name} — OpenProject sync`,
+    description: "Project-graph sync to OpenProject (arm's-length REST v3 — external application, no engine)",
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: actor,
+    inputIds: [artifactId],
+    audit: {
+      actor,
+      action: "schedule.synced",
+      // deliberately NO engineKey/engineVersion/adapterScript/adapterHash —
+      // no engine subprocess ran; the external application is at arm's length
+      detail: {
+        targetProjectId: wpPlan.value.targetProjectId,
+        anchorDate: wpPlan.value.anchorDate,
+        created: wpFold.stats.created,
+        adopted: wpFold.stats.adopted,
+        updated: wpFold.stats.updated,
+        recreated: wpFold.stats.recreated,
+        orphans: wpFold.stats.orphans,
+        relationsEnsured: relationFold.stats.ensured,
+        relationsReused: relationFold.stats.reused,
+        failed: wpFold.stats.failed + relationFold.stats.failed,
+      },
+    },
+  })
+
+  return {
+    sync: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-openproject-sync/1",
+      targetProjectId: wpPlan.value.targetProjectId,
+      anchorDate: wpPlan.value.anchorDate,
+      created: wpFold.stats.created,
+      adopted: wpFold.stats.adopted,
+      updated: wpFold.stats.updated,
+      recreated: wpFold.stats.recreated,
+      orphans: wpFold.stats.orphans,
+      relationsEnsured: relationFold.stats.ensured,
+      relationsReused: relationFold.stats.reused,
+      failed: wpFold.stats.failed + relationFold.stats.failed,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The broker dispatch — the single entry point (ADR-0005 rule 1)
 // ---------------------------------------------------------------------------
 
@@ -4988,6 +5214,36 @@ export async function runBrokerOperation(
         exitCode: 0,
         durationMs: Date.now() - startedAt,
       }
+    }
+
+    case "openproject_sync": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "openproject_sync requires inputs.artifactId (one schedule artifact id)")
+      }
+      const core = await brokerOpenProjectSyncCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      // Arm's-length platform-core outcome (ADR-0012): an external GPL-3.0
+      // application was reached over REST v3 — NO engine subprocess ran, and
+      // the honest record leaves the engine fields absent (analyze_schedule
+      // precedent); exitCode 0.
+      return platformCoreOutcome(
+        {
+          artifactId: core.sync.artifactId,
+          revisionNumber: core.sync.revisionNumber,
+          contentHash: core.sync.contentHash,
+          targetProjectId: core.sync.targetProjectId,
+          anchorDate: core.sync.anchorDate,
+          created: core.sync.created,
+          adopted: core.sync.adopted,
+          updated: core.sync.updated,
+          recreated: core.sync.recreated,
+          orphans: core.sync.orphans,
+          relationsEnsured: core.sync.relationsEnsured,
+          relationsReused: core.sync.relationsReused,
+          failed: core.sync.failed,
+        },
+        core.outputArtifactRevisionId,
+        Date.now() - startedAt,
+      )
     }
 
     default:
