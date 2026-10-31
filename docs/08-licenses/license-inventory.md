@@ -69,9 +69,9 @@ All of the above are permissive (MIT/Apache-2.0/ISC/Unlicense) — no copyleft i
 > | SimPy | MIT | permissive | python-module after review (§2 exception) |
 > | ROS 2 | multi-license (core e.g. rclcpp Apache-2.0) | permissive (per-component) | per-component verification at integration (§4) |
 > | Gazebo (gz-sim) | Apache-2.0 | permissive | arm's-length CLI/server |
-> | LibreOffice | **conflict**: mirror COPYING = GPL-3.0 text vs libreoffice.org MPL-2.0 OR LGPL-3.0-or-later | strong (unresolved) | resolve against pinned release tree before any bundling (§3) |
+> | LibreOffice | MPL-2.0 (**conflict RESOLVED** 2026-10-31, ADR-0011 Stage 5: the pinned Debian 25.2.3 release tree — `libreoffice-core` 4:25.2.3-2+deb13u8, `/usr/share/doc/libreoffice-core/copyright` — reads `License: MPL-2.0` for `Files: *` with per-file Apache-2.0 incorporated material; the GitHub mirror's stale GPL-3.0 COPYING text is the outlier, not the license) | file-level | arm's-length process (§2); bundling re-verification unchanged (§3) |
 > | OpenProject | GPL-3.0 | strong | arm's-length REST/server integration (§2) |
-> | ProjectLibre | CPAL-1.0 | attribution + network-use conditions | arm's-length desktop + attribution notices reviewed at adapter time |
+> | ProjectLibre | CPAL-1.0 (**tree-verified** 2026-10-31, ADR-0011 Stage 5: the mirror tree's `openproj_build/license/license.rtf` carries the full CPAL 1.0 text with the ProjectLibre Exhibit A — Sections 14 Attribution + 15 Network Use — plus an alternative ProjectLibre EULA path recorded as a choice at adapter time) | attribution + network-use conditions | arm's-length desktop + attribution notices reviewed at adapter time |
 > | pdf2takeoff | Apache-2.0 | permissive | library/CLI/MCP all permitted — but its xlsx@0.18.5 (CVE-stale SheetJS npm build) and libheif-js (LGPL-3.0, HEIC-only lazy) deps must never enter our tree; pin the exact commit |
 > | Temporal (server + the SDKs we would use) | MIT | permissive | designated NOT-adopted scale-out candidate ([ADR-0009 D1](../adr/0009-oss-reuse-consolidation-decisions.md)); external process/server only while unadopted |
 > | Kestra | Apache-2.0 | permissive | rejected candidate (ADR-0009) — recorded so the one-engine rule stays source-backed |
@@ -80,6 +80,8 @@ All of the above are permissive (MIT/Apache-2.0/ISC/Unlicense) — no copyleft i
 
 Integration policy (ADR-0004): engines run as separate processes; bundling/redistribution requires per-engine re-verification at release time. `installed` state never implies redistribution.
 
+> **2026-10-31 (ADR-0011 Stage 5 — the NOASSERTION/conflict queue CLOSED):** the register's open license questions are all resolved by pinned-tree reads, each first-hand: **LibreOffice**'s mirror-COPYING conflict → **MPL-2.0** (the Debian 25.2.3 release tree, above); **ProjectLibre** → **CPAL-1.0** (the mirror tree's license.rtf, above). The ONE honest remaining license-risk row is **OpenSees** — its custom UC Regents non-commercial license is not an OSI open-source license and no tree read changes that; it stays `planned` with no integration without written license review. Every other "NOASSERTION" mention in engine-inventory.md is the GitHub API *field* reading NOASSERTION for a repo whose LICENSE/COPYING tree text was read and recorded — the field is the detection gap, never the license.
+>
 > **2026-10-30 (ADR-0009 reuse-audit license correction):** Windmill (windmill-labs/windmill) was investigated as a workflow-foundation candidate and found **AGPL-3.0** by direct source check — despite GitHub's license API reporting NOASSERTION for the repo (the license-detection false-negative class the §4 supply-chain rule exists for). Windmill is **EXCLUDED** from any integration (ADR-0009 decision 11); no candidate row is added above because it is not a candidate.
 
 ## 4. Supply-chain rule

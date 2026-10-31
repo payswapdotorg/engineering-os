@@ -90,7 +90,7 @@ touched):
 | Existing code replaced | 0 (directive §8 respected — nothing working retired without benchmark; 2 mirror utilities flagged) |
 | Upstream contributions | 0 yet; pdfplumber bezier-control-point PR queued as Stage-1+ candidate |
 | Redundant implementations avoided | room detection, revision compare, annotation round-trip, scale auto-read, XLSX export, MCP takeoff surface (all adopted, not built) |
-| License review | **PASSED** — OpenTakeoff AGPL-3.0-only (arm's-length policy), pdf2takeoff Apache-2.0 (embeddable), Windmill AGPL-3.0 discovered via manual check, ProjectLibre mirror license null (verify upstream before adoption), 14 GitHub NOASSERTION rows queued for manual pinned-tree license verification per the supply-chain rule |
+| License review | **PASSED** — OpenTakeoff AGPL-3.0-only (arm's-length policy), pdf2takeoff Apache-2.0 (embeddable), Windmill AGPL-3.0 discovered via manual check; **the NOASSERTION/conflict queue CLOSED at Stage 5 (2026-10-31)**: LibreOffice → MPL-2.0 (the pinned Debian 25.2.3 tree), ProjectLibre CPAL-1.0 (mirror license.rtf, tree-verified), OpenSees the one honest license-risk row |
 
 ## Migration plan
 
@@ -132,8 +132,19 @@ Staged, acceptance-suite-protected:
   [ADR-0012](0012-openproject-arms-length-sync.md).
 - **Stage 4:** agent takeoff surface over the adopted engine (MCP tools
   exposed through ADR-0006 human-approval gates only).
-- **Stage 5:** upstream contributions (pdfplumber PR) and license-register
-  closure for NOASSERTION rows.
+- **Stage 5 (SHIPPED 2026-10-31):** upstream contributions and license-register
+  closure — the pdfplumber `curve_points`/`curve_length` contribution AUTHORED
+  + FULLY VERIFIED on branch `curve-length-utils` off develop@2fcbe6a (the
+  audited "control-point" premise honestly corrected: `curve["path"]` has
+  exposed them since 0.11.0, the missing capability was MEASUREMENT; upstream
+  suite 173 → 177, fail-on-prior proven, black/isort(profile=black)/flake8/
+  mypy clean, the quarter-arc N=32 pin bit-identical to the platform's own
+  Stage-15 harness arithmetic at the same N; submission PAT-blocked — patch +
+  PR text + verification record committed as evidence in
+  docs/evidence/upstream/pdfplumber-curve-length/). The license register's
+  NOASSERTION/conflict queue CLOSED by pinned-tree reads (LibreOffice →
+  MPL-2.0 via the Debian 25.2.3 release tree; ProjectLibre CPAL-1.0 verified
+  from the mirror's license.rtf; OpenSees the one honest license-risk row).
 
 ## Consequences
 
