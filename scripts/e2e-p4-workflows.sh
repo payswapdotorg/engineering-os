@@ -116,10 +116,10 @@ jpost "/api/projects/$PROBE_ID/workflows" "$WORK/wf-badop.json"
 # run_swmm; Slice 29 (2026-10-30) added solve_transport; Slice 30 (2026-10-31)
 # added synthesize_rtl; ADR-0011 Stage 1 (2026-10-30) added the ADOPTED
 # takeoff engine's four ops; ADR-0012 Stage 3 (2026-10-31) added
-# openproject_sync — the pinned message now lists all twenty
-# (Slice 16 added rebuild_parametric).
+# openproject_sync; Slice 32 (2026-10-31) added solve_kinematics — the pinned
+# message now lists all twenty-one (Slice 16 added rebuild_parametric).
 assert_eq "unknown operation → 422 with the joined verbatim message" \
-  'invalid workflow definition: steps.0.operation: operation must be one of: derive_quantities, derive_mesh, build_report, fe_mesh, run_powerflow, run_des, solve_fea, solve_transport, synthesize_rtl, run_swmm, convert_document, analyze_schedule, takeoff_sheet, takeoff_drawing, rebuild_parametric, compare_revisions, annotate_takeoff, export_boq_xlsx, fill_area, openproject_sync' \
+  'invalid workflow definition: steps.0.operation: operation must be one of: derive_quantities, derive_mesh, build_report, fe_mesh, run_powerflow, run_des, solve_fea, solve_transport, synthesize_rtl, solve_kinematics, run_swmm, convert_document, analyze_schedule, takeoff_sheet, takeoff_drawing, rebuild_parametric, compare_revisions, annotate_takeoff, export_boq_xlsx, fill_area, openproject_sync' \
   "$(j "$BODY" '.error.message')"
 
 jq -n --arg id "$SOLIDS_ID" '{name: "dup-ids probe", definition: {steps: [

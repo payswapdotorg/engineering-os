@@ -147,6 +147,24 @@ export const DERIVE_SUMMARIES = {
       synthesisEngineKey: typeof field(synthesis, "engineKey") === "string" ? field(synthesis, "engineKey") : undefined,
     }
   },
+  /** eos-robot-kinematics/1 → mechanismKind / linkCount / configurationCount / closed-form residuals (Slice 32) */
+  kinematics(document: unknown): Record<string, unknown> {
+    const mechanism = field(document, "mechanism")
+    const configurations = Array.isArray(field(document, "configurations")) ? (field(document, "configurations") as unknown[]) : []
+    const fkErrors = configurations
+      .map((c) => numberField(field(c, "verification"), "fkMaxAbsError"))
+      .filter((v): v is number => typeof v === "number")
+    const jacErrors = configurations
+      .map((c) => numberField(field(c, "verification"), "jacobianMaxAbsError"))
+      .filter((v): v is number => typeof v === "number")
+    return {
+      mechanismKind: typeof field(mechanism, "kind") === "string" ? field(mechanism, "kind") : undefined,
+      linkCount: numberField(mechanism, "linkCount"),
+      configurationCount: configurations.length,
+      maxFkError: fkErrors.length === configurations.length && configurations.length > 0 ? Math.max(...fkErrors) : undefined,
+      maxJacobianError: jacErrors.length === configurations.length && configurations.length > 0 ? Math.max(...jacErrors) : undefined,
+    }
+  },
   /** eos-cpm/1 → activityCount / criticalPathCount / durationDays */
   analysis(document: unknown): Record<string, unknown> {
     return {

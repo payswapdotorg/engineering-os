@@ -80,6 +80,7 @@ import { runDesFromFile, type DesResult } from "../adapters/des"
 import { runFeaFromFile, validateFeaParameters, type FeaParameters, type FeaResult } from "../adapters/fea"
 import { runTransportFromFile, validateTransportParameters, type TransportParameters, type TransportResult } from "../adapters/cfd"
 import { runRtlSynthesisFromFile, type RtlResult } from "../adapters/chip"
+import { runKinematicsFromFile, type KinematicsResult } from "../adapters/robotics"
 import { runSwmmFromFile, validateSwmmParameters, type SwmmParameters, type SwmmResult } from "../adapters/swmm"
 import { convertDocumentToFile, type ConversionResult } from "../adapters/convert-document"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "../adapters/sheet_takeoff"
@@ -113,6 +114,7 @@ import {
   buildSwmmDocument,
   buildTransportDocument,
   buildRtlDocument,
+  buildKinematicsDocument,
   buildFeMeshDocument,
   buildPowerflowDocument,
   validateScheduleDocument,
@@ -131,6 +133,7 @@ export type AdapterKind =
   | "fea"
   | "transport"
   | "chip"
+  | "robotics"
   | "swmm"
   | "cpm"
   | "libreoffice"
@@ -152,6 +155,7 @@ export type DisciplineAdapter =
   | "fea"
   | "transport"
   | "chip"
+  | "robotics"
   | "swmm"
   | "cpm"
   | "libreoffice"
@@ -204,6 +208,7 @@ export interface CorpusCase {
   fea?: DisciplineExpectation
   transport?: DisciplineExpectation
   chip?: DisciplineExpectation
+  robotics?: DisciplineExpectation
   swmm?: DisciplineExpectation
   cpm?: DisciplineExpectation
   libreoffice?: DisciplineExpectation
@@ -595,7 +600,7 @@ const LIBREOFFICE_BIN = process.env.EOS_LIBREOFFICE ?? "/usr/bin/libreoffice"
 
 /** Python engines per adapter kind (cpm/libreoffice/ocr are probed differently). */
 const PYTHON_ENGINE_MODULES: Record<
-  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "transport" | "chip" | "swmm" | "sheet" | "dxf" | "parametric",
+  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "transport" | "chip" | "robotics" | "swmm" | "sheet" | "dxf" | "parametric",
   string
 > = {
   step: "cadquery",
@@ -606,6 +611,7 @@ const PYTHON_ENGINE_MODULES: Record<
   fea: "skfem",
   transport: "sfepy",
   chip: "amaranth",
+  robotics: "pinocchio",
   swmm: "pyswmm",
   sheet: "pdfplumber",
   dxf: "ezdxf",
@@ -631,6 +637,7 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   fea: "scikit-fem (plane-stress FEA)",
   transport: "sfepy/SfePy (steady scalar transport CFD)",
   chip: "amaranth + yowasp-yosys (RTL synthesis)",
+  robotics: "pin/Pinocchio (planar-2R kinematics)",
   swmm: "pyswmm/SWMM5 (stormwater drainage)",
   cpm: "platform CPM core (no engine)",
   libreoffice: "libreoffice (document conversion)",
@@ -925,6 +932,16 @@ function parseDisciplineExpectation(
       if (keys.length !== 0) {
         throw new Error(
           `manifest case ${caseId}: chip.parameters must be empty (the synthesis script is frozen; got ${JSON.stringify(keys)})`,
+        )
+      }
+      block.parameters = {}
+    } else if (blockName === "robotics") {
+      // Slice 32 (contract §18.3): solve_kinematics takes NO parameters — the
+      // mechanism and configuration set are frozen at upload.
+      const keys = Object.keys(parameters)
+      if (keys.length !== 0) {
+        throw new Error(
+          `manifest case ${caseId}: robotics.parameters must be empty (the mechanism and configurations are frozen at upload; got ${JSON.stringify(keys)})`,
         )
       }
       block.parameters = {}
@@ -1423,6 +1440,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "fea" ||
       adapter === "transport" ||
       adapter === "chip" ||
+      adapter === "robotics" ||
       adapter === "swmm" ||
       adapter === "cpm" ||
       adapter === "libreoffice" ||
@@ -1432,7 +1450,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "ocr"
     if (!isModelAdapter && !isDisciplineAdapter && adapter !== "pdf2takeoff") {
       throw new Error(
-        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"transport"|"chip"|"swmm"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr"|"pdf2takeoff" (got ${JSON.stringify(adapter)})`,
+        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"transport"|"chip"|"robotics"|"swmm"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr"|"pdf2takeoff" (got ${JSON.stringify(adapter)})`,
       )
     }
     if (typeof fixture !== "string" || fixture.length === 0) {
@@ -2444,6 +2462,57 @@ function chipObserved(r: RtlResult, pin: DisciplinePin): unknown {
   return undefined
 }
 
+/** Resolve a pin's observed value on a kinematics result (Slice 32 —
+ * scalar fields plus ONE ref locator: "config<N>" (the 1-based configuration
+ * index) for per-configuration pose/Jacobian/residual pins; the Jacobian
+ * entries are addressed individually as jacobian0…jacobian11 (row-major,
+ * the §18.1 6×2 shape). */
+function roboticsObserved(r: KinematicsResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "analysis":
+      return r.analysis
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "mechanismKind":
+      return r.mechanism.kind
+    case "linkCount":
+      return r.mechanism.linkCount
+    case "linkLength1":
+      return r.mechanism.linkLengthsMeters[0]
+    case "linkLength2":
+      return r.mechanism.linkLengthsMeters[1]
+    case "configurationCount":
+      return r.configurations.length
+    default:
+      break
+  }
+  if (pin.ref === null) return undefined
+  const mc = pin.ref.match(/^config(\d+)$/)
+  if (mc === null) return undefined
+  const configuration = r.configurations.find((c) => c.index === Number(mc[1]))
+  if (configuration === undefined) return undefined
+  switch (pin.field) {
+    case "xMeters":
+      return configuration.endEffector.xMeters
+    case "yMeters":
+      return configuration.endEffector.yMeters
+    case "thetaRad":
+      return configuration.endEffector.thetaRad
+    case "fkMaxAbsError":
+      return configuration.verification.fkMaxAbsError
+    case "jacobianMaxAbsError":
+      return configuration.verification.jacobianMaxAbsError
+    default: {
+      const mj = pin.field.match(/^jacobian(\d{1,2})$/)
+      if (mj === null) return undefined
+      const idx = Number(mj[1])
+      return idx >= 0 && idx < 12 ? configuration.jacobianRowMajor[idx] : undefined
+    }
+  }
+}
+
 /** Resolve a pin's observed value on a SWMM result (Slice 23 — the depth
  * locator ref is the node/conduit id, e.g. "C1" or "J1"). */
 function swmmObserved(r: SwmmResult, pin: DisciplinePin): unknown {
@@ -2640,6 +2709,8 @@ async function runDisciplineChecks(
         await runTransportFromFile(fixturePath, block.parameters ?? {})
       } else if (adapter === "chip") {
         await runRtlSynthesisFromFile(fixturePath, {})
+      } else if (adapter === "robotics") {
+        await runKinematicsFromFile(fixturePath, {})
       } else if (adapter === "swmm") {
         await runSwmmFromFile(fixturePath, block.parameters ?? {})
       } else {
@@ -2817,6 +2888,25 @@ async function runDisciplineChecks(
       }
       for (const pin of block.pins ?? []) {
         r.comparisons.push(compareDisciplinePin(pin, chipObserved(first, pin)))
+      }
+    } else if (adapter === "robotics") {
+      const first = await runKinematicsFromFile(fixturePath, {})
+      const second = await runKinematicsFromFile(fixturePath, {})
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      const documentOf = (res: KinematicsResult) => buildKinematicsDocument(sourceName, res)
+      r.determinism = documentOf(first) === documentOf(second)
+      if (!r.determinism) {
+        r.problems.push("two consecutive real runs produced different eos-robot-kinematics/1 document bytes — the stored artifact would not be byte-deterministic")
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, roboticsObserved(first, pin)))
       }
     } else if (adapter === "swmm") {
       let params: SwmmParameters
@@ -3950,6 +4040,7 @@ export async function runHarness(): Promise<HarnessReport> {
         fea: probeEngine("fea"),
         transport: probeEngine("transport"),
         chip: probeEngine("chip"),
+        robotics: probeEngine("robotics"),
         swmm: probeEngine("swmm"),
         cpm: probeEngine("cpm"),
         libreoffice: probeEngine("libreoffice"),

@@ -919,3 +919,76 @@ export function parseRtlModelJsonText(text: string): ParseSchemaResult<RtlModelI
   if (!raw.ok) return { ok: false, error: `invalid rtl model: ${raw.error}` }
   return parseRtlModel(raw.value)
 }
+
+// ---------------------------------------------------------------------------
+// §18.2 Robot arm model (eos-robot-arm-model/1 — Slice 32, kinematic
+// analysis via Pinocchio; the robotics lane the Slice-28 license-first probe
+// opened)
+// ---------------------------------------------------------------------------
+
+const robotLinkLength = (label: string) =>
+  z
+    .number({ message: `${label} must be a number` })
+    .refine((v) => Number.isFinite(v) && v > 0 && v <= 10, {
+      message: `${label} must be a finite number > 0 and ≤ 10 (meters)`,
+    })
+
+const robotJointRad = (label: string) =>
+  z
+    .number({ message: `${label} must be a number` })
+    .refine((v) => Number.isFinite(v), {
+      message: `${label} must be a finite number (radians)`,
+    })
+
+export const robotArmModelSchema = z.strictObject(
+  {
+    format: z.literal("eos-robot-arm-model/1", {
+      message: 'format must be "eos-robot-arm-model/1"',
+    }),
+    name: nameField(),
+    mechanism: z.strictObject(
+      {
+        kind: z.literal("planar_2r", {
+          message:
+            'mechanism.kind must be "planar_2r" (the v1 mechanism class; every other class is its own future lane)',
+        }),
+        linkLengthsMeters: z
+          .tuple([robotLinkLength("mechanism.linkLengthsMeters[0]"), robotLinkLength("mechanism.linkLengthsMeters[1]")], {
+            message: "mechanism.linkLengthsMeters must be an array of exactly 2 numbers",
+          }),
+      },
+      { message: "mechanism must be a JSON object" },
+    ),
+    configurations: z
+      .array(
+        z.strictObject(
+          {
+            jointsRad: z.tuple([robotJointRad("configurations.jointsRad[0]"), robotJointRad("configurations.jointsRad[1]")], {
+              message: "configurations.jointsRad must be an array of exactly 2 numbers",
+            }),
+          },
+          { message: "each configuration must be a JSON object" },
+        ),
+        { message: "configurations must be a JSON array" },
+      )
+      .min(1, "configurations must carry at least 1 configuration")
+      .max(8, "configurations must carry at most 8 configurations (v1 — a human-reviewable table, not a batch sweep)"),
+  },
+  { message: "robot model must be a JSON object" },
+)
+
+export type RobotArmModelInput = z.infer<typeof robotArmModelSchema>
+
+/** Parse an unknown value as an eos-robot-arm-model/1 document. */
+export function parseRobotArmModel(input: unknown): ParseSchemaResult<RobotArmModelInput> {
+  const parsed = robotArmModelSchema.safeParse(input)
+  if (parsed.success) return { ok: true, value: parsed.data }
+  return { ok: false, error: joinZodIssues("invalid robot model", parsed.error) }
+}
+
+/** Parse stored artifact text as an eos-robot-arm-model/1 document (Slice 32). */
+export function parseRobotArmModelJsonText(text: string): ParseSchemaResult<RobotArmModelInput> {
+  const raw = parseJsonText(text)
+  if (!raw.ok) return { ok: false, error: `invalid robot model: ${raw.error}` }
+  return parseRobotArmModel(raw.value)
+}

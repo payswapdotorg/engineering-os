@@ -326,6 +326,54 @@ assert_eq "unauthenticated RTL synthesis → 401 envelope verbatim (the op rides
   "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
 
 # ===========================================================================
+# AC-ROBOT-04 — kinematic analysis (REAL Pinocchio `pin`; the robotics lane the
+# Slice-28 license-first probe opened — contract §18.6, Slice 32)
+# ===========================================================================
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/robot-arm-2link.json" "Robot arm 2link"
+ROBOT_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$ROBOT_ID/kinematics" -H 'Content-Type: application/json' -d '{}'
+assert_eq "robot arm JSON → kinematic analysis by REAL Pinocchio (kind analysis, eos-robot-kinematics/1, planar_2r, 2 links, 4 configurations, engine pin 4.1.0)" \
+  "201|analysis|eos-robot-kinematics/1|kinematic_analysis|planar_2r|2|4|pin|4.1.0" \
+  "$STATUS|$(j "$BODY" '.data.kinematics.kind')|$(j "$BODY" '.data.kinematics.document.format')|$(j "$BODY" '.data.kinematics.document.analysis')|$(j "$BODY" '.data.kinematics.mechanismKind')|$(j "$BODY" '.data.kinematics.linkCount')|$(j "$BODY" '.data.kinematics.configurationCount')|$(j "$BODY" '.data.kinematics.engineKey')|$(j "$BODY" '.data.kinematics.engineVersion')"
+near "closed-form pin: config 1 EE x = 0.5·cos(π/6) + 0.35·cos(5π/12) = 0.5235993677 (the §18.1 probe config, hand-derived — never the engine's own echo)" \
+  "0.5235993676781017" "$(j "$BODY" '.data.kinematics.document.configurations[0].endEffector.xMeters')" "0.000000001"
+near "closed-form pin: config 1 EE θ = 5π/12 (the wrapped sum)" \
+  "1.3089969389957474" "$(j "$BODY" '.data.kinematics.document.configurations[0].endEffector.thetaRad')" "0.000000001"
+near "closed-form pin: config 3 (the SINGULAR fully-extended config) x = L1 + L2 = 0.85 exactly" \
+  "0.85" "$(j "$BODY" '.data.kinematics.document.configurations[2].endEffector.xMeters')" "0.000000001"
+near "closed-form pin: the wz Jacobian row is exactly [1, 1] — both joints rotate about z (config 1)" \
+  "1" "$(j "$BODY" '.data.kinematics.document.configurations[0].jacobianRowMajor[10]')" "0.000000001"
+near "closed-form pin: the FK gate residual ≤ 1e-12 (a disagreeing kinematics result is refused, never stored)" \
+  "0" "$(j "$BODY" '.data.kinematics.maxFkError')" "0.000000000001"
+near "closed-form pin: the Jacobian gate residual ≤ 1e-12" \
+  "0" "$(j "$BODY" '.data.kinematics.maxJacobianError')" "0.000000000001"
+http GET "/api/events?projectId=$PROBE_ID&limit=200"
+assert_eq "exactly ONE kinematics.solved audit event for the run, engine pin attributed" \
+  "1|pin" "$(j "$BODY" '[.data.events[] | select(.action == "kinematics.solved")] | length')|$(j "$BODY" '[.data.events[] | select(.action == "kinematics.solved")][0].detail | fromjson | .engineKey')"
+http POST "/api/projects/$PROBE_ID/artifacts/$DESW_ID/kinematics" -H 'Content-Type: application/json' -d '{}'
+assert_contains "wrong-format JSON → 422 (the ROUTE zod refuses alien content before the broker — defense-in-depth)" \
+  'format must be "eos-robot-arm-model/1"' \
+  "$(j "$BODY" '.error.message')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/robot-arm-invalid-kind.json" "Robot arm invalid kind"
+ROBOTU_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$ROBOTU_ID/kinematics" -H 'Content-Type: application/json' -d '{}'
+assert_contains "mechanism.kind spatial_6r → the honest v1-class refusal verbatim (every other class is its own future lane)" \
+  'mechanism.kind must be "planar_2r"' \
+  "$(j "$BODY" '.error.message')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/robot-arm-bad-length.json" "Robot arm bad length"
+ROBOTL_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$ROBOTL_ID/kinematics" -H 'Content-Type: application/json' -d '{}'
+assert_contains "link length 0 → the schema range refusal verbatim" \
+  "mechanism.linkLengthsMeters[1] must be a finite number > 0 and ≤ 10 (meters)" \
+  "$(j "$BODY" '.error.message')"
+: > "$WORK/http.body"
+STATUS_NOAUTH=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/projects/$PROBE_ID/artifacts/$ROBOTU_ID/kinematics") || STATUS_NOAUTH="000"
+BODY_NOAUTH=$(cat "$WORK/http.body")
+assert_eq "unauthenticated kinematics solve → 401 envelope verbatim (the op rides the same session gate)" \
+  "401|sign in required" \
+  "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
+
+# ===========================================================================
 # AC-SW-04 — stormwater drainage (REAL pyswmm/SWMM5; the mass-conservation
 # closed form + the two honest 422 gates + the audit event; contract §15.6)
 # ===========================================================================
@@ -586,8 +634,11 @@ assert_eq "Slice-29 addendum: the sfepy registry row carries its validation bloc
 assert_eq "Slice-30 addendum: the amaranth AND yowasp-yosys registry rows carry their validation blocks (3 chip harness cases each, pass — the front-end and synthesis halves of the RTL lane)" \
   "pass|3|tested|pass|3|tested" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].state')"
-assert_eq "registry reconciliation: fifteen harness-validated engines (the nine 16-D set + scikit-fem + pyswmm + sfepy + amaranth + yowasp-yosys + the Stage-1 ADOPTED pdf2takeoff) carry state 'tested', registry total 49 (slice-31 added temporal/kestra/solvespace/gdal as planned designation rows — pdf2takeoff's slice-31 duplicate merged into the single tested row) — the OpenSees row stays 'planned' with the license review closed REJECTED" \
-  "15|49|planned" \
+assert_eq "Slice-32 addendum: the pin registry row carries its validation block too (3 robotics harness cases, pass)" \
+  "pass|3|tested" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].state')"
+assert_eq "registry reconciliation: sixteen harness-validated engines (the nine 16-D set + scikit-fem + pyswmm + sfepy + amaranth + yowasp-yosys + pin + the Stage-1 ADOPTED pdf2takeoff) carry state 'tested', registry total 49 (slice-31 added temporal/kestra/solvespace/gdal as planned designation rows — pdf2takeoff's slice-31 duplicate merged into the single tested row) — the OpenSees row stays 'planned' with the license review closed REJECTED" \
+  "16|49|planned" \
   "$(j "$BODY" '[.data.registry[] | select(.state == "tested")] | length')|$(j "$BODY" '.data.registry | length')|$(j "$BODY" '[.data.registry[] | select(.key == "opensees")][0].state')"
 assert_eq "ADR-0011 Stage-1 addendum: the ADOPTED takeoff engine's registry row carries its validation block (9 pdf2takeoff harness cases, pass) and the tested state" \
   "pass|9|tested" \
@@ -595,10 +646,10 @@ assert_eq "ADR-0011 Stage-1 addendum: the ADOPTED takeoff engine's registry row 
 # Slice 28 (the Phase-5 long-tail license-first probe): five new rows with the
 # license reviews closed ACCEPTED on wheel/sdist-verified evidence. Slice 29
 # promoted sfepy (the transport lane); Slice 30 promoted amaranth +
-# yowasp-yosys (the chip lane); pin/pybullet stay 'planned' until their own
-# lanes ship.
-assert_eq "Slice-28/29/30 addendum: sfepy + amaranth + yowasp-yosys are now tested (the transport + chip lanes) while pin/pybullet stay planned, all five with ACCEPTED license reviews" \
-  "tested|tested|tested|planned|planned|5" \
+# yowasp-yosys (the chip lane); Slice 32 promoted pin (the robotics lane);
+# pybullet stays 'planned' until its own lane ships.
+assert_eq "Slice-28/29/30/32 addendum: sfepy + amaranth + yowasp-yosys + pin are now tested (the transport + chip + robotics lanes) while pybullet stays planned, all five with ACCEPTED license reviews" \
+  "tested|tested|tested|tested|planned|5" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "sfepy")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "pybullet")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "sfepy" or .key == "amaranth" or .key == "yowasp-yosys" or .key == "pin" or .key == "pybullet") | select(.integration.notes | contains("LICENSE REVIEW CLOSED ACCEPTED"))] | length')"
 assert_contains "Slice-28 addendum: the pin row records the PyPI name-trap (the real library distributes as 'pin')" \
   "the PyPI distribution named 'pinocchio' (0.5.1) is an UNRELATED package" \

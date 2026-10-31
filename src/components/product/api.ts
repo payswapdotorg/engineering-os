@@ -1215,6 +1215,22 @@ export interface ChipPayload {
   generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string }
 }
 
+/** eos-robot-kinematics/1 — planar-2R kinematic analysis result (Pinocchio, Slice 32). */
+export interface KinematicsPayload {
+  format: "eos-robot-kinematics/1"
+  sourceArtifactName: string
+  analysis: "kinematic_analysis"
+  mechanism: { kind: string; linkCount: number; linkLengthsMeters: [number, number] }
+  configurations: Array<{
+    index: number
+    jointsRad: [number, number]
+    endEffector: { xMeters: number; yMeters: number; thetaRad: number }
+    jacobianRowMajor: number[]
+    verification: { fkMaxAbsError: number; jacobianMaxAbsError: number }
+  }>
+  generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string }
+}
+
 /** Which stored payload a derived artifact revision carries (discriminated by format). */
 export type AnalysisPayload =
   | PowerFlowPayload
@@ -1223,6 +1239,7 @@ export type AnalysisPayload =
   | FeaPayload
   | TransportPayload
   | ChipPayload
+  | KinematicsPayload
 
 // --- §8 routes (thin wrappers over broker cores; 422s verbatim) --------------
 
@@ -1368,6 +1385,15 @@ export async function runTransport(projectId: string, artifactId: string) {
 export async function runRtlSynthesis(projectId: string, artifactId: string) {
   return apiJson<{ rtl: DeriveRunResult }>(
     `/api/projects/${projectId}/artifacts/${artifactId}/rtl`,
+    "POST",
+    {},
+  )
+}
+
+/** POST /api/projects/[id]/artifacts/[aid]/kinematics — 201 {kinematics} (Slice 32). */
+export async function runKinematics(projectId: string, artifactId: string) {
+  return apiJson<{ kinematics: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/kinematics`,
     "POST",
     {},
   )

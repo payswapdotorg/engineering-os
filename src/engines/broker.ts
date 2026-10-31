@@ -59,6 +59,7 @@ import { runDesFromFile, type DesJob, type DesResource } from "@/engines/adapter
 import { runFeaFromFile, type FeaSample } from "@/engines/adapters/fea"
 import { runTransportFromFile, type TransportSample } from "@/engines/adapters/cfd"
 import { runRtlSynthesisFromFile, type RtlSimulationStep } from "@/engines/adapters/chip"
+import { runKinematicsFromFile, type KinematicsConfiguration } from "@/engines/adapters/robotics"
 import { runSwmmFromFile, type SwmmDepthSample } from "@/engines/adapters/swmm"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "@/engines/adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "@/engines/adapters/dxf_takeoff"
@@ -128,6 +129,7 @@ export type BrokerOperation =
   | "solve_fea"
   | "solve_transport"
   | "synthesize_rtl"
+  | "solve_kinematics"
   | "run_swmm"
   | "convert_document"
   | "analyze_schedule"
@@ -1024,6 +1026,7 @@ export const FEA_NO_REVISIONS_MESSAGE = "This artifact has no revisions to solve
 export const SWMM_NO_REVISIONS_MESSAGE = "This artifact has no revisions to run"
 export const TRANSPORT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to solve"
 export const RTL_NO_REVISIONS_MESSAGE = "This artifact has no revisions to synthesize"
+export const KINEMATICS_NO_REVISIONS_MESSAGE = "This artifact has no revisions to analyze"
 export const CONVERT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to convert"
 export const ANALYZE_NO_REVISIONS_MESSAGE = "This artifact has no revisions to analyze"
 
@@ -1377,6 +1380,60 @@ export function buildRtlDocument(
         count: step.count,
       })),
     },
+    generatedBy: {
+      engineKey: payload.engineKey,
+      engineVersion: payload.engineVersion,
+      adapterScript: payload.adapterScript,
+      adapterHash: payload.adapterHash,
+    },
+  })
+}
+
+/**
+ * Assemble the eos-robot-kinematics/1 document bytes (contract §18.4). PURE:
+ * pinned key order format → sourceArtifactName → analysis → mechanism →
+ * configurations → generatedBy; every double is the engine's verbatim
+ * shortest-round-trip repr (byte-determinism is pinned by the harness
+ * double-run — §18.4; nobody rounds "for presentation", ADR-0006 §2).
+ */
+export function buildKinematicsDocument(
+  sourceArtifactName: string,
+  payload: {
+    analysis: "kinematic_analysis"
+    mechanism: { kind: "planar_2r"; linkCount: number; linkLengthsMeters: [number, number] }
+    configurations: KinematicsConfiguration[]
+    engineKey: string
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+  },
+): string {
+  return JSON.stringify({
+    format: "eos-robot-kinematics/1",
+    sourceArtifactName,
+    analysis: payload.analysis,
+    mechanism: {
+      kind: payload.mechanism.kind,
+      linkCount: payload.mechanism.linkCount,
+      linkLengthsMeters: [
+        payload.mechanism.linkLengthsMeters[0],
+        payload.mechanism.linkLengthsMeters[1],
+      ],
+    },
+    configurations: payload.configurations.map((configuration) => ({
+      index: configuration.index,
+      jointsRad: [configuration.jointsRad[0], configuration.jointsRad[1]],
+      endEffector: {
+        xMeters: configuration.endEffector.xMeters,
+        yMeters: configuration.endEffector.yMeters,
+        thetaRad: configuration.endEffector.thetaRad,
+      },
+      jacobianRowMajor: configuration.jacobianRowMajor.map((v) => v),
+      verification: {
+        fkMaxAbsError: configuration.verification.fkMaxAbsError,
+        jacobianMaxAbsError: configuration.verification.jacobianMaxAbsError,
+      },
+    })),
     generatedBy: {
       engineKey: payload.engineKey,
       engineVersion: payload.engineVersion,
@@ -3969,6 +4026,134 @@ export async function brokerRunRtlCore(
   }
 }
 
+/** Pinned 201 `kinematics` response object (exact key order — mirror of the rtl 201). */
+export interface BrokerKinematicsResponse {
+  artifactId: string
+  name: string
+  kind: "analysis"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-robot-kinematics/1"
+  analysis: "kinematic_analysis"
+  mechanismKind: "planar_2r"
+  linkCount: number
+  configurationCount: number
+  maxFkError: number
+  maxJacobianError: number
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerKinematicsResult {
+  kinematics: BrokerKinematicsResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of solve_kinematics (contract §18.3/§18.5): gate the stored JSON as an
+ * eos-robot-arm-model/1 document, run the Pinocchio bridge (the adapter
+ * gates every configuration against the planar closed forms — a disagreeing
+ * kinematics result is refused, never stored), assemble the
+ * byte-deterministic eos-robot-kinematics/1 document, find-or-create the
+ * kind-"analysis" artifact (DRAFT revision per run), exactly ONE
+ * `kinematics.solved` audit event (engine attributed verbatim).
+ */
+export async function brokerRunKinematicsCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerKinematicsResult> {
+  const source = await readJsonArtifact(projectId, artifactId, "eos-robot-arm-model/1", KINEMATICS_NO_REVISIONS_MESSAGE)
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof runKinematicsFromFile>>
+  try {
+    result = await runKinematicsFromFile(absPath, parameters)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildKinematicsDocument(source.artifact.name, result)
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "solve_kinematics",
+    kind: "analysis",
+    format: "eos-robot-kinematics/1",
+    name: `${source.artifact.name} — kinematics`,
+    description: `Planar-2R kinematic analysis (FK + geometric Jacobian, ${result.engineKey})`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "kinematics.solved",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        analysis: result.analysis,
+        mechanismKind: result.mechanism.kind,
+        linkCount: result.mechanism.linkCount,
+        configurationCount: result.configurations.length,
+        maxFkError: Math.max(...result.configurations.map((c) => c.verification.fkMaxAbsError)),
+        maxJacobianError: Math.max(...result.configurations.map((c) => c.verification.jacobianMaxAbsError)),
+      },
+    },
+  })
+
+  return {
+    kinematics: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-robot-kinematics/1",
+      analysis: result.analysis,
+      mechanismKind: result.mechanism.kind,
+      linkCount: result.mechanism.linkCount,
+      configurationCount: result.configurations.length,
+      maxFkError: Math.max(...result.configurations.map((c) => c.verification.fkMaxAbsError)),
+      maxJacobianError: Math.max(...result.configurations.map((c) => c.verification.jacobianMaxAbsError)),
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
 /** Pinned 201 `transport` response object (exact key order — mirror of the fea 201). */
 export interface BrokerTransportResponse {
   artifactId: string
@@ -5033,6 +5218,34 @@ export async function runBrokerOperation(
           totalCells: core.rtl.totalCells,
           flipFlopCount: core.rtl.flipFlopCount,
           synthesisEngineKey: core.rtl.synthesisEngineKey,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "solve_kinematics": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "solve_kinematics requires inputs.artifactId (one robot arm model artifact id)")
+      }
+      const core = await brokerRunKinematicsCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.kinematics.artifactId,
+          revisionNumber: core.kinematics.revisionNumber,
+          contentHash: core.kinematics.contentHash,
+          mechanismKind: core.kinematics.mechanismKind,
+          linkCount: core.kinematics.linkCount,
+          configurationCount: core.kinematics.configurationCount,
+          maxFkError: core.kinematics.maxFkError,
+          maxJacobianError: core.kinematics.maxJacobianError,
         },
         outputArtifactRevisionId: core.outputArtifactRevisionId,
         engineKey: core.engineKey,

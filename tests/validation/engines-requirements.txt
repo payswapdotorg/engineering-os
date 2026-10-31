@@ -44,3 +44,12 @@ sfepy==2026.3
 # +7 wheels total (wasmtime/pyvcd/jschon/rfc3986/yowasp-runtime), ZERO removals.
 amaranth==0.5.10
 yowasp-yosys==0.70.0.0.post1259
+# Slice 32 (2026-10-31, contract §18): pin (Pinocchio) — planar-2R kinematic
+# analysis. BSD (the wheel's bundled LICENSE is the 2-clause text; METADATA
+# says BSD-3-Clause — both permissive, discrepancy recorded, Slice-28 probe).
+# NAME-TRAP: the PyPI distribution named 'pinocchio' (0.5.1) is UNRELATED —
+# the real library distributes as 'pin', import name 'pinocchio'.
+# +14 prebuilt cmeel wheels (cmeel/cmeel-boost/cmeel-urdfdom/cmeel-assimp/
+# cmeel-octomap/cmeel-qhull/cmeel-tinyxml2/cmeel-zlib/cmeel-console-bridge/
+# coal/libcoal/eigenpy/libpinocchio/pin), ZERO removals, pip check clean.
+pin==4.1.0

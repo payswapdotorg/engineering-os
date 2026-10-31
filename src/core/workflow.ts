@@ -40,7 +40,9 @@ import { WORKFLOW_STATES, isWorkflowState, type WorkflowState } from "./index"
  * absent = the authored defaults). Slice 29 adds `solve_transport` (the CFD
  * lane, phase5 contract §16.3 — steady scalar transport via SfePy).
  * Slice 30 adds `synthesize_rtl` (the chip lane, phase5 contract §17.3 —
- * RTL synthesis via amaranth + yowasp-yosys).
+ * RTL synthesis via amaranth + yowasp-yosys). Slice 32 adds
+ * `solve_kinematics` (the robotics lane, phase5 contract §18.3 — planar-2R
+ * kinematic analysis via Pinocchio, pip distribution `pin`).
  * ADR-0011 Stage 1 adds the ADOPTED takeoff engine's four ops
  * (`compare_revisions`, `annotate_takeoff`, `export_boq_xlsx`, `fill_area` —
  * pdf2takeoff, Apache-2.0, pinned commit f5a1c08…). ADR-0012 Stage 3 adds
@@ -57,6 +59,7 @@ export const BROKER_OPERATIONS = [
   "solve_fea",
   "solve_transport",
   "synthesize_rtl",
+  "solve_kinematics",
   "run_swmm",
   "convert_document",
   "analyze_schedule",
