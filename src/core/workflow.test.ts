@@ -320,6 +320,103 @@ describe("parseWorkflowDefinition (refusals are verbatim + joinable)", () => {
     if (!five.ok) expect(five.error).toContain("at most 4 artifact ids are allowed")
   })
 
+  // -------------------------------------------------------------------------
+  // compare_revisions — the exactly-2 [old, new] pair (ADR-0011 Stage 4, the
+  // SECOND multi-input op): one happy path + the SIX pinned refusal shapes.
+  // -------------------------------------------------------------------------
+
+  test("compare_revisions parses with the exactly-2 [old, new] pair (defaults filled)", () => {
+    const parsed = parseWorkflowDefinition({
+      steps: [
+        {
+          id: "compare",
+          operation: "compare_revisions",
+          inputs: { artifactIds: ["art_old_1", "art_new_1"] },
+        },
+      ],
+    })
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.steps[0].inputs).toEqual({ artifactIds: ["art_old_1", "art_new_1"] })
+    expect(parsed.value.steps[0].parameters).toEqual({})
+    expect(parsed.value.steps[0].retry).toEqual({ maxAttempts: 1, backoffMs: 0 })
+  })
+
+  test("compare_revisions refusal #1: the single-artifact shape is refused", () => {
+    const parsed = parseWorkflowDefinition({
+      steps: [{ id: "compare", operation: "compare_revisions", inputs: { artifactId: "art_old_1" } }],
+    })
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) return
+    expect(parsed.error).toContain("inputs.artifactIds is required for compare_revisions (exactly 2 artifact ids [old, new])")
+    expect(parsed.error).toContain("inputs.artifactId is not accepted for compare_revisions")
+  })
+
+  test("compare_revisions refusal #2: no inputs at all is refused", () => {
+    const parsed = parseWorkflowDefinition({
+      steps: [{ id: "compare", operation: "compare_revisions", inputs: {} }],
+    })
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) return
+    expect(parsed.error).toContain("inputs.artifactIds is required for compare_revisions")
+  })
+
+  test("compare_revisions refusal #3: ONE artifact id is not a pair", () => {
+    const parsed = parseWorkflowDefinition({
+      steps: [{ id: "compare", operation: "compare_revisions", inputs: { artifactIds: ["art_old_1"] } }],
+    })
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) return
+    expect(parsed.error).toContain("must be EXACTLY 2 artifact ids [old, new] — got 1")
+  })
+
+  test("compare_revisions refusal #4: THREE artifact ids is not a pair", () => {
+    const parsed = parseWorkflowDefinition({
+      steps: [
+        {
+          id: "compare",
+          operation: "compare_revisions",
+          inputs: { artifactIds: ["a1", "a2", "a3"] },
+        },
+      ],
+    })
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) return
+    expect(parsed.error).toContain("must be EXACTLY 2 artifact ids [old, new] — got 3")
+  })
+
+  test("compare_revisions refusal #5: SELF-COMPARISON is refused (the same id twice)", () => {
+    const parsed = parseWorkflowDefinition({
+      steps: [
+        {
+          id: "compare",
+          operation: "compare_revisions",
+          inputs: { artifactIds: ["art_same_1", "art_same_1"] },
+        },
+      ],
+    })
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) return
+    expect(parsed.error).toContain(
+      "inputs.artifactIds for compare_revisions must be two DIFFERENT artifacts — a revision cannot be compared with itself",
+    )
+  })
+
+  test("compare_revisions refusal #6: the pair shape on a single-input op is still refused", () => {
+    const parsed = parseWorkflowDefinition({
+      steps: [
+        {
+          id: "annotate",
+          operation: "annotate_takeoff",
+          inputs: { artifactIds: ["art_old_1", "art_new_1"] },
+        },
+      ],
+    })
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) return
+    expect(parsed.error).toContain("inputs.artifactIds is not accepted for annotate_takeoff — use inputs.artifactId")
+  })
+
   test("unknown keys inside inputs are refused (strict input shape)", () => {
     const parsed = parseWorkflowDefinition({
       steps: [{ id: "mesh", operation: "derive_mesh", inputs: { artifactId: "a1", bogus: true } }],

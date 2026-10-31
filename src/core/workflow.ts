@@ -188,10 +188,12 @@ const stepSchema = z
   })
   .superRefine((step, ctx) => {
     // Input shape is per-op (contract §2 + Phase-5 contract §4): build_report
-    // takes 1..4 artifact ids; every other operation — the Phase-4 derive ops
-    // AND the Phase-5 ops (fe_mesh / run_powerflow / run_des / solve_fea /
-    // run_swmm / convert_document / analyze_schedule + the Slice-15/16
-    // additions) — takes exactly one input artifact.
+    // takes 1..4 artifact ids; compare_revisions (ADR-0011 Stage 4 — the
+    // SECOND multi-input op) takes EXACTLY 2 distinct artifact ids [old, new];
+    // every other operation — the Phase-4 derive ops AND the Phase-5 ops
+    // (fe_mesh / run_powerflow / run_des / solve_fea / run_swmm /
+    // convert_document / analyze_schedule + the Slice-15/16 additions) —
+    // takes exactly one input artifact.
     if (step.operation === "build_report") {
       if (step.inputs.artifactIds === undefined) {
         ctx.addIssue({
@@ -205,6 +207,40 @@ const stepSchema = z
           code: "custom",
           path: ["inputs"],
           message: "inputs.artifactId is not accepted for build_report — use inputs.artifactIds",
+        })
+      }
+    } else if (step.operation === "compare_revisions") {
+      // the exactly-2 [old, new] pair — the agent takeoff surface's pair op
+      if (step.inputs.artifactIds === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["inputs"],
+          message: "inputs.artifactIds is required for compare_revisions (exactly 2 artifact ids [old, new])",
+        })
+      }
+      if (step.inputs.artifactId !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["inputs"],
+          message: "inputs.artifactId is not accepted for compare_revisions — use inputs.artifactIds",
+        })
+      }
+      if (step.inputs.artifactIds !== undefined && step.inputs.artifactIds.length !== 2) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["inputs"],
+          message: `inputs.artifactIds for compare_revisions must be EXACTLY 2 artifact ids [old, new] — got ${step.inputs.artifactIds.length}`,
+        })
+      }
+      if (
+        step.inputs.artifactIds !== undefined &&
+        step.inputs.artifactIds.length === 2 &&
+        step.inputs.artifactIds[0] === step.inputs.artifactIds[1]
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["inputs"],
+          message: "inputs.artifactIds for compare_revisions must be two DIFFERENT artifacts — a revision cannot be compared with itself",
         })
       }
     } else {

@@ -234,6 +234,9 @@ run_suite p4 e2e-p4-workflows.sh 1
 run_suite p5 e2e-p5-disciplines.sh 1
 run_suite p6 e2e-p6-isolation.sh 1
 run_suite p7 e2e-p7-planner.sh 1
+# ADR-0011 Stage 4 — the agent takeoff surface (needs the pinned pdf2takeoff
+# Node checkout; the drill's caller installs it e2e-job-style).
+run_suite agent-takeoff e2e-agent-takeoff.sh 1
 
 say "DRILL SUMMARY (runtime on real postgresql, dbProvider gate passed)"
 printf '%s' "$TOTALS"
