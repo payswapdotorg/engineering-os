@@ -29,7 +29,7 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-31T20:20:03.847Z`
+- Ran at (UTC): `2026-11-01T00:14:41.562Z`
 - Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.local/share/eos-engines/venv/bin/python`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
@@ -41,6 +41,7 @@
 - Engine availability probe — sfepy/SfePy (steady scalar transport CFD): available
 - Engine availability probe — amaranth + yowasp-yosys (RTL synthesis): available
 - Engine availability probe — pin/Pinocchio (planar-2R kinematics): available
+- Engine availability probe — pybullet/PyBullet (drop-impact simulation): available
 - Engine availability probe — pyswmm/SWMM5 (stormwater drainage): available
 - Engine availability probe — platform CPM core (no engine): available
 - Engine availability probe — libreoffice (document conversion): available
@@ -49,7 +50,7 @@
 - Engine availability probe — cadquery (parametric rebuild): available
 - Engine availability probe — tesseract (sheet-text OCR): available
 - Engine availability probe — pdf2takeoff (ADOPTED takeoff engine — ADR-0011): available
-- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · sfepy 2026.3 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5 · pdf2takeoff 0.1.0 · tesseract 5.5.0 · pyswmm 2.2.0 · amaranth 0.5.10 · pin 4.1.0
+- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · sfepy 2026.3 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5 · pdf2takeoff 0.1.0 · tesseract 5.5.0 · pyswmm 2.2.0 · amaranth 0.5.10 · pin 4.1.0 · pybullet 3.2.7
 - Adapter `step_quantities.py` sha256: `950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d`
 - Adapter `ifc_quantities.py` sha256: `68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78`
 - Adapter `step_mesh.py` sha256: `e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c`
@@ -67,8 +68,9 @@
 - Adapter `swmm_run.py` sha256: `6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d`
 - Adapter `transport_solve.py` sha256: `d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b`
 - Adapter `rtl_synthesize.py` sha256: `dfd179e6be39f1bea0b70e8ac889c8e56ffa39554ce85188d85d9cde8a37fba7`
-- Adapter `kinematics_solve.py` sha256: `11185899754b49420c2a7ed46865bfe9b333593f0d58ae2a7c6c8735a145d100`
-- Corpus: `tests/validation/corpus-manifest.json` — 54 cases
+- Adapter `kinematics_solve.py` sha256: `c7277a99d7a5f98a589c84026f794f9e5904bbf837cff0ca6b8cd5f6609aaf48`
+- Adapter `impact_solve.py` sha256: `881cf7872f11dc52ef17ec79587f9885c4d1749619b423e2ee8af048ce77b479`
+- Corpus: `tests/validation/corpus-manifest.json` — 57 cases
 
 ## Tolerance policy (pinned)
 
@@ -78,7 +80,7 @@
 | `analytic` | \|obs − exp\| ≤ 1e-9 · max(1, \|exp\|) | exact-engine value vs closed form; also used for the PLANAR mesh case, where the divergence-theorem volume / triangle-sum area are mathematically exact (only IEEE rounding remains) |
 | `mesh` | \|obs − exp\| ≤ 1e-2 · \|exp\| | pinned 1% engineering tolerance for triangulated CURVED surfaces (ifcopenshell PyPI wheel has no OCCT backend, `has_occ=False`); the observed relative error is recorded below — the limitation is quantified, not hidden |
 
-## Results — 54 cases: 54 pass / 0 fail / 0 skip
+## Results — 57 cases: 57 pass / 0 fail / 0 skip
 
 | Case | Adapter | Fixture | Expect | Status | Determinism | Quantities (obs / pinned) | Max observed rel error | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -127,6 +129,9 @@
 | `robot-arm-2link` | robotics | `robot-arm-2link.json` | success | pass | — | — / — | — | robotics: 43 pin(s) · pin 4.1.0 · doc byte-determinism ✅ · max pin rel error 4.969e-16 |
 | `robot-arm-long` | robotics | `robot-arm-long.json` | success | pass | — | — / — | — | robotics: 26 pin(s) · pin 4.1.0 · doc byte-determinism ✅ · max pin rel error 6.361e-16 |
 | `robot-arm-invalid-kind` | robotics | `robot-arm-invalid-kind.json` | error | pass | — | — | — | robotics: threw honest error: `robot model mechanism.kind must be "planar_2r" (the v1 mechanism class; every other class is its own future lane) (got "` · threw honest error: `` |
+| `impact-drop-sphere` | physics | `impact-drop-sphere.json` | success | pass | — | — / — | — | physics: 29 pin(s) · pybullet 3.2.7 · doc byte-determinism ✅ · max pin rel error 2.284e-6 |
+| `impact-drop-bounce` | physics | `impact-drop-bounce.json` | success | pass | — | — / — | — | physics: 11 pin(s) · pybullet 3.2.7 · doc byte-determinism ✅ · max pin rel error 1.709e-14 |
+| `impact-drop-invalid-kind` | physics | `impact-drop-invalid-kind.json` | error | pass | — | — | — | physics: threw honest error: `impact model mechanism.kind must be "drop_impact" (the v1 mechanism class; every other class is its own future lane) (go` · threw honest error: `` |
 | `p2t-compare-identical` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 8 pin(s) · pdf2takeoff 0.1.0 · doc byte-determinism ✅ |
 | `p2t-compare-different` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 8 pin(s) · pdf2takeoff 0.1.0 · doc byte-determinism ✅ |
 | `p2t-annotate-roundtrip` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 4 pin(s) · pdf2takeoff 0.1.0 |
@@ -247,6 +252,9 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 | `robot-arm-2link` | robotics | `robot-arm-2link.json` | success | pin 4.1.0 | ✅ true | 43 | pass |
 | `robot-arm-long` | robotics | `robot-arm-long.json` | success | pin 4.1.0 | ✅ true | 26 | pass |
 | `robot-arm-invalid-kind` | robotics | `robot-arm-invalid-kind.json` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `impact-drop-sphere` | physics | `impact-drop-sphere.json` | success | pybullet 3.2.7 | ✅ true | 29 | pass |
+| `impact-drop-bounce` | physics | `impact-drop-bounce.json` | success | pybullet 3.2.7 | ✅ true | 11 | pass |
+| `impact-drop-invalid-kind` | physics | `impact-drop-invalid-kind.json` | error | — (platform core, honestly absent) | — | 0 | pass |
 | `p2t-compare-identical` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | ✅ true | 8 | pass |
 | `p2t-compare-different` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | ✅ true | 8 | pass |
 | `p2t-annotate-roundtrip` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | — | 4 | pass |
@@ -585,6 +593,47 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `robot-arm-long` jacobian0 @ config3: observed **-0.3999999999999999** vs pinned -0.3999999999999999 [bound abs:1e-12] → rel error 0 (bitwise) · closed form vx/dq1 = −1.2·sin(π/2) − 0.8·sin(3π/2) = −1.2 + 0.8 = −0.4
 - `robot-arm-long` jacobian1 @ config3: observed **0.8** vs pinned 0.8 [bound abs:1e-12] → rel error 0 (bitwise) · closed form vx/dq2 = −0.8·sin(3π/2) = +0.8 (the folded elbow swings the tip backward-first)
 - `robot-arm-invalid-kind` (robotics) threw the honest error: `robot model mechanism.kind must be "planar_2r" (the v1 mechanism class; every other class is its own future lane) (got "spatial_6r")`
+- `impact-drop-sphere` analysis: observed **"impact_simulation"** vs pinned "impact_simulation" [bound structural] · the only analysis shipped this phase (contract §19.4)
+- `impact-drop-sphere` engineKey: observed **"pybullet"** vs pinned "pybullet" [bound structural] · the lane's engine (contract §19.3)
+- `impact-drop-sphere` engineVersion: observed **"3.2.7"** vs pinned "3.2.7" [bound structural] · the pinned pybullet sdist (engines-requirements)
+- `impact-drop-sphere` mechanismKind: observed **"drop_impact"** vs pinned "drop_impact" [bound structural] · the frozen v1 mechanism class (contract §19.2)
+- `impact-drop-sphere` massKilograms: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · the fixture's sphere mass (kg)
+- `impact-drop-sphere` radiusMeters: observed **0.1** vs pinned 0.1 [bound abs:1e-12] → rel error 0 (bitwise) · the fixture's sphere radius (m)
+- `impact-drop-sphere` restitution: observed **0** vs pinned 0 [bound abs:1e-12] · the dead-bang drop: e = 0
+- `impact-drop-sphere` centerHeightMeters: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · the release center height (m)
+- `impact-drop-sphere` gravityMetersPerSecondSquared: observed **9.81** vs pinned 9.81 [bound abs:1e-12] → rel error 0 (bitwise) · the configured gravity (m/s²)
+- `impact-drop-sphere` timestepSeconds: observed **0.004166666666666667** vs pinned 0.004166666666666667 [bound abs:1e-15] → rel error 0 (bitwise) · the pinned 240 Hz timestep 1/240 s (§19.1)
+- `impact-drop-sphere` sampleCount: observed **344** vs pinned 344 [bound abs:0] → rel error 0 (bitwise) · the horizon: first contact (step 104) + exactly 240 post-contact steps (§19.4)
+- `impact-drop-sphere` firstContactStep: observed **104** vs pinned 104 [bound abs:0] → rel error 0 (bitwise) · the probed first-contact step (§19.1): the discrete fall crosses r between steps 103/104
+- `impact-drop-sphere` firstContactTimeSeconds: observed **0.43333333333333335** vs pinned 0.43333333333333335 [bound abs:1e-12] → rel error 0 (bitwise) · 104/240 — the measured contact time
+- `impact-drop-sphere` closedFormContactTimeSeconds: observed **0.4283529368781193** vs pinned 0.4283529368781193 [bound abs:1e-12] → rel error 0 (bitwise) · closed form t* = sqrt(2·0.9/9.81)
+- `impact-drop-sphere` timeResidualSeconds: observed **0.004980396455214031** vs pinned 0.004980396455214031 [bound abs:1e-9] → rel error 0 (bitwise) · t_meas − t* = +1.195 dt (one 240 Hz quantum + the soft-contact penetration margin, §19.1)
+- `impact-drop-sphere` impactSpeedMetersPerSecond: observed **4.210125000000009** vs pinned 4.210125 [bound abs:1e-9] → rel error 2.321e-15 · the discrete closed form |−g·dt·103| = 9.81·103/240 (bit-consistent, §19.1)
+- `impact-drop-sphere` closedFormImpactSpeedMetersPerSecond: observed **4.2021423107743505** vs pinned 4.2021423107743505 [bound abs:1e-12] → rel error 0 (bitwise) · closed form v* = sqrt(2·9.81·0.9)
+- `impact-drop-sphere` speedResidualMetersPerSecond: observed **0.007982689225658923** vs pinned 0.007982689225658923 [bound abs:1e-9] → rel error 0 (bitwise) · v_meas − v* (within 3·g·dt = 0.1226 by the §19.5 gate)
+- `impact-drop-sphere` reboundPeakHeightMeters: observed **0.09998999997716257** vs pinned 0.09999 [bound abs:0.005] → rel error 2.284e-10 · the e=0 no-rebound reality (§19.1 probed: rest r − 1e-5; engine behavior, the chip-lane empirical-count precedent)
+- `impact-drop-sphere` closedFormReboundPeakMeters: observed **0.1** vs pinned 0.1 [bound abs:1e-12] → rel error 0 (bitwise) · the energy bound r + e²(h−r) = r at e=0
+- `impact-drop-sphere` reboundResidualMeters: observed **-0.000010000022837436395** vs pinned -0.00001 [bound abs:0.005] → rel error 2.284e-6 · dissipative by exactly the probed penetration (−1.0e-5 m)
+- `impact-drop-sphere` maxPreContactHeightError: observed **1.4710455076283324e-15** vs pinned 0 [bound abs:1e-9] · the adapter's discrete closed-form gate residual (probed 1.47e-15)
+- `impact-drop-sphere` maxPreContactSpeedError: observed **1.0658141036401503e-14** vs pinned 0 [bound abs:1e-9] · the adapter's velocity gate residual (probed 1.07e-14)
+- `impact-drop-sphere` centerHeightMeters @ sample1: observed **0.9998296875** vs pinned 0.9998296875 [bound abs:1e-9] → rel error 0 (bitwise) · discrete closed form z_1 = 1 − ½·9.81·dt²·1·2 (exact in binary, §19.1)
+- `impact-drop-sphere` velocityZMetersPerSecond @ sample1: observed **-0.040875** vs pinned -0.040875 [bound abs:1e-9] → rel error 0 (bitwise) · discrete closed form vz_1 = −9.81/240 (exact)
+- `impact-drop-sphere` centerHeightMeters @ sample50: observed **0.7828515625** vs pinned 0.7828515625 [bound abs:1e-9] → rel error 0 (bitwise) · discrete closed form z_50 = 1 − ½·9.81·dt²·50·51 (exact)
+- `impact-drop-sphere` velocityZMetersPerSecond @ sample50: observed **-2.04375** vs pinned -2.04375 [bound abs:1e-9] → rel error 0 (bitwise) · discrete closed form vz_50 = −9.81·50/240 (exact)
+- `impact-drop-sphere` centerHeightMeters @ sample103: observed **0.0878062499999986** vs pinned 0.08780625 [bound abs:1e-9] → rel error 1.596e-14 · discrete closed form z_103 (the last pre-contact step)
+- `impact-drop-sphere` velocityZMetersPerSecond @ sample103: observed **-4.210125000000009** vs pinned -4.210125 [bound abs:1e-9] → rel error 2.321e-15 · discrete closed form vz_103 = −9.81·103/240 (the impact speed's source step)
+- `impact-drop-bounce` mechanismKind: observed **"drop_impact"** vs pinned "drop_impact" [bound structural] · the frozen v1 mechanism class
+- `impact-drop-bounce` restitution: observed **0.6** vs pinned 0.6 [bound abs:1e-12] → rel error 0 (bitwise) · the bounce configuration (the fixture)
+- `impact-drop-bounce` sampleCount: observed **344** vs pinned 344 [bound abs:0] → rel error 0 (bitwise) · the same horizon: first contact (step 104) + 240 post-contact steps
+- `impact-drop-bounce` firstContactStep: observed **104** vs pinned 104 [bound abs:0] → rel error 0 (bitwise) · identical to the e=0 drop — restitution never acts before contact
+- `impact-drop-bounce` closedFormContactTimeSeconds: observed **0.4283529368781193** vs pinned 0.4283529368781193 [bound abs:1e-12] → rel error 0 (bitwise) · the same closed form t* = sqrt(2·0.9/9.81)
+- `impact-drop-bounce` impactSpeedMetersPerSecond: observed **4.210125000000009** vs pinned 4.210125 [bound abs:1e-9] → rel error 2.321e-15 · the same discrete impact speed (restitution acts only AFTER contact)
+- `impact-drop-bounce` closedFormReboundPeakMeters: observed **0.42400000000000004** vs pinned 0.42400000000000004 [bound abs:1e-12] → rel error 0 (bitwise) · the energy bound r + e²(h−r) = 0.1 + 0.36·0.9
+- `impact-drop-bounce` reboundPeakHeightMeters: observed **0.25014342500000425** vs pinned 0.250143425 [bound abs:0.02] → rel error 1.709e-14 · ENGINE BEHAVIOR pin (§19.1 probed ratio 0.419 < e): the dissipative LCP rebound, tolerance for build variance — the chip-lane AND-count precedent
+- `impact-drop-bounce` reboundResidualMeters: observed **-0.1738565749999958** vs pinned -0.1738565749999958 [bound abs:0.02] → rel error 0 (bitwise) · dissipative (negative) as probed — never above 0 (energy creation is a §19.5 refusal)
+- `impact-drop-bounce` velocityZMetersPerSecond @ sample103: observed **-4.210125000000009** vs pinned -4.210125 [bound abs:1e-9] → rel error 2.321e-15 · the last pre-contact step: identical to the e=0 drop (the discrete closed form)
+- `impact-drop-bounce` velocityZMetersPerSecond @ sample104: observed **1.7642880000000307** vs pinned 1.7642880000000307 [bound abs:0.05] → rel error 0 (bitwise) · the first post-contact step's upward velocity (engine behavior: the solver's restitution response, ratio 0.419·|v_impact|)
+- `impact-drop-invalid-kind` (physics) threw the honest error: `impact model mechanism.kind must be "drop_impact" (the v1 mechanism class; every other class is its own future lane) (got "pendulum")`
 - `p2t-compare-identical` comparedSheets: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the A-102 fixture has 4 pages; both revisions identical, so all 4 pair up
 - `p2t-compare-identical` changedSheetCount: observed **0** vs pinned 0 [bound abs:0] · byte-identical revisions cannot differ on any sheet
 - `p2t-compare-identical` summary.changed: observed **0** vs pinned 0 [bound abs:0] · same — the summary counts the sheets array
@@ -604,7 +653,7 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `p2t-annotate-roundtrip` markupCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · the spec carries exactly 3 markups (length + area + count)
 - `p2t-annotate-roundtrip` kept: observed **0** vs pinned 0 [bound abs:0] · the bare fixture carries no pdf2takeoff annotations — nothing to keep
 - `p2t-annotate-roundtrip` isPdf: observed **true** vs pinned true [bound structural] · the annotated output must be a real PDF (%PDF magic)
-- `p2t-annotate-roundtrip` sizeBytes: observed **6168** vs pinned 4000 [bound min] · the 6166-byte dev-host output sizes the floor; an annotated copy of the 4-page fixture cannot be tiny
+- `p2t-annotate-roundtrip` sizeBytes: observed **6169** vs pinned 4000 [bound min] · the 6166-byte dev-host output sizes the floor; an annotated copy of the 4-page fixture cannot be tiny
 - `p2t-export-boq-roundtrip` rowCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · three markups -> three data rows
 - `p2t-export-boq-roundtrip` value @ label:Scale bar: observed **10.000001166666667** vs pinned 10.000001166666667 [bound rel:1e-9] → rel error 0 (bitwise) · 283.4646 pt x 0.03527778 m/pt (the engine's exact 1:100 preset); analytic 100 paper-mm = 10.000 m real
 - `p2t-export-boq-roundtrip` unit @ label:Scale bar: observed **"m"** vs pinned "m" [bound structural] · length export in metres

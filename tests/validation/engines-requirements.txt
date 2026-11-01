@@ -53,3 +53,14 @@ yowasp-yosys==0.70.0.0.post1259
 # cmeel-octomap/cmeel-qhull/cmeel-tinyxml2/cmeel-zlib/cmeel-console-bridge/
 # coal/libcoal/eigenpy/libpinocchio/pin), ZERO removals, pip check clean.
 pin==4.1.0
+# Slice 33 (2026-11-01, contract §19): pybullet — drop-impact simulation.
+# zlib core (the sdist's own PKG-INFO 'License: zlib' + OSI classifier —
+# verified on the sdist, Slice 28; the Extras/ThirdPartyLibs exceptions live
+# in directories a synthesis-free drop-impact lane never imports from).
+# SDIST-ONLY on PyPI: pip compiles Bullet at install. HOST REALITY (probed
+# live, Slice 33): the default -O3 build OOM-kills cc1plus on 4 GB hosts
+# (PhysicsServerCommandProcessor.cpp) — install with appended CXXFLAGS
+# '-O1 -g0' there (IEEE FP semantics are -O-level invariant; the §19.1
+# gates re-verified on the -O1 build: discrete closed forms to 1.47e-15).
+# Larger runners build the default -O3 fine.
+pybullet==3.2.7

@@ -87,7 +87,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
-          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio' 2>/dev/null; then
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else
             rm -rf /tmp/eos-engines
@@ -95,7 +95,7 @@ jobs:
             /tmp/eos-engines/bin/pip install --quiet --upgrade pip
             /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
           fi
-          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio; print("engines importable")'
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet; print("engines importable")'
           soffice --version
 
       # ADR-0009 Stage 1: the ADOPTED takeoff engine (pdf2takeoff, Apache-2.0)
@@ -190,7 +190,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
-          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio' 2>/dev/null; then
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else
             rm -rf /tmp/eos-engines
@@ -198,7 +198,7 @@ jobs:
             /tmp/eos-engines/bin/pip install --quiet --upgrade pip
             /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
           fi
-          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio; print("engines importable")'
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet; print("engines importable")'
 
       # ADR-0011 Stage 4: the agent-takeoff e2e suite runs the ADOPTED
       # takeoff engine's four ops over HTTP (fill-area / annotate-takeoff /
@@ -398,7 +398,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
-          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio' 2>/dev/null; then
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else
             rm -rf /tmp/eos-engines
@@ -406,7 +406,7 @@ jobs:
             /tmp/eos-engines/bin/pip install --quiet --upgrade pip
             /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
           fi
-          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio; print("engines importable")'
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet; print("engines importable")'
 
       # ADR-0011 Stage 4: the drill's eighth suite (agent takeoff) runs the
       # ADOPTED engine over HTTP — the pinned Node checkout, e2e-job style.

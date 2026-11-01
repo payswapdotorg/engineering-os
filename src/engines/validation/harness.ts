@@ -81,6 +81,7 @@ import { runFeaFromFile, validateFeaParameters, type FeaParameters, type FeaResu
 import { runTransportFromFile, validateTransportParameters, type TransportParameters, type TransportResult } from "../adapters/cfd"
 import { runRtlSynthesisFromFile, type RtlResult } from "../adapters/chip"
 import { runKinematicsFromFile, type KinematicsResult } from "../adapters/robotics"
+import { runImpactFromFile, type ImpactResult } from "../adapters/physics"
 import { runSwmmFromFile, validateSwmmParameters, type SwmmParameters, type SwmmResult } from "../adapters/swmm"
 import { convertDocumentToFile, type ConversionResult } from "../adapters/convert-document"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "../adapters/sheet_takeoff"
@@ -115,6 +116,7 @@ import {
   buildTransportDocument,
   buildRtlDocument,
   buildKinematicsDocument,
+  buildImpactDocument,
   buildFeMeshDocument,
   buildPowerflowDocument,
   validateScheduleDocument,
@@ -134,6 +136,7 @@ export type AdapterKind =
   | "transport"
   | "chip"
   | "robotics"
+  | "physics"
   | "swmm"
   | "cpm"
   | "libreoffice"
@@ -156,6 +159,7 @@ export type DisciplineAdapter =
   | "transport"
   | "chip"
   | "robotics"
+  | "physics"
   | "swmm"
   | "cpm"
   | "libreoffice"
@@ -209,6 +213,7 @@ export interface CorpusCase {
   transport?: DisciplineExpectation
   chip?: DisciplineExpectation
   robotics?: DisciplineExpectation
+  physics?: DisciplineExpectation
   swmm?: DisciplineExpectation
   cpm?: DisciplineExpectation
   libreoffice?: DisciplineExpectation
@@ -600,7 +605,7 @@ const LIBREOFFICE_BIN = process.env.EOS_LIBREOFFICE ?? "/usr/bin/libreoffice"
 
 /** Python engines per adapter kind (cpm/libreoffice/ocr are probed differently). */
 const PYTHON_ENGINE_MODULES: Record<
-  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "transport" | "chip" | "robotics" | "swmm" | "sheet" | "dxf" | "parametric",
+  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "transport" | "chip" | "robotics" | "physics" | "swmm" | "sheet" | "dxf" | "parametric",
   string
 > = {
   step: "cadquery",
@@ -612,6 +617,7 @@ const PYTHON_ENGINE_MODULES: Record<
   transport: "sfepy",
   chip: "amaranth",
   robotics: "pinocchio",
+  physics: "pybullet",
   swmm: "pyswmm",
   sheet: "pdfplumber",
   dxf: "ezdxf",
@@ -638,6 +644,7 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   transport: "sfepy/SfePy (steady scalar transport CFD)",
   chip: "amaranth + yowasp-yosys (RTL synthesis)",
   robotics: "pin/Pinocchio (planar-2R kinematics)",
+  physics: "pybullet/PyBullet (drop-impact simulation)",
   swmm: "pyswmm/SWMM5 (stormwater drainage)",
   cpm: "platform CPM core (no engine)",
   libreoffice: "libreoffice (document conversion)",
@@ -942,6 +949,16 @@ function parseDisciplineExpectation(
       if (keys.length !== 0) {
         throw new Error(
           `manifest case ${caseId}: robotics.parameters must be empty (the mechanism and configurations are frozen at upload; got ${JSON.stringify(keys)})`,
+        )
+      }
+      block.parameters = {}
+    } else if (blockName === "physics") {
+      // Slice 33 (contract §19.3): simulate_impact takes NO parameters — the
+      // mechanism and the drop are frozen at upload.
+      const keys = Object.keys(parameters)
+      if (keys.length !== 0) {
+        throw new Error(
+          `manifest case ${caseId}: physics.parameters must be empty (the mechanism and the drop are frozen at upload; got ${JSON.stringify(keys)})`,
         )
       }
       block.parameters = {}
@@ -1441,6 +1458,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "transport" ||
       adapter === "chip" ||
       adapter === "robotics" ||
+      adapter === "physics" ||
       adapter === "swmm" ||
       adapter === "cpm" ||
       adapter === "libreoffice" ||
@@ -1450,7 +1468,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "ocr"
     if (!isModelAdapter && !isDisciplineAdapter && adapter !== "pdf2takeoff") {
       throw new Error(
-        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"transport"|"chip"|"robotics"|"swmm"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr"|"pdf2takeoff" (got ${JSON.stringify(adapter)})`,
+        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"transport"|"chip"|"robotics"|"physics"|"swmm"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr"|"pdf2takeoff" (got ${JSON.stringify(adapter)})`,
       )
     }
     if (typeof fixture !== "string" || fixture.length === 0) {
@@ -2513,6 +2531,82 @@ function roboticsObserved(r: KinematicsResult, pin: DisciplinePin): unknown {
   }
 }
 
+/** Resolve a pin's observed value on an impact result (Slice 33 — scalar
+ * fields plus TWO ref locators: "sample<N>" (the 1-based sample index) for
+ * per-step trajectory pins; null ref for the impact-summary and
+ * verification scalars). */
+function physicsObserved(r: ImpactResult, pin: DisciplinePin): unknown {
+  if (pin.ref !== null) {
+    // the sample locator path ONLY — never the model scalars (the
+    // centerHeightMeters name collision caught live by the harness)
+    const ms = pin.ref.match(/^sample(\d+)$/)
+    if (ms === null) return undefined
+    const sample = r.samples.find((x) => x.index === Number(ms[1]))
+    if (sample === undefined) return undefined
+    switch (pin.field) {
+      case "timeSeconds":
+        return sample.timeSeconds
+      case "centerHeightMeters":
+        return sample.centerHeightMeters
+      case "velocityZMetersPerSecond":
+        return sample.velocityZMetersPerSecond
+      default:
+        return undefined
+    }
+  }
+  switch (pin.field) {
+    case "analysis":
+      return r.analysis
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "mechanismKind":
+      return r.mechanism.kind
+    case "massKilograms":
+      return r.mechanism.massKilograms
+    case "radiusMeters":
+      return r.mechanism.radiusMeters
+    case "restitution":
+      return r.mechanism.restitution
+    case "centerHeightMeters":
+      return r.drop.centerHeightMeters
+    case "gravityMetersPerSecondSquared":
+      return r.drop.gravityMetersPerSecondSquared
+    case "timestepSeconds":
+      return r.timestepSeconds
+    case "sampleCount":
+      return r.samples.length
+    case "firstContactStep":
+      return r.impact.firstContactStep
+    case "firstContactTimeSeconds":
+      return r.impact.firstContactTimeSeconds
+    case "closedFormContactTimeSeconds":
+      return r.impact.closedFormContactTimeSeconds
+    case "timeResidualSeconds":
+      return r.impact.timeResidualSeconds
+    case "impactSpeedMetersPerSecond":
+      return r.impact.impactSpeedMetersPerSecond
+    case "closedFormImpactSpeedMetersPerSecond":
+      return r.impact.closedFormImpactSpeedMetersPerSecond
+    case "speedResidualMetersPerSecond":
+      return r.impact.speedResidualMetersPerSecond
+    case "reboundPeakHeightMeters":
+      return r.impact.reboundPeakHeightMeters
+    case "closedFormReboundPeakMeters":
+      return r.impact.closedFormReboundPeakMeters
+    case "reboundResidualMeters":
+      return r.impact.reboundResidualMeters
+    case "maxPreContactHeightError":
+      return r.verification.maxPreContactHeightError
+    case "maxPreContactSpeedError":
+      return r.verification.maxPreContactSpeedError
+    default:
+      break
+  }
+  return undefined
+}
+
 /** Resolve a pin's observed value on a SWMM result (Slice 23 — the depth
  * locator ref is the node/conduit id, e.g. "C1" or "J1"). */
 function swmmObserved(r: SwmmResult, pin: DisciplinePin): unknown {
@@ -2711,6 +2805,8 @@ async function runDisciplineChecks(
         await runRtlSynthesisFromFile(fixturePath, {})
       } else if (adapter === "robotics") {
         await runKinematicsFromFile(fixturePath, {})
+      } else if (adapter === "physics") {
+        await runImpactFromFile(fixturePath, {})
       } else if (adapter === "swmm") {
         await runSwmmFromFile(fixturePath, block.parameters ?? {})
       } else {
@@ -2907,6 +3003,25 @@ async function runDisciplineChecks(
       }
       for (const pin of block.pins ?? []) {
         r.comparisons.push(compareDisciplinePin(pin, roboticsObserved(first, pin)))
+      }
+    } else if (adapter === "physics") {
+      const first = await runImpactFromFile(fixturePath, {})
+      const second = await runImpactFromFile(fixturePath, {})
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      const documentOf = (res: ImpactResult) => buildImpactDocument(sourceName, res)
+      r.determinism = documentOf(first) === documentOf(second)
+      if (!r.determinism) {
+        r.problems.push("two consecutive real runs produced different eos-impact-simulation/1 document bytes — the stored artifact would not be byte-deterministic")
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, physicsObserved(first, pin)))
       }
     } else if (adapter === "swmm") {
       let params: SwmmParameters
@@ -4041,6 +4156,7 @@ export async function runHarness(): Promise<HarnessReport> {
         transport: probeEngine("transport"),
         chip: probeEngine("chip"),
         robotics: probeEngine("robotics"),
+        physics: probeEngine("physics"),
         swmm: probeEngine("swmm"),
         cpm: probeEngine("cpm"),
         libreoffice: probeEngine("libreoffice"),

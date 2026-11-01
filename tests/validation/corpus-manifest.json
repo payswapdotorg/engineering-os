@@ -2655,49 +2655,301 @@
       "expect": "success",
       "note": "The \u00a718.1 probe arm (L1=0.5, L2=0.35, two RZ joints) at FOUR configurations: both probe configs, the SINGULAR fully-extended (0,0) and a mixed-sign config. Pinocchio computes FK + the 6x2 LOCAL_WORLD_ALIGNED frame Jacobian; the pins are the HAND-DERIVED closed forms x = L1\u00b7cos q1 + L2\u00b7cos(q1+q2), y = L1\u00b7sin q1 + L2\u00b7sin(q1+q2), \u03b8 = wrapPi(q1+q2), J rows vx/vy/wz with rows 2-4 identically zero (the \u00a718.1 shape trap) \u2014 tolerances 1e-12, never the engine's own output.",
       "pins": [
-        { "ref": null, "field": "analysis", "value": "kinematic_analysis", "derivation": "the only analysis shipped this phase (contract \u00a718.4)" },
-        { "ref": null, "field": "engineKey", "value": "pin", "derivation": "the lane's engine (contract \u00a718.3) \u2014 pip name 'pin', import name 'pinocchio' (the name-trap)" },
-        { "ref": null, "field": "engineVersion", "value": "4.1.0", "derivation": "the pinned pin wheel (engines-requirements)" },
-        { "ref": null, "field": "mechanismKind", "value": "planar_2r", "derivation": "the frozen v1 mechanism class (contract \u00a718.2)" },
-        { "ref": null, "field": "linkCount", "value": 2, "derivation": "the planar 2R arm: exactly two links" },
-        { "ref": null, "field": "linkLength1", "value": 0.5, "absTolerance": 1e-12, "derivation": "the fixture's link 1 length (m)" },
-        { "ref": null, "field": "linkLength2", "value": 0.35, "absTolerance": 1e-12, "derivation": "the fixture's link 2 length (m)" },
-        { "ref": null, "field": "configurationCount", "value": 4, "derivation": "the fixture carries 4 configurations" },
-        { "ref": "config1", "field": "xMeters", "value": 0.5235993676781017, "absTolerance": 1e-12, "derivation": "closed form at (\u03c0/6, \u03c0/4): 0.5\u00b7cos(\u03c0/6) + 0.35\u00b7cos(5\u03c0/12)" },
-        { "ref": "config1", "field": "yMeters", "value": 0.5880740392011738, "absTolerance": 1e-12, "derivation": "closed form: 0.5\u00b7sin(\u03c0/6) + 0.35\u00b7sin(5\u03c0/12)" },
-        { "ref": "config1", "field": "thetaRad", "value": 1.3089969389957474, "absTolerance": 1e-12, "derivation": "closed form \u03b8 = q1+q2 = 5\u03c0/12 (inside (\u2212\u03c0,\u03c0], no wrap)" },
-        { "ref": "config1", "field": "fkMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the adapter's FK closed-form gate residual (probed bit-exact, \u00a718.1)" },
-        { "ref": "config1", "field": "jacobianMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the adapter's Jacobian closed-form gate residual (probed 1.388e-17, \u00a718.1)" },
-        { "ref": "config1", "field": "jacobian0", "value": -0.5880740392011738, "absTolerance": 1e-12, "derivation": "closed form vx/dq1 = \u2212L1\u00b7sin q1 \u2212 L2\u00b7sin(q1+q2)" },
-        { "ref": "config1", "field": "jacobian1", "value": -0.33807403920117385, "absTolerance": 1e-12, "derivation": "closed form vx/dq2 = \u2212L2\u00b7sin(q1+q2)" },
-        { "ref": "config1", "field": "jacobian2", "value": 0.5235993676781017, "absTolerance": 1e-12, "derivation": "closed form vy/dq1 = L1\u00b7cos q1 + L2\u00b7cos(q1+q2)" },
-        { "ref": "config1", "field": "jacobian3", "value": 0.09058666578588233, "absTolerance": 1e-12, "derivation": "closed form vy/dq2 = L2\u00b7cos(q1+q2)" },
-        { "ref": "config1", "field": "jacobian4", "value": 0, "absTolerance": 1e-12, "derivation": "vz/dq1 \u2014 identically zero for RZ joints (the 6x2 shape trap, \u00a718.1)" },
-        { "ref": "config1", "field": "jacobian5", "value": 0, "absTolerance": 1e-12, "derivation": "vz/dq2 \u2014 identically zero for RZ joints" },
-        { "ref": "config1", "field": "jacobian9", "value": 0, "absTolerance": 1e-12, "derivation": "wy/dq2 \u2014 identically zero for RZ joints (the zero-rows structural pin)" },
-        { "ref": "config1", "field": "jacobian10", "value": 1, "absTolerance": 1e-12, "derivation": "wz/dq1 \u2014 exactly 1: both joints rotate about z" },
-        { "ref": "config1", "field": "jacobian11", "value": 1, "absTolerance": 1e-12, "derivation": "wz/dq2 \u2014 exactly 1 (the angular closed form)" },
-        { "ref": "config2", "field": "xMeters", "value": 0.5531088913245535, "absTolerance": 1e-12, "derivation": "closed form at (\u2212\u03c0/3, \u03c0/2): 0.5\u00b7cos(\u2212\u03c0/3) + 0.35\u00b7cos(\u03c0/6)" },
-        { "ref": "config2", "field": "yMeters", "value": -0.2580127018922193, "absTolerance": 1e-12, "derivation": "closed form: 0.5\u00b7sin(\u2212\u03c0/3) + 0.35\u00b7sin(\u03c0/6)" },
-        { "ref": "config2", "field": "thetaRad", "value": 0.5235987755982991, "absTolerance": 1e-12, "derivation": "closed form \u03b8 = \u2212\u03c0/3 + \u03c0/2 = \u03c0/6" },
-        { "ref": "config2", "field": "fkMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the FK gate residual (probed 5.551e-17 at this config, \u00a718.1)" },
-        { "ref": "config2", "field": "jacobianMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the Jacobian gate residual (probed 5.551e-17 at this config, \u00a718.1)" },
-        { "ref": "config2", "field": "jacobian0", "value": 0.2580127018922193, "absTolerance": 1e-12, "derivation": "closed form vx/dq1 at (\u2212\u03c0/3, \u03c0/2)" },
-        { "ref": "config2", "field": "jacobian1", "value": -0.175, "absTolerance": 1e-12, "derivation": "closed form vx/dq2 = \u22120.35\u00b7sin(\u03c0/6) = \u22120.175 (exact decimal)" },
-        { "ref": "config3", "field": "xMeters", "value": 0.85, "absTolerance": 1e-12, "derivation": "the SINGULAR fully-extended config: x = L1 + L2 = 0.85 exactly, y = 0, \u03b8 = 0" },
-        { "ref": "config3", "field": "yMeters", "value": 0, "absTolerance": 1e-12, "derivation": "closed form: 0.5\u00b7sin(0) + 0.35\u00b7sin(0) = 0" },
-        { "ref": "config3", "field": "thetaRad", "value": 0, "absTolerance": 1e-12, "derivation": "closed form \u03b8 = 0 + 0 = 0" },
-        { "ref": "config3", "field": "fkMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the FK gate residual (probed bit-exact at (0,0), \u00a718.1)" },
-        { "ref": "config3", "field": "jacobianMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the Jacobian gate residual (probed 0.0 at (0,0) \u2014 the singular config computes exactly)" },
-        { "ref": "config3", "field": "jacobian0", "value": 0, "absTolerance": 1e-12, "derivation": "closed form vx/dq1 = \u2212L1\u00b7sin(0) \u2212 L2\u00b7sin(0) = 0 \u2014 the extended arm has no x-sensitivity at (0,0)" },
-        { "ref": "config3", "field": "jacobian1", "value": 0, "absTolerance": 1e-12, "derivation": "closed form vx/dq2 = \u2212L2\u00b7sin(0) = 0" },
-        { "ref": "config4", "field": "xMeters", "value": -0.1117043425550795, "absTolerance": 1e-12, "derivation": "closed form at (2.5, \u22121.9): 0.5\u00b7cos(2.5) + 0.35\u00b7cos(0.6)" },
-        { "ref": "config4", "field": "yMeters", "value": 0.49686093774024065, "absTolerance": 1e-12, "derivation": "closed form: 0.5\u00b7sin(2.5) + 0.35\u00b7sin(0.6)" },
-        { "ref": "config4", "field": "thetaRad", "value": 0.6000000000000001, "absTolerance": 1e-12, "derivation": "closed form \u03b8 = 2.5 \u2212 1.9 = 0.6 (inside (\u2212\u03c0,\u03c0])" },
-        { "ref": "config4", "field": "fkMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the FK gate residual (probed 5.551e-17 at this config, \u00a718.1)" },
-        { "ref": "config4", "field": "jacobianMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the Jacobian gate residual (probed 8.327e-17 at this config, \u00a718.1)" },
-        { "ref": "config4", "field": "jacobian0", "value": -0.49686093774024065, "absTolerance": 1e-12, "derivation": "closed form vx/dq1 at (2.5, \u22121.9)" },
-        { "ref": "config4", "field": "jacobian1", "value": -0.1976248656882624, "absTolerance": 1e-12, "derivation": "closed form vx/dq2 = \u22120.35\u00b7sin(0.6)" }
+        {
+          "ref": null,
+          "field": "analysis",
+          "value": "kinematic_analysis",
+          "derivation": "the only analysis shipped this phase (contract \u00a718.4)"
+        },
+        {
+          "ref": null,
+          "field": "engineKey",
+          "value": "pin",
+          "derivation": "the lane's engine (contract \u00a718.3) \u2014 pip name 'pin', import name 'pinocchio' (the name-trap)"
+        },
+        {
+          "ref": null,
+          "field": "engineVersion",
+          "value": "4.1.0",
+          "derivation": "the pinned pin wheel (engines-requirements)"
+        },
+        {
+          "ref": null,
+          "field": "mechanismKind",
+          "value": "planar_2r",
+          "derivation": "the frozen v1 mechanism class (contract \u00a718.2)"
+        },
+        {
+          "ref": null,
+          "field": "linkCount",
+          "value": 2,
+          "derivation": "the planar 2R arm: exactly two links"
+        },
+        {
+          "ref": null,
+          "field": "linkLength1",
+          "value": 0.5,
+          "absTolerance": 1e-12,
+          "derivation": "the fixture's link 1 length (m)"
+        },
+        {
+          "ref": null,
+          "field": "linkLength2",
+          "value": 0.35,
+          "absTolerance": 1e-12,
+          "derivation": "the fixture's link 2 length (m)"
+        },
+        {
+          "ref": null,
+          "field": "configurationCount",
+          "value": 4,
+          "derivation": "the fixture carries 4 configurations"
+        },
+        {
+          "ref": "config1",
+          "field": "xMeters",
+          "value": 0.5235993676781017,
+          "absTolerance": 1e-12,
+          "derivation": "closed form at (\u03c0/6, \u03c0/4): 0.5\u00b7cos(\u03c0/6) + 0.35\u00b7cos(5\u03c0/12)"
+        },
+        {
+          "ref": "config1",
+          "field": "yMeters",
+          "value": 0.5880740392011738,
+          "absTolerance": 1e-12,
+          "derivation": "closed form: 0.5\u00b7sin(\u03c0/6) + 0.35\u00b7sin(5\u03c0/12)"
+        },
+        {
+          "ref": "config1",
+          "field": "thetaRad",
+          "value": 1.3089969389957474,
+          "absTolerance": 1e-12,
+          "derivation": "closed form \u03b8 = q1+q2 = 5\u03c0/12 (inside (\u2212\u03c0,\u03c0], no wrap)"
+        },
+        {
+          "ref": "config1",
+          "field": "fkMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the adapter's FK closed-form gate residual (probed bit-exact, \u00a718.1)"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobianMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the adapter's Jacobian closed-form gate residual (probed 1.388e-17, \u00a718.1)"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobian0",
+          "value": -0.5880740392011738,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq1 = \u2212L1\u00b7sin q1 \u2212 L2\u00b7sin(q1+q2)"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobian1",
+          "value": -0.33807403920117385,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq2 = \u2212L2\u00b7sin(q1+q2)"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobian2",
+          "value": 0.5235993676781017,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vy/dq1 = L1\u00b7cos q1 + L2\u00b7cos(q1+q2)"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobian3",
+          "value": 0.09058666578588233,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vy/dq2 = L2\u00b7cos(q1+q2)"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobian4",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "vz/dq1 \u2014 identically zero for RZ joints (the 6x2 shape trap, \u00a718.1)"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobian5",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "vz/dq2 \u2014 identically zero for RZ joints"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobian9",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "wy/dq2 \u2014 identically zero for RZ joints (the zero-rows structural pin)"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobian10",
+          "value": 1,
+          "absTolerance": 1e-12,
+          "derivation": "wz/dq1 \u2014 exactly 1: both joints rotate about z"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobian11",
+          "value": 1,
+          "absTolerance": 1e-12,
+          "derivation": "wz/dq2 \u2014 exactly 1 (the angular closed form)"
+        },
+        {
+          "ref": "config2",
+          "field": "xMeters",
+          "value": 0.5531088913245535,
+          "absTolerance": 1e-12,
+          "derivation": "closed form at (\u2212\u03c0/3, \u03c0/2): 0.5\u00b7cos(\u2212\u03c0/3) + 0.35\u00b7cos(\u03c0/6)"
+        },
+        {
+          "ref": "config2",
+          "field": "yMeters",
+          "value": -0.2580127018922193,
+          "absTolerance": 1e-12,
+          "derivation": "closed form: 0.5\u00b7sin(\u2212\u03c0/3) + 0.35\u00b7sin(\u03c0/6)"
+        },
+        {
+          "ref": "config2",
+          "field": "thetaRad",
+          "value": 0.5235987755982991,
+          "absTolerance": 1e-12,
+          "derivation": "closed form \u03b8 = \u2212\u03c0/3 + \u03c0/2 = \u03c0/6"
+        },
+        {
+          "ref": "config2",
+          "field": "fkMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the FK gate residual (probed 5.551e-17 at this config, \u00a718.1)"
+        },
+        {
+          "ref": "config2",
+          "field": "jacobianMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the Jacobian gate residual (probed 5.551e-17 at this config, \u00a718.1)"
+        },
+        {
+          "ref": "config2",
+          "field": "jacobian0",
+          "value": 0.2580127018922193,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq1 at (\u2212\u03c0/3, \u03c0/2)"
+        },
+        {
+          "ref": "config2",
+          "field": "jacobian1",
+          "value": -0.175,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq2 = \u22120.35\u00b7sin(\u03c0/6) = \u22120.175 (exact decimal)"
+        },
+        {
+          "ref": "config3",
+          "field": "xMeters",
+          "value": 0.85,
+          "absTolerance": 1e-12,
+          "derivation": "the SINGULAR fully-extended config: x = L1 + L2 = 0.85 exactly, y = 0, \u03b8 = 0"
+        },
+        {
+          "ref": "config3",
+          "field": "yMeters",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "closed form: 0.5\u00b7sin(0) + 0.35\u00b7sin(0) = 0"
+        },
+        {
+          "ref": "config3",
+          "field": "thetaRad",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "closed form \u03b8 = 0 + 0 = 0"
+        },
+        {
+          "ref": "config3",
+          "field": "fkMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the FK gate residual (probed bit-exact at (0,0), \u00a718.1)"
+        },
+        {
+          "ref": "config3",
+          "field": "jacobianMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the Jacobian gate residual (probed 0.0 at (0,0) \u2014 the singular config computes exactly)"
+        },
+        {
+          "ref": "config3",
+          "field": "jacobian0",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq1 = \u2212L1\u00b7sin(0) \u2212 L2\u00b7sin(0) = 0 \u2014 the extended arm has no x-sensitivity at (0,0)"
+        },
+        {
+          "ref": "config3",
+          "field": "jacobian1",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq2 = \u2212L2\u00b7sin(0) = 0"
+        },
+        {
+          "ref": "config4",
+          "field": "xMeters",
+          "value": -0.1117043425550795,
+          "absTolerance": 1e-12,
+          "derivation": "closed form at (2.5, \u22121.9): 0.5\u00b7cos(2.5) + 0.35\u00b7cos(0.6)"
+        },
+        {
+          "ref": "config4",
+          "field": "yMeters",
+          "value": 0.49686093774024065,
+          "absTolerance": 1e-12,
+          "derivation": "closed form: 0.5\u00b7sin(2.5) + 0.35\u00b7sin(0.6)"
+        },
+        {
+          "ref": "config4",
+          "field": "thetaRad",
+          "value": 0.6000000000000001,
+          "absTolerance": 1e-12,
+          "derivation": "closed form \u03b8 = 2.5 \u2212 1.9 = 0.6 (inside (\u2212\u03c0,\u03c0])"
+        },
+        {
+          "ref": "config4",
+          "field": "fkMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the FK gate residual (probed 5.551e-17 at this config, \u00a718.1)"
+        },
+        {
+          "ref": "config4",
+          "field": "jacobianMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the Jacobian gate residual (probed 8.327e-17 at this config, \u00a718.1)"
+        },
+        {
+          "ref": "config4",
+          "field": "jacobian0",
+          "value": -0.49686093774024065,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq1 at (2.5, \u22121.9)"
+        },
+        {
+          "ref": "config4",
+          "field": "jacobian1",
+          "value": -0.1976248656882624,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq2 = \u22120.35\u00b7sin(0.6)"
+        }
       ]
     }
   },
@@ -2710,32 +2962,185 @@
       "expect": "success",
       "note": "A SECOND arm (L1=1.2, L2=0.8) at three configurations incl. the folded-back q2=\u03c0 singular (EE above the shoulder at (0, 0.4), \u03b8 wrapped to \u2212\u03c0/2) and a negative-q1 config \u2014 the closed forms are arm-independent by construction; the same pin classes as robot-arm-2link prove no fixture-specific path exists.",
       "pins": [
-        { "ref": null, "field": "mechanismKind", "value": "planar_2r", "derivation": "the frozen v1 mechanism class" },
-        { "ref": null, "field": "linkCount", "value": 2, "derivation": "exactly two links" },
-        { "ref": null, "field": "linkLength1", "value": 1.2, "absTolerance": 1e-12, "derivation": "the fixture's link 1 length (m)" },
-        { "ref": null, "field": "linkLength2", "value": 0.8, "absTolerance": 1e-12, "derivation": "the fixture's link 2 length (m)" },
-        { "ref": null, "field": "configurationCount", "value": 3, "derivation": "the fixture carries 3 configurations" },
-        { "ref": "config1", "field": "xMeters", "value": 1.9318516525781368, "absTolerance": 1e-12, "derivation": "closed form at (\u03c0/12, \u2212\u03c0/6): 1.2\u00b7cos(\u03c0/12) + 0.8\u00b7cos(\u2212\u03c0/12)" },
-        { "ref": "config1", "field": "yMeters", "value": 0.1035276180410083, "absTolerance": 1e-12, "derivation": "closed form: 1.2\u00b7sin(\u03c0/12) + 0.8\u00b7sin(\u2212\u03c0/12)" },
-        { "ref": "config1", "field": "thetaRad", "value": -0.2617993877991496, "absTolerance": 1e-12, "derivation": "closed form \u03b8 = \u03c0/12 \u2212 \u03c0/6 = \u2212\u03c0/12" },
-        { "ref": "config1", "field": "fkMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the FK gate residual (\u2264 1e-12 by the \u00a718.5 gate)" },
-        { "ref": "config1", "field": "jacobianMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the Jacobian gate residual (\u2264 1e-12 by the \u00a718.5 gate)" },
-        { "ref": "config1", "field": "jacobian0", "value": -0.1035276180410083, "absTolerance": 1e-12, "derivation": "closed form vx/dq1 at (\u03c0/12, \u2212\u03c0/6)" },
-        { "ref": "config1", "field": "jacobian1", "value": 0.2070552360820166, "absTolerance": 1e-12, "derivation": "closed form vx/dq2 = \u22120.8\u00b7sin(\u2212\u03c0/12) (positive \u2014 the elbow is folded back)" },
-        { "ref": "config2", "field": "xMeters", "value": 0.09625072399246914, "absTolerance": 1e-12, "derivation": "closed form at (\u22122.1, 2.6): 1.2\u00b7cos(\u22122.1) + 0.8\u00b7cos(0.5)" },
-        { "ref": "config2", "field": "yMeters", "value": -0.6523108090952859, "absTolerance": 1e-12, "derivation": "closed form: 1.2\u00b7sin(\u22122.1) + 0.8\u00b7sin(0.5)" },
-        { "ref": "config2", "field": "thetaRad", "value": 0.5, "absTolerance": 1e-12, "derivation": "closed form \u03b8 = \u22122.1 + 2.6 = 0.5" },
-        { "ref": "config2", "field": "fkMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the FK gate residual" },
-        { "ref": "config2", "field": "jacobianMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the Jacobian gate residual" },
-        { "ref": "config2", "field": "jacobian0", "value": 0.6523108090952859, "absTolerance": 1e-12, "derivation": "closed form vx/dq1 at (\u22122.1, 2.6)" },
-        { "ref": "config2", "field": "jacobian1", "value": -0.3835404308833624, "absTolerance": 1e-12, "derivation": "closed form vx/dq2 = \u22120.8\u00b7sin(0.5)" },
-        { "ref": "config3", "field": "xMeters", "value": -7.347880794884119e-17, "absTolerance": 1e-12, "derivation": "the FOLDED-BACK singular (q2=\u03c0): x = 1.2\u00b7cos(\u03c0/2) + 0.8\u00b7cos(3\u03c0/2) = 0 \u2014 the pin value is the closed form's float noise, |x| < 1e-12 either way" },
-        { "ref": "config3", "field": "yMeters", "value": 0.3999999999999999, "absTolerance": 1e-12, "derivation": "closed form: 1.2\u00b7sin(\u03c0/2) + 0.8\u00b7sin(3\u03c0/2) = 1.2 \u2212 0.8 = 0.4" },
-        { "ref": "config3", "field": "thetaRad", "value": -1.5707963267948966, "absTolerance": 1e-12, "derivation": "closed form \u03b8 = \u03c0/2 + \u03c0 = 3\u03c0/2, WRAPPED to \u2212\u03c0/2 (the \u00a718.1 \u03b8 convention)" },
-        { "ref": "config3", "field": "fkMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the FK gate residual at the folded singular" },
-        { "ref": "config3", "field": "jacobianMaxAbsError", "value": 0, "absTolerance": 1e-12, "derivation": "the Jacobian gate residual at the folded singular" },
-        { "ref": "config3", "field": "jacobian0", "value": -0.3999999999999999, "absTolerance": 1e-12, "derivation": "closed form vx/dq1 = \u22121.2\u00b7sin(\u03c0/2) \u2212 0.8\u00b7sin(3\u03c0/2) = \u22121.2 + 0.8 = \u22120.4" },
-        { "ref": "config3", "field": "jacobian1", "value": 0.8, "absTolerance": 1e-12, "derivation": "closed form vx/dq2 = \u22120.8\u00b7sin(3\u03c0/2) = +0.8 (the folded elbow swings the tip backward-first)" }
+        {
+          "ref": null,
+          "field": "mechanismKind",
+          "value": "planar_2r",
+          "derivation": "the frozen v1 mechanism class"
+        },
+        {
+          "ref": null,
+          "field": "linkCount",
+          "value": 2,
+          "derivation": "exactly two links"
+        },
+        {
+          "ref": null,
+          "field": "linkLength1",
+          "value": 1.2,
+          "absTolerance": 1e-12,
+          "derivation": "the fixture's link 1 length (m)"
+        },
+        {
+          "ref": null,
+          "field": "linkLength2",
+          "value": 0.8,
+          "absTolerance": 1e-12,
+          "derivation": "the fixture's link 2 length (m)"
+        },
+        {
+          "ref": null,
+          "field": "configurationCount",
+          "value": 3,
+          "derivation": "the fixture carries 3 configurations"
+        },
+        {
+          "ref": "config1",
+          "field": "xMeters",
+          "value": 1.9318516525781368,
+          "absTolerance": 1e-12,
+          "derivation": "closed form at (\u03c0/12, \u2212\u03c0/6): 1.2\u00b7cos(\u03c0/12) + 0.8\u00b7cos(\u2212\u03c0/12)"
+        },
+        {
+          "ref": "config1",
+          "field": "yMeters",
+          "value": 0.1035276180410083,
+          "absTolerance": 1e-12,
+          "derivation": "closed form: 1.2\u00b7sin(\u03c0/12) + 0.8\u00b7sin(\u2212\u03c0/12)"
+        },
+        {
+          "ref": "config1",
+          "field": "thetaRad",
+          "value": -0.2617993877991496,
+          "absTolerance": 1e-12,
+          "derivation": "closed form \u03b8 = \u03c0/12 \u2212 \u03c0/6 = \u2212\u03c0/12"
+        },
+        {
+          "ref": "config1",
+          "field": "fkMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the FK gate residual (\u2264 1e-12 by the \u00a718.5 gate)"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobianMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the Jacobian gate residual (\u2264 1e-12 by the \u00a718.5 gate)"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobian0",
+          "value": -0.1035276180410083,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq1 at (\u03c0/12, \u2212\u03c0/6)"
+        },
+        {
+          "ref": "config1",
+          "field": "jacobian1",
+          "value": 0.2070552360820166,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq2 = \u22120.8\u00b7sin(\u2212\u03c0/12) (positive \u2014 the elbow is folded back)"
+        },
+        {
+          "ref": "config2",
+          "field": "xMeters",
+          "value": 0.09625072399246914,
+          "absTolerance": 1e-12,
+          "derivation": "closed form at (\u22122.1, 2.6): 1.2\u00b7cos(\u22122.1) + 0.8\u00b7cos(0.5)"
+        },
+        {
+          "ref": "config2",
+          "field": "yMeters",
+          "value": -0.6523108090952859,
+          "absTolerance": 1e-12,
+          "derivation": "closed form: 1.2\u00b7sin(\u22122.1) + 0.8\u00b7sin(0.5)"
+        },
+        {
+          "ref": "config2",
+          "field": "thetaRad",
+          "value": 0.5,
+          "absTolerance": 1e-12,
+          "derivation": "closed form \u03b8 = \u22122.1 + 2.6 = 0.5"
+        },
+        {
+          "ref": "config2",
+          "field": "fkMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the FK gate residual"
+        },
+        {
+          "ref": "config2",
+          "field": "jacobianMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the Jacobian gate residual"
+        },
+        {
+          "ref": "config2",
+          "field": "jacobian0",
+          "value": 0.6523108090952859,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq1 at (\u22122.1, 2.6)"
+        },
+        {
+          "ref": "config2",
+          "field": "jacobian1",
+          "value": -0.3835404308833624,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq2 = \u22120.8\u00b7sin(0.5)"
+        },
+        {
+          "ref": "config3",
+          "field": "xMeters",
+          "value": -7.347880794884119e-17,
+          "absTolerance": 1e-12,
+          "derivation": "the FOLDED-BACK singular (q2=\u03c0): x = 1.2\u00b7cos(\u03c0/2) + 0.8\u00b7cos(3\u03c0/2) = 0 \u2014 the pin value is the closed form's float noise, |x| < 1e-12 either way"
+        },
+        {
+          "ref": "config3",
+          "field": "yMeters",
+          "value": 0.3999999999999999,
+          "absTolerance": 1e-12,
+          "derivation": "closed form: 1.2\u00b7sin(\u03c0/2) + 0.8\u00b7sin(3\u03c0/2) = 1.2 \u2212 0.8 = 0.4"
+        },
+        {
+          "ref": "config3",
+          "field": "thetaRad",
+          "value": -1.5707963267948966,
+          "absTolerance": 1e-12,
+          "derivation": "closed form \u03b8 = \u03c0/2 + \u03c0 = 3\u03c0/2, WRAPPED to \u2212\u03c0/2 (the \u00a718.1 \u03b8 convention)"
+        },
+        {
+          "ref": "config3",
+          "field": "fkMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the FK gate residual at the folded singular"
+        },
+        {
+          "ref": "config3",
+          "field": "jacobianMaxAbsError",
+          "value": 0,
+          "absTolerance": 1e-12,
+          "derivation": "the Jacobian gate residual at the folded singular"
+        },
+        {
+          "ref": "config3",
+          "field": "jacobian0",
+          "value": -0.3999999999999999,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq1 = \u22121.2\u00b7sin(\u03c0/2) \u2212 0.8\u00b7sin(3\u03c0/2) = \u22121.2 + 0.8 = \u22120.4"
+        },
+        {
+          "ref": "config3",
+          "field": "jacobian1",
+          "value": 0.8,
+          "absTolerance": 1e-12,
+          "derivation": "closed form vx/dq2 = \u22120.8\u00b7sin(3\u03c0/2) = +0.8 (the folded elbow swings the tip backward-first)"
+        }
       ]
     }
   },
@@ -2748,6 +3153,312 @@
       "expect": "error",
       "errorContains": "robot model mechanism.kind must be \"planar_2r\"",
       "note": "The \u00a718.2 schema refusal: the v1 mechanism class is frozen at planar_2r; every other class (here 'spatial_6r') is its own future lane \u2014 refused at the zod (the route) AND mirrored in the adapter (defense-in-depth), never normalized to a guess."
+    }
+  },
+  {
+    "caseId": "impact-drop-sphere",
+    "adapter": "physics",
+    "fixture": "impact-drop-sphere.json",
+    "expect": "success",
+    "physics": {
+      "expect": "success",
+      "note": "The \u00a719.1 probe drop (1 kg r=0.1 sphere, center z=1.0, g=9.81, e=0, 240 Hz) \u2014 the dead-bang lane's nominal case. PyBullet DIRECT-mode computes the trajectory; the pins are the HAND-DERIVED closed forms: the DISCRETE semi-implicit fall z_n = h \u2212 \u00bdg\u00b7dt\u00b2\u00b7n(n+1), vz_n = \u2212g\u00b7dt\u00b7n (the \u00a719.1 integrator reality \u2014 the continuous form is off by \u00bdg\u00b7dt\u00b7t \u2248 8.8e-3 m at contact), the contact time t* = sqrt(2(h\u2212r)/g) within the 240 Hz quantum, the impact speed v* = sqrt(2g(h\u2212r)) within 3\u00b7g\u00b7dt, and the e=0 no-rebound reality (peak = the contact height r, \u00a719.1 probed: rest r \u2212 1e-5). Tolerances 1e-9 on the discrete forms (probed 1.47e-15/1.07e-14), never the engine's own echo.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "analysis",
+          "value": "impact_simulation",
+          "derivation": "the only analysis shipped this phase (contract \u00a719.4)"
+        },
+        {
+          "ref": null,
+          "field": "engineKey",
+          "value": "pybullet",
+          "derivation": "the lane's engine (contract \u00a719.3)"
+        },
+        {
+          "ref": null,
+          "field": "engineVersion",
+          "value": "3.2.7",
+          "derivation": "the pinned pybullet sdist (engines-requirements)"
+        },
+        {
+          "ref": null,
+          "field": "mechanismKind",
+          "value": "drop_impact",
+          "derivation": "the frozen v1 mechanism class (contract \u00a719.2)"
+        },
+        {
+          "ref": null,
+          "field": "massKilograms",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "the fixture's sphere mass (kg)"
+        },
+        {
+          "ref": null,
+          "field": "radiusMeters",
+          "value": 0.1,
+          "absTolerance": 1e-12,
+          "derivation": "the fixture's sphere radius (m)"
+        },
+        {
+          "ref": null,
+          "field": "restitution",
+          "value": 0.0,
+          "absTolerance": 1e-12,
+          "derivation": "the dead-bang drop: e = 0"
+        },
+        {
+          "ref": null,
+          "field": "centerHeightMeters",
+          "value": 1.0,
+          "absTolerance": 1e-12,
+          "derivation": "the release center height (m)"
+        },
+        {
+          "ref": null,
+          "field": "gravityMetersPerSecondSquared",
+          "value": 9.81,
+          "absTolerance": 1e-12,
+          "derivation": "the configured gravity (m/s\u00b2)"
+        },
+        {
+          "ref": null,
+          "field": "timestepSeconds",
+          "value": 0.004166666666666667,
+          "absTolerance": 1e-15,
+          "derivation": "the pinned 240 Hz timestep 1/240 s (\u00a719.1)"
+        },
+        {
+          "ref": null,
+          "field": "sampleCount",
+          "value": 344,
+          "derivation": "the horizon: first contact (step 104) + exactly 240 post-contact steps (\u00a719.4)"
+        },
+        {
+          "ref": null,
+          "field": "firstContactStep",
+          "value": 104,
+          "derivation": "the probed first-contact step (\u00a719.1): the discrete fall crosses r between steps 103/104"
+        },
+        {
+          "ref": null,
+          "field": "firstContactTimeSeconds",
+          "value": 0.43333333333333335,
+          "absTolerance": 1e-12,
+          "derivation": "104/240 \u2014 the measured contact time"
+        },
+        {
+          "ref": null,
+          "field": "closedFormContactTimeSeconds",
+          "value": 0.4283529368781193,
+          "absTolerance": 1e-12,
+          "derivation": "closed form t* = sqrt(2\u00b70.9/9.81)"
+        },
+        {
+          "ref": null,
+          "field": "timeResidualSeconds",
+          "value": 0.004980396455214031,
+          "absTolerance": 1e-09,
+          "derivation": "t_meas \u2212 t* = +1.195 dt (one 240 Hz quantum + the soft-contact penetration margin, \u00a719.1)"
+        },
+        {
+          "ref": null,
+          "field": "impactSpeedMetersPerSecond",
+          "value": 4.210125,
+          "absTolerance": 1e-09,
+          "derivation": "the discrete closed form |\u2212g\u00b7dt\u00b7103| = 9.81\u00b7103/240 (bit-consistent, \u00a719.1)"
+        },
+        {
+          "ref": null,
+          "field": "closedFormImpactSpeedMetersPerSecond",
+          "value": 4.2021423107743505,
+          "absTolerance": 1e-12,
+          "derivation": "closed form v* = sqrt(2\u00b79.81\u00b70.9)"
+        },
+        {
+          "ref": null,
+          "field": "speedResidualMetersPerSecond",
+          "value": 0.007982689225658923,
+          "absTolerance": 1e-09,
+          "derivation": "v_meas \u2212 v* (within 3\u00b7g\u00b7dt = 0.1226 by the \u00a719.5 gate)"
+        },
+        {
+          "ref": null,
+          "field": "reboundPeakHeightMeters",
+          "value": 0.09999,
+          "absTolerance": 0.005,
+          "derivation": "the e=0 no-rebound reality (\u00a719.1 probed: rest r \u2212 1e-5; engine behavior, the chip-lane empirical-count precedent)"
+        },
+        {
+          "ref": null,
+          "field": "closedFormReboundPeakMeters",
+          "value": 0.1,
+          "absTolerance": 1e-12,
+          "derivation": "the energy bound r + e\u00b2(h\u2212r) = r at e=0"
+        },
+        {
+          "ref": null,
+          "field": "reboundResidualMeters",
+          "value": -1e-05,
+          "absTolerance": 0.005,
+          "derivation": "dissipative by exactly the probed penetration (\u22121.0e-5 m)"
+        },
+        {
+          "ref": null,
+          "field": "maxPreContactHeightError",
+          "value": 0,
+          "absTolerance": 1e-09,
+          "derivation": "the adapter's discrete closed-form gate residual (probed 1.47e-15)"
+        },
+        {
+          "ref": null,
+          "field": "maxPreContactSpeedError",
+          "value": 0,
+          "absTolerance": 1e-09,
+          "derivation": "the adapter's velocity gate residual (probed 1.07e-14)"
+        },
+        {
+          "ref": "sample1",
+          "field": "centerHeightMeters",
+          "value": 0.9998296875,
+          "absTolerance": 1e-09,
+          "derivation": "discrete closed form z_1 = 1 \u2212 \u00bd\u00b79.81\u00b7dt\u00b2\u00b71\u00b72 (exact in binary, \u00a719.1)"
+        },
+        {
+          "ref": "sample1",
+          "field": "velocityZMetersPerSecond",
+          "value": -0.040875,
+          "absTolerance": 1e-09,
+          "derivation": "discrete closed form vz_1 = \u22129.81/240 (exact)"
+        },
+        {
+          "ref": "sample50",
+          "field": "centerHeightMeters",
+          "value": 0.7828515625,
+          "absTolerance": 1e-09,
+          "derivation": "discrete closed form z_50 = 1 \u2212 \u00bd\u00b79.81\u00b7dt\u00b2\u00b750\u00b751 (exact)"
+        },
+        {
+          "ref": "sample50",
+          "field": "velocityZMetersPerSecond",
+          "value": -2.04375,
+          "absTolerance": 1e-09,
+          "derivation": "discrete closed form vz_50 = \u22129.81\u00b750/240 (exact)"
+        },
+        {
+          "ref": "sample103",
+          "field": "centerHeightMeters",
+          "value": 0.08780625,
+          "absTolerance": 1e-09,
+          "derivation": "discrete closed form z_103 (the last pre-contact step)"
+        },
+        {
+          "ref": "sample103",
+          "field": "velocityZMetersPerSecond",
+          "value": -4.210125,
+          "absTolerance": 1e-09,
+          "derivation": "discrete closed form vz_103 = \u22129.81\u00b7103/240 (the impact speed's source step)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "impact-drop-bounce",
+    "adapter": "physics",
+    "fixture": "impact-drop-bounce.json",
+    "expect": "success",
+    "physics": {
+      "expect": "success",
+      "note": "The bounce case (the same drop at restitution e=0.6): the pre-contact physics is IDENTICAL to impact-drop-sphere (same steps 1..104 \u2014 restitution only acts at contact), and the rebound rides the ENERGY envelope: the ideal bound r + e\u00b2(h\u2212r) = 0.424 m is the ceiling (a dissipative LCP solver returns LESS \u2014 \u00a719.1 probed: ratio 0.419, Bullet's restitution under-delivers at 240 Hz) while the measured peak 0.250143 m is pinned as ENGINE BEHAVIOR (the chip-lane empirical-count precedent \u2014 an engine behavior, not a structural law); energy creation above the bound is refused in the adapter.",
+      "pins": [
+        {
+          "ref": null,
+          "field": "mechanismKind",
+          "value": "drop_impact",
+          "derivation": "the frozen v1 mechanism class"
+        },
+        {
+          "ref": null,
+          "field": "restitution",
+          "value": 0.6,
+          "absTolerance": 1e-12,
+          "derivation": "the bounce configuration (the fixture)"
+        },
+        {
+          "ref": null,
+          "field": "sampleCount",
+          "value": 344,
+          "derivation": "the same horizon: first contact (step 104) + 240 post-contact steps"
+        },
+        {
+          "ref": null,
+          "field": "firstContactStep",
+          "value": 104,
+          "derivation": "identical to the e=0 drop \u2014 restitution never acts before contact"
+        },
+        {
+          "ref": null,
+          "field": "closedFormContactTimeSeconds",
+          "value": 0.4283529368781193,
+          "absTolerance": 1e-12,
+          "derivation": "the same closed form t* = sqrt(2\u00b70.9/9.81)"
+        },
+        {
+          "ref": null,
+          "field": "impactSpeedMetersPerSecond",
+          "value": 4.210125,
+          "absTolerance": 1e-09,
+          "derivation": "the same discrete impact speed (restitution acts only AFTER contact)"
+        },
+        {
+          "ref": null,
+          "field": "closedFormReboundPeakMeters",
+          "value": 0.42400000000000004,
+          "absTolerance": 1e-12,
+          "derivation": "the energy bound r + e\u00b2(h\u2212r) = 0.1 + 0.36\u00b70.9"
+        },
+        {
+          "ref": null,
+          "field": "reboundPeakHeightMeters",
+          "value": 0.250143425,
+          "absTolerance": 0.02,
+          "derivation": "ENGINE BEHAVIOR pin (\u00a719.1 probed ratio 0.419 < e): the dissipative LCP rebound, tolerance for build variance \u2014 the chip-lane AND-count precedent"
+        },
+        {
+          "ref": null,
+          "field": "reboundResidualMeters",
+          "value": -0.1738565749999958,
+          "absTolerance": 0.02,
+          "derivation": "dissipative (negative) as probed \u2014 never above 0 (energy creation is a \u00a719.5 refusal)"
+        },
+        {
+          "ref": "sample103",
+          "field": "velocityZMetersPerSecond",
+          "value": -4.210125,
+          "absTolerance": 1e-09,
+          "derivation": "the last pre-contact step: identical to the e=0 drop (the discrete closed form)"
+        },
+        {
+          "ref": "sample104",
+          "field": "velocityZMetersPerSecond",
+          "value": 1.7642880000000307,
+          "absTolerance": 0.05,
+          "derivation": "the first post-contact step's upward velocity (engine behavior: the solver's restitution response, ratio 0.419\u00b7|v_impact|)"
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "impact-drop-invalid-kind",
+    "adapter": "physics",
+    "fixture": "impact-drop-invalid-kind.json",
+    "expect": "error",
+    "physics": {
+      "expect": "error",
+      "errorContains": "impact model mechanism.kind must be \"drop_impact\"",
+      "note": "The \u00a719.2 schema refusal: the v1 mechanism class is frozen at drop_impact; every other class (here 'pendulum') is its own future lane \u2014 refused at the zod (the route) AND mirrored in the adapter (defense-in-depth), never normalized to a guess."
     }
   },
   {

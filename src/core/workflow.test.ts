@@ -594,7 +594,7 @@ describe("WORKFLOW_TEMPLATES.modelQaPipeline", () => {
 // ---------------------------------------------------------------------------
 
 describe("BROKER_OPERATIONS — the Phase-5 + Slice-15/16/30/32 + ADR-0011 Stage-1 + ADR-0012 Stage-3 ops (contract §4)", () => {
-  test("the vocabulary is EXACTLY the twenty-one contract keys in contract order", () => {
+  test("the vocabulary is EXACTLY the twenty-two contract keys in contract order", () => {
     expect(BROKER_OPERATIONS).toEqual([
       "derive_quantities",
       "derive_mesh",
@@ -606,6 +606,7 @@ describe("BROKER_OPERATIONS — the Phase-5 + Slice-15/16/30/32 + ADR-0011 Stage
       "solve_transport",
       "synthesize_rtl",
       "solve_kinematics",
+      "simulate_impact",
       "run_swmm",
       "convert_document",
       "analyze_schedule",

@@ -165,6 +165,23 @@ export const DERIVE_SUMMARIES = {
       maxJacobianError: jacErrors.length === configurations.length && configurations.length > 0 ? Math.max(...jacErrors) : undefined,
     }
   },
+  /** eos-impact-simulation/1 → mechanismKind / sampleCount / impact closed-form residuals (Slice 33) */
+  impact(document: unknown): Record<string, unknown> {
+    const mechanism = field(document, "mechanism")
+    const impact = field(document, "impact")
+    const verification = field(document, "verification")
+    return {
+      mechanismKind: typeof field(mechanism, "kind") === "string" ? field(mechanism, "kind") : undefined,
+      sampleCount: countOf(document, "samples"),
+      firstContactStep: numberField(impact, "firstContactStep"),
+      firstContactTimeSeconds: numberField(impact, "firstContactTimeSeconds"),
+      timeResidualSeconds: numberField(impact, "timeResidualSeconds"),
+      impactSpeedMetersPerSecond: numberField(impact, "impactSpeedMetersPerSecond"),
+      reboundPeakHeightMeters: numberField(impact, "reboundPeakHeightMeters"),
+      maxPreContactHeightError: numberField(verification, "maxPreContactHeightError"),
+      maxPreContactSpeedError: numberField(verification, "maxPreContactSpeedError"),
+    }
+  },
   /** eos-cpm/1 → activityCount / criticalPathCount / durationDays */
   analysis(document: unknown): Record<string, unknown> {
     return {

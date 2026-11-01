@@ -573,6 +573,7 @@ const OPERATION_LABELS: Record<PlannerOperation, string> = {
   solve_transport: "Solve scalar transport (CFD)",
   synthesize_rtl: "Synthesize RTL to netlist (chip)",
   solve_kinematics: "Solve arm kinematics (robotics)",
+  simulate_impact: "Simulate drop impact (physics)",
   run_swmm: "Run stormwater drainage (SWMM)",
   convert_document: "Convert document",
   analyze_schedule: "Analyze schedule",

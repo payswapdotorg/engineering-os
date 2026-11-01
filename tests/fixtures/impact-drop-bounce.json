@@ -1,0 +1,14 @@
+{
+  "format": "eos-impact-model/1",
+  "name": "Bounce test — 1 kg sphere, restitution 0.6",
+  "mechanism": {
+    "kind": "drop_impact",
+    "massKilograms": 1.0,
+    "radiusMeters": 0.1,
+    "restitution": 0.6
+  },
+  "drop": {
+    "centerHeightMeters": 1.0,
+    "gravityMetersPerSecondSquared": 9.81
+  }
+}

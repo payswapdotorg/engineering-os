@@ -60,6 +60,7 @@ import { runFeaFromFile, type FeaSample } from "@/engines/adapters/fea"
 import { runTransportFromFile, type TransportSample } from "@/engines/adapters/cfd"
 import { runRtlSynthesisFromFile, type RtlSimulationStep } from "@/engines/adapters/chip"
 import { runKinematicsFromFile, type KinematicsConfiguration } from "@/engines/adapters/robotics"
+import { runImpactFromFile, type ImpactSample, type ImpactSummary } from "@/engines/adapters/physics"
 import { runSwmmFromFile, type SwmmDepthSample } from "@/engines/adapters/swmm"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "@/engines/adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "@/engines/adapters/dxf_takeoff"
@@ -130,6 +131,7 @@ export type BrokerOperation =
   | "solve_transport"
   | "synthesize_rtl"
   | "solve_kinematics"
+  | "simulate_impact"
   | "run_swmm"
   | "convert_document"
   | "analyze_schedule"
@@ -1027,6 +1029,7 @@ export const SWMM_NO_REVISIONS_MESSAGE = "This artifact has no revisions to run"
 export const TRANSPORT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to solve"
 export const RTL_NO_REVISIONS_MESSAGE = "This artifact has no revisions to synthesize"
 export const KINEMATICS_NO_REVISIONS_MESSAGE = "This artifact has no revisions to analyze"
+export const IMPACT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to simulate"
 export const CONVERT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to convert"
 export const ANALYZE_NO_REVISIONS_MESSAGE = "This artifact has no revisions to analyze"
 
@@ -1434,6 +1437,76 @@ export function buildKinematicsDocument(
         jacobianMaxAbsError: configuration.verification.jacobianMaxAbsError,
       },
     })),
+    generatedBy: {
+      engineKey: payload.engineKey,
+      engineVersion: payload.engineVersion,
+      adapterScript: payload.adapterScript,
+      adapterHash: payload.adapterHash,
+    },
+  })
+}
+
+/**
+ * Assemble the eos-impact-simulation/1 document bytes (contract §19.4). PURE:
+ * pinned key order format → sourceArtifactName → analysis → mechanism →
+ * drop → timestepSeconds → samples → impact → verification → generatedBy;
+ * every double is the engine's verbatim shortest-round-trip repr
+ * (byte-determinism is pinned by the harness double-run — §19.4; nobody
+ * rounds "for presentation", ADR-0006 §2).
+ */
+export function buildImpactDocument(
+  sourceArtifactName: string,
+  payload: {
+    analysis: "impact_simulation"
+    mechanism: { kind: "drop_impact"; massKilograms: number; radiusMeters: number; restitution: number }
+    drop: { centerHeightMeters: number; gravityMetersPerSecondSquared: number }
+    timestepSeconds: number
+    samples: ImpactSample[]
+    impact: ImpactSummary
+    verification: { maxPreContactHeightError: number; maxPreContactSpeedError: number }
+    engineKey: string
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+  },
+): string {
+  return JSON.stringify({
+    format: "eos-impact-simulation/1",
+    sourceArtifactName,
+    analysis: payload.analysis,
+    mechanism: {
+      kind: payload.mechanism.kind,
+      massKilograms: payload.mechanism.massKilograms,
+      radiusMeters: payload.mechanism.radiusMeters,
+      restitution: payload.mechanism.restitution,
+    },
+    drop: {
+      centerHeightMeters: payload.drop.centerHeightMeters,
+      gravityMetersPerSecondSquared: payload.drop.gravityMetersPerSecondSquared,
+    },
+    timestepSeconds: payload.timestepSeconds,
+    samples: payload.samples.map((sample) => ({
+      index: sample.index,
+      timeSeconds: sample.timeSeconds,
+      centerHeightMeters: sample.centerHeightMeters,
+      velocityZMetersPerSecond: sample.velocityZMetersPerSecond,
+    })),
+    impact: {
+      firstContactStep: payload.impact.firstContactStep,
+      firstContactTimeSeconds: payload.impact.firstContactTimeSeconds,
+      closedFormContactTimeSeconds: payload.impact.closedFormContactTimeSeconds,
+      timeResidualSeconds: payload.impact.timeResidualSeconds,
+      impactSpeedMetersPerSecond: payload.impact.impactSpeedMetersPerSecond,
+      closedFormImpactSpeedMetersPerSecond: payload.impact.closedFormImpactSpeedMetersPerSecond,
+      speedResidualMetersPerSecond: payload.impact.speedResidualMetersPerSecond,
+      reboundPeakHeightMeters: payload.impact.reboundPeakHeightMeters,
+      closedFormReboundPeakMeters: payload.impact.closedFormReboundPeakMeters,
+      reboundResidualMeters: payload.impact.reboundResidualMeters,
+    },
+    verification: {
+      maxPreContactHeightError: payload.verification.maxPreContactHeightError,
+      maxPreContactSpeedError: payload.verification.maxPreContactSpeedError,
+    },
     generatedBy: {
       engineKey: payload.engineKey,
       engineVersion: payload.engineVersion,
@@ -4154,6 +4227,149 @@ export async function brokerRunKinematicsCore(
   }
 }
 
+/** Pinned 201 `impact` response object (exact key order — mirror of the kinematics 201). */
+export interface BrokerImpactResponse {
+  artifactId: string
+  name: string
+  kind: "analysis"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-impact-simulation/1"
+  analysis: "impact_simulation"
+  mechanismKind: "drop_impact"
+  sampleCount: number
+  firstContactStep: number
+  firstContactTimeSeconds: number
+  closedFormContactTimeSeconds: number
+  timeResidualSeconds: number
+  impactSpeedMetersPerSecond: number
+  reboundPeakHeightMeters: number
+  maxPreContactHeightError: number
+  maxPreContactSpeedError: number
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerImpactResult {
+  impact: BrokerImpactResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of simulate_impact (contract §19.3/§19.5): gate the stored JSON as an
+ * eos-impact-model/1 document, run the PyBullet bridge (the adapter gates the
+ * whole trajectory + impact summary against the hand-derived closed forms —
+ * a disagreeing result is refused, never stored), assemble the
+ * byte-deterministic eos-impact-simulation/1 document, find-or-create the
+ * kind-"analysis" artifact (DRAFT revision per run), exactly ONE
+ * `impact.simulated` audit event (engine attributed verbatim).
+ */
+export async function brokerRunImpactCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerImpactResult> {
+  const source = await readJsonArtifact(projectId, artifactId, "eos-impact-model/1", IMPACT_NO_REVISIONS_MESSAGE)
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof runImpactFromFile>>
+  try {
+    result = await runImpactFromFile(absPath, parameters)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildImpactDocument(source.artifact.name, result)
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "simulate_impact",
+    kind: "analysis",
+    format: "eos-impact-simulation/1",
+    name: `${source.artifact.name} — impact`,
+    description: `Drop-impact simulation (free fall + contact + rebound, ${result.engineKey})`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "impact.simulated",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        analysis: result.analysis,
+        mechanismKind: result.mechanism.kind,
+        sampleCount: result.samples.length,
+        firstContactStep: result.impact.firstContactStep,
+        firstContactTimeSeconds: result.impact.firstContactTimeSeconds,
+        closedFormContactTimeSeconds: result.impact.closedFormContactTimeSeconds,
+        timeResidualSeconds: result.impact.timeResidualSeconds,
+        impactSpeedMetersPerSecond: result.impact.impactSpeedMetersPerSecond,
+        reboundPeakHeightMeters: result.impact.reboundPeakHeightMeters,
+        maxPreContactHeightError: result.verification.maxPreContactHeightError,
+        maxPreContactSpeedError: result.verification.maxPreContactSpeedError,
+      },
+    },
+  })
+
+  return {
+    impact: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-impact-simulation/1",
+      analysis: result.analysis,
+      mechanismKind: result.mechanism.kind,
+      sampleCount: result.samples.length,
+      firstContactStep: result.impact.firstContactStep,
+      firstContactTimeSeconds: result.impact.firstContactTimeSeconds,
+      closedFormContactTimeSeconds: result.impact.closedFormContactTimeSeconds,
+      timeResidualSeconds: result.impact.timeResidualSeconds,
+      impactSpeedMetersPerSecond: result.impact.impactSpeedMetersPerSecond,
+      reboundPeakHeightMeters: result.impact.reboundPeakHeightMeters,
+      maxPreContactHeightError: result.verification.maxPreContactHeightError,
+      maxPreContactSpeedError: result.verification.maxPreContactSpeedError,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
 /** Pinned 201 `transport` response object (exact key order — mirror of the fea 201). */
 export interface BrokerTransportResponse {
   artifactId: string
@@ -5246,6 +5462,35 @@ export async function runBrokerOperation(
           configurationCount: core.kinematics.configurationCount,
           maxFkError: core.kinematics.maxFkError,
           maxJacobianError: core.kinematics.maxJacobianError,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "simulate_impact": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "simulate_impact requires inputs.artifactId (one impact model artifact id)")
+      }
+      const core = await brokerRunImpactCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.impact.artifactId,
+          revisionNumber: core.impact.revisionNumber,
+          contentHash: core.impact.contentHash,
+          mechanismKind: core.impact.mechanismKind,
+          sampleCount: core.impact.sampleCount,
+          firstContactStep: core.impact.firstContactStep,
+          firstContactTimeSeconds: core.impact.firstContactTimeSeconds,
+          timeResidualSeconds: core.impact.timeResidualSeconds,
+          impactSpeedMetersPerSecond: core.impact.impactSpeedMetersPerSecond,
         },
         outputArtifactRevisionId: core.outputArtifactRevisionId,
         engineKey: core.engineKey,

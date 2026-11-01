@@ -1,8 +1,8 @@
 {
-  "ranAt": "2026-10-31T20:20:03.847Z",
+  "ranAt": "2026-11-01T00:14:41.562Z",
   "pythonBin": "/home/z/.local/share/eos-engines/venv/bin/python",
   "manifestPath": "tests/validation/corpus-manifest.json",
-  "caseCount": 54,
+  "caseCount": 57,
   "environment": {
     "engineAvailability": {
       "step": {
@@ -30,6 +30,9 @@
         "available": true
       },
       "robotics": {
+        "available": true
+      },
+      "physics": {
         "available": true
       },
       "swmm": {
@@ -73,7 +76,8 @@
     "tesseract": "5.5.0",
     "pyswmm": "2.2.0",
     "amaranth": "0.5.10",
-    "pin": "4.1.0"
+    "pin": "4.1.0",
+    "pybullet": "3.2.7"
   },
   "adapterHashes": {
     "step_quantities.py": "950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d",
@@ -93,7 +97,8 @@
     "swmm_run.py": "6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d",
     "transport_solve.py": "d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b",
     "rtl_synthesize.py": "dfd179e6be39f1bea0b70e8ac889c8e56ffa39554ce85188d85d9cde8a37fba7",
-    "kinematics_solve.py": "11185899754b49420c2a7ed46865bfe9b333593f0d58ae2a7c6c8735a145d100"
+    "kinematics_solve.py": "c7277a99d7a5f98a589c84026f794f9e5904bbf837cff0ca6b8cd5f6609aaf48",
+    "impact_solve.py": "881cf7872f11dc52ef17ec79587f9885c4d1749619b423e2ee8af048ce77b479"
   },
   "cases": [
     {
@@ -6226,7 +6231,7 @@
           "engineKey": "pin",
           "engineVersion": "4.1.0",
           "adapterScript": "kinematics_solve.py",
-          "adapterHash": "11185899754b49420c2a7ed46865bfe9b333593f0d58ae2a7c6c8735a145d100"
+          "adapterHash": "c7277a99d7a5f98a589c84026f794f9e5904bbf837cff0ca6b8cd5f6609aaf48"
         }
       }
     },
@@ -6592,7 +6597,7 @@
           "engineKey": "pin",
           "engineVersion": "4.1.0",
           "adapterScript": "kinematics_solve.py",
-          "adapterHash": "11185899754b49420c2a7ed46865bfe9b333593f0d58ae2a7c6c8735a145d100"
+          "adapterHash": "c7277a99d7a5f98a589c84026f794f9e5904bbf837cff0ca6b8cd5f6609aaf48"
         }
       }
     },
@@ -6617,6 +6622,605 @@
         "problems": [],
         "errorContains": "robot model mechanism.kind must be \"planar_2r\"",
         "errorObserved": "robot model mechanism.kind must be \"planar_2r\" (the v1 mechanism class; every other class is its own future lane) (got \"spatial_6r\")"
+      }
+    },
+    {
+      "caseId": "impact-drop-sphere",
+      "adapter": "physics",
+      "fixture": "impact-drop-sphere.json",
+      "fixturePath": "tests/fixtures/impact-drop-sphere.json",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "physics",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
+          {
+            "field": "analysis",
+            "ref": null,
+            "expected": "impact_simulation",
+            "observed": "impact_simulation",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the only analysis shipped this phase (contract §19.4)"
+          },
+          {
+            "field": "engineKey",
+            "ref": null,
+            "expected": "pybullet",
+            "observed": "pybullet",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the lane's engine (contract §19.3)"
+          },
+          {
+            "field": "engineVersion",
+            "ref": null,
+            "expected": "3.2.7",
+            "observed": "3.2.7",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the pinned pybullet sdist (engines-requirements)"
+          },
+          {
+            "field": "mechanismKind",
+            "ref": null,
+            "expected": "drop_impact",
+            "observed": "drop_impact",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the frozen v1 mechanism class (contract §19.2)"
+          },
+          {
+            "field": "massKilograms",
+            "ref": null,
+            "expected": 1,
+            "observed": 1,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the fixture's sphere mass (kg)"
+          },
+          {
+            "field": "radiusMeters",
+            "ref": null,
+            "expected": 0.1,
+            "observed": 0.1,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the fixture's sphere radius (m)"
+          },
+          {
+            "field": "restitution",
+            "ref": null,
+            "expected": 0,
+            "observed": 0,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the dead-bang drop: e = 0"
+          },
+          {
+            "field": "centerHeightMeters",
+            "ref": null,
+            "expected": 1,
+            "observed": 1,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the release center height (m)"
+          },
+          {
+            "field": "gravityMetersPerSecondSquared",
+            "ref": null,
+            "expected": 9.81,
+            "observed": 9.81,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the configured gravity (m/s²)"
+          },
+          {
+            "field": "timestepSeconds",
+            "ref": null,
+            "expected": 0.004166666666666667,
+            "observed": 0.004166666666666667,
+            "unit": null,
+            "bound": "abs:1e-15",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the pinned 240 Hz timestep 1/240 s (§19.1)"
+          },
+          {
+            "field": "sampleCount",
+            "ref": null,
+            "expected": 344,
+            "observed": 344,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the horizon: first contact (step 104) + exactly 240 post-contact steps (§19.4)"
+          },
+          {
+            "field": "firstContactStep",
+            "ref": null,
+            "expected": 104,
+            "observed": 104,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the probed first-contact step (§19.1): the discrete fall crosses r between steps 103/104"
+          },
+          {
+            "field": "firstContactTimeSeconds",
+            "ref": null,
+            "expected": 0.43333333333333335,
+            "observed": 0.43333333333333335,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "104/240 — the measured contact time"
+          },
+          {
+            "field": "closedFormContactTimeSeconds",
+            "ref": null,
+            "expected": 0.4283529368781193,
+            "observed": 0.4283529368781193,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "closed form t* = sqrt(2·0.9/9.81)"
+          },
+          {
+            "field": "timeResidualSeconds",
+            "ref": null,
+            "expected": 0.004980396455214031,
+            "observed": 0.004980396455214031,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "t_meas − t* = +1.195 dt (one 240 Hz quantum + the soft-contact penetration margin, §19.1)"
+          },
+          {
+            "field": "impactSpeedMetersPerSecond",
+            "ref": null,
+            "expected": 4.210125,
+            "observed": 4.210125000000009,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 9.769962616701378e-15,
+            "observedRelError": 2.3205873024438416e-15,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the discrete closed form |−g·dt·103| = 9.81·103/240 (bit-consistent, §19.1)"
+          },
+          {
+            "field": "closedFormImpactSpeedMetersPerSecond",
+            "ref": null,
+            "expected": 4.2021423107743505,
+            "observed": 4.2021423107743505,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "closed form v* = sqrt(2·9.81·0.9)"
+          },
+          {
+            "field": "speedResidualMetersPerSecond",
+            "ref": null,
+            "expected": 0.007982689225658923,
+            "observed": 0.007982689225658923,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "v_meas − v* (within 3·g·dt = 0.1226 by the §19.5 gate)"
+          },
+          {
+            "field": "reboundPeakHeightMeters",
+            "ref": null,
+            "expected": 0.09999,
+            "observed": 0.09998999997716257,
+            "unit": null,
+            "bound": "abs:0.005",
+            "absDiff": 2.2837426394417548e-11,
+            "observedRelError": 2.2839710365454096e-10,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the e=0 no-rebound reality (§19.1 probed: rest r − 1e-5; engine behavior, the chip-lane empirical-count precedent)"
+          },
+          {
+            "field": "closedFormReboundPeakMeters",
+            "ref": null,
+            "expected": 0.1,
+            "observed": 0.1,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the energy bound r + e²(h−r) = r at e=0"
+          },
+          {
+            "field": "reboundResidualMeters",
+            "ref": null,
+            "expected": -0.00001,
+            "observed": -0.000010000022837436395,
+            "unit": null,
+            "bound": "abs:0.005",
+            "absDiff": 2.2837436394488523e-11,
+            "observedRelError": 0.0000022837436394488523,
+            "ok": true,
+            "problem": "value",
+            "derivation": "dissipative by exactly the probed penetration (−1.0e-5 m)"
+          },
+          {
+            "field": "maxPreContactHeightError",
+            "ref": null,
+            "expected": 0,
+            "observed": 1.4710455076283324e-15,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 1.4710455076283324e-15,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the adapter's discrete closed-form gate residual (probed 1.47e-15)"
+          },
+          {
+            "field": "maxPreContactSpeedError",
+            "ref": null,
+            "expected": 0,
+            "observed": 1.0658141036401503e-14,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 1.0658141036401503e-14,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the adapter's velocity gate residual (probed 1.07e-14)"
+          },
+          {
+            "field": "centerHeightMeters",
+            "ref": "sample1",
+            "expected": 0.9998296875,
+            "observed": 0.9998296875,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "discrete closed form z_1 = 1 − ½·9.81·dt²·1·2 (exact in binary, §19.1)"
+          },
+          {
+            "field": "velocityZMetersPerSecond",
+            "ref": "sample1",
+            "expected": -0.040875,
+            "observed": -0.040875,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "discrete closed form vz_1 = −9.81/240 (exact)"
+          },
+          {
+            "field": "centerHeightMeters",
+            "ref": "sample50",
+            "expected": 0.7828515625,
+            "observed": 0.7828515625,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "discrete closed form z_50 = 1 − ½·9.81·dt²·50·51 (exact)"
+          },
+          {
+            "field": "velocityZMetersPerSecond",
+            "ref": "sample50",
+            "expected": -2.04375,
+            "observed": -2.04375,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "discrete closed form vz_50 = −9.81·50/240 (exact)"
+          },
+          {
+            "field": "centerHeightMeters",
+            "ref": "sample103",
+            "expected": 0.08780625,
+            "observed": 0.0878062499999986,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 1.4016565685892601e-15,
+            "observedRelError": 1.5963061497208458e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "discrete closed form z_103 (the last pre-contact step)"
+          },
+          {
+            "field": "velocityZMetersPerSecond",
+            "ref": "sample103",
+            "expected": -4.210125,
+            "observed": -4.210125000000009,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 9.769962616701378e-15,
+            "observedRelError": 2.3205873024438416e-15,
+            "ok": true,
+            "problem": "value",
+            "derivation": "discrete closed form vz_103 = −9.81·103/240 (the impact speed's source step)"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "pybullet",
+          "engineVersion": "3.2.7",
+          "adapterScript": "impact_solve.py",
+          "adapterHash": "881cf7872f11dc52ef17ec79587f9885c4d1749619b423e2ee8af048ce77b479"
+        }
+      }
+    },
+    {
+      "caseId": "impact-drop-bounce",
+      "adapter": "physics",
+      "fixture": "impact-drop-bounce.json",
+      "fixturePath": "tests/fixtures/impact-drop-bounce.json",
+      "expect": "success",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "physics",
+        "expect": "success",
+        "status": "pass",
+        "determinism": true,
+        "comparisons": [
+          {
+            "field": "mechanismKind",
+            "ref": null,
+            "expected": "drop_impact",
+            "observed": "drop_impact",
+            "unit": null,
+            "bound": "structural",
+            "absDiff": null,
+            "observedRelError": null,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the frozen v1 mechanism class"
+          },
+          {
+            "field": "restitution",
+            "ref": null,
+            "expected": 0.6,
+            "observed": 0.6,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the bounce configuration (the fixture)"
+          },
+          {
+            "field": "sampleCount",
+            "ref": null,
+            "expected": 344,
+            "observed": 344,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the same horizon: first contact (step 104) + 240 post-contact steps"
+          },
+          {
+            "field": "firstContactStep",
+            "ref": null,
+            "expected": 104,
+            "observed": 104,
+            "unit": null,
+            "bound": "abs:0",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "identical to the e=0 drop — restitution never acts before contact"
+          },
+          {
+            "field": "closedFormContactTimeSeconds",
+            "ref": null,
+            "expected": 0.4283529368781193,
+            "observed": 0.4283529368781193,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the same closed form t* = sqrt(2·0.9/9.81)"
+          },
+          {
+            "field": "impactSpeedMetersPerSecond",
+            "ref": null,
+            "expected": 4.210125,
+            "observed": 4.210125000000009,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 9.769962616701378e-15,
+            "observedRelError": 2.3205873024438416e-15,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the same discrete impact speed (restitution acts only AFTER contact)"
+          },
+          {
+            "field": "closedFormReboundPeakMeters",
+            "ref": null,
+            "expected": 0.42400000000000004,
+            "observed": 0.42400000000000004,
+            "unit": null,
+            "bound": "abs:1e-12",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the energy bound r + e²(h−r) = 0.1 + 0.36·0.9"
+          },
+          {
+            "field": "reboundPeakHeightMeters",
+            "ref": null,
+            "expected": 0.250143425,
+            "observed": 0.25014342500000425,
+            "unit": null,
+            "bound": "abs:0.02",
+            "absDiff": 4.274358644806853e-15,
+            "observedRelError": 1.708763140509031e-14,
+            "ok": true,
+            "problem": "value",
+            "derivation": "ENGINE BEHAVIOR pin (§19.1 probed ratio 0.419 < e): the dissipative LCP rebound, tolerance for build variance — the chip-lane AND-count precedent"
+          },
+          {
+            "field": "reboundResidualMeters",
+            "ref": null,
+            "expected": -0.1738565749999958,
+            "observed": -0.1738565749999958,
+            "unit": null,
+            "bound": "abs:0.02",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "dissipative (negative) as probed — never above 0 (energy creation is a §19.5 refusal)"
+          },
+          {
+            "field": "velocityZMetersPerSecond",
+            "ref": "sample103",
+            "expected": -4.210125,
+            "observed": -4.210125000000009,
+            "unit": null,
+            "bound": "abs:1e-9",
+            "absDiff": 9.769962616701378e-15,
+            "observedRelError": 2.3205873024438416e-15,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the last pre-contact step: identical to the e=0 drop (the discrete closed form)"
+          },
+          {
+            "field": "velocityZMetersPerSecond",
+            "ref": "sample104",
+            "expected": 1.7642880000000307,
+            "observed": 1.7642880000000307,
+            "unit": null,
+            "bound": "abs:0.05",
+            "absDiff": 0,
+            "observedRelError": 0,
+            "ok": true,
+            "problem": "value",
+            "derivation": "the first post-contact step's upward velocity (engine behavior: the solver's restitution response, ratio 0.419·|v_impact|)"
+          }
+        ],
+        "problems": [],
+        "engine": {
+          "engineKey": "pybullet",
+          "engineVersion": "3.2.7",
+          "adapterScript": "impact_solve.py",
+          "adapterHash": "881cf7872f11dc52ef17ec79587f9885c4d1749619b423e2ee8af048ce77b479"
+        }
+      }
+    },
+    {
+      "caseId": "impact-drop-invalid-kind",
+      "adapter": "physics",
+      "fixture": "impact-drop-invalid-kind.json",
+      "fixturePath": "tests/fixtures/impact-drop-invalid-kind.json",
+      "expect": "error",
+      "status": "pass",
+      "determinism": null,
+      "quantityCount": null,
+      "groundTruthCount": null,
+      "comparisons": null,
+      "problems": [],
+      "discipline": {
+        "adapter": "physics",
+        "expect": "error",
+        "status": "pass",
+        "determinism": null,
+        "comparisons": [],
+        "problems": [],
+        "errorContains": "impact model mechanism.kind must be \"drop_impact\"",
+        "errorObserved": "impact model mechanism.kind must be \"drop_impact\" (the v1 mechanism class; every other class is its own future lane) (got \"pendulum\")"
       }
     },
     {
@@ -6944,10 +7548,10 @@
             "field": "sizeBytes",
             "ref": null,
             "expected": 4000,
-            "observed": 6168,
+            "observed": 6169,
             "unit": null,
             "bound": "min",
-            "absDiff": 2168,
+            "absDiff": 2169,
             "observedRelError": null,
             "ok": true,
             "problem": "value",
@@ -7304,11 +7908,11 @@
     }
   ],
   "summary": {
-    "total": 54,
-    "pass": 54,
+    "total": 57,
+    "pass": 57,
     "fail": 0,
     "skip": 0,
-    "ran": 54,
+    "ran": 57,
     "notRun": false
   }
 }
