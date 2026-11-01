@@ -81,8 +81,35 @@ effects nearly cancel at n=32). Recorded honestly in the PR text.
 
 ## Submission status
 
-**PAT-blocked** — the authoring sandbox's GitHub token was wiped by a
-platform reset before the branch could be pushed (the same reset class that
-destroyed the first authoring tree). The patch, PR text and this record are
-committed as evidence; submission awaits a token. When submitted, the PR
-should target `develop` and carry the branch name `curve-length-utils`.
+**SUBMITTED — [jsvine/pdfplumber#1425](https://github.com/jsvine/pdfplumber/pull/1425),
+opened 2026-11-01** from the `payswapdotorg` fork, branch `curve-length-utils`
+against `develop`: state open, mergeable=True, 1 commit / 3 files /
++162 / −2 (the exact recorded shape). The authoring-session token blockage
+(two platform resets) ended when a fresh PAT was provisioned and the user
+confirmed the public submission.
+
+### Re-verification on the submission host (2026-11-01, before the push)
+
+The original commit `eb6ff8a` died with the reset-wiped tree; the branch was
+re-created by `git am` of this patch off the pinned base (new sha `f59ae22`,
+identical content), upstream's `develop` head having been verified EXACTLY
+the pinned `2fcbe6a` (no rebase needed — the contribution rides current
+develop). The entire battery was then re-earned on the fresh host, nothing
+inherited:
+
+- baseline at pristine `2fcbe6a`: **173 passed** (17.81s)
+- fail-on-prior (the post-change tests over the pre-change tree): **4
+  failed — `AttributeError: module 'pdfplumber.utils' has no attribute
+  'curve_length'`** (0.46s; the tests cannot pass without the
+  implementation — the authoring session recorded the same AttributeError
+  class as 4 errors; identical substance)
+- after the change: **177 passed** (17.35s)
+- `black --check` (37 files unchanged) · `isort --check-only --profile
+  black` (the three touched files) · `flake8` · `mypy pdfplumber/`
+  (`Success: no issues found in 20 source files`) — all clean
+- the bit-identity cross-check recomputed **standalone** on the same host
+  from the PR-text formula (direct Bernstein, `t = k/32`, chord sum, kappa
+  quarter-arc r = 100): **`157.08587595730572` — bit-identical to the pinned
+  literal.** The original engine-venv-side computation (2026-10-31, recorded
+  above) stays as committed evidence; that venv was a later reset casualty,
+  and its rebuild is queued for the next local engine pass.

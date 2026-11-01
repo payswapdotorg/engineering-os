@@ -1,12 +1,13 @@
 # Upstream PR text — pdfplumber `curve_points` / `curve_length`
 
-> **Status: AUTHORED + FULLY VERIFIED, submission PAT-blocked.** The sandbox
-> that produced this contribution lost its GitHub token to a platform reset
-> before the branch could be pushed; the patch, this PR text and the
-> verification record are committed here as evidence (ADR-0011 Stage 5).
-> Re-ship note: authored twice today — the first unpushed tree was destroyed
-> by the same class of reset; this is the second, re-authored from the
-> preserved session record and re-verified end-to-end.
+> **Status: SUBMITTED — [jsvine/pdfplumber#1425](https://github.com/jsvine/pdfplumber/pull/1425),
+> opened 2026-11-01** (base `develop`, head `payswapdotorg:curve-length-utils`;
+> mergeable — 1 commit, 3 files, +162/−2, the exact recorded shape). Originally
+> authored + fully verified 2026-10-31 (ADR-0011 Stage 5), with the submission
+> PAT-blocked across two platform resets; every verification was re-earned
+> first-hand on the submission host immediately before the push — the full
+> re-run battery is in VERIFICATION.md. The body below was posted as-is from
+> "## Summary" (this blockquote is internal status, not PR content).
 
 **Branch:** `curve-length-utils` (off `develop` @ `2fcbe6a`)
 **Files:** `pdfplumber/utils/geometry.py` (+83), `pdfplumber/utils/__init__.py` (+2), `tests/test_utils.py` (+79)
