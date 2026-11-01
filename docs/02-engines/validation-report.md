@@ -29,8 +29,8 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-11-01T11:27:58.992Z`
-- Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.local/share/eos-engines/venv/bin/python`
+- Ran at (UTC): `2026-11-01T14:53:42.726Z`
+- Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
 - Engine availability probe — ifcopenshell (IFC quantities): available
@@ -121,7 +121,7 @@
 | `swmm-manning-conduit` | swmm | `swmm-manning-conduit.json` | success | pass | — | — / — | — | swmm: 8 pin(s) · pyswmm 2.2.0 · doc byte-determinism ✅ · max pin rel error 9.948e-3 |
 | `swmm-no-outfall` | swmm | `swmm-no-outfall.json` | error | pass | — | — | — | swmm: threw honest error: `the network has no outfall - runoff cannot leave the model, and simulated results are not an option` · threw honest error: `` |
 | `transport-channel` | transport | `transport-channel.json` | success | pass | — | — / — | — | transport: 16 pin(s) · sfepy 2026.3 · doc byte-determinism ✅ · max pin rel error 4.158e-7 |
-| `transport-uniform` | transport | `transport-uniform.json` | success | pass | — | — / — | — | transport: 8 pin(s) · sfepy 2026.3 · doc byte-determinism ✅ · max pin rel error 8.749e-14 |
+| `transport-uniform` | transport | `transport-uniform.json` | success | pass | — | — / — | — | transport: 8 pin(s) · sfepy 2026.3 · doc byte-determinism ✅ · max pin rel error 7.616e-14 |
 | `transport-mesh-peclet-refusal` | transport | `transport-high-peclet.json` | error | pass | — | — | — | transport: threw honest error: `the mesh does not resolve the transport boundary layer (element Péclet 7.81 exceeds the stability bound 2) - refine the ` · threw honest error: `` |
 | `rtl-counter-4bit` | chip | `rtl-counter-4bit.json` | success | pass | — | — / — | — | chip: 18 pin(s) · amaranth 0.5.10 · doc byte-determinism ✅ |
 | `rtl-counter-8bit` | chip | `rtl-counter-8bit.json` | success | pass | — | — / — | — | chip: 11 pin(s) · amaranth 0.5.10 · doc byte-determinism ✅ |
@@ -479,19 +479,19 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `transport-channel` meshPecletNumber: observed **0.078125** vs pinned 0.078125 [bound abs:1e-12] → rel error 0 (bitwise) · Pe_h = a·h/(2D) with h = L/64 = 0.03125 → 0.05·0.03125/0.02 = 0.078125 (far inside the probed-monotone bound 2)
 - `transport-channel` minConcentration: observed **0** vs pinned 0 [bound abs:1e-12] · the outlet Dirichlet dof is exactly 0 and the monotone solution never undershoots (Pe_h ≪ 2)
 - `transport-channel` maxConcentration: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · the inlet Dirichlet dof is exactly 1 and the monotone solution never overshoots
-- `transport-channel` concentration @ 0.25x0.25: observed **0.9998869326982197** vs pinned 0.9998869334714342 [bound abs:0.0001] → rel error 7.733e-10 · u(L/8) = (e^10 − e^1.25)/(e^10 − 1) = 0.9998869334714342
-- `transport-channel` concentration @ 0.5x0.25: observed **0.9994922894467514** vs pinned 0.9994922925097303 [bound abs:0.0001] → rel error 3.065e-9 · u(L/4) = (e^10 − e^2.5)/(e^10 − 1) = 0.9994922925097303
-- `transport-channel` concentration @ 1.0x0.25: observed **0.9933071215178892** vs pinned 0.9933071490757152 [bound abs:0.0001] → rel error 2.774e-8 · u(L/2) = (e^10 − e^5)/(e^10 − 1) = 0.9933071490757152
-- `transport-channel` concentration @ 1.5x0.25: observed **0.9179565067518198** vs pinned 0.9179566765447413 [bound abs:0.0001] → rel error 1.850e-7 · u(3L/4) = (e^10 − e^7.5)/(e^10 − 1) = 0.9179566765447413
-- `transport-channel` concentration @ 1.75x0.25: observed **0.7135273005906564** vs pinned 0.7135275972426084 [bound abs:0.0001] → rel error 4.158e-7 · u(7L/8) = (e^10 − e^8.75)/(e^10 − 1) = 0.7135275972426084 — inside the outlet boundary layer (observed 3.0e-7 at r=4, the O(h³) convergence pin)
+- `transport-channel` concentration @ 0.25x0.25: observed **0.9998869326982239** vs pinned 0.9998869334714342 [bound abs:0.0001] → rel error 7.733e-10 · u(L/8) = (e^10 − e^1.25)/(e^10 − 1) = 0.9998869334714342
+- `transport-channel` concentration @ 0.5x0.25: observed **0.9994922894467615** vs pinned 0.9994922925097303 [bound abs:0.0001] → rel error 3.065e-9 · u(L/4) = (e^10 − e^2.5)/(e^10 − 1) = 0.9994922925097303
+- `transport-channel` concentration @ 1.0x0.25: observed **0.9933071215179019** vs pinned 0.9933071490757152 [bound abs:0.0001] → rel error 2.774e-8 · u(L/2) = (e^10 − e^5)/(e^10 − 1) = 0.9933071490757152
+- `transport-channel` concentration @ 1.5x0.25: observed **0.9179565067518318** vs pinned 0.9179566765447413 [bound abs:0.0001] → rel error 1.850e-7 · u(3L/4) = (e^10 − e^7.5)/(e^10 − 1) = 0.9179566765447413
+- `transport-channel` concentration @ 1.75x0.25: observed **0.7135273005906637** vs pinned 0.7135275972426084 [bound abs:0.0001] → rel error 4.158e-7 · u(7L/8) = (e^10 − e^8.75)/(e^10 − 1) = 0.7135275972426084 — inside the outlet boundary layer (observed 3.0e-7 at r=4, the O(h³) convergence pin)
 - `transport-uniform` pecletNumber: observed **10** vs pinned 10 [bound abs:1e-12] → rel error 0 (bitwise) · Pe = a·L/D = 10 (same transport regime as the channel case)
-- `transport-uniform` minConcentration: observed **0.9999999999999125** vs pinned 1 [bound abs:1e-12] → rel error 8.749e-14 · u ≡ 1: the constant field is the exact solution (observed 0.9999999999999238)
+- `transport-uniform` minConcentration: observed **0.9999999999999238** vs pinned 1 [bound abs:1e-12] → rel error 7.616e-14 · u ≡ 1: the constant field is the exact solution (observed 0.9999999999999238)
 - `transport-uniform` maxConcentration: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · u ≡ 1 (observed exactly 1.0 — the Dirichlet dofs pin the range)
-- `transport-uniform` concentration @ 0.25x0.25: observed **0.9999999999999813** vs pinned 1 [bound abs:1e-12] → rel error 1.865e-14 · u ≡ 1 at every station (observed 1 − 1.4e-14)
-- `transport-uniform` concentration @ 0.5x0.25: observed **0.9999999999999647** vs pinned 1 [bound abs:1e-12] → rel error 3.531e-14 · u ≡ 1 at every station (observed 1 − 2.5e-14)
-- `transport-uniform` concentration @ 1.0x0.25: observed **0.9999999999999315** vs pinned 1 [bound abs:1e-12] → rel error 6.850e-14 · u ≡ 1 at every station (observed 1 − 5.6e-14)
-- `transport-uniform` concentration @ 1.5x0.25: observed **0.999999999999915** vs pinned 1 [bound abs:1e-12] → rel error 8.504e-14 · u ≡ 1 at every station (observed 1 − 7.4e-14)
-- `transport-uniform` concentration @ 1.75x0.25: observed **0.9999999999999325** vs pinned 1 [bound abs:1e-12] → rel error 6.750e-14 · u ≡ 1 at every station (observed 1 − 6.1e-14)
+- `transport-uniform` concentration @ 0.25x0.25: observed **0.9999999999999856** vs pinned 1 [bound abs:1e-12] → rel error 1.443e-14 · u ≡ 1 at every station (observed 1 − 1.4e-14)
+- `transport-uniform` concentration @ 0.5x0.25: observed **0.9999999999999747** vs pinned 1 [bound abs:1e-12] → rel error 2.531e-14 · u ≡ 1 at every station (observed 1 − 2.5e-14)
+- `transport-uniform` concentration @ 1.0x0.25: observed **0.9999999999999443** vs pinned 1 [bound abs:1e-12] → rel error 5.573e-14 · u ≡ 1 at every station (observed 1 − 5.6e-14)
+- `transport-uniform` concentration @ 1.5x0.25: observed **0.9999999999999265** vs pinned 1 [bound abs:1e-12] → rel error 7.350e-14 · u ≡ 1 at every station (observed 1 − 7.4e-14)
+- `transport-uniform` concentration @ 1.75x0.25: observed **0.9999999999999389** vs pinned 1 [bound abs:1e-12] → rel error 6.106e-14 · u ≡ 1 at every station (observed 1 − 6.1e-14)
 - `transport-mesh-peclet-refusal` (transport) threw the honest error: `the mesh does not resolve the transport boundary layer (element Péclet 7.81 exceeds the stability bound 2) - refine the mesh (increase meshRefinement) or reduce`
 - `rtl-counter-4bit` analysis: observed **"rtl_synthesis"** vs pinned "rtl_synthesis" [bound structural] · the only analysis shipped this phase (contract §17.4)
 - `rtl-counter-4bit` engineKey: observed **"amaranth"** vs pinned "amaranth" [bound structural] · the lane's front-end engine (contract §17.3)
