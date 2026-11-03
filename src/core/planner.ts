@@ -354,7 +354,9 @@ const PLANNER_SYSTEM_PROMPT = [
   '- Each step has a short "id" label: lowercase letters, digits and dashes ONLY (pattern ^[a-z0-9-]{1,32}$) — NEVER underscores and NEVER the operation name; use short labels like "quantities", "mesh", "report", "flow"',
   "- Wire ONLY artifact ids that appear in the provided artifact catalog — never invent an id, never guess one",
   "- At most 8 steps",
-  '- build_report takes "inputs": {"artifactIds": [...]} with 1 to 4 artifact ids; every other operation takes "inputs": {"artifactId": "<id>"} with exactly one artifact id',
+  '- build_report takes "inputs": {"artifactIds": [...]} with 1 to 4 artifact ids',
+  '- compare_revisions takes "inputs": {"artifactIds": ["<old id>", "<new id>"]} with EXACTLY 2 DIFFERENT artifact ids — the old revision first, the new second (never the same id twice)',
+  '- every other operation takes "inputs": {"artifactId": "<id>"} with exactly one artifact id',
   '- Gate the final build_report step with "requiresApproval": true (a human publishes the report — Journey F). Never set requiresApproval true on any other step',
   "",
   "Fidelity rules (pinned by the Slice-17 prompt-quality pass over the live evidence ledger):",
@@ -570,12 +572,19 @@ const OPERATION_LABELS: Record<PlannerOperation, string> = {
   solve_fea: "Solve plane-stress FEA",
   solve_transport: "Solve scalar transport (CFD)",
   synthesize_rtl: "Synthesize RTL to netlist (chip)",
+  solve_kinematics: "Solve arm kinematics (robotics)",
+  simulate_impact: "Simulate drop impact (physics)",
   run_swmm: "Run stormwater drainage (SWMM)",
   convert_document: "Convert document",
   analyze_schedule: "Analyze schedule",
   takeoff_sheet: "Vector-takeoff a PDF sheet",
   takeoff_drawing: "Vector-takeoff a DXF drawing",
   rebuild_parametric: "Parametric rebuild (model)",
+  compare_revisions: "Compare two sheet revisions",
+  annotate_takeoff: "Publish takeoff into the PDF (annotations)",
+  export_boq_xlsx: "Export BOQ table (XLSX/CSV)",
+  fill_area: "Room fill (Magic Fill)",
+  openproject_sync: "Sync schedule to OpenProject",
 }
 
 /**
@@ -604,6 +613,11 @@ export function summarizePlanSteps(
     if (step.operation === "build_report") {
       const ids = step.inputs.artifactIds ?? []
       line = `${label} from ${ids.length} artifact(s): ${ids.map(describeArtifact).join(", ")}`
+    } else if (step.operation === "compare_revisions") {
+      const ids = step.inputs.artifactIds ?? []
+      // The exactly-2 [old, new] pair (ADR-0011 Stage 4) — rendered with the
+      // direction, never as an unordered list.
+      line = `${label} [old → new]: ${ids.map(describeArtifact).join(" → ")}`
     } else {
       const artifactId = step.inputs.artifactId
       // Unreachable after canonical validation (per-op input shapes are

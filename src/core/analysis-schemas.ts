@@ -919,3 +919,176 @@ export function parseRtlModelJsonText(text: string): ParseSchemaResult<RtlModelI
   if (!raw.ok) return { ok: false, error: `invalid rtl model: ${raw.error}` }
   return parseRtlModel(raw.value)
 }
+
+// ---------------------------------------------------------------------------
+// §18.2 Robot arm model (eos-robot-arm-model/1 — Slice 32, kinematic
+// analysis via Pinocchio; the robotics lane the Slice-28 license-first probe
+// opened)
+// ---------------------------------------------------------------------------
+
+const robotLinkLength = (label: string) =>
+  z
+    .number({ message: `${label} must be a number` })
+    .refine((v) => Number.isFinite(v) && v > 0 && v <= 10, {
+      message: `${label} must be a finite number > 0 and ≤ 10 (meters)`,
+    })
+
+const robotJointRad = (label: string) =>
+  z
+    .number({ message: `${label} must be a number` })
+    .refine((v) => Number.isFinite(v), {
+      message: `${label} must be a finite number (radians)`,
+    })
+
+export const robotArmModelSchema = z.strictObject(
+  {
+    format: z.literal("eos-robot-arm-model/1", {
+      message: 'format must be "eos-robot-arm-model/1"',
+    }),
+    name: nameField(),
+    mechanism: z.strictObject(
+      {
+        kind: z.literal("planar_2r", {
+          message:
+            'mechanism.kind must be "planar_2r" (the v1 mechanism class; every other class is its own future lane)',
+        }),
+        linkLengthsMeters: z
+          .tuple([robotLinkLength("mechanism.linkLengthsMeters[0]"), robotLinkLength("mechanism.linkLengthsMeters[1]")], {
+            message: "mechanism.linkLengthsMeters must be an array of exactly 2 numbers",
+          }),
+      },
+      { message: "mechanism must be a JSON object" },
+    ),
+    configurations: z
+      .array(
+        z.strictObject(
+          {
+            jointsRad: z.tuple([robotJointRad("configurations.jointsRad[0]"), robotJointRad("configurations.jointsRad[1]")], {
+              message: "configurations.jointsRad must be an array of exactly 2 numbers",
+            }),
+          },
+          { message: "each configuration must be a JSON object" },
+        ),
+        { message: "configurations must be a JSON array" },
+      )
+      .min(1, "configurations must carry at least 1 configuration")
+      .max(8, "configurations must carry at most 8 configurations (v1 — a human-reviewable table, not a batch sweep)"),
+  },
+  { message: "robot model must be a JSON object" },
+)
+
+export type RobotArmModelInput = z.infer<typeof robotArmModelSchema>
+
+/** Parse an unknown value as an eos-robot-arm-model/1 document. */
+export function parseRobotArmModel(input: unknown): ParseSchemaResult<RobotArmModelInput> {
+  const parsed = robotArmModelSchema.safeParse(input)
+  if (parsed.success) return { ok: true, value: parsed.data }
+  return { ok: false, error: joinZodIssues("invalid robot model", parsed.error) }
+}
+
+/** Parse stored artifact text as an eos-robot-arm-model/1 document (Slice 32). */
+export function parseRobotArmModelJsonText(text: string): ParseSchemaResult<RobotArmModelInput> {
+  const raw = parseJsonText(text)
+  if (!raw.ok) return { ok: false, error: `invalid robot model: ${raw.error}` }
+  return parseRobotArmModel(raw.value)
+}
+
+// ---------------------------------------------------------------------------
+// §19.2 Impact model (eos-impact-model/1 — Slice 33, drop-impact simulation
+// via PyBullet; the physics lane, the LAST Slice-28 license-first candidate)
+// ---------------------------------------------------------------------------
+
+const impactMass = (label: string) =>
+  z
+    .number({ message: `${label} must be a number` })
+    .refine((v) => Number.isFinite(v) && v > 0 && v <= 1000, {
+      message: `${label} must be a finite number > 0 and ≤ 1000 (kilograms)`,
+    })
+
+const impactRadius = (label: string) =>
+  z
+    .number({ message: `${label} must be a number` })
+    .refine((v) => Number.isFinite(v) && v > 0 && v <= 2, {
+      message: `${label} must be a finite number > 0 and ≤ 2 (meters)`,
+    })
+
+const impactRestitution = (label: string) =>
+  z
+    .number({ message: `${label} must be a number` })
+    .refine((v) => Number.isFinite(v) && v >= 0 && v <= 1, {
+      message: `${label} must be a finite number ≥ 0 and ≤ 1 (the coefficient of restitution)`,
+    })
+
+const impactGravity = (label: string) =>
+  z
+    .number({ message: `${label} must be a number` })
+    .refine((v) => Number.isFinite(v) && v >= 0.1 && v <= 50, {
+      message: `${label} must be a finite number ≥ 0.1 and ≤ 50`,
+    })
+
+const impactCenterHeight = (label: string) =>
+  z
+    .number({ message: `${label} must be a number` })
+    .refine((v) => Number.isFinite(v) && v > 0 && v <= 50, {
+      message: `${label} must be a finite number > 0 and ≤ 50 (meters)`,
+    })
+
+export const impactModelSchema = z
+  .strictObject(
+    {
+      format: z.literal("eos-impact-model/1", {
+        message: 'format must be "eos-impact-model/1"',
+      }),
+      name: nameField(),
+      mechanism: z.strictObject(
+        {
+          kind: z.literal("drop_impact", {
+            message:
+              'mechanism.kind must be "drop_impact" (the v1 mechanism class; every other class is its own future lane)',
+          }),
+          massKilograms: impactMass("mechanism.massKilograms"),
+          radiusMeters: impactRadius("mechanism.radiusMeters"),
+          restitution: impactRestitution("mechanism.restitution"),
+        },
+        { message: "mechanism must be a JSON object" },
+      ),
+      drop: z.strictObject(
+        {
+          centerHeightMeters: impactCenterHeight("drop.centerHeightMeters"),
+          gravityMetersPerSecondSquared: impactGravity("drop.gravityMetersPerSecondSquared"),
+        },
+        { message: "drop must be a JSON object" },
+      ),
+    },
+    { message: "impact model must be a JSON object" },
+  )
+  /** the CROSS-FIELD bound (§19.2): the center must start ABOVE the contact
+   * height — the element-labeled refusal is shared verbatim with the adapter
+   * mirror (impact_solve.py), which formats the radius with Python :g; the
+   * 6-significant-digit round-trip below keeps both phrasings identical. */
+  .superRefine((model, ctx) => {
+    const radius = model.mechanism.radiusMeters
+    const height = model.drop.centerHeightMeters
+    if (height <= radius) {
+      ctx.addIssue({
+        code: "custom",
+        message: `drop.centerHeightMeters must be a finite number > radius (${Number(radius.toPrecision(6))} m, the contact height) and ≤ 50 (meters)`,
+      })
+    }
+  })
+
+export type ImpactModelInput = z.infer<typeof impactModelSchema>
+
+/** Parse an unknown value as an eos-impact-model/1 document. */
+export function parseImpactModel(input: unknown): ParseSchemaResult<ImpactModelInput> {
+  const parsed = impactModelSchema.safeParse(input)
+  if (parsed.success) return { ok: true, value: parsed.data }
+  return { ok: false, error: joinZodIssues("invalid impact model", parsed.error) }
+}
+
+/** Parse stored artifact text as an eos-impact-model/1 document (Slice 33). */
+export function parseImpactModelJsonText(text: string): ParseSchemaResult<ImpactModelInput> {
+  const raw = parseJsonText(text)
+  if (!raw.ok) return { ok: false, error: `invalid impact model: ${raw.error}` }
+  return parseImpactModel(raw.value)
+}

@@ -49,6 +49,13 @@ export interface BuildDeriveResponseOptions {
    * (the meshCounts convention). Absent fields are omitted, never invented.
    */
   summarize?: (document: unknown) => Record<string, unknown>
+  /**
+   * Spread the broker outcome's own summary block after the document summary
+   * (binary outputs — pdf/xlsx — carry their op summary ONLY there: the
+   * ADR-0011 Stage-4 agent-surface routes; the fields are the honest op
+   * record, e.g. export_boq_xlsx's rowCount 0 for XLSX).
+   */
+  includeOutcomeSummary?: boolean
 }
 
 /** Best-effort typed accessor over an untrusted parsed document. */
@@ -140,6 +147,41 @@ export const DERIVE_SUMMARIES = {
       synthesisEngineKey: typeof field(synthesis, "engineKey") === "string" ? field(synthesis, "engineKey") : undefined,
     }
   },
+  /** eos-robot-kinematics/1 → mechanismKind / linkCount / configurationCount / closed-form residuals (Slice 32) */
+  kinematics(document: unknown): Record<string, unknown> {
+    const mechanism = field(document, "mechanism")
+    const configurations = Array.isArray(field(document, "configurations")) ? (field(document, "configurations") as unknown[]) : []
+    const fkErrors = configurations
+      .map((c) => numberField(field(c, "verification"), "fkMaxAbsError"))
+      .filter((v): v is number => typeof v === "number")
+    const jacErrors = configurations
+      .map((c) => numberField(field(c, "verification"), "jacobianMaxAbsError"))
+      .filter((v): v is number => typeof v === "number")
+    return {
+      mechanismKind: typeof field(mechanism, "kind") === "string" ? field(mechanism, "kind") : undefined,
+      linkCount: numberField(mechanism, "linkCount"),
+      configurationCount: configurations.length,
+      maxFkError: fkErrors.length === configurations.length && configurations.length > 0 ? Math.max(...fkErrors) : undefined,
+      maxJacobianError: jacErrors.length === configurations.length && configurations.length > 0 ? Math.max(...jacErrors) : undefined,
+    }
+  },
+  /** eos-impact-simulation/1 → mechanismKind / sampleCount / impact closed-form residuals (Slice 33) */
+  impact(document: unknown): Record<string, unknown> {
+    const mechanism = field(document, "mechanism")
+    const impact = field(document, "impact")
+    const verification = field(document, "verification")
+    return {
+      mechanismKind: typeof field(mechanism, "kind") === "string" ? field(mechanism, "kind") : undefined,
+      sampleCount: countOf(document, "samples"),
+      firstContactStep: numberField(impact, "firstContactStep"),
+      firstContactTimeSeconds: numberField(impact, "firstContactTimeSeconds"),
+      timeResidualSeconds: numberField(impact, "timeResidualSeconds"),
+      impactSpeedMetersPerSecond: numberField(impact, "impactSpeedMetersPerSecond"),
+      reboundPeakHeightMeters: numberField(impact, "reboundPeakHeightMeters"),
+      maxPreContactHeightError: numberField(verification, "maxPreContactHeightError"),
+      maxPreContactSpeedError: numberField(verification, "maxPreContactSpeedError"),
+    }
+  },
   /** eos-cpm/1 → activityCount / criticalPathCount / durationDays */
   analysis(document: unknown): Record<string, unknown> {
     return {
@@ -172,6 +214,45 @@ export const DERIVE_SUMMARIES = {
       layerCount: numberField(result, "layerCount"),
       entityCount: numberField(result, "entityCount"),
       ...(typeof unitsMm === "boolean" ? { unitsMm } : {}),
+    }
+  },
+  /**
+   * eos-room-fill/1 (fill_area, ADR-0011 Stage 4) → value / unit /
+   * vertices / pageNo / scaleMmPerPt / scaleSource — read from the stored
+   * document's result + provenance envelopes.
+   */
+  roomFill(document: unknown): Record<string, unknown> {
+    const result = field(document, "result")
+    const provenance = field(document, "provenance")
+    const unit = field(result, "unit")
+    const scaleSource = field(provenance, "scaleSource")
+    return {
+      value: numberField(result, "value"),
+      ...(typeof unit === "string" ? { unit } : {}),
+      vertices: numberField(result, "vertices"),
+      pageNo: numberField(provenance, "pageNo"),
+      scaleMmPerPt: numberField(provenance, "scaleMmPerPt"),
+      ...(typeof scaleSource === "string" ? { scaleSource } : {}),
+    }
+  },
+  /**
+   * eos-revision-compare/1 (compare_revisions, ADR-0011 Stage 4) →
+   * changedSheets / comparedSheets / onlyInOld / onlyInNew +
+   * oldArtifactId / newArtifactId (the [old, new] pair order, from the
+   * document's provenance block).
+   */
+  revisionCompare(document: unknown): Record<string, unknown> {
+    const result = field(document, "result")
+    const provenance = field(document, "provenance")
+    const oldArtifactId = field(provenance, "oldArtifactId")
+    const newArtifactId = field(provenance, "newArtifactId")
+    return {
+      comparedSheets: numberField(result, "comparedSheets"),
+      changedSheets: numberField(result, "changedSheets"),
+      onlyInOld: numberField(result, "onlyInOld"),
+      onlyInNew: numberField(result, "onlyInNew"),
+      ...(typeof oldArtifactId === "string" ? { oldArtifactId } : {}),
+      ...(typeof newArtifactId === "string" ? { newArtifactId } : {}),
     }
   },
 } as const
@@ -258,6 +339,7 @@ export async function buildDeriveResponse(
     contentHash: revision.contentHash,
     sizeBytes: revision.sizeBytes,
     ...summary,
+    ...(options.includeOutcomeSummary === true ? outcome.summary : {}),
     engineKey: outcome.engineKey ?? null,
     engineVersion: outcome.engineVersion ?? null,
     adapterScript: outcome.adapterScript ?? null,

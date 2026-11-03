@@ -192,7 +192,14 @@ export async function snapshotStepInputs(
   const snapshots: StepSnapshot[] = []
   for (let i = fromIndex; i < steps.length; i++) {
     const step = steps[i]
-    const refs = step.operation === "build_report" ? step.inputs.artifactIds ?? [] : [step.inputs.artifactId ?? ""]
+    // The multi-input ops (contract §2): build_report 1..4, compare_revisions
+    // EXACTLY 2 [old, new] (ADR-0011 Stage 4 — BOTH revisions are locked at
+    // queue time, exactly like every single-input artifact); every other op
+    // takes exactly one.
+    const refs =
+      step.operation === "build_report" || step.operation === "compare_revisions"
+        ? step.inputs.artifactIds ?? []
+        : [step.inputs.artifactId ?? ""]
     const artifacts = await db.artifact.findMany({
       where: { id: { in: refs }, projectId },
       include: { latestRevision: true },
@@ -369,7 +376,7 @@ async function runStep(
     attempt: row.attempt + 1,
   }
   const inputs =
-    step.operation === "build_report"
+    step.operation === "build_report" || step.operation === "compare_revisions"
       ? { artifactIds: step.inputs.artifactIds ?? [] }
       : { artifactId: step.inputs.artifactId ?? "" }
 

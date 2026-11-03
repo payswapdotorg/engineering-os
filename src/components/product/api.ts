@@ -1215,6 +1215,52 @@ export interface ChipPayload {
   generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string }
 }
 
+/** eos-robot-kinematics/1 — planar-2R kinematic analysis result (Pinocchio, Slice 32). */
+export interface KinematicsPayload {
+  format: "eos-robot-kinematics/1"
+  sourceArtifactName: string
+  analysis: "kinematic_analysis"
+  mechanism: { kind: string; linkCount: number; linkLengthsMeters: [number, number] }
+  configurations: Array<{
+    index: number
+    jointsRad: [number, number]
+    endEffector: { xMeters: number; yMeters: number; thetaRad: number }
+    jacobianRowMajor: number[]
+    verification: { fkMaxAbsError: number; jacobianMaxAbsError: number }
+  }>
+  generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string }
+}
+
+/** eos-impact-simulation/1 — drop-impact simulation result (PyBullet, Slice 33). */
+export interface ImpactPayload {
+  format: "eos-impact-simulation/1"
+  sourceArtifactName: string
+  analysis: "impact_simulation"
+  mechanism: { kind: string; massKilograms: number; radiusMeters: number; restitution: number }
+  drop: { centerHeightMeters: number; gravityMetersPerSecondSquared: number }
+  timestepSeconds: number
+  samples: Array<{
+    index: number
+    timeSeconds: number
+    centerHeightMeters: number
+    velocityZMetersPerSecond: number
+  }>
+  impact: {
+    firstContactStep: number
+    firstContactTimeSeconds: number
+    closedFormContactTimeSeconds: number
+    timeResidualSeconds: number
+    impactSpeedMetersPerSecond: number
+    closedFormImpactSpeedMetersPerSecond: number
+    speedResidualMetersPerSecond: number
+    reboundPeakHeightMeters: number
+    closedFormReboundPeakMeters: number
+    reboundResidualMeters: number
+  }
+  verification: { maxPreContactHeightError: number; maxPreContactSpeedError: number }
+  generatedBy?: { engineKey: string; engineVersion: string; adapterScript: string; adapterHash: string }
+}
+
 /** Which stored payload a derived artifact revision carries (discriminated by format). */
 export type AnalysisPayload =
   | PowerFlowPayload
@@ -1223,6 +1269,8 @@ export type AnalysisPayload =
   | FeaPayload
   | TransportPayload
   | ChipPayload
+  | KinematicsPayload
+  | ImpactPayload
 
 // --- §8 routes (thin wrappers over broker cores; 422s verbatim) --------------
 
@@ -1368,6 +1416,24 @@ export async function runTransport(projectId: string, artifactId: string) {
 export async function runRtlSynthesis(projectId: string, artifactId: string) {
   return apiJson<{ rtl: DeriveRunResult }>(
     `/api/projects/${projectId}/artifacts/${artifactId}/rtl`,
+    "POST",
+    {},
+  )
+}
+
+/** POST /api/projects/[id]/artifacts/[aid]/kinematics — 201 {kinematics} (Slice 32). */
+export async function runKinematics(projectId: string, artifactId: string) {
+  return apiJson<{ kinematics: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/kinematics`,
+    "POST",
+    {},
+  )
+}
+
+/** POST /api/projects/[id]/artifacts/[aid]/impact — 201 {impact} (Slice 33). */
+export async function runImpact(projectId: string, artifactId: string) {
+  return apiJson<{ impact: DeriveRunResult }>(
+    `/api/projects/${projectId}/artifacts/${artifactId}/impact`,
     "POST",
     {},
   )

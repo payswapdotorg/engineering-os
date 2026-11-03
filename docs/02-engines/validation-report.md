@@ -29,7 +29,7 @@
 
 ## Environment
 
-- Ran at (UTC): `2026-10-30T08:22:56.094Z`
+- Ran at (UTC): `2026-11-03T16:16:52.304Z`
 - Python (engine venv, `EOS_PYTHON`-overridable): `/home/z/.venv/bin/python`
 - LibreOffice (`EOS_LIBREOFFICE`-overridable): `/usr/bin/libreoffice`
 - Engine availability probe — cadquery (STEP quantities): available
@@ -40,6 +40,8 @@
 - Engine availability probe — scikit-fem (plane-stress FEA): available
 - Engine availability probe — sfepy/SfePy (steady scalar transport CFD): available
 - Engine availability probe — amaranth + yowasp-yosys (RTL synthesis): available
+- Engine availability probe — pin/Pinocchio (planar-2R kinematics): available
+- Engine availability probe — pybullet/PyBullet (drop-impact simulation): available
 - Engine availability probe — pyswmm/SWMM5 (stormwater drainage): available
 - Engine availability probe — platform CPM core (no engine): available
 - Engine availability probe — libreoffice (document conversion): available
@@ -47,7 +49,8 @@
 - Engine availability probe — ezdxf (DXF takeoff): available
 - Engine availability probe — cadquery (parametric rebuild): available
 - Engine availability probe — tesseract (sheet-text OCR): available
-- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · sfepy 2026.3 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5 · tesseract 5.5.0 · pyswmm 2.2.0 · amaranth 0.5.10
+- Engine availability probe — pdf2takeoff (ADOPTED takeoff engine — ADR-0011): available
+- Engine versions (as reported inside real adapter runs): cadquery 2.6.1 · ifcopenshell 0.9.0.post1 · gmsh 4.15.2 · pandapower 3.5.6 · simpy 4.1.2 · scikit-fem 12.0.2 · sfepy 2026.3 · libreoffice 25.2.3.2 · pdfplumber 0.11.10 · ezdxf 1.4.5 · pdf2takeoff 0.1.0 · tesseract 5.5.0 · pyswmm 2.2.0 · amaranth 0.5.10 · pin 4.1.0 · pybullet 3.2.7
 - Adapter `step_quantities.py` sha256: `950e3e9f358c0bb16895d222076fbcb99dab58d9f1cbf454a05ba5469515e02d`
 - Adapter `ifc_quantities.py` sha256: `68b4ca17ed355e6afa89529fa66c5ef9a73e530da7117f8a9db9f6c3abc43e78`
 - Adapter `step_mesh.py` sha256: `e042b686916a212a46dd947a0e6852ec02c10c3687913299d679e38309d5aa9c`
@@ -58,13 +61,16 @@
 - Adapter `convert-document.ts` sha256: `4b1bb3d10fdcaa3f85ebb654a652092acb3ac5a59812f1f0fd9c5074b15540d0`
 - Adapter `sheet_takeoff.py` sha256: `bea0a985d34cd8bda44aab4251f2d2ec7039f032445d14d7c99b5ed998425bff`
 - Adapter `dxf_takeoff.py` sha256: `07d24da5749543b546d75f45aca01fb8078aa708325cb74282730c2074159329`
-- Adapter `parametric_rebuild.py` sha256: `7251b8cb913ecb541c91f2ec9f4da16e6057f9a70cb15e90d709fd9e340356a9`
+- Adapter `parametric_rebuild.py` sha256: `14d62a117314160ffea825ec9aca038e863a550fa7cc5b33babb487295854acf`
+- Adapter `pdf2takeoff.ts` sha256: `7723d6e2132568f611c58b1acd25d178f20727a05e157f79c1fab37283801344`
 - Adapter `sheet_ocr.ts` sha256: `b2e7798973ab7f9f78f6d58d482986bfb38ab112cb3e0586c6cf6107b07dfd45`
 - Adapter `fea_solve.py` sha256: `86674028a476438081788dd6a16c2552ba0ed9cbe9332023cc77956b1b9d62ef`
 - Adapter `swmm_run.py` sha256: `6f6714b8ec6d8616d4fd5adbab681b5486ca10063049a672e6f7e1647024ef8d`
 - Adapter `transport_solve.py` sha256: `d519891e7ba6ce23aa826af323f146c3f684c48127516ed88a1c7d270b94f13b`
 - Adapter `rtl_synthesize.py` sha256: `dfd179e6be39f1bea0b70e8ac889c8e56ffa39554ce85188d85d9cde8a37fba7`
-- Corpus: `tests/validation/corpus-manifest.json` — 42 cases
+- Adapter `kinematics_solve.py` sha256: `c7277a99d7a5f98a589c84026f794f9e5904bbf837cff0ca6b8cd5f6609aaf48`
+- Adapter `impact_solve.py` sha256: `881cf7872f11dc52ef17ec79587f9885c4d1749619b423e2ee8af048ce77b479`
+- Corpus: `tests/validation/corpus-manifest.json` — 57 cases
 
 ## Tolerance policy (pinned)
 
@@ -74,7 +80,7 @@
 | `analytic` | \|obs − exp\| ≤ 1e-9 · max(1, \|exp\|) | exact-engine value vs closed form; also used for the PLANAR mesh case, where the divergence-theorem volume / triangle-sum area are mathematically exact (only IEEE rounding remains) |
 | `mesh` | \|obs − exp\| ≤ 1e-2 · \|exp\| | pinned 1% engineering tolerance for triangulated CURVED surfaces (ifcopenshell PyPI wheel has no OCCT backend, `has_occ=False`); the observed relative error is recorded below — the limitation is quantified, not hidden |
 
-## Results — 42 cases: 42 pass / 0 fail / 0 skip
+## Results — 57 cases: 57 pass / 0 fail / 0 skip
 
 | Case | Adapter | Fixture | Expect | Status | Determinism | Quantities (obs / pinned) | Max observed rel error | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -120,6 +126,21 @@
 | `rtl-counter-4bit` | chip | `rtl-counter-4bit.json` | success | pass | — | — / — | — | chip: 18 pin(s) · amaranth 0.5.10 · doc byte-determinism ✅ |
 | `rtl-counter-8bit` | chip | `rtl-counter-8bit.json` | success | pass | — | — / — | — | chip: 11 pin(s) · amaranth 0.5.10 · doc byte-determinism ✅ |
 | `rtl-invalid-kind` | chip | `rtl-invalid-kind.json` | error | pass | — | — | — | chip: threw honest error: `rtl model device.kind must be "enable_counter" (the v1 device class; every other class is its own future lane) (got "alu` · threw honest error: `` |
+| `robot-arm-2link` | robotics | `robot-arm-2link.json` | success | pass | — | — / — | — | robotics: 43 pin(s) · pin 4.1.0 · doc byte-determinism ✅ · max pin rel error 4.969e-16 |
+| `robot-arm-long` | robotics | `robot-arm-long.json` | success | pass | — | — / — | — | robotics: 26 pin(s) · pin 4.1.0 · doc byte-determinism ✅ · max pin rel error 6.361e-16 |
+| `robot-arm-invalid-kind` | robotics | `robot-arm-invalid-kind.json` | error | pass | — | — | — | robotics: threw honest error: `robot model mechanism.kind must be "planar_2r" (the v1 mechanism class; every other class is its own future lane) (got "` · threw honest error: `` |
+| `impact-drop-sphere` | physics | `impact-drop-sphere.json` | success | pass | — | — / — | — | physics: 29 pin(s) · pybullet 3.2.7 · doc byte-determinism ✅ · max pin rel error 2.284e-6 |
+| `impact-drop-bounce` | physics | `impact-drop-bounce.json` | success | pass | — | — / — | — | physics: 11 pin(s) · pybullet 3.2.7 · doc byte-determinism ✅ · max pin rel error 1.709e-14 |
+| `impact-drop-invalid-kind` | physics | `impact-drop-invalid-kind.json` | error | pass | — | — | — | physics: threw honest error: `impact model mechanism.kind must be "drop_impact" (the v1 mechanism class; every other class is its own future lane) (go` · threw honest error: `` |
+| `p2t-compare-identical` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 8 pin(s) · pdf2takeoff 0.1.0 · doc byte-determinism ✅ |
+| `p2t-compare-different` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 8 pin(s) · pdf2takeoff 0.1.0 · doc byte-determinism ✅ |
+| `p2t-annotate-roundtrip` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 4 pin(s) · pdf2takeoff 0.1.0 |
+| `p2t-export-boq-roundtrip` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 9 pin(s) · pdf2takeoff 0.1.0 · doc byte-determinism ✅ |
+| `p2t-fill-area-room` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pass | — | — / — | — | pdf2takeoff: 6 pin(s) · pdf2takeoff 0.1.0 · doc byte-determinism ✅ |
+| `p2t-fill-no-scale` | pdf2takeoff | `sheet-a102-plan.pdf` | error | pass | — | — | — | pdf2takeoff: threw honest error: `fill_area parameters.scaleMmPerPt must be a positive number — calibrate the sheet first or pass it explicitly (an uncali` · threw honest error: `` |
+| `p2t-export-no-annotations` | pdf2takeoff | `sheet-a102-plan.pdf` | error | pass | — | — | — | pdf2takeoff: threw honest error: `pdf2takeoff export failed: pdf2takeoff: no pdf2takeoff annotations found in /home/z/engineering-os/tests/fixtures/sheet-` · threw honest error: `` |
+| `p2t-annotate-bad-spec` | pdf2takeoff | `sheet-a102-plan.pdf` | error | pass | — | — | — | pdf2takeoff: threw honest error: `annotate_takeoff parameters.markups[0].points must be an array of 2..64 [x,y] pairs for type area` · threw honest error: `` |
+| `p2t-fill-click-on-line` | pdf2takeoff | `sheet-a102-plan.pdf` | error | pass | — | — | — | pdf2takeoff: threw honest error: `pdf2takeoff fill_area refused: you clicked on a line — click inside the region` · threw honest error: `` |
 
 ## Mesh tessellation validation (W2-d — the eos-mesh/1 bridge)
 
@@ -228,6 +249,21 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 | `rtl-counter-4bit` | chip | `rtl-counter-4bit.json` | success | amaranth 0.5.10 | ✅ true | 18 | pass |
 | `rtl-counter-8bit` | chip | `rtl-counter-8bit.json` | success | amaranth 0.5.10 | ✅ true | 11 | pass |
 | `rtl-invalid-kind` | chip | `rtl-invalid-kind.json` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `robot-arm-2link` | robotics | `robot-arm-2link.json` | success | pin 4.1.0 | ✅ true | 43 | pass |
+| `robot-arm-long` | robotics | `robot-arm-long.json` | success | pin 4.1.0 | ✅ true | 26 | pass |
+| `robot-arm-invalid-kind` | robotics | `robot-arm-invalid-kind.json` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `impact-drop-sphere` | physics | `impact-drop-sphere.json` | success | pybullet 3.2.7 | ✅ true | 29 | pass |
+| `impact-drop-bounce` | physics | `impact-drop-bounce.json` | success | pybullet 3.2.7 | ✅ true | 11 | pass |
+| `impact-drop-invalid-kind` | physics | `impact-drop-invalid-kind.json` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `p2t-compare-identical` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | ✅ true | 8 | pass |
+| `p2t-compare-different` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | ✅ true | 8 | pass |
+| `p2t-annotate-roundtrip` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | — | 4 | pass |
+| `p2t-export-boq-roundtrip` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | ✅ true | 9 | pass |
+| `p2t-fill-area-room` | pdf2takeoff | `sheet-a102-plan.pdf` | success | pdf2takeoff 0.1.0 | ✅ true | 6 | pass |
+| `p2t-fill-no-scale` | pdf2takeoff | `sheet-a102-plan.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `p2t-export-no-annotations` | pdf2takeoff | `sheet-a102-plan.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `p2t-annotate-bad-spec` | pdf2takeoff | `sheet-a102-plan.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
+| `p2t-fill-click-on-line` | pdf2takeoff | `sheet-a102-plan.pdf` | error | — (platform core, honestly absent) | — | 0 | pass |
 
 ### Discipline pin comparisons (observed vs hand-derived)
 
@@ -487,6 +523,156 @@ LibreOffice case runs ONCE — byte-determinism is NOT claimed for PDF conversio
 - `rtl-counter-8bit` count @ cycle19: observed **18** vs pinned 18 [bound abs:0] → rel error 0 (bitwise) · the disabled cycle 19 HOLDS the register at 18 enabled cycles — at W=8 there is no wrap (18 < 256), so the held value IS 18 (the W=4 case wraps it to 2; the hold itself is width-independent)
 - `rtl-counter-8bit` count @ cycle25: observed **24** vs pinned 24 [bound abs:0] → rel error 0 (bitwise) · the final step: 24 enabled cycles, no wrap at W=8 (24 < 256) — the non-wrapping regime pinned honestly
 - `rtl-invalid-kind` (chip) threw the honest error: `rtl model device.kind must be "enable_counter" (the v1 device class; every other class is its own future lane) (got "alu")`
+- `robot-arm-2link` analysis: observed **"kinematic_analysis"** vs pinned "kinematic_analysis" [bound structural] · the only analysis shipped this phase (contract §18.4)
+- `robot-arm-2link` engineKey: observed **"pin"** vs pinned "pin" [bound structural] · the lane's engine (contract §18.3) — pip name 'pin', import name 'pinocchio' (the name-trap)
+- `robot-arm-2link` engineVersion: observed **"4.1.0"** vs pinned "4.1.0" [bound structural] · the pinned pin wheel (engines-requirements)
+- `robot-arm-2link` mechanismKind: observed **"planar_2r"** vs pinned "planar_2r" [bound structural] · the frozen v1 mechanism class (contract §18.2)
+- `robot-arm-2link` linkCount: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · the planar 2R arm: exactly two links
+- `robot-arm-2link` linkLength1: observed **0.5** vs pinned 0.5 [bound abs:1e-12] → rel error 0 (bitwise) · the fixture's link 1 length (m)
+- `robot-arm-2link` linkLength2: observed **0.35** vs pinned 0.35 [bound abs:1e-12] → rel error 0 (bitwise) · the fixture's link 2 length (m)
+- `robot-arm-2link` configurationCount: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the fixture carries 4 configurations
+- `robot-arm-2link` xMeters @ config1: observed **0.5235993676781017** vs pinned 0.5235993676781017 [bound abs:1e-12] → rel error 0 (bitwise) · closed form at (π/6, π/4): 0.5·cos(π/6) + 0.35·cos(5π/12)
+- `robot-arm-2link` yMeters @ config1: observed **0.5880740392011738** vs pinned 0.5880740392011738 [bound abs:1e-12] → rel error 0 (bitwise) · closed form: 0.5·sin(π/6) + 0.35·sin(5π/12)
+- `robot-arm-2link` thetaRad @ config1: observed **1.308996938995747** vs pinned 1.3089969389957474 [bound abs:1e-12] → rel error 3.393e-16 · closed form θ = q1+q2 = 5π/12 (inside (−π,π], no wrap)
+- `robot-arm-2link` fkMaxAbsError @ config1: observed **4.440892098500626e-16** vs pinned 0 [bound abs:1e-12] · the adapter's FK closed-form gate residual (probed bit-exact, §18.1)
+- `robot-arm-2link` jacobianMaxAbsError @ config1: observed **1.3877787807814457e-17** vs pinned 0 [bound abs:1e-12] · the adapter's Jacobian closed-form gate residual (probed 1.388e-17, §18.1)
+- `robot-arm-2link` jacobian0 @ config1: observed **-0.5880740392011738** vs pinned -0.5880740392011738 [bound abs:1e-12] → rel error 0 (bitwise) · closed form vx/dq1 = −L1·sin q1 − L2·sin(q1+q2)
+- `robot-arm-2link` jacobian1 @ config1: observed **-0.33807403920117385** vs pinned -0.33807403920117385 [bound abs:1e-12] → rel error 0 (bitwise) · closed form vx/dq2 = −L2·sin(q1+q2)
+- `robot-arm-2link` jacobian2 @ config1: observed **0.5235993676781017** vs pinned 0.5235993676781017 [bound abs:1e-12] → rel error 0 (bitwise) · closed form vy/dq1 = L1·cos q1 + L2·cos(q1+q2)
+- `robot-arm-2link` jacobian3 @ config1: observed **0.09058666578588231** vs pinned 0.09058666578588233 [bound abs:1e-12] → rel error 1.532e-16 · closed form vy/dq2 = L2·cos(q1+q2)
+- `robot-arm-2link` jacobian4 @ config1: observed **0** vs pinned 0 [bound abs:1e-12] · vz/dq1 — identically zero for RZ joints (the 6x2 shape trap, §18.1)
+- `robot-arm-2link` jacobian5 @ config1: observed **0** vs pinned 0 [bound abs:1e-12] · vz/dq2 — identically zero for RZ joints
+- `robot-arm-2link` jacobian9 @ config1: observed **0** vs pinned 0 [bound abs:1e-12] · wy/dq2 — identically zero for RZ joints (the zero-rows structural pin)
+- `robot-arm-2link` jacobian10 @ config1: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · wz/dq1 — exactly 1: both joints rotate about z
+- `robot-arm-2link` jacobian11 @ config1: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · wz/dq2 — exactly 1 (the angular closed form)
+- `robot-arm-2link` xMeters @ config2: observed **0.5531088913245535** vs pinned 0.5531088913245535 [bound abs:1e-12] → rel error 0 (bitwise) · closed form at (−π/3, π/2): 0.5·cos(−π/3) + 0.35·cos(π/6)
+- `robot-arm-2link` yMeters @ config2: observed **-0.25801270189221925** vs pinned -0.2580127018922193 [bound abs:1e-12] → rel error 2.151e-16 · closed form: 0.5·sin(−π/3) + 0.35·sin(π/6)
+- `robot-arm-2link` thetaRad @ config2: observed **0.523598775598299** vs pinned 0.5235987755982991 [bound abs:1e-12] → rel error 2.120e-16 · closed form θ = −π/3 + π/2 = π/6
+- `robot-arm-2link` fkMaxAbsError @ config2: observed **5.551115123125783e-17** vs pinned 0 [bound abs:1e-12] · the FK gate residual (probed 5.551e-17 at this config, §18.1)
+- `robot-arm-2link` jacobianMaxAbsError @ config2: observed **5.551115123125783e-17** vs pinned 0 [bound abs:1e-12] · the Jacobian gate residual (probed 5.551e-17 at this config, §18.1)
+- `robot-arm-2link` jacobian0 @ config2: observed **0.25801270189221925** vs pinned 0.2580127018922193 [bound abs:1e-12] → rel error 2.151e-16 · closed form vx/dq1 at (−π/3, π/2)
+- `robot-arm-2link` jacobian1 @ config2: observed **-0.17500000000000004** vs pinned -0.175 [bound abs:1e-12] → rel error 3.172e-16 · closed form vx/dq2 = −0.35·sin(π/6) = −0.175 (exact decimal)
+- `robot-arm-2link` xMeters @ config3: observed **0.85** vs pinned 0.85 [bound abs:1e-12] → rel error 0 (bitwise) · the SINGULAR fully-extended config: x = L1 + L2 = 0.85 exactly, y = 0, θ = 0
+- `robot-arm-2link` yMeters @ config3: observed **0** vs pinned 0 [bound abs:1e-12] · closed form: 0.5·sin(0) + 0.35·sin(0) = 0
+- `robot-arm-2link` thetaRad @ config3: observed **0** vs pinned 0 [bound abs:1e-12] · closed form θ = 0 + 0 = 0
+- `robot-arm-2link` fkMaxAbsError @ config3: observed **0** vs pinned 0 [bound abs:1e-12] · the FK gate residual (probed bit-exact at (0,0), §18.1)
+- `robot-arm-2link` jacobianMaxAbsError @ config3: observed **0** vs pinned 0 [bound abs:1e-12] · the Jacobian gate residual (probed 0.0 at (0,0) — the singular config computes exactly)
+- `robot-arm-2link` jacobian0 @ config3: observed **0** vs pinned 0 [bound abs:1e-12] · closed form vx/dq1 = −L1·sin(0) − L2·sin(0) = 0 — the extended arm has no x-sensitivity at (0,0)
+- `robot-arm-2link` jacobian1 @ config3: observed **0** vs pinned 0 [bound abs:1e-12] · closed form vx/dq2 = −L2·sin(0) = 0
+- `robot-arm-2link` xMeters @ config4: observed **-0.11170434255507944** vs pinned -0.1117043425550795 [bound abs:1e-12] → rel error 4.969e-16 · closed form at (2.5, −1.9): 0.5·cos(2.5) + 0.35·cos(0.6)
+- `robot-arm-2link` yMeters @ config4: observed **0.4968609377402406** vs pinned 0.49686093774024065 [bound abs:1e-12] → rel error 1.117e-16 · closed form: 0.5·sin(2.5) + 0.35·sin(0.6)
+- `robot-arm-2link` thetaRad @ config4: observed **0.5999999999999999** vs pinned 0.6000000000000001 [bound abs:1e-12] → rel error 3.701e-16 · closed form θ = 2.5 − 1.9 = 0.6 (inside (−π,π])
+- `robot-arm-2link` fkMaxAbsError @ config4: observed **5.551115123125783e-17** vs pinned 0 [bound abs:1e-12] · the FK gate residual (probed 5.551e-17 at this config, §18.1)
+- `robot-arm-2link` jacobianMaxAbsError @ config4: observed **8.326672684688674e-17** vs pinned 0 [bound abs:1e-12] · the Jacobian gate residual (probed 8.327e-17 at this config, §18.1)
+- `robot-arm-2link` jacobian0 @ config4: observed **-0.4968609377402406** vs pinned -0.49686093774024065 [bound abs:1e-12] → rel error 1.117e-16 · closed form vx/dq1 at (2.5, −1.9)
+- `robot-arm-2link` jacobian1 @ config4: observed **-0.19762486568826232** vs pinned -0.1976248656882624 [bound abs:1e-12] → rel error 4.213e-16 · closed form vx/dq2 = −0.35·sin(0.6)
+- `robot-arm-long` mechanismKind: observed **"planar_2r"** vs pinned "planar_2r" [bound structural] · the frozen v1 mechanism class
+- `robot-arm-long` linkCount: observed **2** vs pinned 2 [bound abs:0] → rel error 0 (bitwise) · exactly two links
+- `robot-arm-long` linkLength1: observed **1.2** vs pinned 1.2 [bound abs:1e-12] → rel error 0 (bitwise) · the fixture's link 1 length (m)
+- `robot-arm-long` linkLength2: observed **0.8** vs pinned 0.8 [bound abs:1e-12] → rel error 0 (bitwise) · the fixture's link 2 length (m)
+- `robot-arm-long` configurationCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · the fixture carries 3 configurations
+- `robot-arm-long` xMeters @ config1: observed **1.9318516525781368** vs pinned 1.9318516525781368 [bound abs:1e-12] → rel error 0 (bitwise) · closed form at (π/12, −π/6): 1.2·cos(π/12) + 0.8·cos(−π/12)
+- `robot-arm-long` yMeters @ config1: observed **0.1035276180410083** vs pinned 0.1035276180410083 [bound abs:1e-12] → rel error 0 (bitwise) · closed form: 1.2·sin(π/12) + 0.8·sin(−π/12)
+- `robot-arm-long` thetaRad @ config1: observed **-0.2617993877991494** vs pinned -0.2617993877991496 [bound abs:1e-12] → rel error 6.361e-16 · closed form θ = π/12 − π/6 = −π/12
+- `robot-arm-long` fkMaxAbsError @ config1: observed **0** vs pinned 0 [bound abs:1e-12] · the FK gate residual (≤ 1e-12 by the §18.5 gate)
+- `robot-arm-long` jacobianMaxAbsError @ config1: observed **1.1102230246251565e-16** vs pinned 0 [bound abs:1e-12] · the Jacobian gate residual (≤ 1e-12 by the §18.5 gate)
+- `robot-arm-long` jacobian0 @ config1: observed **-0.1035276180410083** vs pinned -0.1035276180410083 [bound abs:1e-12] → rel error 0 (bitwise) · closed form vx/dq1 at (π/12, −π/6)
+- `robot-arm-long` jacobian1 @ config1: observed **0.2070552360820166** vs pinned 0.2070552360820166 [bound abs:1e-12] → rel error 0 (bitwise) · closed form vx/dq2 = −0.8·sin(−π/12) (positive — the elbow is folded back)
+- `robot-arm-long` xMeters @ config2: observed **0.09625072399246914** vs pinned 0.09625072399246914 [bound abs:1e-12] → rel error 0 (bitwise) · closed form at (−2.1, 2.6): 1.2·cos(−2.1) + 0.8·cos(0.5)
+- `robot-arm-long` yMeters @ config2: observed **-0.652310809095286** vs pinned -0.6523108090952859 [bound abs:1e-12] → rel error 1.702e-16 · closed form: 1.2·sin(−2.1) + 0.8·sin(0.5)
+- `robot-arm-long` thetaRad @ config2: observed **0.49999999999999994** vs pinned 0.5 [bound abs:1e-12] → rel error 1.110e-16 · closed form θ = −2.1 + 2.6 = 0.5
+- `robot-arm-long` fkMaxAbsError @ config2: observed **1.1102230246251565e-16** vs pinned 0 [bound abs:1e-12] · the FK gate residual
+- `robot-arm-long` jacobianMaxAbsError @ config2: observed **1.1102230246251565e-16** vs pinned 0 [bound abs:1e-12] · the Jacobian gate residual
+- `robot-arm-long` jacobian0 @ config2: observed **0.652310809095286** vs pinned 0.6523108090952859 [bound abs:1e-12] → rel error 1.702e-16 · closed form vx/dq1 at (−2.1, 2.6)
+- `robot-arm-long` jacobian1 @ config2: observed **-0.3835404308833623** vs pinned -0.3835404308833624 [bound abs:1e-12] → rel error 2.895e-16 · closed form vx/dq2 = −0.8·sin(0.5)
+- `robot-arm-long` xMeters @ config3: observed **-7.347880794884119e-17** vs pinned -7.347880794884119e-17 [bound abs:1e-12] → rel error 0 (bitwise) · the FOLDED-BACK singular (q2=π): x = 1.2·cos(π/2) + 0.8·cos(3π/2) = 0 — the pin value is the closed form's float noise, |x| < 1e-12 either way
+- `robot-arm-long` yMeters @ config3: observed **0.3999999999999999** vs pinned 0.3999999999999999 [bound abs:1e-12] → rel error 0 (bitwise) · closed form: 1.2·sin(π/2) + 0.8·sin(3π/2) = 1.2 − 0.8 = 0.4
+- `robot-arm-long` thetaRad @ config3: observed **-1.5707963267948968** vs pinned -1.5707963267948966 [bound abs:1e-12] → rel error 1.414e-16 · closed form θ = π/2 + π = 3π/2, WRAPPED to −π/2 (the §18.1 θ convention)
+- `robot-arm-long` fkMaxAbsError @ config3: observed **0** vs pinned 0 [bound abs:1e-12] · the FK gate residual at the folded singular
+- `robot-arm-long` jacobianMaxAbsError @ config3: observed **0** vs pinned 0 [bound abs:1e-12] · the Jacobian gate residual at the folded singular
+- `robot-arm-long` jacobian0 @ config3: observed **-0.3999999999999999** vs pinned -0.3999999999999999 [bound abs:1e-12] → rel error 0 (bitwise) · closed form vx/dq1 = −1.2·sin(π/2) − 0.8·sin(3π/2) = −1.2 + 0.8 = −0.4
+- `robot-arm-long` jacobian1 @ config3: observed **0.8** vs pinned 0.8 [bound abs:1e-12] → rel error 0 (bitwise) · closed form vx/dq2 = −0.8·sin(3π/2) = +0.8 (the folded elbow swings the tip backward-first)
+- `robot-arm-invalid-kind` (robotics) threw the honest error: `robot model mechanism.kind must be "planar_2r" (the v1 mechanism class; every other class is its own future lane) (got "spatial_6r")`
+- `impact-drop-sphere` analysis: observed **"impact_simulation"** vs pinned "impact_simulation" [bound structural] · the only analysis shipped this phase (contract §19.4)
+- `impact-drop-sphere` engineKey: observed **"pybullet"** vs pinned "pybullet" [bound structural] · the lane's engine (contract §19.3)
+- `impact-drop-sphere` engineVersion: observed **"3.2.7"** vs pinned "3.2.7" [bound structural] · the pinned pybullet sdist (engines-requirements)
+- `impact-drop-sphere` mechanismKind: observed **"drop_impact"** vs pinned "drop_impact" [bound structural] · the frozen v1 mechanism class (contract §19.2)
+- `impact-drop-sphere` massKilograms: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · the fixture's sphere mass (kg)
+- `impact-drop-sphere` radiusMeters: observed **0.1** vs pinned 0.1 [bound abs:1e-12] → rel error 0 (bitwise) · the fixture's sphere radius (m)
+- `impact-drop-sphere` restitution: observed **0** vs pinned 0 [bound abs:1e-12] · the dead-bang drop: e = 0
+- `impact-drop-sphere` centerHeightMeters: observed **1** vs pinned 1 [bound abs:1e-12] → rel error 0 (bitwise) · the release center height (m)
+- `impact-drop-sphere` gravityMetersPerSecondSquared: observed **9.81** vs pinned 9.81 [bound abs:1e-12] → rel error 0 (bitwise) · the configured gravity (m/s²)
+- `impact-drop-sphere` timestepSeconds: observed **0.004166666666666667** vs pinned 0.004166666666666667 [bound abs:1e-15] → rel error 0 (bitwise) · the pinned 240 Hz timestep 1/240 s (§19.1)
+- `impact-drop-sphere` sampleCount: observed **344** vs pinned 344 [bound abs:0] → rel error 0 (bitwise) · the horizon: first contact (step 104) + exactly 240 post-contact steps (§19.4)
+- `impact-drop-sphere` firstContactStep: observed **104** vs pinned 104 [bound abs:0] → rel error 0 (bitwise) · the probed first-contact step (§19.1): the discrete fall crosses r between steps 103/104
+- `impact-drop-sphere` firstContactTimeSeconds: observed **0.43333333333333335** vs pinned 0.43333333333333335 [bound abs:1e-12] → rel error 0 (bitwise) · 104/240 — the measured contact time
+- `impact-drop-sphere` closedFormContactTimeSeconds: observed **0.4283529368781193** vs pinned 0.4283529368781193 [bound abs:1e-12] → rel error 0 (bitwise) · closed form t* = sqrt(2·0.9/9.81)
+- `impact-drop-sphere` timeResidualSeconds: observed **0.004980396455214031** vs pinned 0.004980396455214031 [bound abs:1e-9] → rel error 0 (bitwise) · t_meas − t* = +1.195 dt (one 240 Hz quantum + the soft-contact penetration margin, §19.1)
+- `impact-drop-sphere` impactSpeedMetersPerSecond: observed **4.210125000000009** vs pinned 4.210125 [bound abs:1e-9] → rel error 2.321e-15 · the discrete closed form |−g·dt·103| = 9.81·103/240 (bit-consistent, §19.1)
+- `impact-drop-sphere` closedFormImpactSpeedMetersPerSecond: observed **4.2021423107743505** vs pinned 4.2021423107743505 [bound abs:1e-12] → rel error 0 (bitwise) · closed form v* = sqrt(2·9.81·0.9)
+- `impact-drop-sphere` speedResidualMetersPerSecond: observed **0.007982689225658923** vs pinned 0.007982689225658923 [bound abs:1e-9] → rel error 0 (bitwise) · v_meas − v* (within 3·g·dt = 0.1226 by the §19.5 gate)
+- `impact-drop-sphere` reboundPeakHeightMeters: observed **0.09998999997716257** vs pinned 0.09999 [bound abs:0.005] → rel error 2.284e-10 · the e=0 no-rebound reality (§19.1 probed: rest r − 1e-5; engine behavior, the chip-lane empirical-count precedent)
+- `impact-drop-sphere` closedFormReboundPeakMeters: observed **0.1** vs pinned 0.1 [bound abs:1e-12] → rel error 0 (bitwise) · the energy bound r + e²(h−r) = r at e=0
+- `impact-drop-sphere` reboundResidualMeters: observed **-0.000010000022837436395** vs pinned -0.00001 [bound abs:0.005] → rel error 2.284e-6 · dissipative by exactly the probed penetration (−1.0e-5 m)
+- `impact-drop-sphere` maxPreContactHeightError: observed **1.4710455076283324e-15** vs pinned 0 [bound abs:1e-9] · the adapter's discrete closed-form gate residual (probed 1.47e-15)
+- `impact-drop-sphere` maxPreContactSpeedError: observed **1.0658141036401503e-14** vs pinned 0 [bound abs:1e-9] · the adapter's velocity gate residual (probed 1.07e-14)
+- `impact-drop-sphere` centerHeightMeters @ sample1: observed **0.9998296875** vs pinned 0.9998296875 [bound abs:1e-9] → rel error 0 (bitwise) · discrete closed form z_1 = 1 − ½·9.81·dt²·1·2 (exact in binary, §19.1)
+- `impact-drop-sphere` velocityZMetersPerSecond @ sample1: observed **-0.040875** vs pinned -0.040875 [bound abs:1e-9] → rel error 0 (bitwise) · discrete closed form vz_1 = −9.81/240 (exact)
+- `impact-drop-sphere` centerHeightMeters @ sample50: observed **0.7828515625** vs pinned 0.7828515625 [bound abs:1e-9] → rel error 0 (bitwise) · discrete closed form z_50 = 1 − ½·9.81·dt²·50·51 (exact)
+- `impact-drop-sphere` velocityZMetersPerSecond @ sample50: observed **-2.04375** vs pinned -2.04375 [bound abs:1e-9] → rel error 0 (bitwise) · discrete closed form vz_50 = −9.81·50/240 (exact)
+- `impact-drop-sphere` centerHeightMeters @ sample103: observed **0.0878062499999986** vs pinned 0.08780625 [bound abs:1e-9] → rel error 1.596e-14 · discrete closed form z_103 (the last pre-contact step)
+- `impact-drop-sphere` velocityZMetersPerSecond @ sample103: observed **-4.210125000000009** vs pinned -4.210125 [bound abs:1e-9] → rel error 2.321e-15 · discrete closed form vz_103 = −9.81·103/240 (the impact speed's source step)
+- `impact-drop-bounce` mechanismKind: observed **"drop_impact"** vs pinned "drop_impact" [bound structural] · the frozen v1 mechanism class
+- `impact-drop-bounce` restitution: observed **0.6** vs pinned 0.6 [bound abs:1e-12] → rel error 0 (bitwise) · the bounce configuration (the fixture)
+- `impact-drop-bounce` sampleCount: observed **344** vs pinned 344 [bound abs:0] → rel error 0 (bitwise) · the same horizon: first contact (step 104) + 240 post-contact steps
+- `impact-drop-bounce` firstContactStep: observed **104** vs pinned 104 [bound abs:0] → rel error 0 (bitwise) · identical to the e=0 drop — restitution never acts before contact
+- `impact-drop-bounce` closedFormContactTimeSeconds: observed **0.4283529368781193** vs pinned 0.4283529368781193 [bound abs:1e-12] → rel error 0 (bitwise) · the same closed form t* = sqrt(2·0.9/9.81)
+- `impact-drop-bounce` impactSpeedMetersPerSecond: observed **4.210125000000009** vs pinned 4.210125 [bound abs:1e-9] → rel error 2.321e-15 · the same discrete impact speed (restitution acts only AFTER contact)
+- `impact-drop-bounce` closedFormReboundPeakMeters: observed **0.42400000000000004** vs pinned 0.42400000000000004 [bound abs:1e-12] → rel error 0 (bitwise) · the energy bound r + e²(h−r) = 0.1 + 0.36·0.9
+- `impact-drop-bounce` reboundPeakHeightMeters: observed **0.25014342500000425** vs pinned 0.250143425 [bound abs:0.02] → rel error 1.709e-14 · ENGINE BEHAVIOR pin (§19.1 probed ratio 0.419 < e): the dissipative LCP rebound, tolerance for build variance — the chip-lane AND-count precedent
+- `impact-drop-bounce` reboundResidualMeters: observed **-0.1738565749999958** vs pinned -0.1738565749999958 [bound abs:0.02] → rel error 0 (bitwise) · dissipative (negative) as probed — never above 0 (energy creation is a §19.5 refusal)
+- `impact-drop-bounce` velocityZMetersPerSecond @ sample103: observed **-4.210125000000009** vs pinned -4.210125 [bound abs:1e-9] → rel error 2.321e-15 · the last pre-contact step: identical to the e=0 drop (the discrete closed form)
+- `impact-drop-bounce` velocityZMetersPerSecond @ sample104: observed **1.7642880000000307** vs pinned 1.7642880000000307 [bound abs:0.05] → rel error 0 (bitwise) · the first post-contact step's upward velocity (engine behavior: the solver's restitution response, ratio 0.419·|v_impact|)
+- `impact-drop-invalid-kind` (physics) threw the honest error: `impact model mechanism.kind must be "drop_impact" (the v1 mechanism class; every other class is its own future lane) (got "pendulum")`
+- `p2t-compare-identical` comparedSheets: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · the A-102 fixture has 4 pages; both revisions identical, so all 4 pair up
+- `p2t-compare-identical` changedSheetCount: observed **0** vs pinned 0 [bound abs:0] · byte-identical revisions cannot differ on any sheet
+- `p2t-compare-identical` summary.changed: observed **0** vs pinned 0 [bound abs:0] · same — the summary counts the sheets array
+- `p2t-compare-identical` summary.unchanged: observed **4** vs pinned 4 [bound abs:0] → rel error 0 (bitwise) · all four pages identical
+- `p2t-compare-identical` summary.onlyInA: observed **0** vs pinned 0 [bound abs:0] · same page count on both sides — nothing unmatched
+- `p2t-compare-identical` summary.onlyInB: observed **0** vs pinned 0 [bound abs:0] · same page count on both sides — nothing unmatched
+- `p2t-compare-identical` changedFraction @ page:1: observed **0** vs pinned 0 [bound abs:0] · identical raster → zero changed pixels
+- `p2t-compare-identical` vectorIdentical @ page:4: observed **true** vs pinned true [bound structural] · identical vector operators (the portrait panel-schedule page included)
+- `p2t-compare-different` comparedSheets: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · only page 1 exists on both sides (curve fixture is single-sheet)
+- `p2t-compare-different` changedSheetCount: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · the paired page 1 differs (completely different drawing content)
+- `p2t-compare-different` summary.changed: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · page 1 changed
+- `p2t-compare-different` summary.onlyInA: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · A-102 pages 2, 3, 4 have no counterpart in the single-page curve revision
+- `p2t-compare-different` summary.onlyInB: observed **0** vs pinned 0 [bound abs:0] · every curve-sheet page (just page 1) has an A-counterpart
+- `p2t-compare-different` changed @ page:1: observed **true** vs pinned true [bound structural] · different drawings on the paired page
+- `p2t-compare-different` changedFraction @ page:1: observed **0.0059** vs pinned 0.0059 [bound abs:0.005] → rel error 0 (bitwise) · engine-observed raster-diff fraction on the dev host (title bar + room rectangle + wall regions); abs 0.005 keeps the pin honest across raster hosts
+- `p2t-compare-different` regionCount @ page:1: observed **18** vs pinned 1 [bound min] · at least one changed region localizes the change (the engine reported 3 on the dev host)
+- `p2t-annotate-roundtrip` markupCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · the spec carries exactly 3 markups (length + area + count)
+- `p2t-annotate-roundtrip` kept: observed **0** vs pinned 0 [bound abs:0] · the bare fixture carries no pdf2takeoff annotations — nothing to keep
+- `p2t-annotate-roundtrip` isPdf: observed **true** vs pinned true [bound structural] · the annotated output must be a real PDF (%PDF magic)
+- `p2t-annotate-roundtrip` sizeBytes: observed **6171** vs pinned 4000 [bound min] · the 6166-byte dev-host output sizes the floor; an annotated copy of the 4-page fixture cannot be tiny
+- `p2t-export-boq-roundtrip` rowCount: observed **3** vs pinned 3 [bound abs:0] → rel error 0 (bitwise) · three markups -> three data rows
+- `p2t-export-boq-roundtrip` value @ label:Scale bar: observed **10.000001166666667** vs pinned 10.000001166666667 [bound rel:1e-9] → rel error 0 (bitwise) · 283.4646 pt x 0.03527778 m/pt (the engine's exact 1:100 preset); analytic 100 paper-mm = 10.000 m real
+- `p2t-export-boq-roundtrip` unit @ label:Scale bar: observed **"m"** vs pinned "m" [bound structural] · length export in metres
+- `p2t-export-boq-roundtrip` value @ label:Room 101: observed **40.00001783583051** vs pinned 40.00001783583051 [bound rel:1e-9] → rel error 0 (bitwise) · 226.7717 x 141.7323 pt at 1:100 -> 80x50 paper-mm -> 8.000 x 5.000 m = 40.000 m2 analytic
+- `p2t-export-boq-roundtrip` type @ label:Room 101: observed **"area"** vs pinned "area" [bound structural] · the spec's area markup exports as an area row
+- `p2t-export-boq-roundtrip` value @ label:Socket: observed **1** vs pinned 1 [bound abs:0] → rel error 0 (bitwise) · one count markup at (205, 505) on page 2 (the S13 lighting-layout socket grid, first symbol)
+- `p2t-export-boq-roundtrip` unit @ label:Socket: observed **"each"** vs pinned "each" [bound structural] · counts export in each
+- `p2t-export-boq-roundtrip` isXlsx: observed **true** vs pinned true [bound structural] · the XLSX export must be a real workbook (PK zip magic)
+- `p2t-export-boq-roundtrip` sizeBytes: observed **17914** vs pinned 3000 [bound min] · a 3-row workbook with styles sizes the floor (dev host: ~5 KB)
+- `p2t-fill-area-room` value: observed **39.4009** vs pinned 39.4009 [bound abs:0.1] → rel error 0 (bitwise) · analytic 40.000 m2 minus the inner-wall-face inset of the 1-pt stroke (~0.67 pt/side); engine-observed 39.4009 on the dev host
+- `p2t-fill-area-room` vertices: observed **8** vs pinned 8 [bound abs:0] → rel error 0 (bitwise) · the room rectangle's 4 corners + the interior wall's 2 boundary intersections + the 2 jogs where the boundary turns along the wall — the dev-host raster polygon
+- `p2t-fill-area-room` unit: observed **"m2"** vs pinned "m2" [bound structural] · the fill records an area in square metres
+- `p2t-fill-area-room` calibrated: observed **true** vs pinned true [bound structural] · the bridge ALWAYS calibrates the session (from_points carries the platform scale exactly)
+- `p2t-fill-area-room` bboxX0: observed **500.67** vs pinned 500.67 [bound abs:1] → rel error 0 (bitwise) · the analytic left edge is x=500; the fill boundary sits ~0.67 pt inside it (pen half-width)
+- `p2t-fill-area-room` bboxX1: observed **726.33** vs pinned 726.33 [bound abs:1] → rel error 0 (bitwise) · the analytic right edge is x=726.7717; inset ~0.44 pt on the dev host
+- `p2t-fill-no-scale` (pdf2takeoff) threw the honest error: `fill_area parameters.scaleMmPerPt must be a positive number — calibrate the sheet first or pass it explicitly (an uncalibrated takeoff number is a fabricated nu`
+- `p2t-export-no-annotations` (pdf2takeoff) threw the honest error: `pdf2takeoff export failed: pdf2takeoff: no pdf2takeoff annotations found in /home/z/engineering-os/tests/fixtures/sheet-a102-plan.pdf (annotate it first, or ope`
+- `p2t-annotate-bad-spec` (pdf2takeoff) threw the honest error: `annotate_takeoff parameters.markups[0].points must be an array of 2..64 [x,y] pairs for type area`
+- `p2t-fill-click-on-line` (pdf2takeoff) threw the honest error: `pdf2takeoff fill_area refused: you clicked on a line — click inside the region`
 
 ## Regenerate
 

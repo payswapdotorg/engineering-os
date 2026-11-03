@@ -1,0 +1,14 @@
+{
+  "format": "eos-impact-model/1",
+  "name": "Invalid — pendulum is not the v1 class",
+  "mechanism": {
+    "kind": "pendulum",
+    "massKilograms": 1.0,
+    "radiusMeters": 0.1,
+    "restitution": 0.0
+  },
+  "drop": {
+    "centerHeightMeters": 1.0,
+    "gravityMetersPerSecondSquared": 9.81
+  }
+}

@@ -137,7 +137,7 @@ describe("validation corpus manifest (integrity — engine independent)", () => 
   })
 
   test("every ground-truth entry carries a valid tolerance class and a hand-derived audit string", () => {
-    const DISCIPLINE_ADAPTERS = new Set(["femesh", "powerflow", "des", "fea", "transport", "chip", "swmm", "cpm", "libreoffice"])
+    const DISCIPLINE_ADAPTERS = new Set(["femesh", "powerflow", "des", "fea", "transport", "chip", "robotics", "physics", "swmm", "cpm", "libreoffice"])
     // 16-V takeoff kinds + the 16-P parametric kind: pins live under runs[]
     // (one pins array per parameter set) — same derivation discipline, nested
     // one level deeper.
@@ -146,7 +146,40 @@ describe("validation corpus manifest (integrity — engine independent)", () => 
     // the raw transcript + conf floor + the Ø-rule form); the ground truth is
     // the case-level narrative string, like takeoff/parametric.
     const OCR_ADAPTERS = new Set(["ocr"])
+    // ADR-0011 Stage 1 — the ADOPTED takeoff engine: pins live under runs[]
+    // (like takeoff/parametric), with the op + otherFixture block shape.
+    const P2T_ADAPTERS = new Set(["pdf2takeoff"])
     for (const c of manifest) {
+      if (P2T_ADAPTERS.has(c.adapter)) {
+        const block = (c as unknown as Record<string, unknown>).pdf2takeoff as
+          | { op?: string; otherFixture?: string; errorContains?: string; runs?: Array<{ pins?: Array<{ derivation: string }>; errorContains?: string }> }
+          | undefined
+        expect(typeof block).toBe("object")
+        expect(typeof block?.op).toBe("string")
+        expect(["compare", "annotate", "export", "fill"]).toContain(block?.op ?? "")
+        if (block?.op === "compare") {
+          expect(typeof block.otherFixture).toBe("string")
+          expect((block.otherFixture ?? "").length).toBeGreaterThan(0)
+        }
+        if (c.expect === "error") {
+          expect((block?.runs ?? []).length).toBeGreaterThan(0)
+          for (const run of block?.runs ?? []) {
+            expect(typeof run.errorContains).toBe("string")
+            expect((run.errorContains ?? "").length).toBeGreaterThan(0)
+          }
+          expect(c.groundTruth).toBeUndefined()
+          continue
+        }
+        expect(typeof c.pdf2takeoffGroundTruth).toBe("string")
+        expect((c.pdf2takeoffGroundTruth ?? "").length).toBeGreaterThan(0)
+        for (const run of block?.runs ?? []) {
+          expect((run.pins ?? []).length).toBeGreaterThan(0)
+          for (const pin of run.pins ?? []) {
+            expect(pin.derivation.length).toBeGreaterThan(0)
+          }
+        }
+        continue
+      }
       if (OCR_ADAPTERS.has(c.adapter)) {
         const block = (c as unknown as Record<string, unknown>).ocr as
           | { expect?: string; runs?: Array<{ expectedWords?: Array<{ text: string }>; errorContains?: string }> }
@@ -326,6 +359,8 @@ function syntheticReport(): HarnessReport {
         fea: { available: false, reason: "synthetic: engine absent" },
         transport: { available: false, reason: "synthetic: engine absent" },
         chip: { available: false, reason: "synthetic: engine absent" },
+        robotics: { available: false, reason: "synthetic: engine absent" },
+        physics: { available: false, reason: "synthetic: engine absent" },
         swmm: { available: false, reason: "synthetic: engine absent" },
         cpm: { available: true }, // platform core — always available, no engine
         libreoffice: { available: false, reason: "synthetic: engine absent" },
@@ -333,6 +368,7 @@ function syntheticReport(): HarnessReport {
         dxf: { available: false, reason: "synthetic: engine absent" },
         parametric: { available: false, reason: "synthetic: engine absent" },
         ocr: { available: false, reason: "synthetic: engine absent" },
+        pdf2takeoff: { available: false, reason: "synthetic: engine absent" },
       },
     },
     engineVersions: { cadquery: "synthetic", ifcopenshell: null },
@@ -441,8 +477,16 @@ describe.skipIf(!enginesAvailable)("engine validation harness (real engine runs)
         if (c.discipline !== undefined) {
           // W2-f discipline cases: determinism lives on the discipline block
           // (null only where byte-determinism is honestly NOT claimed —
-          // libreoffice); every pin comparison must be ok.
-          if (c.discipline.adapter === "libreoffice") {
+          // libreoffice's PDFs embed timestamps §5.4, and the pdf2takeoff
+          // ANNOTATE op's output PDF embeds a creation timestamp, so that op
+          // runs once with structural pins only); the per-op policy is
+          // mirrored here from the manifest itself (caseId → pdf2takeoff.op)
+          // — the metatest never invents a second policy source; every pin
+          // comparison must be ok.
+          const manifestCase = manifest.find((x: CorpusCase) => x.caseId === c.caseId)
+          const annotateNullPolicy =
+            c.discipline.adapter === "pdf2takeoff" && manifestCase?.pdf2takeoff?.op === "annotate"
+          if (c.discipline.adapter === "libreoffice" || annotateNullPolicy) {
             expect(c.discipline.determinism).toBeNull() // PDFs embed timestamps — §5.4
           } else {
             expect(c.discipline.determinism).toBe(true)

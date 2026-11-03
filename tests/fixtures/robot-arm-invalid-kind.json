@@ -1,0 +1,6 @@
+{
+  "format": "eos-robot-arm-model/1",
+  "name": "Not a planar arm",
+  "mechanism": { "kind": "spatial_6r", "linkLengthsMeters": [0.5, 0.35] },
+  "configurations": [{ "jointsRad": [0.1, 0.2] }]
+}

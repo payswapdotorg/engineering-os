@@ -35,6 +35,21 @@ import path from "node:path"
 
 import { LedgerError, makeQuantityRecord, type QuantityRecord } from "@/core"
 import { analyzeCpm, type CpmActivity, type CpmActivityResult } from "@/core/cpm"
+import {
+  foldRelationSync,
+  foldWorkPackageSync,
+  mappingDocumentBytes,
+  parseOpenProjectMappingDocument,
+  parseOpenProjectSyncRequest,
+  planRelationSync,
+  planWorkPackageSync,
+  type OpenProjectMappingDocument,
+} from "@/core/openproject-sync"
+import {
+  executeRelationWirePlan,
+  executeWorkPackageWirePlan,
+  openProjectWireConfigFromEnv,
+} from "@/lib/openproject-wire"
 import { deriveKind } from "@/engines/adapters/derive-kind"
 import { EngineUnavailableError, deriveFromFile, isPlainObject, type DeriveResult } from "@/engines/adapters/quantities"
 import { tessellateFromFile } from "@/engines/adapters/mesh"
@@ -44,9 +59,22 @@ import { runDesFromFile, type DesJob, type DesResource } from "@/engines/adapter
 import { runFeaFromFile, type FeaSample } from "@/engines/adapters/fea"
 import { runTransportFromFile, type TransportSample } from "@/engines/adapters/cfd"
 import { runRtlSynthesisFromFile, type RtlSimulationStep } from "@/engines/adapters/chip"
+import { runKinematicsFromFile, type KinematicsConfiguration } from "@/engines/adapters/robotics"
+import { runImpactFromFile, type ImpactSample, type ImpactSummary } from "@/engines/adapters/physics"
 import { runSwmmFromFile, type SwmmDepthSample } from "@/engines/adapters/swmm"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "@/engines/adapters/sheet_takeoff"
 import { dxfTakeoffFromStorage, type DxfTakeoffResult } from "@/engines/adapters/dxf_takeoff"
+import {
+  pdf2takeoffAnnotateTakeoff,
+  pdf2takeoffCompareRevisions,
+  pdf2takeoffExportTakeoff,
+  pdf2takeoffFillRoom,
+  scaleMmPerPtToRatioString,
+  type Pdf2takeoffCompareResult,
+  type Pdf2takeoffEngine,
+  type Pdf2takeoffExportResult,
+  type Pdf2takeoffFillResult,
+} from "@/engines/adapters/pdf2takeoff"
 import {
   parametricRebuildFromStorage,
   parametricSchemaFromStorage,
@@ -102,12 +130,19 @@ export type BrokerOperation =
   | "solve_fea"
   | "solve_transport"
   | "synthesize_rtl"
+  | "solve_kinematics"
+  | "simulate_impact"
   | "run_swmm"
   | "convert_document"
   | "analyze_schedule"
   | "takeoff_sheet"
   | "takeoff_drawing"
   | "rebuild_parametric"
+  | "compare_revisions"
+  | "annotate_takeoff"
+  | "export_boq_xlsx"
+  | "fill_area"
+  | "openproject_sync"
 
 export interface BrokerContext {
   projectId: string
@@ -993,6 +1028,8 @@ export const FEA_NO_REVISIONS_MESSAGE = "This artifact has no revisions to solve
 export const SWMM_NO_REVISIONS_MESSAGE = "This artifact has no revisions to run"
 export const TRANSPORT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to solve"
 export const RTL_NO_REVISIONS_MESSAGE = "This artifact has no revisions to synthesize"
+export const KINEMATICS_NO_REVISIONS_MESSAGE = "This artifact has no revisions to analyze"
+export const IMPACT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to simulate"
 export const CONVERT_NO_REVISIONS_MESSAGE = "This artifact has no revisions to convert"
 export const ANALYZE_NO_REVISIONS_MESSAGE = "This artifact has no revisions to analyze"
 
@@ -1356,6 +1393,130 @@ export function buildRtlDocument(
 }
 
 /**
+ * Assemble the eos-robot-kinematics/1 document bytes (contract §18.4). PURE:
+ * pinned key order format → sourceArtifactName → analysis → mechanism →
+ * configurations → generatedBy; every double is the engine's verbatim
+ * shortest-round-trip repr (byte-determinism is pinned by the harness
+ * double-run — §18.4; nobody rounds "for presentation", ADR-0006 §2).
+ */
+export function buildKinematicsDocument(
+  sourceArtifactName: string,
+  payload: {
+    analysis: "kinematic_analysis"
+    mechanism: { kind: "planar_2r"; linkCount: number; linkLengthsMeters: [number, number] }
+    configurations: KinematicsConfiguration[]
+    engineKey: string
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+  },
+): string {
+  return JSON.stringify({
+    format: "eos-robot-kinematics/1",
+    sourceArtifactName,
+    analysis: payload.analysis,
+    mechanism: {
+      kind: payload.mechanism.kind,
+      linkCount: payload.mechanism.linkCount,
+      linkLengthsMeters: [
+        payload.mechanism.linkLengthsMeters[0],
+        payload.mechanism.linkLengthsMeters[1],
+      ],
+    },
+    configurations: payload.configurations.map((configuration) => ({
+      index: configuration.index,
+      jointsRad: [configuration.jointsRad[0], configuration.jointsRad[1]],
+      endEffector: {
+        xMeters: configuration.endEffector.xMeters,
+        yMeters: configuration.endEffector.yMeters,
+        thetaRad: configuration.endEffector.thetaRad,
+      },
+      jacobianRowMajor: configuration.jacobianRowMajor.map((v) => v),
+      verification: {
+        fkMaxAbsError: configuration.verification.fkMaxAbsError,
+        jacobianMaxAbsError: configuration.verification.jacobianMaxAbsError,
+      },
+    })),
+    generatedBy: {
+      engineKey: payload.engineKey,
+      engineVersion: payload.engineVersion,
+      adapterScript: payload.adapterScript,
+      adapterHash: payload.adapterHash,
+    },
+  })
+}
+
+/**
+ * Assemble the eos-impact-simulation/1 document bytes (contract §19.4). PURE:
+ * pinned key order format → sourceArtifactName → analysis → mechanism →
+ * drop → timestepSeconds → samples → impact → verification → generatedBy;
+ * every double is the engine's verbatim shortest-round-trip repr
+ * (byte-determinism is pinned by the harness double-run — §19.4; nobody
+ * rounds "for presentation", ADR-0006 §2).
+ */
+export function buildImpactDocument(
+  sourceArtifactName: string,
+  payload: {
+    analysis: "impact_simulation"
+    mechanism: { kind: "drop_impact"; massKilograms: number; radiusMeters: number; restitution: number }
+    drop: { centerHeightMeters: number; gravityMetersPerSecondSquared: number }
+    timestepSeconds: number
+    samples: ImpactSample[]
+    impact: ImpactSummary
+    verification: { maxPreContactHeightError: number; maxPreContactSpeedError: number }
+    engineKey: string
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+  },
+): string {
+  return JSON.stringify({
+    format: "eos-impact-simulation/1",
+    sourceArtifactName,
+    analysis: payload.analysis,
+    mechanism: {
+      kind: payload.mechanism.kind,
+      massKilograms: payload.mechanism.massKilograms,
+      radiusMeters: payload.mechanism.radiusMeters,
+      restitution: payload.mechanism.restitution,
+    },
+    drop: {
+      centerHeightMeters: payload.drop.centerHeightMeters,
+      gravityMetersPerSecondSquared: payload.drop.gravityMetersPerSecondSquared,
+    },
+    timestepSeconds: payload.timestepSeconds,
+    samples: payload.samples.map((sample) => ({
+      index: sample.index,
+      timeSeconds: sample.timeSeconds,
+      centerHeightMeters: sample.centerHeightMeters,
+      velocityZMetersPerSecond: sample.velocityZMetersPerSecond,
+    })),
+    impact: {
+      firstContactStep: payload.impact.firstContactStep,
+      firstContactTimeSeconds: payload.impact.firstContactTimeSeconds,
+      closedFormContactTimeSeconds: payload.impact.closedFormContactTimeSeconds,
+      timeResidualSeconds: payload.impact.timeResidualSeconds,
+      impactSpeedMetersPerSecond: payload.impact.impactSpeedMetersPerSecond,
+      closedFormImpactSpeedMetersPerSecond: payload.impact.closedFormImpactSpeedMetersPerSecond,
+      speedResidualMetersPerSecond: payload.impact.speedResidualMetersPerSecond,
+      reboundPeakHeightMeters: payload.impact.reboundPeakHeightMeters,
+      closedFormReboundPeakMeters: payload.impact.closedFormReboundPeakMeters,
+      reboundResidualMeters: payload.impact.reboundResidualMeters,
+    },
+    verification: {
+      maxPreContactHeightError: payload.verification.maxPreContactHeightError,
+      maxPreContactSpeedError: payload.verification.maxPreContactSpeedError,
+    },
+    generatedBy: {
+      engineKey: payload.engineKey,
+      engineVersion: payload.engineVersion,
+      adapterScript: payload.adapterScript,
+      adapterHash: payload.adapterHash,
+    },
+  })
+}
+
+/**
  * Assemble the eos-swmm/1 document bytes (contract §15.4). PURE: pinned key
  * order format → sourceArtifactName → analysis → rain → routing → continuity
  * → outfall volume → volume balance → peaks → depths → generatedBy; every
@@ -1570,7 +1731,7 @@ export function platformCoreOutcome(
 interface DerivedPersistSpec {
   /** log label for the honest orphan-log line */
   opLabel: string
-  kind: "fe-mesh" | "analysis" | "pdf" | "model"
+  kind: "fe-mesh" | "analysis" | "pdf" | "model" | "document"
   /** stored-content discriminator (the JSON `format` field); null = binary (pdf, STEP) */
   format: string | null
   name: string
@@ -2326,6 +2487,733 @@ export async function brokerTakeoffDrawingCore(
     engineVersion: result.engineVersion,
     adapterScript: result.adapterScript,
     adapterHash: result.adapterHash,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ADOPTED takeoff engine pdf2takeoff (ADR-0011 decision 5, Stage 1 — the
+// audit's highest-value reuse: room fill, revision compare, annotation
+// round-trip and BOQ export are CONSUMED from the pinned Apache-2.0 upstream
+// at commit f5a1c08…, never rebuilt). Four cores over ONE arm's-length
+// adapter (ADR-0005: the broker is the only engine path): the ledger rows
+// stay HUMAN-disposed exactly like the vector-takeoff lane — these cores
+// persist EVIDENCE artifacts, never ledger quantities.
+// ---------------------------------------------------------------------------
+
+/** Pinned 422 for a pdf2takeoff op handed a non-PDF revision. */
+function p2tPdfRequiredMessage(op: string, name: string): string {
+  return `${op} requires a PDF sheet revision — "${name}" carries no PDF signal (.pdf name or application/pdf MIME)`
+}
+
+/**
+ * Resolve + validate the scale for the pdf2takeoff ops that produce
+ * real-world numbers (export_boq_xlsx / fill_area): explicit positive
+ * parameter first, else the revision's latest calibration markup — the
+ * takeoff_sheet policy verbatim. PURE except the calibration lookup.
+ */
+async function resolveP2tScale(
+  op: string,
+  parameters: Record<string, unknown>,
+  revision: { id: string },
+): Promise<{ scaleMmPerPt: number; scaleSource: "explicit-parameter" | "calibration-markup" }> {
+  if (parameters.scaleMmPerPt !== undefined) {
+    if (
+      typeof parameters.scaleMmPerPt !== "number" ||
+      !Number.isFinite(parameters.scaleMmPerPt) ||
+      parameters.scaleMmPerPt <= 0
+    ) {
+      throw new BrokerRefusalError(
+        "unsupported",
+        `${op} parameters.scaleMmPerPt must be a positive number when provided`,
+      )
+    }
+    return { scaleMmPerPt: parameters.scaleMmPerPt, scaleSource: "explicit-parameter" }
+  }
+  const calibration = await db.sheetMarkup.findFirst({
+    where: { revisionId: revision.id, kind: "calibration" },
+    orderBy: { createdAt: "desc" },
+    select: { value: true },
+  })
+  if (!calibration || !Number.isFinite(calibration.value) || calibration.value <= 0) {
+    throw new BrokerRefusalError(
+      "unsupported",
+      `no calibration for this revision — calibrate the sheet in Sheet Measure first, or pass parameters.scaleMmPerPt explicitly to ${op}`,
+    )
+  }
+  return { scaleMmPerPt: calibration.value, scaleSource: "calibration-markup" }
+}
+
+/** Pinned 201 result shape shared by the four cores (the femesh pattern). */
+export interface BrokerP2tResultCore {
+  output: {
+    artifactId: string
+    name: string
+    kind: string
+    revisionNumber: number
+    contentHash: string
+    sizeBytes: number
+    format: string | null
+    engineKey: "pdf2takeoff"
+    engineVersion: string
+    adapterScript: string
+    adapterHash: string
+    pinnedCommit: string
+    derivedFromArtifactId: string
+    derivedFromRevisionId: string
+    sourceLatestRevisionId: string
+    staleSource: boolean
+  }
+  outputArtifactRevisionId: string
+  engineKey: "pdf2takeoff"
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+}
+
+/** Validate compare_revisions inputs: exactly two distinct artifact ids. PURE. */
+export function compareRevisionsBrokerInputs(
+  raw: unknown,
+): { ok: true; value: [string, string] } | { ok: false; message: string } {
+  if (!isPlainObject(raw)) return { ok: false, message: "compare_revisions requires inputs" }
+  const ids = (raw as { artifactIds?: unknown }).artifactIds
+  if (!Array.isArray(ids) || ids.length !== 2 || ids.some((id) => typeof id !== "string" || id.length === 0)) {
+    return { ok: false, message: "compare_revisions requires inputs.artifactIds to be an array of exactly 2 artifact ids [old, new]" }
+  }
+  if (ids[0] === ids[1]) {
+    return { ok: false, message: "compare_revisions inputs.artifactIds must be two DIFFERENT revisions to compare" }
+  }
+  return { ok: true, value: [ids[0] as string, ids[1] as string] }
+}
+
+export interface BrokerCompareRevisionsResult extends BrokerP2tResultCore {
+  output: BrokerP2tResultCore["output"] & {
+    format: "eos-revision-compare/1"
+    changedSheets: number
+    comparedSheets: number
+    onlyInOld: number
+    onlyInNew: number
+    oldArtifactId: string
+    newArtifactId: string
+  }
+  compare: Pdf2takeoffCompareResult
+}
+
+/**
+ * Compare two PDF sheet revisions with the adopted engine's raster+vector
+ * diff. Output: an eos-revision-compare/1 analysis artifact derived from the
+ * NEW revision, linked to both inputs.
+ */
+export async function brokerCompareRevisionsCore(
+  projectId: string,
+  artifactIds: [string, string],
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerCompareRevisionsResult> {
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const resolved: Array<{ artifact: { id: string; name: string }; revision: { id: string; storageKey: string; mimeType: string | null } }> = []
+  for (const artifactId of artifactIds) {
+    const artifact = await db.artifact.findUnique({
+      where: { id: artifactId },
+      include: { latestRevision: true },
+    })
+    if (!artifact || artifact.projectId !== projectId) {
+      throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+    }
+    if (!artifact.latestRevision) {
+      throw new BrokerRequestError("bad_request", `Artifact ${artifact.name} has no revisions to compare`)
+    }
+    if (!isPdfSignal(artifact.name, artifact.latestRevision.mimeType) && !isPdfSignal(artifact.latestRevision.storageKey, artifact.latestRevision.mimeType)) {
+      throw new BrokerRefusalError("unsupported", p2tPdfRequiredMessage("compare_revisions", artifact.name))
+    }
+    resolved.push({
+      artifact: { id: artifact.id, name: artifact.name },
+      revision: {
+        id: artifact.latestRevision.id,
+        storageKey: artifact.latestRevision.storageKey,
+        mimeType: artifact.latestRevision.mimeType,
+      },
+    })
+  }
+  const [oldEntry, newEntry] = resolved
+
+  const oldPath = path.join(getStorageRoot(), oldEntry.revision.storageKey, "content")
+  const newPath = path.join(getStorageRoot(), newEntry.revision.storageKey, "content")
+
+  let compare: Pdf2takeoffCompareResult
+  try {
+    compare = await pdf2takeoffCompareRevisions(oldPath, newPath)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+
+  const document = JSON.stringify({
+    format: "eos-revision-compare/1",
+    source: { oldName: oldEntry.artifact.name, newName: newEntry.artifact.name },
+    engine: {
+      engineKey: compare.engineKey,
+      engineVersion: compare.engineVersion,
+      adapterScript: compare.adapterScript,
+      adapterHash: compare.adapterHash,
+      pinnedCommit: compare.pinnedCommit,
+    },
+    provenance: {
+      oldArtifactId: oldEntry.artifact.id,
+      oldRevisionId: oldEntry.revision.id,
+      newArtifactId: newEntry.artifact.id,
+      newRevisionId: newEntry.revision.id,
+    },
+    result: {
+      sheetCountA: compare.sheetCountA,
+      sheetCountB: compare.sheetCountB,
+      comparedSheets: compare.comparedSheets,
+      changedSheets: compare.changedSheets,
+      summary: compare.summary,
+      sheets: compare.sheets,
+    },
+  })
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, newEntry.artifact.id, newEntry.revision.id, {
+    opLabel: "compare_revisions",
+    kind: "analysis",
+    format: "eos-revision-compare/1",
+    name: `${oldEntry.artifact.name} → ${newEntry.artifact.name} — revision compare`,
+    description: `Sheet revision comparison by ${compare.engineKey} (per-sheet change fractions, changed regions, vector diffs)`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${compare.engineKey}`,
+    inputIds: [oldEntry.artifact.id, newEntry.artifact.id],
+    audit: {
+      actor: opts?.actor ?? `adapter:${compare.engineKey}`,
+      action: "takeoff.revisionsCompared",
+      detail: {
+        engineKey: compare.engineKey,
+        engineVersion: compare.engineVersion,
+        adapterScript: compare.adapterScript,
+        adapterHash: compare.adapterHash,
+        pinnedCommit: compare.pinnedCommit,
+        oldArtifactId: oldEntry.artifact.id,
+        newArtifactId: newEntry.artifact.id,
+        comparedSheets: compare.comparedSheets,
+        changedSheets: compare.summary.changed,
+      },
+    },
+  })
+
+  return {
+    output: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-revision-compare/1",
+      changedSheets: compare.summary.changed,
+      comparedSheets: compare.comparedSheets,
+      onlyInOld: compare.summary.onlyInA,
+      onlyInNew: compare.summary.onlyInB,
+      oldArtifactId: oldEntry.artifact.id,
+      newArtifactId: newEntry.artifact.id,
+      engineKey: compare.engineKey,
+      engineVersion: compare.engineVersion,
+      adapterScript: compare.adapterScript,
+      adapterHash: compare.adapterHash,
+      pinnedCommit: compare.pinnedCommit,
+      derivedFromArtifactId: newEntry.artifact.id,
+      derivedFromRevisionId: newEntry.revision.id,
+      sourceLatestRevisionId: newEntry.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: compare.engineKey,
+    engineVersion: compare.engineVersion,
+    adapterScript: compare.adapterScript,
+    adapterHash: compare.adapterHash,
+    compare,
+  }
+}
+
+export interface BrokerAnnotateTakeoffResult extends BrokerP2tResultCore {
+  output: BrokerP2tResultCore["output"] & {
+    kind: "pdf"
+    format: null
+    markupCount: number
+    kept: number
+    mimeType: "application/pdf"
+  }
+}
+
+/**
+ * Publish a takeoff into a PDF as STANDARD annotations (Bluebeam Revu /
+ * Adobe Acrobat / the web app). Markups come from parameters.markups, or —
+ * the product default — from the revision's OWN Sheet Measure rows (the
+ * measured takeoff: length/area/count markups in PDF-point space). Output:
+ * a kind-"pdf" derived artifact (creation timestamp embedded — structural
+ * evidence, the LibreOffice §5.4 convention; re-runs REPLACE idempotently).
+ */
+export async function brokerAnnotateTakeoffCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerAnnotateTakeoffResult> {
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", "This artifact has no revisions to annotate")
+  }
+  const revision = artifact.latestRevision
+  if (!isPdfSignal(artifact.name, revision.mimeType) && !isPdfSignal(revision.storageKey, revision.mimeType)) {
+    throw new BrokerRefusalError("unsupported", p2tPdfRequiredMessage("annotate_takeoff", artifact.name))
+  }
+
+  // Markups: explicit parameter first; else the revision's own Sheet Measure
+  // rows (length/area/count — calibration and hit-transcripts don't annotate).
+  let markups: unknown = parameters.markups
+  let markupSource: "explicit-parameter" | "sheet-measure-rows" = "explicit-parameter"
+  if (markups === undefined) {
+    const rows = await db.sheetMarkup.findMany({
+      where: { revisionId: revision.id, kind: { in: ["length", "area", "count"] } },
+      orderBy: { createdAt: "asc" },
+    })
+    if (rows.length === 0) {
+      throw new BrokerRefusalError(
+        "unsupported",
+        "no markups to annotate — measure the sheet in Sheet Measure first, or pass parameters.markups explicitly",
+      )
+    }
+    if (rows.length > 200) {
+      throw new BrokerRefusalError("unsupported", `this revision carries ${rows.length} measurable markups — the annotate cap is 200`)
+    }
+    markups = rows.map((row) => {
+      let pts: Array<{ x: number; y: number }> = []
+      try {
+        pts = JSON.parse(row.points) as Array<{ x: number; y: number }>
+      } catch {
+        throw new BrokerRefusalError("unsupported", `markup row ${row.id} carries unparsable points — refusing to annotate garbage`)
+      }
+      return {
+        type: row.kind,
+        page: row.page,
+        ...(row.label ? { label: row.label } : {}),
+        points: pts.map((p) => [p.x, p.y]),
+      }
+    })
+    markupSource = "sheet-measure-rows"
+  }
+  if (parameters.keepExisting !== undefined && typeof parameters.keepExisting !== "boolean") {
+    throw new BrokerRefusalError("unsupported", "annotate_takeoff parameters.keepExisting must be a boolean when provided")
+  }
+
+  const absPath = path.join(getStorageRoot(), revision.storageKey, "content")
+  let result: Awaited<ReturnType<typeof pdf2takeoffAnnotateTakeoff>>
+  try {
+    result = await pdf2takeoffAnnotateTakeoff(absPath, {
+      markups,
+      ...(parameters.keepExisting === true ? { keepExisting: true } : {}),
+    })
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, revision.id, {
+    opLabel: "annotate_takeoff",
+    kind: "pdf",
+    format: null, // binary content — the kind is unique to this op (§2, the convert_document precedent)
+    name: `${artifact.name} — annotated takeoff`,
+    description: `Takeoff markups written into the PDF as standard annotations by ${result.engineKey} (opens in Bluebeam Revu, Adobe Acrobat and the web app)`,
+    bytes: result.pdfBytes,
+    mimeType: "application/pdf",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "takeoff.pdfAnnotated",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        pinnedCommit: result.pinnedCommit,
+        markupCount: result.markupCount,
+        kept: result.kept,
+        markupSource,
+        sizeBytes: result.pdfBytes.byteLength,
+      },
+    },
+  })
+
+  return {
+    output: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "pdf",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: null,
+      markupCount: result.markupCount,
+      kept: result.kept,
+      mimeType: "application/pdf",
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      pinnedCommit: result.pinnedCommit,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: revision.id,
+      sourceLatestRevisionId: revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+  }
+}
+
+/** Validate export_boq_xlsx parameters (unit/format defaults). PURE. */
+export function exportBoqBrokerParameters(
+  raw: Record<string, unknown>,
+): { ok: true; value: { unit: string; format: "xlsx" | "csv" } } | { ok: false; message: string } {
+  let unit = "m"
+  if (raw.unit !== undefined) {
+    if (typeof raw.unit !== "string" || !["m", "mm", "cm", "ft", "in"].includes(raw.unit)) {
+      return { ok: false, message: 'export_boq_xlsx parameters.unit must be one of "m"|"mm"|"cm"|"ft"|"in" when provided' }
+    }
+    unit = raw.unit
+  }
+  let format: "xlsx" | "csv" = "xlsx"
+  if (raw.format !== undefined) {
+    if (raw.format !== "xlsx" && raw.format !== "csv") {
+      return { ok: false, message: 'export_boq_xlsx parameters.format must be "xlsx"|"csv" when provided' }
+    }
+    format = raw.format
+  }
+  return { ok: true, value: { unit, format } }
+}
+
+export interface BrokerExportBoqResult extends BrokerP2tResultCore {
+  output: BrokerP2tResultCore["output"] & {
+    kind: "document"
+    format: null
+    mimeType: string
+    formatRequested: "xlsx" | "csv"
+    rowCount: number
+    scaleMmPerPt: number
+    scaleRatio: string
+    scaleSource: "explicit-parameter" | "calibration-markup"
+  }
+  export: Pdf2takeoffExportResult
+}
+
+/**
+ * Read a PDF's pdf2takeoff annotations back out as a BOQ table (XLSX by
+ * default, CSV optional — typically the annotate_takeoff output or an
+ * externally annotated upload). The resolved calibration is carried to the
+ * engine as a 1:R ratio string (4 dp); BOTH the platform value and the
+ * emitted string are recorded in provenance.
+ */
+export async function brokerExportBoqCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerExportBoqResult> {
+  const params = exportBoqBrokerParameters(parameters)
+  if (!params.ok) throw new BrokerRefusalError("unsupported", params.message)
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", "This artifact has no revisions to export from")
+  }
+  const revision = artifact.latestRevision
+  if (!isPdfSignal(artifact.name, revision.mimeType) && !isPdfSignal(revision.storageKey, revision.mimeType)) {
+    throw new BrokerRefusalError("unsupported", p2tPdfRequiredMessage("export_boq_xlsx", artifact.name))
+  }
+
+  const { scaleMmPerPt, scaleSource } = await resolveP2tScale("export_boq_xlsx", parameters, revision)
+  const scaleRatio = scaleMmPerPtToRatioString(scaleMmPerPt)
+
+  const absPath = path.join(getStorageRoot(), revision.storageKey, "content")
+  let result: Pdf2takeoffExportResult
+  try {
+    result = await pdf2takeoffExportTakeoff(absPath, { scaleRatio, unit: params.value.unit, format: params.value.format })
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+
+  const bytes = params.value.format === "xlsx" ? (result.xlsxBytes as Buffer) : Buffer.from(result.csv ?? "", "utf8")
+  const mimeType =
+    params.value.format === "xlsx"
+      ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      : "text/csv"
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, revision.id, {
+    opLabel: "export_boq_xlsx",
+    kind: "document",
+    format: null, // binary content — the kind is unique to this op (§2)
+    name: `${artifact.name} — BOQ export (${params.value.format})`,
+    description: `Bill-of-quantities table exported from the PDF's takeoff annotations by ${result.engineKey} (scale ${scaleRatio}, unit ${params.value.unit})`,
+    bytes,
+    mimeType,
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "takeoff.boqExported",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        pinnedCommit: result.pinnedCommit,
+        format: params.value.format,
+        rowCount: result.rows.length,
+        scaleMmPerPt,
+        scaleRatio,
+        scaleSource,
+        unit: params.value.unit,
+      },
+    },
+  })
+
+  return {
+    output: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "document",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: null,
+      mimeType,
+      formatRequested: params.value.format,
+      rowCount: result.rows.length,
+      scaleMmPerPt,
+      scaleRatio,
+      scaleSource,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      pinnedCommit: result.pinnedCommit,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: revision.id,
+      sourceLatestRevisionId: revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    export: result,
+  }
+}
+
+/** Validate fill_area parameters: at REQUIRED, pageNo/label optional. PURE. */
+export function fillAreaBrokerParameters(
+  raw: Record<string, unknown>,
+): { ok: true; value: { pageNo: number; at: [number, number]; label?: string } } | { ok: false; message: string } {
+  let pageNo = 1
+  if (raw.pageNo !== undefined) {
+    if (typeof raw.pageNo !== "number" || !Number.isInteger(raw.pageNo) || raw.pageNo < 1) {
+      return { ok: false, message: "fill_area parameters.pageNo must be a positive integer when provided" }
+    }
+    pageNo = raw.pageNo
+  }
+  const at = raw.at
+  if (
+    !Array.isArray(at) ||
+    at.length !== 2 ||
+    at.some((v) => typeof v !== "number" || !Number.isFinite(v))
+  ) {
+    return { ok: false, message: "fill_area requires parameters.at — a finite [x, y] point INSIDE the room, PDF points" }
+  }
+  if (raw.label !== undefined && (typeof raw.label !== "string" || raw.label.length === 0 || raw.label.length > 120)) {
+    return { ok: false, message: "fill_area parameters.label must be a 1..120-char string when provided" }
+  }
+  return {
+    ok: true,
+    value: { pageNo, at: [at[0] as number, at[1] as number], ...(raw.label !== undefined ? { label: raw.label as string } : {}) },
+  }
+}
+
+export interface BrokerFillAreaResult extends BrokerP2tResultCore {
+  output: BrokerP2tResultCore["output"] & {
+    format: "eos-room-fill/1"
+    value: number
+    unit: "m2"
+    vertices: number
+    pageNo: number
+    scaleMmPerPt: number
+    scaleSource: "explicit-parameter" | "calibration-markup"
+  }
+  fill: Pdf2takeoffFillResult
+}
+
+/**
+ * Measure a room by clicking inside it (the adopted engine's Magic Fill).
+ * The output is an eos-room-fill/1 EVIDENCE artifact — the geometry and the
+ * engine's full provenance, ready for human review; recording a ledger
+ * quantity from it stays a human Sheet Measure action (the 16-V discipline).
+ */
+export async function brokerFillAreaCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerFillAreaResult> {
+  const params = fillAreaBrokerParameters(parameters)
+  if (!params.ok) throw new BrokerRefusalError("unsupported", params.message)
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new BrokerRequestError("not_found", "Project not found", "Project")
+
+  const artifact = await db.artifact.findUnique({
+    where: { id: artifactId },
+    include: { latestRevision: true },
+  })
+  if (!artifact || artifact.projectId !== projectId) {
+    throw new BrokerRequestError("not_found", "Artifact not found", "Artifact")
+  }
+  if (!artifact.latestRevision) {
+    throw new BrokerRequestError("bad_request", "This artifact has no revisions to measure")
+  }
+  const revision = artifact.latestRevision
+  if (!isPdfSignal(artifact.name, revision.mimeType) && !isPdfSignal(revision.storageKey, revision.mimeType)) {
+    throw new BrokerRefusalError("unsupported", p2tPdfRequiredMessage("fill_area", artifact.name))
+  }
+
+  const { scaleMmPerPt, scaleSource } = await resolveP2tScale("fill_area", parameters, revision)
+
+  const absPath = path.join(getStorageRoot(), revision.storageKey, "content")
+  let result: Pdf2takeoffFillResult
+  try {
+    result = await pdf2takeoffFillRoom(absPath, { ...params.value, scaleMmPerPt })
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err
+  }
+
+  const document = JSON.stringify({
+    format: "eos-room-fill/1",
+    source: { name: artifact.name, kind: "sheet" },
+    engine: {
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      pinnedCommit: result.pinnedCommit,
+    },
+    provenance: {
+      pageNo: params.value.pageNo,
+      at: params.value.at,
+      scaleMmPerPt,
+      scaleSource,
+      method: "magic fill: flood fill from the point, door gaps closed between wall ends, boundary on the inner wall faces",
+      bbox: result.bbox,
+      doorwayClosesUpToM: result.doorwayClosesUpToM,
+      roomLabelsOnSheet: result.roomLabelsOnSheet,
+    },
+    result: {
+      value: result.value,
+      unit: result.unit,
+      vertices: result.vertices,
+      markupId: result.markupId,
+      label: result.label,
+    },
+  })
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, revision.id, {
+    opLabel: "fill_area",
+    kind: "analysis",
+    format: "eos-room-fill/1",
+    name: `${artifact.name} — room fill (p${params.value.pageNo})`,
+    description: `Room area measured by the adopted engine's Magic Fill (${result.value} m², ${result.vertices} boundary vertices)`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "takeoff.roomFilled",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        pinnedCommit: result.pinnedCommit,
+        pageNo: params.value.pageNo,
+        value: result.value,
+        vertices: result.vertices,
+        scaleMmPerPt,
+        scaleSource,
+      },
+    },
+  })
+
+  return {
+    output: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-room-fill/1",
+      value: result.value,
+      unit: "m2",
+      vertices: result.vertices,
+      pageNo: params.value.pageNo,
+      scaleMmPerPt,
+      scaleSource,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      pinnedCommit: result.pinnedCommit,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: revision.id,
+      sourceLatestRevisionId: revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    fill: result,
   }
 }
 
@@ -3211,6 +4099,277 @@ export async function brokerRunRtlCore(
   }
 }
 
+/** Pinned 201 `kinematics` response object (exact key order — mirror of the rtl 201). */
+export interface BrokerKinematicsResponse {
+  artifactId: string
+  name: string
+  kind: "analysis"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-robot-kinematics/1"
+  analysis: "kinematic_analysis"
+  mechanismKind: "planar_2r"
+  linkCount: number
+  configurationCount: number
+  maxFkError: number
+  maxJacobianError: number
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerKinematicsResult {
+  kinematics: BrokerKinematicsResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of solve_kinematics (contract §18.3/§18.5): gate the stored JSON as an
+ * eos-robot-arm-model/1 document, run the Pinocchio bridge (the adapter
+ * gates every configuration against the planar closed forms — a disagreeing
+ * kinematics result is refused, never stored), assemble the
+ * byte-deterministic eos-robot-kinematics/1 document, find-or-create the
+ * kind-"analysis" artifact (DRAFT revision per run), exactly ONE
+ * `kinematics.solved` audit event (engine attributed verbatim).
+ */
+export async function brokerRunKinematicsCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerKinematicsResult> {
+  const source = await readJsonArtifact(projectId, artifactId, "eos-robot-arm-model/1", KINEMATICS_NO_REVISIONS_MESSAGE)
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof runKinematicsFromFile>>
+  try {
+    result = await runKinematicsFromFile(absPath, parameters)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildKinematicsDocument(source.artifact.name, result)
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "solve_kinematics",
+    kind: "analysis",
+    format: "eos-robot-kinematics/1",
+    name: `${source.artifact.name} — kinematics`,
+    description: `Planar-2R kinematic analysis (FK + geometric Jacobian, ${result.engineKey})`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "kinematics.solved",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        analysis: result.analysis,
+        mechanismKind: result.mechanism.kind,
+        linkCount: result.mechanism.linkCount,
+        configurationCount: result.configurations.length,
+        maxFkError: Math.max(...result.configurations.map((c) => c.verification.fkMaxAbsError)),
+        maxJacobianError: Math.max(...result.configurations.map((c) => c.verification.jacobianMaxAbsError)),
+      },
+    },
+  })
+
+  return {
+    kinematics: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-robot-kinematics/1",
+      analysis: result.analysis,
+      mechanismKind: result.mechanism.kind,
+      linkCount: result.mechanism.linkCount,
+      configurationCount: result.configurations.length,
+      maxFkError: Math.max(...result.configurations.map((c) => c.verification.fkMaxAbsError)),
+      maxJacobianError: Math.max(...result.configurations.map((c) => c.verification.jacobianMaxAbsError)),
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
+/** Pinned 201 `impact` response object (exact key order — mirror of the kinematics 201). */
+export interface BrokerImpactResponse {
+  artifactId: string
+  name: string
+  kind: "analysis"
+  revisionNumber: number
+  contentHash: string
+  sizeBytes: number
+  format: "eos-impact-simulation/1"
+  analysis: "impact_simulation"
+  mechanismKind: "drop_impact"
+  sampleCount: number
+  firstContactStep: number
+  firstContactTimeSeconds: number
+  closedFormContactTimeSeconds: number
+  timeResidualSeconds: number
+  impactSpeedMetersPerSecond: number
+  reboundPeakHeightMeters: number
+  maxPreContactHeightError: number
+  maxPreContactSpeedError: number
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  derivedFromArtifactId: string
+  derivedFromRevisionId: string
+  sourceLatestRevisionId: string
+  staleSource: false
+}
+
+export interface BrokerImpactResult {
+  impact: BrokerImpactResponse
+  outputArtifactRevisionId: string
+  engineKey: string
+  engineVersion: string
+  adapterScript: string
+  adapterHash: string
+  stdoutTail?: string
+  stderrTail?: string
+}
+
+/**
+ * Core of simulate_impact (contract §19.3/§19.5): gate the stored JSON as an
+ * eos-impact-model/1 document, run the PyBullet bridge (the adapter gates the
+ * whole trajectory + impact summary against the hand-derived closed forms —
+ * a disagreeing result is refused, never stored), assemble the
+ * byte-deterministic eos-impact-simulation/1 document, find-or-create the
+ * kind-"analysis" artifact (DRAFT revision per run), exactly ONE
+ * `impact.simulated` audit event (engine attributed verbatim).
+ */
+export async function brokerRunImpactCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerImpactResult> {
+  const source = await readJsonArtifact(projectId, artifactId, "eos-impact-model/1", IMPACT_NO_REVISIONS_MESSAGE)
+  const absPath = path.join(getStorageRoot(), source.revision.storageKey, "content")
+
+  let result: Awaited<ReturnType<typeof runImpactFromFile>>
+  try {
+    result = await runImpactFromFile(absPath, parameters)
+  } catch (err) {
+    if (err instanceof EngineUnavailableError) {
+      throw new BrokerRefusalError("engine_unavailable", err.message)
+    }
+    throw err // unexpected adapter failure → honest 500 via the route handler, logged
+  }
+
+  const document = buildImpactDocument(source.artifact.name, result)
+  const bytes = Buffer.from(document, "utf8")
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "simulate_impact",
+    kind: "analysis",
+    format: "eos-impact-simulation/1",
+    name: `${source.artifact.name} — impact`,
+    description: `Drop-impact simulation (free fall + contact + rebound, ${result.engineKey})`,
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: `adapter:${result.engineKey}`,
+    inputIds: [artifactId],
+    audit: {
+      actor: opts?.actor ?? `adapter:${result.engineKey}`,
+      action: "impact.simulated",
+      detail: {
+        engineKey: result.engineKey,
+        engineVersion: result.engineVersion,
+        adapterScript: result.adapterScript,
+        adapterHash: result.adapterHash,
+        analysis: result.analysis,
+        mechanismKind: result.mechanism.kind,
+        sampleCount: result.samples.length,
+        firstContactStep: result.impact.firstContactStep,
+        firstContactTimeSeconds: result.impact.firstContactTimeSeconds,
+        closedFormContactTimeSeconds: result.impact.closedFormContactTimeSeconds,
+        timeResidualSeconds: result.impact.timeResidualSeconds,
+        impactSpeedMetersPerSecond: result.impact.impactSpeedMetersPerSecond,
+        reboundPeakHeightMeters: result.impact.reboundPeakHeightMeters,
+        maxPreContactHeightError: result.verification.maxPreContactHeightError,
+        maxPreContactSpeedError: result.verification.maxPreContactSpeedError,
+      },
+    },
+  })
+
+  return {
+    impact: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-impact-simulation/1",
+      analysis: result.analysis,
+      mechanismKind: result.mechanism.kind,
+      sampleCount: result.samples.length,
+      firstContactStep: result.impact.firstContactStep,
+      firstContactTimeSeconds: result.impact.firstContactTimeSeconds,
+      closedFormContactTimeSeconds: result.impact.closedFormContactTimeSeconds,
+      timeResidualSeconds: result.impact.timeResidualSeconds,
+      impactSpeedMetersPerSecond: result.impact.impactSpeedMetersPerSecond,
+      reboundPeakHeightMeters: result.impact.reboundPeakHeightMeters,
+      maxPreContactHeightError: result.verification.maxPreContactHeightError,
+      maxPreContactSpeedError: result.verification.maxPreContactSpeedError,
+      engineKey: result.engineKey,
+      engineVersion: result.engineVersion,
+      adapterScript: result.adapterScript,
+      adapterHash: result.adapterHash,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+    engineKey: result.engineKey,
+    engineVersion: result.engineVersion,
+    adapterScript: result.adapterScript,
+    adapterHash: result.adapterHash,
+    stdoutTail: result.stdoutTail,
+    stderrTail: result.stderrTail,
+  }
+}
+
 /** Pinned 201 `transport` response object (exact key order — mirror of the fea 201). */
 export interface BrokerTransportResponse {
   artifactId: string
@@ -3692,6 +4851,216 @@ export async function brokerAnalyzeScheduleCore(
 }
 
 // ---------------------------------------------------------------------------
+// openproject_sync — the ADR-0012 Stage-3 arm's-length integration
+// ---------------------------------------------------------------------------
+
+export const OPENPROJECT_SYNC_NO_REVISIONS_MESSAGE =
+  "This artifact has no revisions to sync to OpenProject"
+
+export interface BrokerOpenProjectSyncResult {
+  sync: {
+    artifactId: string
+    name: string
+    kind: "analysis"
+    revisionNumber: number
+    contentHash: string
+    sizeBytes: number
+    format: "eos-openproject-sync/1"
+    targetProjectId: number
+    anchorDate: string
+    created: number
+    adopted: number
+    updated: number
+    recreated: number
+    orphans: number
+    relationsEnsured: number
+    relationsReused: number
+    failed: number
+    derivedFromArtifactId: string
+    derivedFromRevisionId: string
+    sourceLatestRevisionId: string
+    staleSource: false
+  }
+  outputArtifactRevisionId: string
+}
+
+/**
+ * Find the prior eos-openproject-sync/1 mapping artifact of a schedule (the
+ * SAME lineage discovery persistDerivedArtifactRevision uses: derived_from
+ * this schedule, kind analysis, latest-revision format match) — read-only.
+ */
+async function findDerivedMappingArtifactId(
+  projectId: string,
+  sourceArtifactId: string,
+): Promise<string | null> {
+  const seedLinks = await db.artifactLink.findMany({
+    where: {
+      relationType: "derived_from",
+      toArtifactId: sourceArtifactId,
+      fromArtifact: { kind: "analysis", projectId },
+    },
+    orderBy: { createdAt: "asc" },
+    include: { fromArtifact: { include: { latestRevision: { select: { storageKey: true } } } } },
+  })
+  for (const link of [...new Map(seedLinks.map((l) => [l.fromArtifactId, l])).values()]) {
+    const fmt = link.fromArtifact.latestRevision
+      ? await storedJsonFormat(link.fromArtifact.latestRevision.storageKey)
+      : null
+    if (fmt === "eos-openproject-sync/1") return link.fromArtifactId
+  }
+  return null
+}
+
+/**
+ * Core of the openproject_sync broker op (ADR-0012 — OpenProject INTEGRATED
+ * at arm's length ONLY: REST v3 to an external, GPL-3.0, never-embedded
+ * application; no engine subprocess runs, and the outcome honestly leaves
+ * the engine fields absent like analyze_schedule). The frozen platform core
+ * computes every date (cpm.ts → the UTC calendar projection); the wire
+ * (src/lib/openproject-wire.ts, the llm.ts precedent) transports the plan;
+ * this core gates, plans, folds and persists the canonical
+ * eos-openproject-sync/1 mapping (find-or-create by lineage, DRAFT revision
+ * per run). Exactly ONE `schedule.synced` audit event.
+ */
+export async function brokerOpenProjectSyncCore(
+  projectId: string,
+  artifactId: string,
+  parameters: Record<string, unknown>,
+  opts?: BrokerDeriveOptions,
+): Promise<BrokerOpenProjectSyncResult> {
+  // 1. the schedule source — the same gate as analyze_schedule
+  const source = await readJsonArtifact(projectId, artifactId, "eos-schedule/1", OPENPROJECT_SYNC_NO_REVISIONS_MESSAGE)
+  const schedule = validateScheduleDocument(source.json)
+  if (!schedule.ok) throw new BrokerRequestError("validation_failed", schedule.error)
+
+  // 2. the CPM (the frozen platform core computes every date)
+  const analysis = analyzeCpm(schedule.value)
+  if (!analysis.ok) throw new BrokerRequestError("validation_failed", analysis.error)
+
+  // 3. the sync request (op parameters: anchorDate + first-sync targetProjectId)
+  const request = parseOpenProjectSyncRequest(parameters)
+  if (!request.ok) throw new BrokerRequestError("validation_failed", request.error)
+
+  // 4. the prior mapping (lineage-discovered; a corrupt mapping refuses honestly)
+  const priorArtifactId = await findDerivedMappingArtifactId(projectId, artifactId)
+  let priorMapping: OpenProjectMappingDocument | null = null
+  if (priorArtifactId !== null) {
+    const priorDoc = await readJsonArtifact(
+      projectId,
+      priorArtifactId,
+      "eos-openproject-sync/1",
+      OPENPROJECT_SYNC_NO_REVISIONS_MESSAGE,
+    )
+    const parsed = parseOpenProjectMappingDocument(priorDoc.json)
+    if (!parsed.ok) throw new BrokerRequestError("validation_failed", parsed.error)
+    priorMapping = parsed.value
+  }
+
+  // 5. plan pass 1 — the work-package diff (update/create/never-delete)
+  const wpPlan = planWorkPackageSync(analysis.value, request.value, priorMapping)
+  if (!wpPlan.ok) throw new BrokerRequestError("validation_failed", wpPlan.error)
+
+  // 6. the wire — honest refusal when the integration is not configured
+  const config = openProjectWireConfigFromEnv()
+  if (config === null) {
+    throw new BrokerRefusalError(
+      "engine_unavailable",
+      "OpenProject instance not configured — set EOS_OPENPROJECT_URL and EOS_OPENPROJECT_APIKEY (the ADR-0012 arm's-length integration)",
+    )
+  }
+  const wpOutcome = await executeWorkPackageWirePlan(config, wpPlan.value)
+  if (!wpOutcome.ok) throw new BrokerRefusalError("engine_unavailable", wpOutcome.error)
+
+  // 7. fold pass 1 → the intermediate mapping (relation planning needs the
+  //    resolved work-package ids of THIS run, adopted and recreated included)
+  const foldContext = {
+    targetProjectId: wpPlan.value.targetProjectId,
+    anchorDate: wpPlan.value.anchorDate,
+    sourceScheduleArtifactId: artifactId,
+    sourceRevisionId: source.revision.id,
+  }
+  const wpFold = foldWorkPackageSync(analysis.value, wpPlan.value, wpOutcome.results, priorMapping, foldContext)
+
+  // 8. plan pass 2 (the follows relations) + wire + fold pass 2
+  const relationPlan = planRelationSync(schedule.value, wpFold.mapping)
+  const relationOutcome = await executeRelationWirePlan(config, relationPlan)
+  if (!relationOutcome.ok) throw new BrokerRefusalError("engine_unavailable", relationOutcome.error)
+  const relationFold = foldRelationSync(wpFold.mapping, relationPlan, relationOutcome.results)
+
+  // 9. the honest all-failed boundary: the plan ran but nothing succeeded —
+  //    refuse (nothing is persisted; the first error is the verbatim lead)
+  const wireItemCount = wpPlan.value.items.length + relationPlan.items.length
+  const failedCount = wpFold.stats.failed + relationFold.stats.failed
+  if (wireItemCount > 0 && failedCount === wireItemCount) {
+    const first = [...wpFold.failures, ...relationFold.failures][0] ?? "unknown error"
+    throw new BrokerRefusalError(
+      "engine_unavailable",
+      `openproject_sync: all ${wireItemCount} wire operations failed — the instance is likely misconfigured or unreachable; first error: ${first}`,
+    )
+  }
+
+  // 10. canonical bytes → persist (find-or-create by lineage, DRAFT revision per run)
+  const bytes = Buffer.from(mappingDocumentBytes(relationFold.mapping), "utf8")
+  const actor = opts?.actor ?? "local-operator"
+  const stored = await persistDerivedArtifactRevision(projectId, opts, artifactId, source.revision.id, {
+    opLabel: "openproject_sync",
+    kind: "analysis",
+    format: "eos-openproject-sync/1",
+    name: `${source.artifact.name} — OpenProject sync`,
+    description: "Project-graph sync to OpenProject (arm's-length REST v3 — external application, no engine)",
+    bytes,
+    mimeType: "application/json",
+    contentAuthor: actor,
+    inputIds: [artifactId],
+    audit: {
+      actor,
+      action: "schedule.synced",
+      // deliberately NO engineKey/engineVersion/adapterScript/adapterHash —
+      // no engine subprocess ran; the external application is at arm's length
+      detail: {
+        targetProjectId: wpPlan.value.targetProjectId,
+        anchorDate: wpPlan.value.anchorDate,
+        created: wpFold.stats.created,
+        adopted: wpFold.stats.adopted,
+        updated: wpFold.stats.updated,
+        recreated: wpFold.stats.recreated,
+        orphans: wpFold.stats.orphans,
+        relationsEnsured: relationFold.stats.ensured,
+        relationsReused: relationFold.stats.reused,
+        failed: wpFold.stats.failed + relationFold.stats.failed,
+      },
+    },
+  })
+
+  return {
+    sync: {
+      artifactId: stored.artifactId,
+      name: stored.name,
+      kind: "analysis",
+      revisionNumber: stored.revisionNumber,
+      contentHash: stored.sha256,
+      sizeBytes: stored.sizeBytes,
+      format: "eos-openproject-sync/1",
+      targetProjectId: wpPlan.value.targetProjectId,
+      anchorDate: wpPlan.value.anchorDate,
+      created: wpFold.stats.created,
+      adopted: wpFold.stats.adopted,
+      updated: wpFold.stats.updated,
+      recreated: wpFold.stats.recreated,
+      orphans: wpFold.stats.orphans,
+      relationsEnsured: relationFold.stats.ensured,
+      relationsReused: relationFold.stats.reused,
+      failed: wpFold.stats.failed + relationFold.stats.failed,
+      derivedFromArtifactId: artifactId,
+      derivedFromRevisionId: source.revision.id,
+      sourceLatestRevisionId: source.revision.id,
+      staleSource: false,
+    },
+    outputArtifactRevisionId: stored.revisionId,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The broker dispatch — the single entry point (ADR-0005 rule 1)
 // ---------------------------------------------------------------------------
 
@@ -4078,6 +5447,63 @@ export async function runBrokerOperation(
       }
     }
 
+    case "solve_kinematics": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "solve_kinematics requires inputs.artifactId (one robot arm model artifact id)")
+      }
+      const core = await brokerRunKinematicsCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.kinematics.artifactId,
+          revisionNumber: core.kinematics.revisionNumber,
+          contentHash: core.kinematics.contentHash,
+          mechanismKind: core.kinematics.mechanismKind,
+          linkCount: core.kinematics.linkCount,
+          configurationCount: core.kinematics.configurationCount,
+          maxFkError: core.kinematics.maxFkError,
+          maxJacobianError: core.kinematics.maxJacobianError,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "simulate_impact": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "simulate_impact requires inputs.artifactId (one impact model artifact id)")
+      }
+      const core = await brokerRunImpactCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.impact.artifactId,
+          revisionNumber: core.impact.revisionNumber,
+          contentHash: core.impact.contentHash,
+          mechanismKind: core.impact.mechanismKind,
+          sampleCount: core.impact.sampleCount,
+          firstContactStep: core.impact.firstContactStep,
+          firstContactTimeSeconds: core.impact.firstContactTimeSeconds,
+          timeResidualSeconds: core.impact.timeResidualSeconds,
+          impactSpeedMetersPerSecond: core.impact.impactSpeedMetersPerSecond,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        stdoutTail: core.stdoutTail,
+        stderrTail: core.stderrTail,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
     case "run_swmm": {
       if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
         throw new BrokerRefusalError("unsupported", "run_swmm requires inputs.artifactId (one SWMM model artifact id)")
@@ -4144,6 +5570,134 @@ export async function runBrokerOperation(
           activityCount: core.analysis.activityCount,
           durationDays: core.analysis.durationDays,
           criticalPath: core.analysis.criticalPath,
+        },
+        core.outputArtifactRevisionId,
+        Date.now() - startedAt,
+      )
+    }
+
+    case "compare_revisions": {
+      const validatedInputs = compareRevisionsBrokerInputs(inputs)
+      if (!validatedInputs.ok) throw new BrokerRefusalError("unsupported", validatedInputs.message)
+      const core = await brokerCompareRevisionsCore(ctx.projectId, validatedInputs.value, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.output.artifactId,
+          revisionNumber: core.output.revisionNumber,
+          contentHash: core.output.contentHash,
+          comparedSheets: core.output.comparedSheets,
+          changedSheets: core.output.changedSheets,
+          onlyInOld: core.output.onlyInOld,
+          onlyInNew: core.output.onlyInNew,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "annotate_takeoff": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "annotate_takeoff requires inputs.artifactId (one PDF sheet artifact id)")
+      }
+      const core = await brokerAnnotateTakeoffCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.output.artifactId,
+          revisionNumber: core.output.revisionNumber,
+          contentHash: core.output.contentHash,
+          sizeBytes: core.output.sizeBytes,
+          markupCount: core.output.markupCount,
+          kept: core.output.kept,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "export_boq_xlsx": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "export_boq_xlsx requires inputs.artifactId (one annotated PDF artifact id)")
+      }
+      const core = await brokerExportBoqCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.output.artifactId,
+          revisionNumber: core.output.revisionNumber,
+          contentHash: core.output.contentHash,
+          sizeBytes: core.output.sizeBytes,
+          format: core.output.formatRequested,
+          rowCount: core.output.rowCount,
+          scaleRatio: core.output.scaleRatio,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "fill_area": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "fill_area requires inputs.artifactId (one PDF sheet artifact id)")
+      }
+      const core = await brokerFillAreaCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      return {
+        summary: {
+          artifactId: core.output.artifactId,
+          revisionNumber: core.output.revisionNumber,
+          contentHash: core.output.contentHash,
+          value: core.output.value,
+          unit: core.output.unit,
+          vertices: core.output.vertices,
+          pageNo: core.output.pageNo,
+        },
+        outputArtifactRevisionId: core.outputArtifactRevisionId,
+        engineKey: core.engineKey,
+        engineVersion: core.engineVersion,
+        adapterScript: core.adapterScript,
+        adapterHash: core.adapterHash,
+        exitCode: 0,
+        durationMs: Date.now() - startedAt,
+      }
+    }
+
+    case "openproject_sync": {
+      if (typeof inputs.artifactId !== "string" || inputs.artifactId.length === 0) {
+        throw new BrokerRefusalError("unsupported", "openproject_sync requires inputs.artifactId (one schedule artifact id)")
+      }
+      const core = await brokerOpenProjectSyncCore(ctx.projectId, inputs.artifactId, parameters, deriveOptsFromCtx(ctx))
+      // Arm's-length platform-core outcome (ADR-0012): an external GPL-3.0
+      // application was reached over REST v3 — NO engine subprocess ran, and
+      // the honest record leaves the engine fields absent (analyze_schedule
+      // precedent); exitCode 0.
+      return platformCoreOutcome(
+        {
+          artifactId: core.sync.artifactId,
+          revisionNumber: core.sync.revisionNumber,
+          contentHash: core.sync.contentHash,
+          targetProjectId: core.sync.targetProjectId,
+          anchorDate: core.sync.anchorDate,
+          created: core.sync.created,
+          adopted: core.sync.adopted,
+          updated: core.sync.updated,
+          recreated: core.sync.recreated,
+          orphans: core.sync.orphans,
+          relationsEnsured: core.sync.relationsEnsured,
+          relationsReused: core.sync.relationsReused,
+          failed: core.sync.failed,
         },
         core.outputArtifactRevisionId,
         Date.now() - startedAt,

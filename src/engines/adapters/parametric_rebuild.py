@@ -1,7 +1,9 @@
-# STATUS (2026-10-25): smoke-verified adapter (16-R3 research numbers reproduced exactly:
-# defaults 64651.68146928197 / edited 153989.38070170232 mm3, refusals verbatim) but NOT yet
-# harness-integrated or wired to a broker op/route — integration is Slice 16's first item
-# (worklog 16-P + implementation-status fifteenth pass). No product surface invokes it yet.
+# STATUS (2026-10-30): fully integrated adapter (16-R3 research numbers reproduced exactly:
+# defaults 64651.68146928197 / edited 153989.38070170232 mm3, refusals verbatim) — shipped
+# since Slice 16-A: harness-integrated (4 corpus cases parametric-schema/-defaults/-edited/
+# -refusals in tests/validation/corpus-manifest.json), wired to the broker op
+# rebuild_parametric + the route /api/projects/[id]/artifacts/[artifactId]/parametric, and
+# invoked by the Design Studio's parametric-model surface (studio-workspace.tsx).
 #!/usr/bin/env python3
 """Engineering OS — parametric-rebuild adapter (engine: cadquery, 16-P / Slice 15).
 

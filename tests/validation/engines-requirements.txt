@@ -44,3 +44,33 @@ sfepy==2026.3
 # +7 wheels total (wasmtime/pyvcd/jschon/rfc3986/yowasp-runtime), ZERO removals.
 amaranth==0.5.10
 yowasp-yosys==0.70.0.0.post1259
+# Slice 32 (2026-10-31, contract §18): pin (Pinocchio) — planar-2R kinematic
+# analysis. BSD (the wheel's bundled LICENSE is the 2-clause text; METADATA
+# says BSD-3-Clause — both permissive, discrepancy recorded, Slice-28 probe).
+# NAME-TRAP: the PyPI distribution named 'pinocchio' (0.5.1) is UNRELATED —
+# the real library distributes as 'pin', import name 'pinocchio'.
+# +14 prebuilt cmeel wheels (cmeel/cmeel-boost/cmeel-urdfdom/cmeel-assimp/
+# cmeel-octomap/cmeel-qhull/cmeel-tinyxml2/cmeel-zlib/cmeel-console-bridge/
+# coal/libcoal/eigenpy/libpinocchio/pin), ZERO removals, pip check clean.
+pin==4.1.0
+# Slice 33 (2026-11-01, contract §19): pybullet — drop-impact simulation.
+# zlib core (the sdist's own PKG-INFO 'License: zlib' + OSI classifier —
+# verified on the sdist, Slice 28; the Extras/ThirdPartyLibs exceptions live
+# in directories a synthesis-free drop-impact lane never imports from).
+# SDIST-ONLY on PyPI: pip compiles Bullet at install. HOST REALITY (probed
+# live, Slice 33): the default -O3 build OOM-kills cc1plus on 4 GB hosts
+# (PhysicsServerCommandProcessor.cpp) — install with appended CXXFLAGS
+# '-O1 -g0' there (IEEE FP semantics are -O-level invariant; the §19.1
+# gates re-verified on the -O1 build: discrete closed forms to 1.47e-15).
+# Larger runners build the default -O3 fine.
+# FIFTH-RECOVERY AMENDMENT (2026-11-01, probed live on Debian trixie
+# gcc 14.2): the uv-Python sysconfig bakes '-g -O3' into the C compile of
+# examples/pybullet/pybullet.c, so CXXFLAGS alone leaves the big C file at
+# -O3 (it OOM-killed the build a second way) — CFLAGS must carry the
+# override too; AND gcc-14 escalates -Wincompatible-pointer-types to an
+# ERROR by default in C (upstream pybullet.c passes PyObject* to
+# PyArray_DATA — a warning on CI's gcc-13 runners, where the wheel builds
+# clean). The working gcc-14-host recipe (foreground; -j2 builds in ~2m):
+#   MAKEFLAGS=-j2 CFLAGS='-O1 -g0 -Wno-error=incompatible-pointer-types' \
+#   CXXFLAGS='-O1 -g0' pip install --no-build-isolation pybullet==3.2.7
+pybullet==3.2.7

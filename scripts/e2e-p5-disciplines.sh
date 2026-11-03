@@ -34,7 +34,8 @@
 # yowasp-yosys — the flip-flop closed form, the exact cell histogram, the
 # 25-cycle trajectory wrap/hold pins, one rtl.synthesized audit event with
 # both engines attributed; contract §17.6) and updates the registry
-# reconciliation to fourteen tested engines.
+# reconciliation (now fifteen tested / forty-nine total after the slice-31
+# union — ADR-0011 Stage 1 + the slice-31 designation rows).
 #
 # Runs LAST of the five scripts. Probe project "P5 Disciplines Probe" is
 # removed on success (KEPT on failure for forensics). Final line
@@ -325,6 +326,111 @@ assert_eq "unauthenticated RTL synthesis → 401 envelope verbatim (the op rides
   "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
 
 # ===========================================================================
+# AC-ROBOT-04 — kinematic analysis (REAL Pinocchio `pin`; the robotics lane the
+# Slice-28 license-first probe opened — contract §18.6, Slice 32)
+# ===========================================================================
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/robot-arm-2link.json" "Robot arm 2link"
+ROBOT_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$ROBOT_ID/kinematics" -H 'Content-Type: application/json' -d '{}'
+assert_eq "robot arm JSON → kinematic analysis by REAL Pinocchio (kind analysis, eos-robot-kinematics/1, planar_2r, 2 links, 4 configurations, engine pin 4.1.0)" \
+  "201|analysis|eos-robot-kinematics/1|kinematic_analysis|planar_2r|2|4|pin|4.1.0" \
+  "$STATUS|$(j "$BODY" '.data.kinematics.kind')|$(j "$BODY" '.data.kinematics.document.format')|$(j "$BODY" '.data.kinematics.document.analysis')|$(j "$BODY" '.data.kinematics.mechanismKind')|$(j "$BODY" '.data.kinematics.linkCount')|$(j "$BODY" '.data.kinematics.configurationCount')|$(j "$BODY" '.data.kinematics.engineKey')|$(j "$BODY" '.data.kinematics.engineVersion')"
+near "closed-form pin: config 1 EE x = 0.5·cos(π/6) + 0.35·cos(5π/12) = 0.5235993677 (the §18.1 probe config, hand-derived — never the engine's own echo)" \
+  "0.5235993676781017" "$(j "$BODY" '.data.kinematics.document.configurations[0].endEffector.xMeters')" "0.000000001"
+near "closed-form pin: config 1 EE θ = 5π/12 (the wrapped sum)" \
+  "1.3089969389957474" "$(j "$BODY" '.data.kinematics.document.configurations[0].endEffector.thetaRad')" "0.000000001"
+near "closed-form pin: config 3 (the SINGULAR fully-extended config) x = L1 + L2 = 0.85 exactly" \
+  "0.85" "$(j "$BODY" '.data.kinematics.document.configurations[2].endEffector.xMeters')" "0.000000001"
+near "closed-form pin: the wz Jacobian row is exactly [1, 1] — both joints rotate about z (config 1)" \
+  "1" "$(j "$BODY" '.data.kinematics.document.configurations[0].jacobianRowMajor[10]')" "0.000000001"
+near "closed-form pin: the FK gate residual ≤ 1e-12 (a disagreeing kinematics result is refused, never stored)" \
+  "0" "$(j "$BODY" '.data.kinematics.maxFkError')" "0.000000000001"
+near "closed-form pin: the Jacobian gate residual ≤ 1e-12" \
+  "0" "$(j "$BODY" '.data.kinematics.maxJacobianError')" "0.000000000001"
+http GET "/api/events?projectId=$PROBE_ID&limit=200"
+assert_eq "exactly ONE kinematics.solved audit event for the run, engine pin attributed" \
+  "1|pin" "$(j "$BODY" '[.data.events[] | select(.action == "kinematics.solved")] | length')|$(j "$BODY" '[.data.events[] | select(.action == "kinematics.solved")][0].detail | fromjson | .engineKey')"
+http POST "/api/projects/$PROBE_ID/artifacts/$DESW_ID/kinematics" -H 'Content-Type: application/json' -d '{}'
+assert_contains "wrong-format JSON → 422 (the ROUTE zod refuses alien content before the broker — defense-in-depth)" \
+  'format must be "eos-robot-arm-model/1"' \
+  "$(j "$BODY" '.error.message')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/robot-arm-invalid-kind.json" "Robot arm invalid kind"
+ROBOTU_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$ROBOTU_ID/kinematics" -H 'Content-Type: application/json' -d '{}'
+assert_contains "mechanism.kind spatial_6r → the honest v1-class refusal verbatim (every other class is its own future lane)" \
+  'mechanism.kind must be "planar_2r"' \
+  "$(j "$BODY" '.error.message')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/robot-arm-bad-length.json" "Robot arm bad length"
+ROBOTL_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$ROBOTL_ID/kinematics" -H 'Content-Type: application/json' -d '{}'
+assert_contains "link length 0 → the schema range refusal verbatim" \
+  "mechanism.linkLengthsMeters[1] must be a finite number > 0 and ≤ 10 (meters)" \
+  "$(j "$BODY" '.error.message')"
+: > "$WORK/http.body"
+STATUS_NOAUTH=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/projects/$PROBE_ID/artifacts/$ROBOTU_ID/kinematics") || STATUS_NOAUTH="000"
+BODY_NOAUTH=$(cat "$WORK/http.body")
+assert_eq "unauthenticated kinematics solve → 401 envelope verbatim (the op rides the same session gate)" \
+  "401|sign in required" \
+  "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
+
+# ===========================================================================
+# AC-PHYS-04 — drop-impact simulation (REAL PyBullet; the physics lane, the
+# LAST Slice-28 license-first candidate — contract §19.6, Slice 33)
+# ===========================================================================
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/impact-drop-sphere.json" "Impact drop sphere"
+IMPACT_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$IMPACT_ID/impact" -H 'Content-Type: application/json' -d '{}'
+assert_eq "impact model JSON → drop-impact simulation by REAL PyBullet (kind analysis, eos-impact-simulation/1, drop_impact, 344 samples, first contact step 104, engine pybullet 3.2.7)" \
+  "201|analysis|eos-impact-simulation/1|impact_simulation|drop_impact|344|104|pybullet|3.2.7" \
+  "$STATUS|$(j "$BODY" '.data.impact.kind')|$(j "$BODY" '.data.impact.document.format')|$(j "$BODY" '.data.impact.document.analysis')|$(j "$BODY" '.data.impact.mechanismKind')|$(j "$BODY" '.data.impact.sampleCount')|$(j "$BODY" '.data.impact.firstContactStep')|$(j "$BODY" '.data.impact.engineKey')|$(j "$BODY" '.data.impact.engineVersion')"
+near "closed-form pin: t* = sqrt(2·0.9/9.81) = 0.4283529369 s (the §19.1 hand-derived contact time — never the engine's own echo)" \
+  "0.4283529368781193" "$(j "$BODY" '.data.impact.document.impact.closedFormContactTimeSeconds')" "0.000000001"
+near "closed-form pin: the measured contact time 104/240 = 0.4333 s rides the 240 Hz quantum (residual +1.195 dt, §19.1)" \
+  "0.43333333333333335" "$(j "$BODY" '.data.impact.document.impact.firstContactTimeSeconds')" "0.000000001"
+near "closed-form pin: v* = sqrt(2·9.81·0.9) = 4.2021423108 m/s (the impact speed)" \
+  "4.2021423107743505" "$(j "$BODY" '.data.impact.document.impact.closedFormImpactSpeedMetersPerSecond')" "0.000000001"
+near "closed-form pin: the measured impact speed IS the discrete closed form |−g·dt·103| = 4.210125 (§19.1 — the integrator reality)" \
+  "4.210125" "$(j "$BODY" '.data.impact.document.impact.impactSpeedMetersPerSecond')" "0.000001"
+near "closed-form pin: sample 50 height = the DISCRETE semi-implicit form 1 − ½·9.81·dt²·50·51 = 0.7828515625 (the §19.1 integrator gate)" \
+  "0.7828515625" "$(j "$BODY" '.data.impact.document.samples[49].centerHeightMeters')" "0.000000001"
+near "closed-form pin: the e=0 no-rebound reality — post-contact peak = r − 1e-5 (§19.1 probed penetration)" \
+  "0.09999" "$(j "$BODY" '.data.impact.document.impact.reboundPeakHeightMeters')" "0.005"
+near "closed-form pin: the pre-contact trajectory gate residual ≤ 1e-9 (a disagreeing trajectory is refused, never stored)" \
+  "0" "$(j "$BODY" '.data.impact.maxPreContactHeightError')" "0.000000001"
+http GET "/api/events?projectId=$PROBE_ID&limit=200"
+assert_eq "exactly ONE impact.simulated audit event for the run, engine pybullet attributed" \
+  "1|pybullet" "$(j "$BODY" '[.data.events[] | select(.action == "impact.simulated")] | length')|$(j "$BODY" '[.data.events[] | select(.action == "impact.simulated")][0].detail | fromjson | .engineKey')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/impact-drop-bounce.json" "Impact drop bounce"
+BOUNCE_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$BOUNCE_ID/impact" -H 'Content-Type: application/json' -d '{}'
+near "the bounce lane: the rebound rides the ENERGY envelope — ideal bound r + e²(h−r) = 0.424 m (the ceiling; §19.1 probed the dissipative solver UNDER-delivers, ratio 0.419)" \
+  "0.424" "$(j "$BODY" '.data.impact.document.impact.closedFormReboundPeakMeters')" "0.000000001"
+near "the bounce lane: the measured dissipative peak 0.250143 m — ENGINE BEHAVIOR pin (the chip-lane empirical-count precedent)" \
+  "0.250143425" "$(j "$BODY" '.data.impact.document.impact.reboundPeakHeightMeters')" "0.02"
+http POST "/api/projects/$PROBE_ID/artifacts/$DESW_ID/impact" -H 'Content-Type: application/json' -d '{}'
+assert_contains "wrong-format JSON → 422 (the ROUTE zod refuses alien content before the broker — defense-in-depth)" \
+  'format must be "eos-impact-model/1"' \
+  "$(j "$BODY" '.error.message')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/impact-drop-invalid-kind.json" "Impact drop invalid kind"
+IMPACTU_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$IMPACTU_ID/impact" -H 'Content-Type: application/json' -d '{}'
+assert_contains "mechanism.kind pendulum → the honest v1-class refusal verbatim (every other class is its own future lane)" \
+  'mechanism.kind must be "drop_impact"' \
+  "$(j "$BODY" '.error.message')"
+upload "/api/projects/$PROBE_ID/artifacts" "$FIXTURES/impact-drop-bad-height.json" "Impact drop bad height"
+IMPACTH_ID=$(j "$BODY" '.data.artifact.id')
+http POST "/api/projects/$PROBE_ID/artifacts/$IMPACTH_ID/impact" -H 'Content-Type: application/json' -d '{}'
+assert_contains "center height 0.05 ≤ radius 0.1 → the §19.2 cross-field refusal verbatim (shared by the route zod and the adapter mirror)" \
+  "drop.centerHeightMeters must be a finite number > radius (0.1 m, the contact height) and ≤ 50 (meters)" \
+  "$(j "$BODY" '.error.message')"
+: > "$WORK/http.body"
+STATUS_NOAUTH=$(curl -sS -m 30 -o "$WORK/http.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/projects/$PROBE_ID/artifacts/$IMPACTU_ID/impact") || STATUS_NOAUTH="000"
+BODY_NOAUTH=$(cat "$WORK/http.body")
+assert_eq "unauthenticated impact simulation → 401 envelope verbatim (the op rides the same session gate)" \
+  "401|sign in required" \
+  "$STATUS_NOAUTH|$(j "$BODY_NOAUTH" '.error.message')"
+
+# ===========================================================================
 # AC-SW-04 — stormwater drainage (REAL pyswmm/SWMM5; the mass-conservation
 # closed form + the two honest 422 gates + the audit event; contract §15.6)
 # ===========================================================================
@@ -585,16 +691,25 @@ assert_eq "Slice-29 addendum: the sfepy registry row carries its validation bloc
 assert_eq "Slice-30 addendum: the amaranth AND yowasp-yosys registry rows carry their validation blocks (3 chip harness cases each, pass — the front-end and synthesis halves of the RTL lane)" \
   "pass|3|tested|pass|3|tested" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].state')"
-assert_eq "registry reconciliation: fourteen harness-validated engines (the nine 16-D set + scikit-fem + pyswmm + sfepy + amaranth + yowasp-yosys) carry state 'tested', registry total 49 (slice-31 added pdf2takeoff/temporal/kestra/solvespace/gdal as planned rows — designations, not harness lanes; still fourteen tested) — the OpenSees row stays 'planned' with the license review closed REJECTED" \
-  "14|49|planned" \
+assert_eq "Slice-32 addendum: the pin registry row carries its validation block too (3 robotics harness cases, pass)" \
+  "pass|3|tested" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].state')"
+assert_eq "Slice-33 addendum: the pybullet registry row carries its validation block too (3 physics harness cases, pass — the LAST Slice-28 candidate promoted)" \
+  "pass|3|tested" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "pybullet")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "pybullet")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "pybullet")][0].state')"
+assert_eq "registry reconciliation: seventeen harness-validated engines (the nine 16-D set + scikit-fem + pyswmm + sfepy + amaranth + yowasp-yosys + pin + pybullet + the Stage-1 ADOPTED pdf2takeoff) carry state 'tested', registry total 49 (slice-31 added temporal/kestra/solvespace/gdal as planned designation rows — pdf2takeoff's slice-31 duplicate merged into the single tested row) — the OpenSees row stays 'planned' with the license review closed REJECTED" \
+  "17|49|planned" \
   "$(j "$BODY" '[.data.registry[] | select(.state == "tested")] | length')|$(j "$BODY" '.data.registry | length')|$(j "$BODY" '[.data.registry[] | select(.key == "opensees")][0].state')"
+assert_eq "ADR-0011 Stage-1 addendum: the ADOPTED takeoff engine's registry row carries its validation block (9 pdf2takeoff harness cases, pass) and the tested state" \
+  "pass|9|tested" \
+  "$(j "$BODY" '[.data.registry[] | select(.key == "pdf2takeoff")][0].validation.result')|$(j "$BODY" '[.data.registry[] | select(.key == "pdf2takeoff")][0].validation.cases')|$(j "$BODY" '[.data.registry[] | select(.key == "pdf2takeoff")][0].state')"
 # Slice 28 (the Phase-5 long-tail license-first probe): five new rows with the
 # license reviews closed ACCEPTED on wheel/sdist-verified evidence. Slice 29
 # promoted sfepy (the transport lane); Slice 30 promoted amaranth +
-# yowasp-yosys (the chip lane); pin/pybullet stay 'planned' until their own
-# lanes ship.
-assert_eq "Slice-28/29/30 addendum: sfepy + amaranth + yowasp-yosys are now tested (the transport + chip lanes) while pin/pybullet stay planned, all five with ACCEPTED license reviews" \
-  "tested|tested|tested|planned|planned|5" \
+# yowasp-yosys (the chip lane); Slice 32 promoted pin (the robotics lane);
+# Slice 33 promoted pybullet (the physics lane) — ALL FIVE now tested.
+assert_eq "Slice-28/29/30/32/33 addendum: sfepy + amaranth + yowasp-yosys + pin + pybullet are ALL now tested (the transport + chip + robotics + physics lanes), all five with ACCEPTED license reviews" \
+  "tested|tested|tested|tested|tested|5" \
   "$(j "$BODY" '[.data.registry[] | select(.key == "sfepy")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "amaranth")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "yowasp-yosys")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "pin")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "pybullet")][0].state')|$(j "$BODY" '[.data.registry[] | select(.key == "sfepy" or .key == "amaranth" or .key == "yowasp-yosys" or .key == "pin" or .key == "pybullet") | select(.integration.notes | contains("LICENSE REVIEW CLOSED ACCEPTED"))] | length')"
 assert_contains "Slice-28 addendum: the pin row records the PyPI name-trap (the real library distributes as 'pin')" \
   "the PyPI distribution named 'pinocchio' (0.5.1) is an UNRELATED package" \

@@ -32,6 +32,8 @@
  *    renders — nothing is simulated to fill the gap.
  */
 import {
+  Bot,
+  Weight,
   Boxes,
   ChevronDown,
   Cpu,
@@ -61,9 +63,13 @@ import {
   runSwmm,
   runTransport,
   runRtlSynthesis,
+  runKinematics,
+  runImpact,
   useApi,
   type ArtifactListItem,
   type ChipPayload,
+  type KinematicsPayload,
+  type ImpactPayload,
   type CpmAnalysisPayload,
   type DeriveRunResult,
   type DesPayload,
@@ -105,6 +111,8 @@ type SimOp =
   | "solve-fea"
   | "solve-transport"
   | "synthesize-rtl"
+  | "solve-kinematics"
+  | "simulate-impact"
   | "run-swmm"
   | "analyze-schedule"
 
@@ -115,6 +123,8 @@ const OP_RUN_LABEL: Record<SimOp, string> = {
   "solve-fea": "Solving plane-stress FEA…",
   "solve-transport": "Solving scalar transport…",
   "synthesize-rtl": "Synthesizing RTL…",
+  "solve-kinematics": "Solving arm kinematics…",
+  "simulate-impact": "Simulating drop impact…",
   "run-swmm": "Running stormwater drainage…",
   "analyze-schedule": "Analyzing schedule…",
 }
@@ -127,6 +137,8 @@ const FORMAT_ENGINE: Record<string, { engineKey: string; platform: boolean }> = 
   "eos-fea/1": { engineKey: "scikit-fem", platform: false },
   "eos-cfd-transport/1": { engineKey: "sfepy", platform: false },
   "eos-chip-netlist/1": { engineKey: "amaranth", platform: false },
+  "eos-robot-kinematics/1": { engineKey: "pin", platform: false },
+  "eos-impact-simulation/1": { engineKey: "pybullet", platform: false },
   "eos-swmm/1": { engineKey: "pyswmm", platform: false },
   "eos-cpm/1": { engineKey: "platform core", platform: true },
 }
@@ -138,6 +150,8 @@ const FORMAT_OP: Record<string, SimOp> = {
   "eos-fea/1": "solve-fea",
   "eos-cfd-transport/1": "solve-transport",
   "eos-chip-netlist/1": "synthesize-rtl",
+  "eos-robot-kinematics/1": "solve-kinematics",
+  "eos-impact-simulation/1": "simulate-impact",
   "eos-swmm/1": "run-swmm",
   "eos-cpm/1": "analyze-schedule",
 }
@@ -155,6 +169,8 @@ type DerivedPayload =
   | FeaPayload
   | TransportPayload
   | ChipPayload
+  | KinematicsPayload
+  | ImpactPayload
   | SwmmPayload
 
 /**
@@ -383,6 +399,103 @@ function readDerivedPayload(parsed: unknown): DerivedPayload | null {
         : undefined,
     } satisfies ChipPayload
   }
+  if (format === "eos-robot-kinematics/1") {
+    const mechanism = isRecord(parsed.mechanism) ? parsed.mechanism : {}
+    const lengths = Array.isArray(mechanism.linkLengthsMeters) ? mechanism.linkLengthsMeters : []
+    const configurations = Array.isArray(parsed.configurations) ? parsed.configurations.filter(isRecord) : []
+    return {
+      format,
+      sourceArtifactName: typeof parsed.sourceArtifactName === "string" ? parsed.sourceArtifactName : "—",
+      analysis: "kinematic_analysis",
+      mechanism: {
+        kind: mechanism.kind === "planar_2r" ? "planar_2r" : "—",
+        linkCount: Number(mechanism.linkCount ?? NaN),
+        linkLengthsMeters: [Number(lengths[0] ?? NaN), Number(lengths[1] ?? NaN)],
+      },
+      configurations: configurations.map((c) => {
+        const ee = isRecord(c.endEffector) ? c.endEffector : {}
+        const joints = Array.isArray(c.jointsRad) ? c.jointsRad : []
+        const jac = Array.isArray(c.jacobianRowMajor) ? c.jacobianRowMajor : []
+        const verification = isRecord(c.verification) ? c.verification : {}
+        return {
+          index: Number(c.index ?? NaN),
+          jointsRad: [Number(joints[0] ?? NaN), Number(joints[1] ?? NaN)],
+          endEffector: {
+            xMeters: Number(ee.xMeters ?? NaN),
+            yMeters: Number(ee.yMeters ?? NaN),
+            thetaRad: Number(ee.thetaRad ?? NaN),
+          },
+          jacobianRowMajor: jac.map((v) => Number(v)),
+          verification: {
+            fkMaxAbsError: Number(verification.fkMaxAbsError ?? NaN),
+            jacobianMaxAbsError: Number(verification.jacobianMaxAbsError ?? NaN),
+          },
+        }
+      }),
+      generatedBy: isRecord(parsed.generatedBy)
+        ? {
+            engineKey: String(parsed.generatedBy.engineKey ?? "—"),
+            engineVersion: String(parsed.generatedBy.engineVersion ?? "—"),
+            adapterScript: String(parsed.generatedBy.adapterScript ?? "—"),
+            adapterHash: String(parsed.generatedBy.adapterHash ?? "—"),
+          }
+        : undefined,
+    } satisfies KinematicsPayload
+  }
+  if (format === "eos-impact-simulation/1") {
+    const mechanism = isRecord(parsed.mechanism) ? parsed.mechanism : {}
+    const drop = isRecord(parsed.drop) ? parsed.drop : {}
+    const impact = isRecord(parsed.impact) ? parsed.impact : {}
+    const verification = isRecord(parsed.verification) ? parsed.verification : {}
+    const samples = Array.isArray(parsed.samples) ? parsed.samples.filter(isRecord) : []
+    const num = (v: unknown) => Number(v ?? NaN)
+    return {
+      format,
+      sourceArtifactName: typeof parsed.sourceArtifactName === "string" ? parsed.sourceArtifactName : "—",
+      analysis: "impact_simulation",
+      mechanism: {
+        kind: mechanism.kind === "drop_impact" ? "drop_impact" : "—",
+        massKilograms: num(mechanism.massKilograms),
+        radiusMeters: num(mechanism.radiusMeters),
+        restitution: num(mechanism.restitution),
+      },
+      drop: {
+        centerHeightMeters: num(drop.centerHeightMeters),
+        gravityMetersPerSecondSquared: num(drop.gravityMetersPerSecondSquared),
+      },
+      timestepSeconds: num(parsed.timestepSeconds),
+      samples: samples.map((sample) => ({
+        index: num(sample.index),
+        timeSeconds: num(sample.timeSeconds),
+        centerHeightMeters: num(sample.centerHeightMeters),
+        velocityZMetersPerSecond: num(sample.velocityZMetersPerSecond),
+      })),
+      impact: {
+        firstContactStep: num(impact.firstContactStep),
+        firstContactTimeSeconds: num(impact.firstContactTimeSeconds),
+        closedFormContactTimeSeconds: num(impact.closedFormContactTimeSeconds),
+        timeResidualSeconds: num(impact.timeResidualSeconds),
+        impactSpeedMetersPerSecond: num(impact.impactSpeedMetersPerSecond),
+        closedFormImpactSpeedMetersPerSecond: num(impact.closedFormImpactSpeedMetersPerSecond),
+        speedResidualMetersPerSecond: num(impact.speedResidualMetersPerSecond),
+        reboundPeakHeightMeters: num(impact.reboundPeakHeightMeters),
+        closedFormReboundPeakMeters: num(impact.closedFormReboundPeakMeters),
+        reboundResidualMeters: num(impact.reboundResidualMeters),
+      },
+      verification: {
+        maxPreContactHeightError: num(verification.maxPreContactHeightError),
+        maxPreContactSpeedError: num(verification.maxPreContactSpeedError),
+      },
+      generatedBy: isRecord(parsed.generatedBy)
+        ? {
+            engineKey: String(parsed.generatedBy.engineKey ?? "—"),
+            engineVersion: String(parsed.generatedBy.engineVersion ?? "—"),
+            adapterScript: String(parsed.generatedBy.adapterScript ?? "—"),
+            adapterHash: String(parsed.generatedBy.adapterHash ?? "—"),
+          }
+        : undefined,
+    } satisfies ImpactPayload
+  }
   if (format === "eos-swmm/1") {
     const rain = isRecord(parsed.rain) ? parsed.rain : {}
     const routing = isRecord(parsed.routing) ? parsed.routing : {}
@@ -435,7 +548,7 @@ function readDerivedPayload(parsed: unknown): DerivedPayload | null {
 // ---------------------------------------------------------------------------
 
 interface CapabilitySpec {
-  op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "synthesize-rtl" | "run-swmm">
+  op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "synthesize-rtl" | "solve-kinematics" | "simulate-impact" | "run-swmm">
   title: string
   engineKey: string
   icon: typeof Boxes
@@ -564,6 +677,43 @@ const CAPABILITIES: CapabilitySpec[] = [
       "`dataset`). The route validates the model shape and refuses it honestly otherwise.",
   },
   {
+    op: "solve-kinematics",
+    title: "Kinematic analysis (robotics)",
+    engineKey: "pin",
+    icon: Bot,
+    blurb:
+      "Solves forward kinematics + the geometric Jacobian of an eos-robot-arm-model/1 JSON dataset " +
+      "(a planar 2-link arm with up to 8 joint configurations) through the REAL Pinocchio engine " +
+      "(pip `pin`, BSD) — end-effector pose, the 6×2 LOCAL_WORLD_ALIGNED frame Jacobian and the " +
+      "closed-form verification residuals land in an `analysis` artifact. A result that disagrees " +
+      "with the planar closed forms beyond 1e-12 is refused honestly, never stored.",
+    pickerLabel: "Robot arm model JSON artifact (kind dataset)",
+    runLabel: "Analyze kinematics",
+    eligible: jsonDatasetEligible,
+    emptyNote:
+      "No .json dataset artifacts in this project yet — upload an eos-robot-arm-model/1 JSON (kind " +
+      "`dataset`). The route validates the model shape and refuses it honestly otherwise.",
+  },
+  {
+    op: "simulate-impact",
+    title: "Drop impact (physics)",
+    engineKey: "pybullet",
+    icon: Weight,
+    blurb:
+      "Simulates a rigid-body drop test — an eos-impact-model/1 JSON dataset (a sphere of mass m " +
+      "and radius r released from center height h, restitution e) through the REAL PyBullet engine " +
+      "(DIRECT mode, 240 Hz, zlib) — the full free-fall trajectory, the first-contact step, the " +
+      "impact speed and the rebound peak land in an `analysis` artifact with the closed-form " +
+      "residuals. A trajectory that disagrees with the discrete closed forms, an impact time " +
+      "beyond the 240 Hz quantum, or a rebound that CREATES energy is refused honestly, never stored.",
+    pickerLabel: "Impact model JSON artifact (kind dataset)",
+    runLabel: "Simulate impact",
+    eligible: jsonDatasetEligible,
+    emptyNote:
+      "No .json dataset artifacts in this project yet — upload an eos-impact-model/1 JSON (kind " +
+      "`dataset`). The route validates the model shape and refuses it honestly otherwise.",
+  },
+  {
     op: "run-swmm",
     title: "Stormwater drainage",
     engineKey: "pyswmm",
@@ -598,7 +748,7 @@ function CapabilityCard({
   artifactsLoading: boolean
   onRetryArtifacts: () => void
   running: SimOp | null
-  onRun: (op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "synthesize-rtl" | "run-swmm">, artifactId: string) => void
+  onRun: (op: Extract<SimOp, "fe-mesh" | "powerflow" | "simulate" | "solve-fea" | "solve-transport" | "synthesize-rtl" | "solve-kinematics" | "simulate-impact" | "run-swmm">, artifactId: string) => void
 }) {
   const eligible = useMemo(() => rows.filter(spec.eligible), [rows, spec])
   // The picked id is DERIVED at render time (the react-hooks/set-state-in-effect
@@ -1224,6 +1374,184 @@ function PayloadSection({
       </div>
     )
   }
+  if (payload.format === "eos-robot-kinematics/1") {
+    const p = payload
+    const worstFk = Math.max(...p.configurations.map((c) => (Number.isFinite(c.verification.fkMaxAbsError) ? c.verification.fkMaxAbsError : 0)))
+    const worstJac = Math.max(...p.configurations.map((c) => (Number.isFinite(c.verification.jacobianMaxAbsError) ? c.verification.jacobianMaxAbsError : 0)))
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
+          <Badge className="border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+            kinematic analysis
+          </Badge>
+          <span className="font-mono tabular-nums" title="the frozen v1 mechanism class — two revolute joints about z, links in the xy-plane">
+            {p.mechanism.kind === "planar_2r" ? "planar 2R" : p.mechanism.kind} · L1{" "}
+            {Number.isFinite(p.mechanism.linkLengthsMeters[0]) ? p.mechanism.linkLengthsMeters[0] : "—"} m · L2{" "}
+            {Number.isFinite(p.mechanism.linkLengthsMeters[1]) ? p.mechanism.linkLengthsMeters[1] : "—"} m
+          </span>
+          <span
+            className="font-mono tabular-nums"
+            title="the adapter's own FK closed-form residual (worst over configurations) — the gate bound is 1e-12"
+          >
+            FK err ≤ {Number.isFinite(worstFk) ? worstFk.toExponential(2) : "—"} (closed form)
+          </span>
+          <span
+            className="font-mono tabular-nums"
+            title="the adapter's own Jacobian closed-form residual (worst over configurations) — the gate bound is 1e-12"
+          >
+            Jac err ≤ {Number.isFinite(worstJac) ? worstJac.toExponential(2) : "—"} (closed form)
+          </span>
+          <span className="font-mono tabular-nums" title="the 6×2 LOCAL_WORLD_ALIGNED frame Jacobian rides every configuration row">
+            {p.configurations.length} configuration{p.configurations.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        <div className="eos-scroll max-h-72 overflow-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <caption className="sr-only">
+              Kinematics results — end-effector pose and closed-form residuals per configuration, verbatim from Pinocchio
+            </caption>
+            <thead className="sticky top-0 bg-muted">
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th scope="col" className="px-3 py-2 font-medium">#</th>
+                <th scope="col" className="px-3 py-2 font-medium">Joints (rad)</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">EE x (m)</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">EE y (m)</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">θ (rad)</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">FK / Jac residual</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.configurations.map((c) => (
+                <tr key={c.index} className="border-b last:border-0">
+                  <td className="px-3 py-2 font-mono text-xs">{Number.isFinite(c.index) ? c.index : "—"}</td>
+                  <td className="px-3 py-2 font-mono text-xs">
+                    ({Number.isFinite(c.jointsRad[0]) ? c.jointsRad[0].toFixed(6) : "—"},{" "}
+                    {Number.isFinite(c.jointsRad[1]) ? c.jointsRad[1].toFixed(6) : "—"})
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(c.endEffector.xMeters) ? c.endEffector.xMeters : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(c.endEffector.yMeters) ? c.endEffector.yMeters : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(c.endEffector.thetaRad) ? c.endEffector.thetaRad : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(c.verification.fkMaxAbsError) ? c.verification.fkMaxAbsError.toExponential(1) : "—"} /{" "}
+                    {Number.isFinite(c.verification.jacobianMaxAbsError) ? c.verification.jacobianMaxAbsError.toExponential(1) : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <InfoNote>
+          Planar-2R kinematics (Pinocchio forward kinematics + the 6×2 LOCAL_WORLD_ALIGNED frame
+          Jacobian) — every pose number is copied verbatim from the engine; the residuals compare
+          the engine against the hand-derived closed forms
+          x = L1·cos q1 + L2·cos(q1+q2), y = L1·sin q1 + L2·sin(q1+q2), θ = wrapPi(q1+q2). A
+          result that disagrees beyond 1e-12 is refused, never stored.
+        </InfoNote>
+      </div>
+    )
+  }
+  if (payload.format === "eos-impact-simulation/1") {
+    const p = payload
+    const rows: Array<{ label: string; measured: number; closedForm: number; residual: number; unit: string }> = [
+      {
+        label: "Contact time",
+        measured: p.impact.firstContactTimeSeconds,
+        closedForm: p.impact.closedFormContactTimeSeconds,
+        residual: p.impact.timeResidualSeconds,
+        unit: "s",
+      },
+      {
+        label: "Impact speed",
+        measured: p.impact.impactSpeedMetersPerSecond,
+        closedForm: p.impact.closedFormImpactSpeedMetersPerSecond,
+        residual: p.impact.speedResidualMetersPerSecond,
+        unit: "m/s",
+      },
+      {
+        label: "Rebound peak",
+        measured: p.impact.reboundPeakHeightMeters,
+        closedForm: p.impact.closedFormReboundPeakMeters,
+        residual: p.impact.reboundResidualMeters,
+        unit: "m",
+      },
+    ]
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
+          <Badge className="border-transparent bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300">
+            impact simulation
+          </Badge>
+          <span className="font-mono tabular-nums" title="the frozen v1 mechanism class — a sphere dropped onto a static plane">
+            {p.mechanism.kind === "drop_impact" ? "drop test" : p.mechanism.kind} · m{" "}
+            {Number.isFinite(p.mechanism.massKilograms) ? p.mechanism.massKilograms : "—"} kg · r{" "}
+            {Number.isFinite(p.mechanism.radiusMeters) ? p.mechanism.radiusMeters : "—"} m · e{" "}
+            {Number.isFinite(p.mechanism.restitution) ? p.mechanism.restitution : "—"}
+          </span>
+          <span className="font-mono tabular-nums" title="the first-contact step at the pinned 240 Hz timestep">
+            contact @ step {Number.isFinite(p.impact.firstContactStep) ? p.impact.firstContactStep : "—"} (240 Hz)
+          </span>
+          <span
+            className="font-mono tabular-nums"
+            title="the adapter's own trajectory gate residual — the bound is 1e-9 (the discrete semi-implicit closed form)"
+          >
+            traj err ≤{" "}
+            {Number.isFinite(p.verification.maxPreContactHeightError)
+              ? p.verification.maxPreContactHeightError.toExponential(2)
+              : "—"}{" "}
+            (closed form)
+          </span>
+          <span className="font-mono tabular-nums" title="every step of the trajectory rides the document">
+            {p.samples.length} sample{p.samples.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        <div className="eos-scroll max-h-72 overflow-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <caption className="sr-only">
+              Impact results — the measured value vs the hand-derived closed form and the residual, verbatim from PyBullet
+            </caption>
+            <thead className="sticky top-0 bg-muted">
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th scope="col" className="px-3 py-2 font-medium">Quantity</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">Measured</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">Closed form</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">Residual</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.label} className="border-b last:border-0">
+                  <td className="px-3 py-2 text-xs">{row.label}</td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(row.measured) ? `${row.measured.toPrecision(6)} ${row.unit}` : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(row.closedForm) ? `${row.closedForm.toPrecision(6)} ${row.unit}` : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {Number.isFinite(row.residual) ? `${row.residual >= 0 ? "+" : ""}${row.residual.toExponential(2)} ${row.unit}` : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <InfoNote>
+          Drop-impact simulation (PyBullet DIRECT mode, 240 Hz) — every trajectory number is
+          copied verbatim from the engine; the closed forms are the hand-derived gates: the
+          discrete semi-implicit free fall z_n = h − ½g·dt²·n(n+1), the contact time
+          t* = √(2(h−r)/g) within the 240 Hz quantum, the impact speed v* = √(2g(h−r)), and the
+          rebound ENERGY envelope (a dissipative solver never returns more than r + e²·(h−r) —
+          energy creation is refused, never stored).
+        </InfoNote>
+      </div>
+    )
+  }
   if (payload.format === "eos-swmm/1") {
     const p = payload
     return (
@@ -1497,10 +1825,12 @@ export function SimWorkspace({
       else if (op === "solve-fea") result = (await runFea(projectId, artifactId)).fea
       else if (op === "solve-transport") result = (await runTransport(projectId, artifactId)).transport
       else if (op === "synthesize-rtl") result = (await runRtlSynthesis(projectId, artifactId)).rtl
+      else if (op === "solve-kinematics") result = (await runKinematics(projectId, artifactId)).kinematics
+      else if (op === "simulate-impact") result = (await runImpact(projectId, artifactId)).impact
       else if (op === "run-swmm") result = (await runSwmm(projectId, artifactId)).swmm
       else result = (await analyzeSchedule(projectId, artifactId)).analysis
       toast.success(
-        `${op === "fe-mesh" ? "FE mesh" : op === "powerflow" ? "Power flow" : op === "simulate" ? "Simulation" : op === "solve-fea" ? "FEA solve" : op === "solve-transport" ? "Transport solve" : op === "synthesize-rtl" ? "RTL synthesis" : op === "run-swmm" ? "Drainage simulation" : "Schedule analysis"} complete — ${result.name}${result.revisionNumber ? ` r${result.revisionNumber}` : ""} stored as a derived artifact`,
+        `${op === "fe-mesh" ? "FE mesh" : op === "powerflow" ? "Power flow" : op === "simulate" ? "Simulation" : op === "solve-fea" ? "FEA solve" : op === "solve-transport" ? "Transport solve" : op === "synthesize-rtl" ? "RTL synthesis" : op === "solve-kinematics" ? "Kinematics solve" : op === "simulate-impact" ? "Impact simulation" : op === "run-swmm" ? "Drainage simulation" : "Schedule analysis"} complete — ${result.name}${result.revisionNumber ? ` r${result.revisionNumber}` : ""} stored as a derived artifact`,
       )
       setRunByArtifact((prev) => ({ ...prev, [result.artifactId]: { op, result } }))
       setSelectedId(result.artifactId)

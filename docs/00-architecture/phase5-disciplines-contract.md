@@ -628,3 +628,244 @@ adapterHash — the honest record of WHICH adapter ran, never an invariant).
   domains, asynchronous resets, a Verilog/SystemVerilog front-end, and any
   post-synthesis optimization knobs (abc mapping targets, FSM extraction):
   each its own addendum — the yosys script and the device are frozen v1.
+
+## 18. Slice-32 addendum — Robotics v1: kinematic analysis via Pinocchio (BSD)
+
+The Slice-28 license-first probe opened this lane (pin BSD — the wheel's own
+bundled LICENSE is the 2-clause text while METADATA says `BSD-3-Clause`; BOTH
+permissive, both quoted, the discrepancy recorded in the registry row; plus
+the PyPI NAME-TRAP: the distribution named `pinocchio` 0.5.1 is UNRELATED —
+the real library distributes as `pin`, import name `pinocchio`). The engine
+is **pin 4.1.0** (Pinocchio rigid-body dynamics library, CNRS/INRIA; the
+cmeel wheel chain arrives PREBUILT — no compile, no system packages).
+Amendments are ADDITIVE to §2/§3/§4/§5/§8/§12; nothing frozen above changes.
+
+### 18.1 Verified engine reality (TL probes, 2026-10-31, dev host — re-probed first-hand for this slice, never remembered)
+
+| Probe | Result |
+|---|---|
+| `pin==4.1.0` coexistence install into the engine venv | OK (+14 prebuilt wheels: cmeel/cmeel-boost/cmeel-urdfdom/cmeel-assimp/cmeel-octomap/cmeel-qhull/cmeel-tinyxml2/cmeel-zlib/cmeel-console-bridge/coal/libcoal/eigenpy/libpinocchio/pin; ZERO removals — the openseespy wipe class does not occur; `pip check` clean; all 11 prior engine modules re-import clean; imports WITHOUT the gmsh GLU bridge — standalone) |
+| Programmatic build: `Model` + `addJoint(0, JointModelRZ, SE3.Identity)` + `addJoint(j1, JointModelRZ, SE3(eye, [L1,0,0]))` + `addFrame(Frame("ee", j2, 0, SE3(eye, [L2,0,0]), OP_FRAME))` | nq=nv=2, frame id returned by addFrame; no URDF file needed — the frozen v1 mechanism is BUILT, not loaded |
+| `framesForwardKinematics` + `data.oMf[ee]` at the probe arm (L1=0.5, L2=0.35) | EE x/y vs the closed form `x = L1·cos q1 + L2·cos(q1+q2)`, `y = L1·sin q1 + L2·sin(q1+q2)`: error **0.00e+00 (bit-exact)** at (π/6, π/4) and (0,0); 5.551e-17 at (−π/3, π/2) and (2.5, −1.9) |
+| **The 6×2 shape trap (caught live)**: `computeFrameJacobian(..., LOCAL_WORLD_ALIGNED)` returns the FULL spatial Jacobian — 6 rows [vx, vy, vz, ωx, ωy, ωz] × 2 columns, NOT the 3×2 planar block | the planar closed form is embedded in the 6×2 (rows 2/3/4 identically zero for RZ joints; row 5 = [1, 1]); max abs error **1.388e-17** at (π/6, π/4), **8.327e-17** worst over the probe configs, **0.0 at the singular fully-extended config (0,0)** |
+| `J·qdot` vs the h=1e-7 numerical derivative of the closed form (qdot = (0.7, −1.1)) | agrees to **1.155e-08** — the forward-difference noise floor class (the Slice-28 probe recorded 1.5e-9 at its config; both are the numeric-derivative floor, not engine error) |
+| The θ convention | `atan2(R[1,0], R[0,0])` ∈ (−π, π] — for joint sums beyond π the document's `thetaRad` is the WRAPPED value; the FK gate compares WRAPPED (`wrapPi(q1+q2)`), and the closed-form pins use the wrapped value |
+| The singular configurations (q2 = 0 fully extended; q2 = π folded) | still exact (nothing is inverted — v1 is FK + Jacobian only); recorded because a future INVERSE-kinematics lane must treat them as the degenerate set |
+
+### 18.2 Input schema `eos-robot-arm-model/1` (amends §3; zod in `src/core/analysis-schemas.ts`, adapter mirrors)
+
+```json
+{ "format": "eos-robot-arm-model/1", "name": "string 1..200",
+  "mechanism": { "kind": "planar_2r", "linkLengthsMeters": [ "number > 0 and ≤ 10", "…" ] },
+  "configurations": [ { "jointsRad": [ "finite number", "…" ] }, "… 1..8 items" ] }
+```
+
+The mechanism class is FROZEN at v1: `planar_2r` (two revolute joints about
+z, links in the xy-plane, end-effector frame at the tip of link 2). Verbatim
+joined error style `invalid robot model: path: msg; …` (mirroring
+§14.2/§16.2/§17.2). Any other mechanism class (3R/spatial arms, URDF-loaded
+scenes, prismatic joints) is refused at the schema — each is its own future
+lane. `linkLengthsMeters` must be EXACTLY two positive finite numbers ≤ 10;
+`configurations` must be 1..8 items, each `jointsRad` exactly two finite
+radians (any magnitude — the closed forms are periodic and the engine takes
+them verbatim).
+
+### 18.3 Broker op (amends §4)
+
+| op | inputs | parameters | output kind + format | engineKey |
+|---|---|---|---|---|
+| `solve_kinematics` | `{artifactId}` (eos-robot-arm-model/1 JSON dataset) | `{}` — NO parameters (the mechanism and the configuration set are frozen at upload; a non-empty parameter set is refused) | `"analysis"` / `eos-robot-kinematics/1` | `"pin"` |
+
+Single engine by design (the Slice-30 two-engine split has no analogue
+here): Pinocchio computes every number; the closed forms are the GATES
+(below), never the stored values.
+
+### 18.4 Output document `eos-robot-kinematics/1` (amends §2; byte-deterministic by construction)
+
+`{format, sourceArtifactName, analysis:"kinematic_analysis", mechanism:{kind, linkCount, linkLengthsMeters}, configurations:[{index, jointsRad:[q1,q2], endEffector:{xMeters, yMeters, thetaRad}, jacobianRowMajor:[12 numbers — the 6×2 LOCAL_WORLD_ALIGNED frame Jacobian, row-major], verification:{fkMaxAbsError, jacobianMaxAbsError}}], generatedBy:{engineKey, engineVersion, adapterScript, adapterHash}}`
+
+The doubles are the engine's verbatim values (shortest-round-trip repr,
+fixed key order — double-run byte-identity is pinned by the harness, exact
+like §16.4/§17.4's structural determinism but float-based: same pinned
+wheel + same input ⇒ same bytes; no BLAS kernels ride this lane — the
+computation is libm trig through Pinocchio's own code, and the harness
+tolerances (1e-12) do NOT depend on the last ulp). `verification` carries
+the adapter's own closed-form residuals (the SWMM continuity-balance
+precedent: a self-check the document reports; the HARNESS re-derives the
+closed forms independently and pins them with 1e-12 tolerances).
+
+### 18.5 Adapter spec (amends §5; `src/engines/adapters/kinematics_solve.py` + `robotics.ts`)
+
+- Same stdin/argv JSON protocol as §5.2/§14.5/§16.5/§17.5: stdin =
+  `{storagePath, parameters}`; stdout = the payload or `{"error": …}` exit 1.
+- Flow: validate the model (§18.2 mirror) → build the Model programmatically
+  (§18.1 — JointModelRZ ×2, SE3 placements [L1,0,0] and [L2,0,0], OP_FRAME
+  "ee") → per configuration: `framesForwardKinematics` + `computeFrameJacobian(
+  LOCAL_WORLD_ALIGNED)` → compute the closed form INDEPENDENTLY (plain
+  Python math — the same formulas as §18.1) → gate → emit.
+- Honest refusals, verbatim:
+  - invalid model → the mirrored-§18.2 defense message;
+  - non-empty parameters → `solve_kinematics takes no parameters (the mechanism and configurations are frozen at upload)`;
+  - pinocchio not importable → the engine-unavailable class;
+  - **the FK closed-form gate**: `pinocchio's forward kinematics disagrees with the planar closed form (configuration <i>: max error <e> exceeds 1e-12) - a disagreeing kinematics result is not an option`;
+  - **the Jacobian closed-form gate**: `pinocchio's geometric Jacobian disagrees with the planar closed form (configuration <i>: max error <e> exceeds 1e-12) - a disagreeing Jacobian is not an option`.
+- Determinism: pinned engine, fixed key order, no timestamps; the harness
+  double-run pins byte-identity of the emitted document. No temp files, no
+  litter.
+
+### 18.6 Acceptance (amends §12)
+
+| ID | Item |
+|---|---|
+| AC-ROBOT-01 | Harness case robot-arm-2link (the §18.1 probe arm L=0.5/0.35, 4 configurations incl. both probe configs, the singular (0,0) and a mixed-sign config): per-config EE x/y/θ pins vs the hand-derived closed forms (absTolerance 1e-12, θ WRAPPED), the jacobianRowMajor closed-form pins (rows 0/1/5 nonzero per §18.1, rows 2/3/4 identically zero), the verification residuals ≤ 1e-12, engine pin 4.1.0, double-run byte-identical |
+| AC-ROBOT-02 | Harness case robot-arm-long (L=1.2/0.8, 3 configurations incl. the folded-back q2=π singular and a negative-q1 config): the same pin classes on a SECOND arm — the closed forms are arm-independent by construction |
+| AC-ROBOT-03 | Honest refusals: wrong mechanism kind (the §18.2 zod 422 verbatim, harness + route), bad link lengths (route 422 verbatim), non-JSON/absent engine (EngineUnavailableError class) |
+| AC-ROBOT-04 | e2e p5 block: fixture upload → POST …/kinematics → 201 with pinned document fields (kind analysis, eos-robot-kinematics/1, kinematic_analysis, planar_2r, linkCount, configurationCount, engine pin 4.1.0); exactly one `kinematics.solved` audit event; the wrong-format + wrong-kind 422 gates + 401 gate; the analysis artifact registers in the Simulation workspace |
+| AC-ROBOT-05 | Registry: the pin row reaches `tested` with its validation block (3 harness cases); engines-requirements pins pin==4.1.0; the CI import gates include pinocchio |
+
+### 18.7 Honest exclusions (extends §10)
+
+- Dynamics (RNEA inverse dynamics, ABA forward dynamics, CRBA mass matrix,
+  Coriolis/centrifugal terms): out of scope v1 — they need link
+  masses/inertias in the model schema and their own hand-derived closed
+  forms; the Slice-28 probe validated them only implicitly. Each is its own
+  future addendum.
+- Inverse kinematics (and with it any singularity-avoidance logic): v1 is
+  forward-only; the singular configurations are computed, never inverted.
+- Mechanism classes beyond `planar_2r` (3R/spatial arms, prismatic joints,
+  parallel mechanisms), URDF/SDF file loading (the coal/hpp-fcl collision
+  stack the wheels carry), workspace/reachability maps, trajectory
+  generation: each its own addendum.
+- More than 8 configurations per model document: refused at the schema —
+  the v1 product surface is a human-reviewable configuration table, not a
+  batch sweep.
+
+## 19. Slice-33 addendum — Physics v1: drop-impact simulation via PyBullet (zlib)
+
+> The physics lane, the LAST Slice-28 license-first candidate (2026-11-01).
+> PyBullet 3.2.7 — zlib core (the sdist's own PKG-INFO 'License: zlib' +
+> OSI classifier, verified on the sdist, Slice 28; the Extras/ThirdPartyLibs
+> exceptions live in directories this lane never imports from). Everything
+> below extends the frozen broker pattern of §§14–18.
+
+### 19.1 Verified engine reality (TL probes, 2026-11-01, dev host — probed first-hand for this slice, never remembered)
+
+- **The integrator is SEMI-IMPLICIT Euler (velocity first)**: the pre-contact
+  trajectory is the DISCRETE closed form z_n = h − ½·g·dt²·n(n+1),
+  vz_n = −g·dt·n — NOT the continuous h − ½·g·t² (probed: the discrete form
+  matches to 1.47e-15 / 1.07e-14; the continuous form is off by
+  ½·g·dt·t ≈ 8.8e-3 m at contact). The gates pin the DISCRETE form at 1e-9.
+- **The default linearDamping is 0.04** — an undamped free fall REQUIRES
+  `changeDynamics(linearDamping=0)` or the velocity gate fails at ~0.4%·t.
+  The ground's default restitution is 0.4 — BOTH bodies carry the configured
+  e. Both caught live before any harness case was authored.
+- **Contact detection reports on actual overlap at the 240 Hz quantum**: the
+  probe drop (1 kg, r=0.1, center z=1.0, g=9.81) contacts at step 104,
+  t = 0.433333 s vs t* = √(2·0.9/9.81) = 0.428353 s — residual +1.195 dt
+  (one step quantum + the soft-contact penetration margin; the Slice-28
+  probe's 0.433 s reproduced exactly).
+- **The impact speed IS the discrete closed form**: |vz| at the last
+  pre-contact step = g·dt·103 = 4.210125 m/s exactly (v* = 4.202142, within
+  3·g·dt by the gate).
+- **e=0 is a true dead bang**: rest center height r − 1e-5 (penetration),
+  |vz| at rest 1.5e-15, no rebound (post-contact peak = rest height).
+- **⚠ The restitution coefficient UNDER-DELIVERS at 240 Hz**: e = 0.6
+  rebounds at ratio 0.419 (first upward vz 1.764 vs the ideal e·v* = 2.521),
+  rebound peak 0.250143 m vs the ideal energy bound r + e²(h−r) = 0.424 m.
+  Bullet's LCP contact solver is dissipative beyond the configured
+  restitution. The lane therefore gates the ENERGY ENVELOPE (§19.5): a
+  rebound above r + e²(h−r) + margin is energy creation — refused; the
+  measured peak is pinned as ENGINE BEHAVIOR by the harness (the chip-lane
+  empirical-count precedent).
+- **Determinism**: DIRECT mode, fixed timestep, same build — two independent
+  runs produce byte-identical trajectories (probed at e=0 and e=0.6). Cross-
+  build determinism is NOT guaranteed for the LCP solver (registry
+  limitation): the harness pins same-build double-runs; the value pins carry
+  absTolerances.
+- **Install reality**: the sdist compiles Bullet at install (~9 min on big
+  runners). On 4 GB hosts the default -O3 build OOM-kills cc1plus
+  (PhysicsServerCommandProcessor.cpp) — install with appended
+  `CXXFLAGS='-O1 -g0'` there (IEEE FP semantics are -O-level invariant; the
+  §19.1 gates re-verified on the -O1 build). ZERO removals, pip check clean,
+  all 12 prior engines re-import clean.
+
+### 19.2 Input schema `eos-impact-model/1` (amends §3; zod in `src/core/analysis-schemas.ts`, adapter mirrors)
+
+- `mechanism.kind` — literal `"drop_impact"` (the frozen v1 mechanism class;
+  every other class is refused at the schema and mirrored in the adapter).
+- `mechanism.massKilograms` — finite > 0, ≤ 1000.
+- `mechanism.radiusMeters` — finite > 0, ≤ 2.
+- `mechanism.restitution` — finite ≥ 0, ≤ 1 (the coefficient of
+  restitution; 0 = the dead-bang drop).
+- `drop.centerHeightMeters` — finite > radius (the CROSS-FIELD bound: the
+  center must start ABOVE the contact height; the element-labeled refusal
+  embeds the radius value and is shared verbatim by the route zod and the
+  adapter mirror), ≤ 50.
+- `drop.gravityMetersPerSecondSquared` — finite ≥ 0.1, ≤ 50.
+- No parameters at the op: the mechanism and the drop are frozen at upload.
+
+### 19.3 Broker op (amends §4)
+
+`simulate_impact` — the twenty-second broker operation (BROKER_OPERATIONS
+21 → 22; workflow/planner vocabulary mirrors and p4's verbatim message pin
+updated in sync). Inputs: `{artifactId}` (one eos-impact-model/1 artifact).
+No parameters. Audit action `impact.simulated` (exactly one per run, engine
+attributed). Output: find-or-create kind-"analysis" artifact, DRAFT revision
+per run, format `eos-impact-simulation/1`.
+
+### 19.4 Output document `eos-impact-simulation/1` (amends §2; byte-deterministic by construction)
+
+Pinned key order: format → sourceArtifactName → analysis → mechanism →
+drop → timestepSeconds → samples → impact → verification → generatedBy.
+`samples` carries EVERY step to the horizon (first contact + exactly 240
+post-contact steps — the SWMM depth-sample precedent). `impact` carries the
+measured summary + the closed forms + the residuals; `verification` carries
+the adapter's own trajectory-gate residuals. Same-build byte-determinism is
+pinned by the harness double-run.
+
+### 19.5 Adapter spec (amends §5; `src/engines/adapters/impact_solve.py` + `physics.ts`)
+
+The rtl_synthesize stdin protocol ({storagePath, parameters} on stdin, the
+strict JSON envelope on stdout). The adapter runs the frozen v1 world
+(DIRECT mode, sphere + static plane, 240 Hz, both bodies carrying e, all
+damping killed) and GATES in-process — a disagreeing result is refused,
+never stored:
+
+- pre-contact trajectory ≠ the discrete semi-implicated forms beyond 1e-9 →
+  `pybullet's free-fall trajectory disagrees with the discrete semi-implicit
+  closed form (max height error … exceeds 1e-09) - a disagreeing trajectory
+  is not an option`
+- contact time outside t* ± 2·dt → `… disagrees with the closed form
+  t* = sqrt(2(h-r)/g) … - a disagreeing impact time is not an option`
+- impact speed outside v* ± 3·g·dt → `… - a disagreeing impact speed is not
+  an option`
+- rebound above the energy bound r + e²(h−r) + 0.01 m → `… (the contact
+  solver returned MORE energy than the configured restitution allows) - a
+  fabricated rebound is not an option`
+- post-impact peak below r − 0.02 m → `… - a vanished impact is not an
+  option`
+
+### 19.6 Acceptance (amends §12)
+
+| AC | Criterion |
+|---|---|
+| AC-PHYS-01 | The drop-impact lane end-to-end: eos-impact-model/1 JSON → `analysis` artifact (eos-impact-simulation/1); every pre-contact sample pinned against the DISCRETE closed forms at 1e-9; the contact time/impact speed within the §19.1 quanta; double-run byte-identical (harness impact-drop-sphere 29 pins + impact-drop-bounce 11 pins; physics.test.ts 12 tests) |
+| AC-PHYS-02 | Honest refusals: wrong mechanism kind (the §19.2 zod 422 verbatim, harness + route), center height ≤ radius (the cross-field 422 verbatim, shared by route and adapter), non-JSON/absent engine (EngineUnavailableError class), non-empty parameters (the frozen-upload refusal) |
+| AC-PHYS-03 | The rebound energy envelope: the ideal bound r + e²(h−r) is the ceiling (energy creation refused), the measured dissipative peak pinned as engine behavior; broker vocabulary 21 → 22 with `simulate_impact` (engineKey `pybullet`) in contract order |
+| AC-PHYS-04 | e2e p5 block: fixture upload → POST …/impact → 201 with pinned document fields; exactly one `impact.simulated` audit event; the wrong-format + wrong-kind + bad-height 422 gates + 401 gate; the analysis artifact registers in the Simulation workspace |
+| AC-PHYS-05 | Registry: the pybullet row reaches `tested` with its validation block (3 harness cases); engines-requirements pins pybullet==3.2.7; the CI import gates include pybullet; the Slice-28 five-rows assert closes ALL FIVE tested |
+
+### 19.7 Honest exclusions (extends §10)
+
+- Shapes beyond the sphere (box/capsule/mesh), multi-body scenes, friction
+  (lateral contact), horizontal velocities, rotation: each its own addendum.
+- Solver-parameter studies (contactStiffness/damping, ERP variants, solver
+  iterations): v1 pins the defaults; any study lane must first pin the
+  default behavior (this addendum's §19.1 is that record).
+- Restitution CALIBRATION (making the measured ratio equal e): explicitly
+  not attempted — the honest v1 records the solver's measured behavior and
+  gates only the physical envelope.
+- Cross-build byte-determinism of the LCP solver: not claimed (registry
+  limitation); same-build double-run determinism is what the harness pins.
+- Continuous-time (variable-step) integration: out of scope — the 240 Hz
+  fixed step IS the frozen v1 contract.

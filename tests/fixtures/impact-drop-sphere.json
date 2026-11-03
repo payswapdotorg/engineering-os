@@ -1,0 +1,14 @@
+{
+  "format": "eos-impact-model/1",
+  "name": "Drop test — 1 kg sphere from 1.0 m",
+  "mechanism": {
+    "kind": "drop_impact",
+    "massKilograms": 1.0,
+    "radiusMeters": 0.1,
+    "restitution": 0.0
+  },
+  "drop": {
+    "centerHeightMeters": 1.0,
+    "gravityMetersPerSecondSquared": 9.81
+  }
+}

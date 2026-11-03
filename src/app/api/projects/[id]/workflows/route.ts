@@ -1,7 +1,9 @@
 import { z } from "zod"
 
 import { CREATOR_ACTOR_RE, isAgentActor, parseWorkflowDefinition } from "@/core/workflow"
-import { enqueueWorkflow, recoverOrphanedRuns, recordWorkflowEvent } from "@/core/runtime/executor"
+import { recordWorkflowEvent } from "@/core/runtime/executor"
+import { getFoundation } from "@/core/runtime/foundation"
+import "@/core/runtime/foundation-embedded" // registers the embedded foundation + fail-fast flag resolution (ADR-0010)
 import { recordEvent } from "@/lib/audit"
 import { jsonOk, ERR, parseBody } from "@/lib/api-utils"
 import { db } from "@/lib/db"
@@ -36,7 +38,7 @@ export const GET = handler<{ id: string }>(async (_req, ctx) => {
   if (!access.ok) return access.response
 
   try {
-    await recoverOrphanedRuns()
+    await getFoundation().recoverOrphans()
   } catch (err) {
     // A read must not fail on housekeeping — the scan retries on the next
     // list call / module load.
@@ -48,7 +50,7 @@ export const GET = handler<{ id: string }>(async (_req, ctx) => {
     select: { id: true },
   })
   for (const wf of queued) {
-    enqueueWorkflow(wf.id) // fire-and-forget claim; never awaited here
+    getFoundation().enqueue(wf.id) // fire-and-forget claim; never awaited here
   }
 
   const workflows = await db.workflow.findMany({ where: { projectId: id }, orderBy: { createdAt: "desc" } })

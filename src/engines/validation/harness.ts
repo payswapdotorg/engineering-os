@@ -60,7 +60,7 @@
 
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -80,6 +80,8 @@ import { runDesFromFile, type DesResult } from "../adapters/des"
 import { runFeaFromFile, validateFeaParameters, type FeaParameters, type FeaResult } from "../adapters/fea"
 import { runTransportFromFile, validateTransportParameters, type TransportParameters, type TransportResult } from "../adapters/cfd"
 import { runRtlSynthesisFromFile, type RtlResult } from "../adapters/chip"
+import { runKinematicsFromFile, type KinematicsResult } from "../adapters/robotics"
+import { runImpactFromFile, type ImpactResult } from "../adapters/physics"
 import { runSwmmFromFile, validateSwmmParameters, type SwmmParameters, type SwmmResult } from "../adapters/swmm"
 import { convertDocumentToFile, type ConversionResult } from "../adapters/convert-document"
 import { sheetTakeoffFromStorage, type SheetTakeoffResult } from "../adapters/sheet_takeoff"
@@ -96,12 +98,25 @@ import {
   type ParametricSchemaResult,
 } from "../adapters/parametric_rebuild"
 import {
+  PDF2TAKEOFF_PINNED_COMMIT,
+  pdf2takeoffAnnotateTakeoff,
+  pdf2takeoffCompareRevisions,
+  pdf2takeoffExportTakeoff,
+  pdf2takeoffFillRoom,
+  type Pdf2takeoffAnnotateResult,
+  type Pdf2takeoffCompareResult,
+  type Pdf2takeoffExportResult,
+  type Pdf2takeoffFillResult,
+} from "../adapters/pdf2takeoff"
+import {
   buildCpmAnalysisDocument,
   buildDesDocument,
   buildFeaDocument,
   buildSwmmDocument,
   buildTransportDocument,
   buildRtlDocument,
+  buildKinematicsDocument,
+  buildImpactDocument,
   buildFeMeshDocument,
   buildPowerflowDocument,
   validateScheduleDocument,
@@ -120,6 +135,8 @@ export type AdapterKind =
   | "fea"
   | "transport"
   | "chip"
+  | "robotics"
+  | "physics"
   | "swmm"
   | "cpm"
   | "libreoffice"
@@ -127,6 +144,7 @@ export type AdapterKind =
   | "dxf"
   | "parametric"
   | "ocr"
+  | "pdf2takeoff"
 export type ToleranceKind = "exact" | "analytic" | "mesh"
 export type QuantityType = DerivedQuantity["quantityType"]
 
@@ -140,6 +158,8 @@ export type DisciplineAdapter =
   | "fea"
   | "transport"
   | "chip"
+  | "robotics"
+  | "physics"
   | "swmm"
   | "cpm"
   | "libreoffice"
@@ -151,6 +171,12 @@ export type TakeoffAdapter = "sheet" | "dxf"
 
 /** 16-P (Slice 15 parametric-authoring lane): the cadquery parametric-rebuild kind. */
 export type ParametricAdapter = "parametric"
+
+/** ADR-0011 Stage 1: the ADOPTED takeoff engine's case kind — one adapter,
+ * four ops (compare | annotate | export | fill), each case pinning the op in
+ * its block. */
+export type Pdf2takeoffAdapter = "pdf2takeoff"
+export type Pdf2takeoffOp = "compare" | "annotate" | "export" | "fill"
 
 export interface GroundTruthEntry {
   elementRef: string
@@ -186,6 +212,8 @@ export interface CorpusCase {
   fea?: DisciplineExpectation
   transport?: DisciplineExpectation
   chip?: DisciplineExpectation
+  robotics?: DisciplineExpectation
+  physics?: DisciplineExpectation
   swmm?: DisciplineExpectation
   cpm?: DisciplineExpectation
   libreoffice?: DisciplineExpectation
@@ -205,6 +233,13 @@ export interface CorpusCase {
   /** 16-B: the case-level narrative for OCR success cases (a string — the
    * expectedWords pins carry the transcript + conf floors + the Ø rule). */
   ocrGroundTruth?: string
+  /** ADR-0011 Stage 1: the per-adapter expectation block for the ADOPTED
+   * engine — `pdf2takeoff` for adapter "pdf2takeoff" (one block per case,
+   * pinning which op it exercises). */
+  pdf2takeoff?: Pdf2takeoffExpectation
+  /** ADR-0011 Stage 1: the case-level analytic narrative for pdf2takeoff
+   * success cases (a string — the pins carry the numbers). */
+  pdf2takeoffGroundTruth?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -272,6 +307,39 @@ export interface TakeoffExpectation {
   errorContains?: string
   /** success cases: the non-empty runs array (one row per parameter set) */
   runs?: TakeoffRun[]
+  /** honest routing/limitation note, rendered into the case notes */
+  note?: string
+}
+
+// ---------------------------------------------------------------------------
+// pdf2takeoff expectations (ADR-0011 Stage 1 — the ADOPTED takeoff engine;
+// same DisciplinePin schema, plus `op` (which of the four broker surfaces the
+// case exercises) and, for compare cases, `otherFixture` (the second
+// revision). Determinism policy per op: compare = JSON identity; export =
+// CSV row identity; fill = value/vertices identity (the markup id carries a
+// random suffix); annotate = NOT claimed (the annotated PDF embeds a creation
+// timestamp — the LibreOffice §5.4 convention, structural evidence only).
+// ---------------------------------------------------------------------------
+
+/** One op invocation inside a pdf2takeoff case: its parameters + pins. */
+export interface Pdf2takeoffRun {
+  /** compare: {}; annotate: {markups, keepExisting?}; export: {spec?, scaleRatio?, unit?, format?}; fill: {pageNo?, at, label?, scaleMmPerPt (REQUIRED)} */
+  parameters?: Record<string, unknown>
+  /** success runs: non-empty (validated); error runs: pins are not resolved */
+  pins?: DisciplinePin[]
+  /** error runs only: THIS run's pinned refusal substring */
+  errorContains?: string
+}
+
+export interface Pdf2takeoffExpectation {
+  expect: "success" | "error"
+  /** which broker surface this case exercises */
+  op: Pdf2takeoffOp
+  errorContains?: string
+  /** compare cases only: the OTHER revision's fixture (the case fixture is the old revision) */
+  otherFixture?: string
+  /** success cases: the non-empty runs array (one row per parameter set) */
+  runs?: Pdf2takeoffRun[]
   /** honest routing/limitation note, rendered into the case notes */
   note?: string
 }
@@ -455,7 +523,7 @@ export interface DisciplineComparison {
 }
 
 export interface DisciplineCaseResult {
-  adapter: DisciplineAdapter | TakeoffAdapter | ParametricAdapter | OcrAdapter
+  adapter: DisciplineAdapter | TakeoffAdapter | ParametricAdapter | OcrAdapter | Pdf2takeoffAdapter
   expect: "success" | "error"
   status: "pass" | "fail"
   /** engine provenance — null for the cpm platform core (the honest record) */
@@ -537,7 +605,7 @@ const LIBREOFFICE_BIN = process.env.EOS_LIBREOFFICE ?? "/usr/bin/libreoffice"
 
 /** Python engines per adapter kind (cpm/libreoffice/ocr are probed differently). */
 const PYTHON_ENGINE_MODULES: Record<
-  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "transport" | "chip" | "swmm" | "sheet" | "dxf" | "parametric",
+  "step" | "ifc" | "femesh" | "powerflow" | "des" | "fea" | "transport" | "chip" | "robotics" | "physics" | "swmm" | "sheet" | "dxf" | "parametric",
   string
 > = {
   step: "cadquery",
@@ -548,6 +616,8 @@ const PYTHON_ENGINE_MODULES: Record<
   fea: "skfem",
   transport: "sfepy",
   chip: "amaranth",
+  robotics: "pinocchio",
+  physics: "pybullet",
   swmm: "pyswmm",
   sheet: "pdfplumber",
   dxf: "ezdxf",
@@ -573,6 +643,8 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   fea: "scikit-fem (plane-stress FEA)",
   transport: "sfepy/SfePy (steady scalar transport CFD)",
   chip: "amaranth + yowasp-yosys (RTL synthesis)",
+  robotics: "pin/Pinocchio (planar-2R kinematics)",
+  physics: "pybullet/PyBullet (drop-impact simulation)",
   swmm: "pyswmm/SWMM5 (stormwater drainage)",
   cpm: "platform CPM core (no engine)",
   libreoffice: "libreoffice (document conversion)",
@@ -580,6 +652,7 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
   dxf: "ezdxf (DXF takeoff)",
   parametric: "cadquery (parametric rebuild)",
   ocr: "tesseract (sheet-text OCR)",
+  pdf2takeoff: "pdf2takeoff (ADOPTED takeoff engine — ADR-0011)",
 }
 
 /**
@@ -595,6 +668,32 @@ export const ADAPTER_LABELS: Record<AdapterKind, string> = {
 export function probeEngine(kind: AdapterKind): { available: boolean; reason?: string } {
   if (kind === "cpm") {
     return { available: true } // pure platform core — no engine to probe (contract §6)
+  }
+  if (kind === "pdf2takeoff") {
+    // ADR-0011 Stage 1: the ADOPTED engine — pinned checkout + dependencies
+    // + a runnable CLI (EOS_PDF2TAKEOFF_DIR-overridable, so a missing install
+    // yields honest skips for its cases, never fabricated results).
+    const dir = process.env.EOS_PDF2TAKEOFF_DIR ?? path.join(os.homedir(), ".local", "share", "eos-engines", "pdf2takeoff")
+    if (!existsSync(path.join(dir, "bin", "pdf2takeoff.js"))) {
+      return { available: false, reason: `pdf2takeoff is not installed at ${dir} (run scripts/setup-pdf2takeoff.sh)` }
+    }
+    if (!existsSync(path.join(dir, "node_modules", "pdfjs-dist"))) {
+      return { available: false, reason: `pdf2takeoff at ${dir} has no installed dependencies (run scripts/setup-pdf2takeoff.sh again)` }
+    }
+    let pin = ""
+    try {
+      pin = readFileSync(path.join(dir, ".eos-engine-pin"), "utf8").trim()
+    } catch {
+      return { available: false, reason: `pdf2takeoff at ${dir} carries no .eos-engine-pin (run scripts/setup-pdf2takeoff.sh) — an unpinned checkout is never run` }
+    }
+    if (pin !== PDF2TAKEOFF_PINNED_COMMIT) {
+      return { available: false, reason: `pdf2takeoff checkout is pinned to ${pin}, but the harness requires ${PDF2TAKEOFF_PINNED_COMMIT} (ADR-0011 Stage 1)` }
+    }
+    const res = spawnSync(process.env.EOS_NODE_BIN ?? "node", [path.join(dir, "bin", "pdf2takeoff.js"), "help"], { timeout: 60_000 })
+    if (res.error || res.status !== 0) {
+      return { available: false, reason: `the pinned pdf2takeoff checkout does not run (node >= 22.13 required): ${res.error ? res.error.message : `exit ${res.status}`}` }
+    }
+    return { available: true }
   }
   if (kind === "libreoffice") {
     const res = spawnSync(LIBREOFFICE_BIN, ["--version"], { timeout: 60_000 })
@@ -840,6 +939,26 @@ function parseDisciplineExpectation(
       if (keys.length !== 0) {
         throw new Error(
           `manifest case ${caseId}: chip.parameters must be empty (the synthesis script is frozen; got ${JSON.stringify(keys)})`,
+        )
+      }
+      block.parameters = {}
+    } else if (blockName === "robotics") {
+      // Slice 32 (contract §18.3): solve_kinematics takes NO parameters — the
+      // mechanism and configuration set are frozen at upload.
+      const keys = Object.keys(parameters)
+      if (keys.length !== 0) {
+        throw new Error(
+          `manifest case ${caseId}: robotics.parameters must be empty (the mechanism and configurations are frozen at upload; got ${JSON.stringify(keys)})`,
+        )
+      }
+      block.parameters = {}
+    } else if (blockName === "physics") {
+      // Slice 33 (contract §19.3): simulate_impact takes NO parameters — the
+      // mechanism and the drop are frozen at upload.
+      const keys = Object.keys(parameters)
+      if (keys.length !== 0) {
+        throw new Error(
+          `manifest case ${caseId}: physics.parameters must be empty (the mechanism and the drop are frozen at upload; got ${JSON.stringify(keys)})`,
         )
       }
       block.parameters = {}
@@ -1208,6 +1327,108 @@ function parseOcrExpectation(
   return block
 }
 
+/** Validate one pdf2takeoff expectation block (ADR-0011 Stage 1). */
+function parsePdf2takeoffExpectation(caseId: string, blockName: string, raw: unknown): Pdf2takeoffExpectation {
+  if (!isPlainObject(raw)) {
+    throw new Error(`manifest case ${caseId}: ${blockName} block must be an object`)
+  }
+  const { expect, op, errorContains, otherFixture, runs, note } = raw as {
+    expect?: unknown
+    op?: unknown
+    errorContains?: unknown
+    otherFixture?: unknown
+    runs?: unknown
+    note?: unknown
+  }
+  if (expect !== "success" && expect !== "error") {
+    throw new Error(`manifest case ${caseId}: ${blockName}.expect must be "success"|"error"`)
+  }
+  if (op !== "compare" && op !== "annotate" && op !== "export" && op !== "fill") {
+    throw new Error(
+      `manifest case ${caseId}: ${blockName}.op must be one of "compare"|"annotate"|"export"|"fill" (got ${JSON.stringify(op)})`,
+    )
+  }
+  const block: Pdf2takeoffExpectation = { expect, op }
+  if (note !== undefined && (typeof note !== "string" || note.length === 0)) {
+    throw new Error(`manifest case ${caseId}: ${blockName}.note must be a non-empty string when provided`)
+  }
+  if (typeof note === "string") block.note = note
+  if (op === "compare") {
+    if (typeof otherFixture !== "string" || otherFixture.length === 0 || path.isAbsolute(otherFixture) || otherFixture.includes("..")) {
+      throw new Error(`manifest case ${caseId}: ${blockName} compare cases must pin otherFixture (a plain file name under tests/fixtures/ — the NEW revision)`)
+    }
+    block.otherFixture = otherFixture
+  } else if (otherFixture !== undefined) {
+    throw new Error(`manifest case ${caseId}: ${blockName}.otherFixture is a compare-only field`)
+  }
+  if (errorContains !== undefined && (typeof errorContains !== "string" || errorContains.length === 0)) {
+    throw new Error(`manifest case ${caseId}: ${blockName}.errorContains must be a non-empty string when provided`)
+  }
+  if (typeof errorContains === "string") block.errorContains = errorContains
+  if (!Array.isArray(runs) || runs.length === 0) {
+    throw new Error(`manifest case ${caseId}: ${blockName} cases must pin a non-empty runs array (one row per parameter set)`)
+  }
+  if (expect === "error" && errorContains === undefined && !runs.some((r) => isPlainObject(r) && typeof (r as { errorContains?: unknown }).errorContains === "string")) {
+    throw new Error(`manifest case ${caseId}: ${blockName} error cases must pin errorContains (block-level or per run)`)
+  }
+  block.runs = runs.map((r: unknown, j: number) => {
+    if (!isPlainObject(r)) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}] is not an object`)
+    }
+    const run: Pdf2takeoffRun = {}
+    if (r.parameters !== undefined) {
+      if (!isPlainObject(r.parameters)) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].parameters must be an object`)
+      }
+      run.parameters = r.parameters as Record<string, unknown>
+    }
+    if (expect === "error") {
+      if (typeof r.errorContains !== "string" || r.errorContains.length === 0) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}] error runs must pin their own errorContains`)
+      }
+      run.errorContains = r.errorContains
+      return run
+    }
+    const pins = r.pins
+    if (!Array.isArray(pins) || pins.length === 0) {
+      throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}] must pin a non-empty pins array`)
+    }
+    run.pins = pins.map((p: unknown, k: number) => {
+      if (!isPlainObject(p)) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].pins[${k}] is not an object`)
+      }
+      const pin = p as unknown as DisciplinePin
+      if (typeof pin.field !== "string" || pin.field.length === 0) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].pins[${k}].field must be a non-empty string`)
+      }
+      if (pin.value === undefined) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].pins[${k}].value is required`)
+      }
+      if (typeof pin.derivation !== "string" || pin.derivation.length === 0) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].pins[${k}].derivation is required (ground truth never comes from adapter output)`)
+      }
+      if (
+        pin.relTolerance !== undefined &&
+        (typeof pin.relTolerance !== "number" || !Number.isFinite(pin.relTolerance) || pin.relTolerance < 0)
+      ) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].pins[${k}].relTolerance must be a non-negative finite number when provided`)
+      }
+      if (
+        pin.absTolerance !== undefined &&
+        (typeof pin.absTolerance !== "number" || !Number.isFinite(pin.absTolerance) || pin.absTolerance < 0)
+      ) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].pins[${k}].absTolerance must be a non-negative finite number when provided`)
+      }
+      if (typeof pin.value !== "number" && pin.relTolerance !== undefined) {
+        throw new Error(`manifest case ${caseId}: ${blockName}.runs[${j}].pins[${k}] string/boolean pins are compared exactly — no tolerance keys allowed`)
+      }
+      return pin
+    })
+    return run
+  })
+  return block
+}
+
 function parseManifest(raw: unknown): CorpusCase[] {
   if (!Array.isArray(raw) || raw.length === 0) {
     throw new Error(`corpus manifest must be a non-empty JSON array (got ${typeof raw})`)
@@ -1219,7 +1440,7 @@ function parseManifest(raw: unknown): CorpusCase[] {
     if (!isPlainObject(c)) {
       throw new Error(`manifest case [${i}] is not an object`)
     }
-    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, fea, transport, swmm, cpm, libreoffice, sheet, dxf, parametric, ocr } =
+    const { caseId, adapter, fixture, expect, errorContains, groundTruth, mesh, femesh, powerflow, des, fea, transport, swmm, cpm, libreoffice, sheet, dxf, parametric, ocr, pdf2takeoff } =
       c
     if (typeof caseId !== "string" || caseId.length === 0) {
       throw new Error(`manifest case [${i}] has no caseId`)
@@ -1236,6 +1457,8 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "fea" ||
       adapter === "transport" ||
       adapter === "chip" ||
+      adapter === "robotics" ||
+      adapter === "physics" ||
       adapter === "swmm" ||
       adapter === "cpm" ||
       adapter === "libreoffice" ||
@@ -1243,9 +1466,9 @@ function parseManifest(raw: unknown): CorpusCase[] {
       adapter === "dxf" ||
       adapter === "parametric" ||
       adapter === "ocr"
-    if (!isModelAdapter && !isDisciplineAdapter) {
+    if (!isModelAdapter && !isDisciplineAdapter && adapter !== "pdf2takeoff") {
       throw new Error(
-        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"transport"|"chip"|"swmm"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr" (got ${JSON.stringify(adapter)})`,
+        `manifest case ${caseId}: adapter must be "step"|"ifc"|"femesh"|"powerflow"|"des"|"fea"|"transport"|"chip"|"robotics"|"physics"|"swmm"|"cpm"|"libreoffice"|"sheet"|"dxf"|"parametric"|"ocr"|"pdf2takeoff" (got ${JSON.stringify(adapter)})`,
       )
     }
     if (typeof fixture !== "string" || fixture.length === 0) {
@@ -1283,6 +1506,32 @@ function parseManifest(raw: unknown): CorpusCase[] {
           throw new Error(`manifest case ${caseId}: ${adapter} success cases must carry a non-empty groundTruth string (the analytic narrative behind the pins)`)
         }
         parsed.takeoffGroundTruth = groundTruth
+      }
+      cases.push(parsed)
+      continue
+    }
+    if (adapter === "pdf2takeoff") {
+      // ADR-0011 Stage 1: exactly ONE pdf2takeoff block, naming the op
+      if (pdf2takeoff === undefined) {
+        throw new Error(`manifest case ${caseId}: adapter "pdf2takeoff" requires a "pdf2takeoff" expectation block`)
+      }
+      const block = parsePdf2takeoffExpectation(caseId, "pdf2takeoff", pdf2takeoff)
+      if (block.expect !== expect) {
+        throw new Error(
+          `manifest case ${caseId}: expect ${JSON.stringify(expect)} disagrees with the pdf2takeoff block's expect`,
+        )
+      }
+      if (expect === "error") {
+        parsed.errorContains = block.errorContains ?? block.runs?.find((r) => r.errorContains !== undefined)?.errorContains
+      }
+      parsed.pdf2takeoff = block
+      if (expect === "success") {
+        if (typeof groundTruth !== "string" || groundTruth.length === 0) {
+          throw new Error(
+            `manifest case ${caseId}: pdf2takeoff success cases must carry a non-empty groundTruth string (the analytic narrative behind the pins)`,
+          )
+        }
+        parsed.pdf2takeoffGroundTruth = groundTruth
       }
       cases.push(parsed)
       continue
@@ -2231,6 +2480,133 @@ function chipObserved(r: RtlResult, pin: DisciplinePin): unknown {
   return undefined
 }
 
+/** Resolve a pin's observed value on a kinematics result (Slice 32 —
+ * scalar fields plus ONE ref locator: "config<N>" (the 1-based configuration
+ * index) for per-configuration pose/Jacobian/residual pins; the Jacobian
+ * entries are addressed individually as jacobian0…jacobian11 (row-major,
+ * the §18.1 6×2 shape). */
+function roboticsObserved(r: KinematicsResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "analysis":
+      return r.analysis
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "mechanismKind":
+      return r.mechanism.kind
+    case "linkCount":
+      return r.mechanism.linkCount
+    case "linkLength1":
+      return r.mechanism.linkLengthsMeters[0]
+    case "linkLength2":
+      return r.mechanism.linkLengthsMeters[1]
+    case "configurationCount":
+      return r.configurations.length
+    default:
+      break
+  }
+  if (pin.ref === null) return undefined
+  const mc = pin.ref.match(/^config(\d+)$/)
+  if (mc === null) return undefined
+  const configuration = r.configurations.find((c) => c.index === Number(mc[1]))
+  if (configuration === undefined) return undefined
+  switch (pin.field) {
+    case "xMeters":
+      return configuration.endEffector.xMeters
+    case "yMeters":
+      return configuration.endEffector.yMeters
+    case "thetaRad":
+      return configuration.endEffector.thetaRad
+    case "fkMaxAbsError":
+      return configuration.verification.fkMaxAbsError
+    case "jacobianMaxAbsError":
+      return configuration.verification.jacobianMaxAbsError
+    default: {
+      const mj = pin.field.match(/^jacobian(\d{1,2})$/)
+      if (mj === null) return undefined
+      const idx = Number(mj[1])
+      return idx >= 0 && idx < 12 ? configuration.jacobianRowMajor[idx] : undefined
+    }
+  }
+}
+
+/** Resolve a pin's observed value on an impact result (Slice 33 — scalar
+ * fields plus TWO ref locators: "sample<N>" (the 1-based sample index) for
+ * per-step trajectory pins; null ref for the impact-summary and
+ * verification scalars). */
+function physicsObserved(r: ImpactResult, pin: DisciplinePin): unknown {
+  if (pin.ref !== null) {
+    // the sample locator path ONLY — never the model scalars (the
+    // centerHeightMeters name collision caught live by the harness)
+    const ms = pin.ref.match(/^sample(\d+)$/)
+    if (ms === null) return undefined
+    const sample = r.samples.find((x) => x.index === Number(ms[1]))
+    if (sample === undefined) return undefined
+    switch (pin.field) {
+      case "timeSeconds":
+        return sample.timeSeconds
+      case "centerHeightMeters":
+        return sample.centerHeightMeters
+      case "velocityZMetersPerSecond":
+        return sample.velocityZMetersPerSecond
+      default:
+        return undefined
+    }
+  }
+  switch (pin.field) {
+    case "analysis":
+      return r.analysis
+    case "engineKey":
+      return r.engineKey
+    case "engineVersion":
+      return r.engineVersion
+    case "mechanismKind":
+      return r.mechanism.kind
+    case "massKilograms":
+      return r.mechanism.massKilograms
+    case "radiusMeters":
+      return r.mechanism.radiusMeters
+    case "restitution":
+      return r.mechanism.restitution
+    case "centerHeightMeters":
+      return r.drop.centerHeightMeters
+    case "gravityMetersPerSecondSquared":
+      return r.drop.gravityMetersPerSecondSquared
+    case "timestepSeconds":
+      return r.timestepSeconds
+    case "sampleCount":
+      return r.samples.length
+    case "firstContactStep":
+      return r.impact.firstContactStep
+    case "firstContactTimeSeconds":
+      return r.impact.firstContactTimeSeconds
+    case "closedFormContactTimeSeconds":
+      return r.impact.closedFormContactTimeSeconds
+    case "timeResidualSeconds":
+      return r.impact.timeResidualSeconds
+    case "impactSpeedMetersPerSecond":
+      return r.impact.impactSpeedMetersPerSecond
+    case "closedFormImpactSpeedMetersPerSecond":
+      return r.impact.closedFormImpactSpeedMetersPerSecond
+    case "speedResidualMetersPerSecond":
+      return r.impact.speedResidualMetersPerSecond
+    case "reboundPeakHeightMeters":
+      return r.impact.reboundPeakHeightMeters
+    case "closedFormReboundPeakMeters":
+      return r.impact.closedFormReboundPeakMeters
+    case "reboundResidualMeters":
+      return r.impact.reboundResidualMeters
+    case "maxPreContactHeightError":
+      return r.verification.maxPreContactHeightError
+    case "maxPreContactSpeedError":
+      return r.verification.maxPreContactSpeedError
+    default:
+      break
+  }
+  return undefined
+}
+
 /** Resolve a pin's observed value on a SWMM result (Slice 23 — the depth
  * locator ref is the node/conduit id, e.g. "C1" or "J1"). */
 function swmmObserved(r: SwmmResult, pin: DisciplinePin): unknown {
@@ -2369,13 +2745,20 @@ async function runDisciplineChecks(
   fixturePath: string,
   report: Pick<HarnessReport, "engineVersions" | "adapterHashes">,
 ): Promise<DisciplineCaseResult> {
-  const adapter = c.adapter as DisciplineAdapter | ParametricAdapter | OcrAdapter
+  const adapter = c.adapter as DisciplineAdapter | ParametricAdapter | OcrAdapter | Pdf2takeoffAdapter
 
   // 16-V: the vector-takeoff kinds run their own sub-expectation machinery
   // (runs[] parameter sets, per-run double-execution byte-identity, item/text
   // locators) — hand off BEFORE the Phase-5 discipline dispatch below.
   if (adapter === "sheet" || adapter === "dxf") {
     return runTakeoffChecks(c, fixturePath, report)
+  }
+
+  // ADR-0011 Stage 1: the ADOPTED takeoff engine runs its own per-op
+  // machinery (compare/annotate/export/fill, per-op determinism policy) —
+  // hand off BEFORE the Phase-5 discipline dispatch below.
+  if (adapter === "pdf2takeoff") {
+    return runPdf2takeoffChecks(c, fixturePath, report)
   }
 
   // 16-P: the parametric-rebuild kind runs its own sub-expectation machinery
@@ -2420,6 +2803,10 @@ async function runDisciplineChecks(
         await runTransportFromFile(fixturePath, block.parameters ?? {})
       } else if (adapter === "chip") {
         await runRtlSynthesisFromFile(fixturePath, {})
+      } else if (adapter === "robotics") {
+        await runKinematicsFromFile(fixturePath, {})
+      } else if (adapter === "physics") {
+        await runImpactFromFile(fixturePath, {})
       } else if (adapter === "swmm") {
         await runSwmmFromFile(fixturePath, block.parameters ?? {})
       } else {
@@ -2597,6 +2984,44 @@ async function runDisciplineChecks(
       }
       for (const pin of block.pins ?? []) {
         r.comparisons.push(compareDisciplinePin(pin, chipObserved(first, pin)))
+      }
+    } else if (adapter === "robotics") {
+      const first = await runKinematicsFromFile(fixturePath, {})
+      const second = await runKinematicsFromFile(fixturePath, {})
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      const documentOf = (res: KinematicsResult) => buildKinematicsDocument(sourceName, res)
+      r.determinism = documentOf(first) === documentOf(second)
+      if (!r.determinism) {
+        r.problems.push("two consecutive real runs produced different eos-robot-kinematics/1 document bytes — the stored artifact would not be byte-deterministic")
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, roboticsObserved(first, pin)))
+      }
+    } else if (adapter === "physics") {
+      const first = await runImpactFromFile(fixturePath, {})
+      const second = await runImpactFromFile(fixturePath, {})
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+      const documentOf = (res: ImpactResult) => buildImpactDocument(sourceName, res)
+      r.determinism = documentOf(first) === documentOf(second)
+      if (!r.determinism) {
+        r.problems.push("two consecutive real runs produced different eos-impact-simulation/1 document bytes — the stored artifact would not be byte-deterministic")
+      }
+      for (const pin of block.pins ?? []) {
+        r.comparisons.push(compareDisciplinePin(pin, physicsObserved(first, pin)))
       }
     } else if (adapter === "swmm") {
       let params: SwmmParameters
@@ -3025,6 +3450,296 @@ async function runTakeoffChecks(
 }
 
 // ---------------------------------------------------------------------------
+// pdf2takeoff checks (ADR-0011 Stage 1 — the ADOPTED takeoff engine at the
+// pinned commit; the REAL arm's-length bridge over the committed fixtures,
+// hand-derived analytic pins from the A-102 closed forms, per-op determinism
+// policy: compare = result-JSON identity, export = CSV row identity, fill =
+// value/vertices identity, annotate = NOT claimed (creation timestamp — the
+// LibreOffice §5.4 convention, structural evidence only))
+// ---------------------------------------------------------------------------
+
+/** Resolve a pin's observed value on a compare result. */
+function pdf2takeoffCompareObserved(r: Pdf2takeoffCompareResult, pin: DisciplinePin): unknown {
+  if (pin.ref !== null && pin.ref.startsWith("page:")) {
+    const page = Number(pin.ref.slice(5))
+    const sheet = r.sheets.find((s) => s.page === page)
+    if (sheet === undefined) return undefined
+    if (pin.field === "changedFraction") return sheet.changedFraction
+    if (pin.field === "changed") return sheet.changed
+    if (pin.field === "regionCount") return sheet.regions.length
+    if (pin.field === "vectorIdentical") return sheet.vector?.identical
+    return undefined
+  }
+  switch (pin.field) {
+    case "comparedSheets":
+      return r.comparedSheets
+    case "changedSheetCount":
+      return r.changedSheets.length
+    case "summary.changed":
+      return r.summary.changed
+    case "summary.unchanged":
+      return r.summary.unchanged
+    case "summary.onlyInA":
+      return r.summary.onlyInA
+    case "summary.onlyInB":
+      return r.summary.onlyInB
+    default:
+      return undefined
+  }
+}
+
+/** Resolve a pin's observed value on an annotate result. */
+function pdf2takeoffAnnotateObserved(r: Pdf2takeoffAnnotateResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "markupCount":
+      return r.markupCount
+    case "kept":
+      return r.kept
+    case "isPdf":
+      return r.pdfBytes.subarray(0, 5).toString("latin1") === "%PDF-"
+    case "sizeBytes":
+      return r.pdfBytes.byteLength
+    default:
+      return undefined
+  }
+}
+
+/** Resolve a pin's observed value on an export result. */
+function pdf2takeoffExportObserved(r: Pdf2takeoffExportResult, pin: DisciplinePin): unknown {
+  if (pin.ref !== null && pin.ref.startsWith("label:")) {
+    const label = pin.ref.slice(6)
+    const row = r.rows.find((row) => row.label === label)
+    if (row === undefined) return undefined
+    if (pin.field === "value") return row.value
+    if (pin.field === "unit") return row.unit
+    if (pin.field === "type") return row.type
+    return undefined
+  }
+  switch (pin.field) {
+    case "rowCount":
+      return r.rows.length
+    case "isXlsx":
+      return r.xlsxBytes !== null && r.xlsxBytes.subarray(0, 2).toString("latin1") === "PK"
+    case "sizeBytes":
+      return r.xlsxBytes?.byteLength ?? r.csv?.length ?? undefined
+    default:
+      return undefined
+  }
+}
+
+/** Resolve a pin's observed value on a fill result. */
+function pdf2takeoffFillObserved(r: Pdf2takeoffFillResult, pin: DisciplinePin): unknown {
+  switch (pin.field) {
+    case "value":
+      return r.value
+    case "vertices":
+      return r.vertices
+    case "unit":
+      return r.unit
+    case "calibrated":
+      return r.calibrated
+    case "bboxX0":
+      return r.bbox?.[0]
+    case "bboxY0":
+      return r.bbox?.[1]
+    case "bboxX1":
+      return r.bbox?.[2]
+    case "bboxY1":
+      return r.bbox?.[3]
+    default:
+      return undefined
+  }
+}
+
+/** The per-op determinism comparison (NEVER full-JSON for annotate/fill). */
+function pdf2takeoffDeterminismWitness(
+  op: Pdf2takeoffOp,
+  a: Pdf2takeoffCompareResult | Pdf2takeoffAnnotateResult | Pdf2takeoffExportResult | Pdf2takeoffFillResult,
+  b: Pdf2takeoffCompareResult | Pdf2takeoffAnnotateResult | Pdf2takeoffExportResult | Pdf2takeoffFillResult,
+): { deterministic: boolean; witness: string } {
+  if (op === "compare") {
+    return { deterministic: JSON.stringify(a) === JSON.stringify(b), witness: "compare result JSON identity" }
+  }
+  if (op === "export") {
+    const ra = a as Pdf2takeoffExportResult
+    const rb = b as Pdf2takeoffExportResult
+    return {
+      deterministic: JSON.stringify(ra.rows) === JSON.stringify(rb.rows) && ra.csv === rb.csv,
+      witness: "export CSV row identity",
+    }
+  }
+  if (op === "fill") {
+    const fa = a as Pdf2takeoffFillResult
+    const fb = b as Pdf2takeoffFillResult
+    return {
+      deterministic:
+        fa.value === fb.value && fa.vertices === fb.vertices && JSON.stringify(fa.bbox) === JSON.stringify(fb.bbox),
+      witness: "fill value/vertices/bbox identity (the markup id carries a random suffix — excluded honestly)",
+    }
+  }
+  return { deterministic: false, witness: "annotate output embeds a creation timestamp — byte-determinism NOT claimed (§5.4)" }
+}
+
+/** Run the pdf2takeoff sub-expectation of one corpus case against the REAL bridge. */
+async function runPdf2takeoffChecks(
+  c: CorpusCase,
+  fixturePath: string,
+  report: Pick<HarnessReport, "engineVersions" | "adapterHashes">,
+): Promise<DisciplineCaseResult> {
+  const block = c.pdf2takeoff as Pdf2takeoffExpectation
+  const r: DisciplineCaseResult = {
+    adapter: "pdf2takeoff",
+    expect: block.expect,
+    status: "fail",
+    determinism: null,
+    comparisons: [],
+    problems: [],
+  }
+
+  const otherPath = block.op === "compare" ? path.join(FIXTURES_DIR, block.otherFixture as string) : null
+  if (otherPath !== null && !existsSync(otherPath)) {
+    r.problems.push(`otherFixture file not found: ${block.otherFixture}`)
+    r.status = "fail"
+    return r
+  }
+
+  const callOp = async (
+    params: Record<string, unknown>,
+  ): Promise<Pdf2takeoffCompareResult | Pdf2takeoffAnnotateResult | Pdf2takeoffExportResult | Pdf2takeoffFillResult> => {
+    if (block.op === "compare") {
+      return pdf2takeoffCompareRevisions(fixturePath, otherPath as string)
+    }
+    if (block.op === "annotate") {
+      return pdf2takeoffAnnotateTakeoff(fixturePath, {
+        markups: params.markups,
+        ...(params.keepExisting === true ? { keepExisting: true } : {}),
+      })
+    }
+    if (block.op === "export") {
+      // the round-trip product loop: a spec parameter annotates to a temp
+      // PDF first, then exports from it — exactly what the broker ops chain
+      let sourcePath = fixturePath
+      const tmpdir = mkdtempSync(path.join(os.tmpdir(), "eos-p2t-case-"))
+      try {
+        if (Array.isArray(params.spec)) {
+          const annotated = await pdf2takeoffAnnotateTakeoff(fixturePath, { markups: params.spec })
+          sourcePath = path.join(tmpdir, "annotated.pdf")
+          writeFileSync(sourcePath, annotated.pdfBytes)
+        }
+        return await pdf2takeoffExportTakeoff(sourcePath, {
+          ...(typeof params.scaleRatio === "string" ? { scaleRatio: params.scaleRatio } : {}),
+          ...(typeof params.unit === "string" ? { unit: params.unit } : {}),
+          ...(params.format === "xlsx" || params.format === "csv" ? { format: params.format } : {}),
+        })
+      } finally {
+        rmSync(tmpdir, { recursive: true, force: true })
+      }
+    }
+    // fill
+    return pdf2takeoffFillRoom(fixturePath, {
+      ...(typeof params.pageNo === "number" ? { pageNo: params.pageNo } : {}),
+      at: params.at as [number, number],
+      ...(typeof params.label === "string" ? { label: params.label } : {}),
+      scaleMmPerPt: params.scaleMmPerPt as number,
+    })
+  }
+
+  if (block.expect === "error") {
+    for (const run of block.runs ?? []) {
+      let caught: unknown
+      try {
+        await callOp(run.parameters ?? {})
+      } catch (err) {
+        caught = err
+      }
+      const wanted = run.errorContains ?? block.errorContains
+      if (caught === undefined) {
+        r.problems.push(
+          `expected the pdf2takeoff ${block.op} bridge to throw an EngineUnavailableError containing ${JSON.stringify(wanted)}, but the run succeeded`,
+        )
+      } else if (!(caught instanceof EngineUnavailableError)) {
+        r.problems.push(
+          `expected an EngineUnavailableError containing ${JSON.stringify(wanted)}, got ${typeof caught === "object" && caught !== null ? (caught as Error).constructor.name : typeof caught}: ${String(caught)}`,
+        )
+      } else {
+        r.errorObserved = caught.message
+        if (wanted !== undefined && !caught.message.includes(wanted)) {
+          r.problems.push(`error message does not contain the pinned substring ${JSON.stringify(wanted)}: ${caught.message}`)
+        }
+      }
+    }
+    r.status = r.problems.length === 0 ? "pass" : "fail"
+    return r
+  }
+
+  // expect === "success": every run executes TWICE under the op's determinism
+  // policy (annotate: single run — the double-run would compare timestamps,
+  // so structural evidence only, determinism honestly null)
+  let determinismAll = true
+  let engineRecorded = false
+  for (const [runIndex, run] of (block.runs ?? []).entries()) {
+    let first: Pdf2takeoffCompareResult | Pdf2takeoffAnnotateResult | Pdf2takeoffExportResult | Pdf2takeoffFillResult
+    try {
+      first = await callOp(run.parameters ?? {})
+    } catch (err) {
+      r.problems.push(
+        `expected a successful pdf2takeoff ${block.op} run but the bridge threw: ${err instanceof EngineUnavailableError ? err.message : String(err)}`,
+      )
+      r.status = "fail"
+      return r
+    }
+    if (!engineRecorded) {
+      engineRecorded = true
+      report.engineVersions[first.engineKey] = first.engineVersion
+      report.adapterHashes[first.adapterScript] = first.adapterHash
+      r.engine = {
+        engineKey: first.engineKey,
+        engineVersion: first.engineVersion,
+        adapterScript: first.adapterScript,
+        adapterHash: first.adapterHash,
+      }
+    }
+    if (block.op === "annotate") {
+      // single run — the §5.4 timestamp finding (structural pins only)
+      r.determinism = null
+    } else {
+      let second: Pdf2takeoffCompareResult | Pdf2takeoffAnnotateResult | Pdf2takeoffExportResult | Pdf2takeoffFillResult
+      try {
+        second = await callOp(run.parameters ?? {})
+      } catch (err) {
+        r.problems.push(
+          `run ${runIndex}: the SECOND determinism execution threw: ${err instanceof EngineUnavailableError ? err.message : String(err)}`,
+        )
+        determinismAll = false
+        second = first
+      }
+      const witness = pdf2takeoffDeterminismWitness(block.op, first, second)
+      if (!witness.deterministic) {
+        determinismAll = false
+        r.problems.push(
+          `run ${runIndex} (parameters ${JSON.stringify(run.parameters ?? {})}): two consecutive real runs broke the determinism policy (${witness.witness})`,
+        )
+      }
+      r.determinism = determinismAll
+    }
+    for (const pin of run.pins ?? []) {
+      const observed =
+        block.op === "compare"
+          ? pdf2takeoffCompareObserved(first as Pdf2takeoffCompareResult, pin)
+          : block.op === "annotate"
+            ? pdf2takeoffAnnotateObserved(first as Pdf2takeoffAnnotateResult, pin)
+            : block.op === "export"
+              ? pdf2takeoffExportObserved(first as Pdf2takeoffExportResult, pin)
+              : pdf2takeoffFillObserved(first as Pdf2takeoffFillResult, pin)
+      r.comparisons.push(compareDisciplinePin(pin, observed))
+    }
+  }
+  pushDisciplineProblems(r)
+  r.status = r.problems.length === 0 ? "pass" : "fail"
+  return r
+}
+
+// ---------------------------------------------------------------------------
 // Parametric checks (16-P — Slice 15 parametric-authoring lane; the REAL
 // cadquery bridge over the committed parametric model fixture, hand-derived
 // analytic pins from the model's closed forms, per-run double-execution with
@@ -3440,6 +4155,8 @@ export async function runHarness(): Promise<HarnessReport> {
         fea: probeEngine("fea"),
         transport: probeEngine("transport"),
         chip: probeEngine("chip"),
+        robotics: probeEngine("robotics"),
+        physics: probeEngine("physics"),
         swmm: probeEngine("swmm"),
         cpm: probeEngine("cpm"),
         libreoffice: probeEngine("libreoffice"),
@@ -3447,6 +4164,7 @@ export async function runHarness(): Promise<HarnessReport> {
         dxf: probeEngine("dxf"),
         parametric: probeEngine("parametric"),
         ocr: probeEngine("ocr"),
+        pdf2takeoff: probeEngine("pdf2takeoff"),
       },
     },
     engineVersions: {
@@ -3460,6 +4178,7 @@ export async function runHarness(): Promise<HarnessReport> {
       libreoffice: null,
       pdfplumber: null,
       ezdxf: null,
+      pdf2takeoff: null,
     },
     adapterHashes: {
       "step_quantities.py": null,
@@ -3473,6 +4192,7 @@ export async function runHarness(): Promise<HarnessReport> {
       "sheet_takeoff.py": null,
       "dxf_takeoff.py": null,
       "parametric_rebuild.py": null,
+      "pdf2takeoff.ts": null,
     },
     cases: [],
     summary: { total: manifest.length, pass: 0, fail: 0, skip: 0, ran: 0, notRun: false },

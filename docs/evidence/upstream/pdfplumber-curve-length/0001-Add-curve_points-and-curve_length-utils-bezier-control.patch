@@ -1,0 +1,233 @@
+From eb6ff8a20102c75cd33329ce868ee502cbc4c8c8 Mon Sep 17 00:00:00 2001
+From: Engineering OS TL <tl@engineering-os.local>
+Date: Sat, 31 Oct 2026 19:24:30 +0000
+Subject: [PATCH] Add curve_points and curve_length utils: bezier control-point
+ measurement
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The path attribute has exposed bezier control points since v0.11.0, but
+no measurement capability used them: endpoint-only distances under-read
+curved paths substantially (a quarter-arc by chord is ~10% short).
+
+- curve_points(curve): all control points of a curve object's path, in
+  path order — the full drawn geometry, recoverable in one call.
+- curve_length(curve, n=32): the arc length in points — lines and closes
+  contribute their euclidean lengths; each cubic segment is flattened at
+  n sample points (t = k/n, direct Bernstein form) and contributes the
+  chord sum. For a kappa-approximated quarter-arc of r=100 at the default
+  n=32 the value is 157.08587595730572 (~4e-5 relative above the analytic
+  arc — the kappa bezier deviates outward; the chord flattening inside it
+  reads correspondingly low; the effects nearly cancel).
+
+Four new tests (173 -> 177): control-point order, exact line+close
+euclidean, the quarter-arc convergence with the pinned N=32 literal, and
+default-n + multi-subpath summation.
+---
+ pdfplumber/utils/__init__.py |  2 +
+ pdfplumber/utils/geometry.py | 83 +++++++++++++++++++++++++++++++++++-
+ tests/test_utils.py          | 79 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 162 insertions(+), 2 deletions(-)
+
+diff --git a/pdfplumber/utils/__init__.py b/pdfplumber/utils/__init__.py
+index 537253a..aebe4d0 100644
+--- a/pdfplumber/utils/__init__.py
++++ b/pdfplumber/utils/__init__.py
+@@ -5,6 +5,8 @@ from .geometry import (  # noqa: F401
+     calculate_area,
+     clip_obj,
+     crop_to_bbox,
++    curve_length,
++    curve_points,
+     curve_to_edges,
+     filter_edges,
+     get_bbox_overlap,
+diff --git a/pdfplumber/utils/geometry.py b/pdfplumber/utils/geometry.py
+index 93f5f3b..eea4dad 100644
+--- a/pdfplumber/utils/geometry.py
++++ b/pdfplumber/utils/geometry.py
+@@ -1,8 +1,9 @@
+ import itertools
++import math
+ from operator import itemgetter
+-from typing import Dict, Iterable, Optional
++from typing import Dict, Iterable, List, Optional
+ 
+-from .._typing import T_bbox, T_num, T_obj, T_obj_list
++from .._typing import T_bbox, T_num, T_obj, T_obj_list, T_point
+ from .clustering import cluster_objects
+ 
+ 
+@@ -277,3 +278,81 @@ def filter_edges(
+         return bool(et_correct and orient_correct and (e[dim] >= min_length))
+ 
+     return list(filter(test, edges))
++
++
++def _cubic_point(
++    p0: T_point, p1: T_point, p2: T_point, p3: T_point, t: T_num
++) -> T_point:
++    """Point on the cubic bezier at t, in direct Bernstein form."""
++    mt = 1.0 - t
++    a = mt * mt * mt
++    b = 3.0 * mt * mt * t
++    c = 3.0 * mt * t * t
++    d = t * t * t
++    return (
++        a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0],
++        a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1],
++    )
++
++
++def curve_points(curve: T_obj) -> List[T_point]:
++    """All control points of a curve object's path, in path order.
++
++    Includes the bezier control points exposed via the ``path`` attribute
++    (since v0.11.0): each ``c`` command carries its two off-curve control
++    points alongside the on-curve endpoint, so the full drawn geometry is
++    recoverable from the returned sequence. See also: ``curve_length``.
++    """
++    points: List[T_point] = []
++    for cmd, *pts in curve["path"]:
++        points.extend(pts)
++    return points
++
++
++def curve_length(curve: T_obj, n: int = 32) -> float:
++    """The arc length of a curve object, in points.
++
++    Lines (``l``) and closes (``h``) contribute their euclidean lengths;
++    each cubic bezier segment (``c``) is flattened at ``n`` sample points
++    (``t = k/n``, ``k = 1..n``, direct Bernstein form) and contributes the
++    sum of the chords — the standard flattening approximation. For a
++    quarter-arc of radius 100 at the default ``n = 32``, the flattening
++    reads ~4e-5 RELATIVE below the analytic length.
++
++    Note: endpoint-to-endpoint distances (the ``pts`` attribute alone)
++    under-read curved paths substantially — a quarter-arc by chord is ~10%
++    short — which is why this measurement uses the control points.
++    """
++    if n < 1:
++        raise ValueError("n must be >= 1")
++
++    def dist(p: T_point, q: T_point) -> float:
++        return math.sqrt((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2)
++
++    total = 0.0
++    current: Optional[T_point] = None
++    subpath_start: Optional[T_point] = None
++    for cmd, *pts in curve["path"]:
++        if cmd == "m":
++            current = pts[0]
++            subpath_start = pts[0]
++        elif cmd == "l":
++            for p in pts:
++                assert current is not None
++                total += dist(current, p)
++                current = p
++        elif cmd == "c":
++            assert current is not None
++            c1, c2, end = pts[0], pts[1], pts[2]
++            prev = current
++            for k in range(1, n + 1):
++                t = k / n
++                p = _cubic_point(current, c1, c2, end, t)
++                total += dist(prev, p)
++                prev = p
++            current = end
++        elif cmd == "h":
++            if subpath_start is not None and current is not None:
++                total += dist(current, subpath_start)
++                current = subpath_start
++    return total
+diff --git a/tests/test_utils.py b/tests/test_utils.py
+index 18e5ce8..5a73378 100644
+--- a/tests/test_utils.py
++++ b/tests/test_utils.py
+@@ -693,3 +693,82 @@ class Test(unittest.TestCase):
+         assert utils.to_list(tuple(objs)) == objs
+         assert utils.to_list((o for o in objs)) == objs
+         assert utils.to_list(pd.DataFrame(objs)) == objs
++
++
++class TestCurveMeasurement(unittest.TestCase):
++    """curve_points + curve_length: bezier control-point measurement.
++
++    The `path` attribute has exposed bezier control points since v0.11.0;
++    these utilities close the missing MEASUREMENT capability — endpoint-only
++    distances under-read curved paths (a quarter-arc by chord is ~10% short).
++    """
++
++    KAPPA = 0.5522847498307936  # the standard circular-arc bezier constant
++
++    def _quarter_arc(self, r=100):
++        """One kappa-approximated quarter-arc from (r, 0) to (0, r)."""
++        k = r * self.KAPPA
++        return {
++            "path": [
++                ("m", (r, 0)),
++                ("c", (r, k), (k, r), (0, r)),
++            ]
++        }
++
++    def test_curve_points_returns_control_points_in_path_order(self):
++        curve = {
++            "path": [
++                ("m", (1, 2)),
++                ("c", (3, 4), (5, 6), (7, 8)),
++                ("l", (9, 10)),
++                ("h",),
++            ]
++        }
++        assert utils.curve_points(curve) == [
++            (1, 2),
++            (3, 4),
++            (5, 6),
++            (7, 8),
++            (9, 10),
++        ]
++
++    def test_curve_length_lines_and_close_are_exact(self):
++        # m -> l -> l -> h: the euclidean total, exactly
++        curve = {
++            "path": [
++                ("m", (0, 0)),
++                ("l", (3, 4)),  # 5
++                ("l", (3, 0)),  # + 4
++                ("h",),  # + 3 (close back to (0, 0))
++            ]
++        }
++        assert utils.curve_length(curve) == 12.0
++
++    def test_curve_length_quarter_arc_converges(self):
++        # r=100: analytic arc length = r * pi/2 = 157.07963267948966. The
++        # kappa-approximated bezier reads ~4e-5 relative ABOVE the analytic
++        # arc at N=32 (the bezier itself deviates outward; the chord
++        # flattening inside it reads correspondingly low — the effects nearly
++        # cancel). The pinned literal is the exact N=32 Bernstein-form value.
++        import math as _math
++
++        length = utils.curve_length(self._quarter_arc(), n=32)
++        analytic = 100 * _math.pi / 2
++        assert abs(length - 157.08587595730572) < 1e-9
++        assert abs(length - analytic) / analytic < 1e-4
++
++    def test_curve_length_default_n_and_multi_segment(self):
++        # the default n=32 equals an explicit n=32; segment lengths sum
++        # across subpaths (the same quarter-arc drawn twice = twice the
++        # single-arc length — an 'm' between them adds no length)
++        arc_path = [
++            ("m", (50, 0)),
++            ("c", (50, 50 * self.KAPPA), (50 * self.KAPPA, 50), (0, 50)),
++        ]
++        single = utils.curve_length({"path": arc_path}, n=32)
++        assert utils.curve_length({"path": arc_path}) == single
++        # the sequential two-subpath sum may differ from the doubling in the
++        # last ulp (addition order) — pinned at 1e-12, not exact equality
++        assert (
++            abs(utils.curve_length({"path": arc_path + arc_path}) - 2 * single) < 1e-12
++        )
+-- 
+2.47.3
+

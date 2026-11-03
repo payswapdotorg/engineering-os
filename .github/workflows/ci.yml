@@ -87,7 +87,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
-          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth' 2>/dev/null; then
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else
             rm -rf /tmp/eos-engines
@@ -95,8 +95,33 @@ jobs:
             /tmp/eos-engines/bin/pip install --quiet --upgrade pip
             /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
           fi
-          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth; print("engines importable")'
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet; print("engines importable")'
           soffice --version
+
+      # ADR-0009 Stage 1: the ADOPTED takeoff engine (pdf2takeoff, Apache-2.0)
+      # runs as a pinned Node subprocess — the runner's default node (20.x) is
+      # below the engine's >= 22.13 floor, so node 22 goes on PATH first.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The pinned checkout (~/.local/share/eos-engines/pdf2takeoff at commit
+      # f5a1c08…, node_modules installed, .eos-engine-pin stamped) is cached
+      # as one unit; scripts/setup-pdf2takeoff.sh is idempotent (a restored
+      # cache skips the clone) and the explicit `help` run after it is the
+      # arbiter — a broken restore fails loudly, never a silent pass.
+      - name: pdf2takeoff pinned-checkout cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/eos-engines
+          key: eos-pdf2takeoff-f5a1c08b1308628755867df3b921e96ac2018969-v1
+
+      - name: Install the ADOPTED takeoff engine (pdf2takeoff @ pinned commit)
+        run: |
+          set -euo pipefail
+          ./scripts/setup-pdf2takeoff.sh
+          node "$HOME/.local/share/eos-engines/pdf2takeoff/bin/pdf2takeoff.js" help > /dev/null
+          node --version
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -165,7 +190,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
-          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth' 2>/dev/null; then
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else
             rm -rf /tmp/eos-engines
@@ -173,7 +198,29 @@ jobs:
             /tmp/eos-engines/bin/pip install --quiet --upgrade pip
             /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
           fi
-          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth; print("engines importable")'
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet; print("engines importable")'
+
+      # ADR-0011 Stage 4: the agent-takeoff e2e suite runs the ADOPTED
+      # takeoff engine's four ops over HTTP (fill-area / annotate-takeoff /
+      # export-boq / compare-revisions), so the e2e job needs the pinned
+      # Node checkout too (engines-job precedent: node 22 on PATH, the
+      # pinned-checkout cache, the idempotent setup + help-run arbiter).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: pdf2takeoff pinned-checkout cache (e2e)
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/eos-engines
+          key: eos-pdf2takeoff-f5a1c08b1308628755867df3b921e96ac2018969-v1
+
+      - name: Install the ADOPTED takeoff engine (pdf2takeoff @ pinned commit)
+        run: |
+          set -euo pipefail
+          ./scripts/setup-pdf2takeoff.sh
+          node "$HOME/.local/share/eos-engines/pdf2takeoff/bin/pdf2takeoff.js" help > /dev/null
+          node --version
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -268,6 +315,17 @@ jobs:
           bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
           bash scripts/e2e-p7-planner.sh 2>&1 | tee /tmp/e2e-p7.log
 
+      # ADR-0011 Stage 4 — the agent takeoff surface (the EIGHTH e2e suite):
+      # the four thin routes over runBrokerOperation on the ADOPTED engine +
+      # the compare-pair workflow through the real executor. Requires the
+      # pinned pdf2takeoff checkout (installed above) — the A-102 corpus
+      # closed forms pin the values over HTTP.
+      - name: "e2e-agent-takeoff (27 PASS expected — ADR-0011 Stage 4: fill-area / annotate-takeoff / export-boq / compare-revisions + the pair workflow)"
+        run: |
+          set -o pipefail
+          bun scripts/dev-db-cleanup.ts --all --keep-name "Harbour View Extension"
+          bash scripts/e2e-agent-takeoff.sh 2>&1 | tee /tmp/e2e-agent-takeoff.log
+
       # Slice 16-C: the PROCESS-LEVEL recovery drill — runs LAST of the e2e
       # steps because it takes over port 3000 (SIGKILL + restart cycles), then
       # restores the canonical server before exiting (the postgres-drill
@@ -340,7 +398,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice libglu1-mesa libopengl0 tesseract-ocr
-          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth' 2>/dev/null; then
+          if [ -x /tmp/eos-engines/bin/python ] && /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet' 2>/dev/null; then
             echo "engine venv restored from cache — skipping pip"
           else
             rm -rf /tmp/eos-engines
@@ -348,7 +406,26 @@ jobs:
             /tmp/eos-engines/bin/pip install --quiet --upgrade pip
             /tmp/eos-engines/bin/pip install --quiet -r tests/validation/engines-requirements.txt
           fi
-          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth; print("engines importable")'
+          /tmp/eos-engines/bin/python -c 'import cadquery, ifcopenshell, gmsh, pandapower, simpy, skfem, pyswmm, sfepy, amaranth, pinocchio, pybullet; print("engines importable")'
+
+      # ADR-0011 Stage 4: the drill's eighth suite (agent takeoff) runs the
+      # ADOPTED engine over HTTP — the pinned Node checkout, e2e-job style.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: pdf2takeoff pinned-checkout cache (postgres drill)
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/eos-engines
+          key: eos-pdf2takeoff-f5a1c08b1308628755867df3b921e96ac2018969-v1
+
+      - name: Install the ADOPTED takeoff engine (pdf2takeoff @ pinned commit)
+        run: |
+          set -euo pipefail
+          ./scripts/setup-pdf2takeoff.sh
+          node "$HOME/.local/share/eos-engines/pdf2takeoff/bin/pdf2takeoff.js" help > /dev/null
+          node --version
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

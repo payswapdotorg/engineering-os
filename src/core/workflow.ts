@@ -40,7 +40,16 @@ import { WORKFLOW_STATES, isWorkflowState, type WorkflowState } from "./index"
  * absent = the authored defaults). Slice 29 adds `solve_transport` (the CFD
  * lane, phase5 contract §16.3 — steady scalar transport via SfePy).
  * Slice 30 adds `synthesize_rtl` (the chip lane, phase5 contract §17.3 —
- * RTL synthesis via amaranth + yowasp-yosys).
+ * RTL synthesis via amaranth + yowasp-yosys). Slice 32 adds
+ * `solve_kinematics` (the robotics lane, phase5 contract §18.3 — planar-2R
+ * kinematic analysis via Pinocchio, pip distribution `pin`). Slice 33 adds
+ * `simulate_impact` (the physics lane, phase5 contract §19.3 — drop-impact
+ * simulation via PyBullet).
+ * ADR-0011 Stage 1 adds the ADOPTED takeoff engine's four ops
+ * (`compare_revisions`, `annotate_takeoff`, `export_boq_xlsx`, `fill_area` —
+ * pdf2takeoff, Apache-2.0, pinned commit f5a1c08…). ADR-0012 Stage 3 adds
+ * `openproject_sync` (the OpenProject arm's-length project-graph sync —
+ * GPL-3.0 external application over REST v3, never embedded).
  */
 export const BROKER_OPERATIONS = [
   "derive_quantities",
@@ -52,12 +61,19 @@ export const BROKER_OPERATIONS = [
   "solve_fea",
   "solve_transport",
   "synthesize_rtl",
+  "solve_kinematics",
+  "simulate_impact",
   "run_swmm",
   "convert_document",
   "analyze_schedule",
   "takeoff_sheet",
   "takeoff_drawing",
   "rebuild_parametric",
+  "compare_revisions",
+  "annotate_takeoff",
+  "export_boq_xlsx",
+  "fill_area",
+  "openproject_sync",
 ] as const
 export type BrokerOperation = (typeof BROKER_OPERATIONS)[number]
 
@@ -178,10 +194,12 @@ const stepSchema = z
   })
   .superRefine((step, ctx) => {
     // Input shape is per-op (contract §2 + Phase-5 contract §4): build_report
-    // takes 1..4 artifact ids; every other operation — the Phase-4 derive ops
-    // AND the Phase-5 ops (fe_mesh / run_powerflow / run_des / solve_fea /
-    // run_swmm / convert_document / analyze_schedule + the Slice-15/16
-    // additions) — takes exactly one input artifact.
+    // takes 1..4 artifact ids; compare_revisions (ADR-0011 Stage 4 — the
+    // SECOND multi-input op) takes EXACTLY 2 distinct artifact ids [old, new];
+    // every other operation — the Phase-4 derive ops AND the Phase-5 ops
+    // (fe_mesh / run_powerflow / run_des / solve_fea / run_swmm /
+    // convert_document / analyze_schedule + the Slice-15/16 additions) —
+    // takes exactly one input artifact.
     if (step.operation === "build_report") {
       if (step.inputs.artifactIds === undefined) {
         ctx.addIssue({
@@ -195,6 +213,40 @@ const stepSchema = z
           code: "custom",
           path: ["inputs"],
           message: "inputs.artifactId is not accepted for build_report — use inputs.artifactIds",
+        })
+      }
+    } else if (step.operation === "compare_revisions") {
+      // the exactly-2 [old, new] pair — the agent takeoff surface's pair op
+      if (step.inputs.artifactIds === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["inputs"],
+          message: "inputs.artifactIds is required for compare_revisions (exactly 2 artifact ids [old, new])",
+        })
+      }
+      if (step.inputs.artifactId !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["inputs"],
+          message: "inputs.artifactId is not accepted for compare_revisions — use inputs.artifactIds",
+        })
+      }
+      if (step.inputs.artifactIds !== undefined && step.inputs.artifactIds.length !== 2) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["inputs"],
+          message: `inputs.artifactIds for compare_revisions must be EXACTLY 2 artifact ids [old, new] — got ${step.inputs.artifactIds.length}`,
+        })
+      }
+      if (
+        step.inputs.artifactIds !== undefined &&
+        step.inputs.artifactIds.length === 2 &&
+        step.inputs.artifactIds[0] === step.inputs.artifactIds[1]
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["inputs"],
+          message: "inputs.artifactIds for compare_revisions must be two DIFFERENT artifacts — a revision cannot be compared with itself",
         })
       }
     } else {
